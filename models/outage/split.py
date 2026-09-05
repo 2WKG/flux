@@ -1,9 +1,10 @@
 """Deterministic, immutable train/calibration/holdout assignments.
 
-The split is deliberately based on the identity of a county/window, never on
-row order. ``SplitManifest`` is the artifact passed to training and
-evaluation, so recreating a split from the same input artifact is stable and a
-later data refresh cannot silently reshuffle an existing model's population.
+Texas in calendar year 2023 is the fixed P1 calibration fold.  A complete
+state-year prevents a storm from being split spatially between training and
+calibration, and its calendar definition stays unchanged when source data is
+backfilled. ``SplitManifest`` is the artifact passed to training and
+evaluation, so recreating a split from the same input artifact is stable.
 """
 
 from __future__ import annotations
@@ -26,9 +27,6 @@ from models.outage.contracts import (
 )
 
 DEFAULT_SEED = 7
-DEFAULT_CALIBRATION_FRACTION = 0.15
-"""The validation fraction specified for the non-holdout training data."""
-
 # Ends are exclusive so every 6-hour window on the stated final calendar day
 # remains held out. Keeping these timezone-aware also matches WindowKey.
 HOLDOUT_WINDOWS: dict[str, tuple[datetime, datetime, tuple[str, ...]]] = {
@@ -55,6 +53,10 @@ TX_BERYL_LEAKAGE_CUTOFF = datetime(2024, 7, 1, tzinfo=UTC)
 TX_POST_BERYL_GUARD = "tx_post_beryl_guard"
 """A non-evaluation exclusion reserved by the Beryl leakage guard."""
 
+TX_CALIBRATION_START = datetime(2023, 1, 1, tzinfo=UTC)
+TX_CALIBRATION_END = datetime(2024, 1, 1, tzinfo=UTC)
+"""P1's contiguous, Texas-wide calibration fold (spec 02)."""
+
 
 class SplitError(ValueError):
     """The supplied rows cannot form an unambiguous, safe split."""
@@ -72,7 +74,6 @@ def build_split_manifest(
     states_by_county: Mapping[str, str],
     input_artifact_sha256: str,
     seed: int = DEFAULT_SEED,
-    calibration_fraction: float = DEFAULT_CALIBRATION_FRACTION,
 ) -> SplitManifest:
     """Create a frozen manifest for observed county-window labels.
 
@@ -92,7 +93,7 @@ def build_split_manifest(
         _SplitRow(row.key, _state_for(row.key.county_fips, states_by_county))
         for row in materialized
     )
-    assignments = _assign_partitions(split_rows, seed, calibration_fraction)
+    assignments = _assign_partitions(split_rows)
     assignment_models = tuple(
         SplitAssignment(key=item.key, partition=assignments[item.key])
         for item in sorted(split_rows, key=lambda item: _identity(item.key))
@@ -208,9 +209,6 @@ def manifest_summary(manifest: SplitManifest) -> Mapping[str, object]:
 
 def split(
     df: pd.DataFrame,
-    *,
-    seed: int = DEFAULT_SEED,
-    calibration_fraction: float = DEFAULT_CALIBRATION_FRACTION,
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
     """Return copied train, calibration, and named holdout DataFrames.
 
@@ -225,9 +223,6 @@ def split(
         raise SplitError(
             f"split DataFrame is missing required columns: {sorted(missing)}"
         )
-
-    if not 0.0 <= calibration_fraction < 1.0:
-        raise SplitError("calibration_fraction must be in [0.0, 1.0)")
 
     # This path is used for the 600k-row feature table.  Do the identity and
     # partition work with vectorized pandas operations rather than creating a
@@ -262,40 +257,7 @@ def split(
     if identity.duplicated().any():
         raise SplitError("input rows contain duplicate WindowKey values")
 
-    partitions = pd.Series(Partition.TRAIN.value, index=df.index, dtype="string")
-    evaluation_ids = pd.Series(pd.NA, index=df.index, dtype="string")
-    for scenario, (start, end, eligible_states) in HOLDOUT_WINDOWS.items():
-        matches = states.isin(eligible_states) & window_start.ge(start) & window_start.lt(end)
-        partitions.loc[matches] = Partition.HOLDOUT.value
-        evaluation_ids.loc[matches] = scenario
-    post_beryl_guard = (
-        states.eq("TX")
-        & window_start.ge(TX_BERYL_LEAKAGE_CUTOFF)
-        & partitions.eq(Partition.TRAIN.value)
-    )
-    partitions.loc[post_beryl_guard] = Partition.EXCLUDED.value
-
-    eligible = partitions.eq(Partition.TRAIN.value)
-    block_ids = county_fips + "|" + window_start.dt.strftime("%Y-%m")
-    calibration_blocks = {
-        block
-        for block in block_ids.loc[eligible].unique()
-        if _seeded_fraction(seed, block) < calibration_fraction
-    }
-    calibration = eligible & block_ids.isin(calibration_blocks)
-    partitions.loc[calibration] = Partition.CALIBRATION.value
-
-    # A train month following a calibration month would consume calibration
-    # labels through the 24-hour autoregressive features.  Purge it.  A
-    # calibration month may consume preceding train labels, which is the
-    # chronological information available to a nowcast at prediction time.
-    following_calibration_blocks = {
-        _following_month(block) for block in calibration_blocks
-    }
-    partitions.loc[
-        partitions.eq(Partition.TRAIN.value)
-        & block_ids.isin(following_calibration_blocks)
-    ] = Partition.EXCLUDED.value
+    partitions, evaluation_ids = _policy_partitions(states, window_start)
 
     train = df.iloc[_positions(partitions.eq(Partition.TRAIN.value))].copy(deep=True)
     calibration_frame = df.iloc[_positions(partitions.eq(Partition.CALIBRATION.value))].copy(
@@ -310,72 +272,50 @@ def split(
     return train, calibration_frame, holdouts
 
 
-def _assign_partitions(
-    rows: tuple[_SplitRow, ...], seed: int, calibration_fraction: float
-) -> dict[WindowKey, Partition]:
-    if not 0.0 <= calibration_fraction < 1.0:
-        raise SplitError("calibration_fraction must be in [0.0, 1.0)")
+def _assign_partitions(rows: tuple[_SplitRow, ...]) -> dict[WindowKey, Partition]:
     if len({row.key for row in rows}) != len(rows):
         raise SplitError("input rows contain duplicate WindowKey values")
 
-    assignments: dict[WindowKey, Partition] = {}
-    candidates: list[_SplitRow] = []
-    for row in rows:
-        if _holdout_id(row.key, row.state) is not None:
-            assignments[row.key] = Partition.HOLDOUT
-        elif _is_post_beryl_guard(row.key, row.state):
-            assignments[row.key] = Partition.EXCLUDED
-        else:
-            candidates.append(row)
-
-    calibration_keys = _calibration_keys(candidates, seed, calibration_fraction)
-    for row in candidates:
-        assignments[row.key] = (
-            Partition.CALIBRATION if row.key in calibration_keys else Partition.TRAIN
-        )
-
-    # Never put a training row immediately after a calibration month: its
-    # autoregressive features could contain calibration labels.  This is a
-    # non-evaluation exclusion, just like the post-Beryl guard.
-    calibration_blocks = {_temporal_block(row.key) for row in candidates if row.key in calibration_keys}
-    following_blocks = {_following_month(block) for block in calibration_blocks}
-    for row in candidates:
-        if assignments[row.key] is Partition.TRAIN and _temporal_block(row.key) in following_blocks:
-            assignments[row.key] = Partition.EXCLUDED
-    return assignments
-
-
-def _calibration_keys(
-    candidates: list[_SplitRow], seed: int, calibration_fraction: float
-) -> set[WindowKey]:
-    """Select whole county-month blocks with append-stable hash membership.
-
-    A month is a fixed, contiguous county-time block.  It is deliberately
-    independent of the population being split: adding a later artifact batch
-    can add memberships but cannot reshuffle existing rows.
-    """
-
-    if calibration_fraction == 0:
-        return set()
-    calibration_blocks = {
-        _temporal_block(row.key)
-        for row in candidates
-        if _seeded_fraction(seed, _temporal_block(row.key)) < calibration_fraction
-    }
+    frame = pd.DataFrame(
+        {
+            "state": [row.state for row in rows],
+            "window_start": [row.key.window_start for row in rows],
+        }
+    )
+    partitions, _ = _policy_partitions(frame["state"], frame["window_start"])
     return {
-        row.key for row in candidates if _temporal_block(row.key) in calibration_blocks
+        row.key: Partition(partition)
+        for row, partition in zip(rows, partitions.to_numpy(), strict=True)
     }
 
 
-def _holdout_id(key: WindowKey, state: str) -> str | None:
-    for scenario_id, (start, end, states) in HOLDOUT_WINDOWS.items():
-        if state in states and start <= key.window_start < end:
-            return scenario_id
-    return None
+def _policy_partitions(
+    states: pd.Series, window_start: pd.Series
+) -> tuple[pd.Series, pd.Series]:
+    """Apply the one shared calendar policy used by manifests and DataFrames."""
 
+    partitions = pd.Series(Partition.TRAIN.value, index=states.index, dtype="string")
+    evaluation_ids = pd.Series(pd.NA, index=states.index, dtype="string")
+    for scenario, (start, end, eligible_states) in HOLDOUT_WINDOWS.items():
+        matches = states.isin(eligible_states) & window_start.ge(start) & window_start.lt(end)
+        partitions.loc[matches] = Partition.HOLDOUT.value
+        evaluation_ids.loc[matches] = scenario
 
-def _is_post_beryl_guard(key: WindowKey, state: str) -> bool:
-    return state == "TX" and key.window_start >= TX_BERYL_LEAKAGE_CUTOFF
+    post_beryl_guard = (
+        states.eq("TX")
+        & window_start.ge(TX_BERYL_LEAKAGE_CUTOFF)
+        & partitions.eq(Partition.TRAIN.value)
+    )
+    partitions.loc[post_beryl_guard] = Partition.EXCLUDED.value
+
+    calibration = (
+        states.eq("TX")
+        & window_start.ge(TX_CALIBRATION_START)
+        & window_start.lt(TX_CALIBRATION_END)
+        & partitions.eq(Partition.TRAIN.value)
+    )
+    partitions.loc[calibration] = Partition.CALIBRATION.value
+    return partitions, evaluation_ids
 
 
 def _state_for(county_fips: str, states_by_county: Mapping[str, str]) -> str:
@@ -394,33 +334,6 @@ def _normalize_state(value: object) -> str:
 
 def _identity(key: WindowKey) -> str:
     return f"{key.county_fips}\x00{key.scenario_id}\x00{key.window_start.isoformat()}"
-
-
-def _temporal_block(key: WindowKey) -> str:
-    """Return the fixed county-month block containing ``key``.
-
-    Scenario is intentionally omitted: alternate views of one county-time
-    observation must not end up on opposite sides of the split.
-    """
-
-    return f"{key.county_fips}|{key.window_start:%Y-%m}"
-
-
-def _following_month(block: str) -> str:
-    county_fips, year_month = block.split("|", maxsplit=1)
-    year, month = (int(part) for part in year_month.split("-", maxsplit=1))
-    if month == 12:
-        year, month = year + 1, 1
-    else:
-        month += 1
-    return f"{county_fips}|{year:04d}-{month:02d}"
-
-
-def _seeded_fraction(seed: int, value: str) -> float:
-    """Map one stable key to [0, 1), without population-wide ranking."""
-
-    rank = int.from_bytes(sha256(f"{seed}\x00{value}".encode()).digest()[:8], "big")
-    return rank / 2**64
 
 
 def _positions(mask: pd.Series) -> list[int]:
