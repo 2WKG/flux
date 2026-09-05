@@ -31,7 +31,8 @@ from pipelines.line_upgrade_contracts import (
 )
 
 H = "b" * 64
-KEY = LineKey(line_id=1, region="ERCOT")
+SCENARIO_ID = "uri_2021"
+KEY = LineKey(line_id=1, region="ERCOT", scenario_id=SCENARIO_ID)
 
 
 def _prov(weather: str | None = H) -> LineUpgradeProvenance:
@@ -62,7 +63,9 @@ def _scored(**kw) -> ScoredLine:
     base = {
         "key": KEY,
         "provenance": _prov(),
-        "congestion": SimulatedCongestion(usd_per_year=1e6, run_id="run-1"),
+        "congestion": SimulatedCongestion(
+            usd_per_year=1e6, scenario_id=SCENARIO_ID, run_id="run-1"
+        ),
         "best": _dlr(),
         "static_rating_mw": 400.0,
         "mw_per_musd": 50.0,
@@ -71,6 +74,28 @@ def _scored(**kw) -> ScoredLine:
 
 
 # --- 2WKG-179: identity and provenance --------------------------------------
+
+
+def test_line_identity_requires_a_scenario_scope_without_claiming_simulation():
+    key = LineKey(line_id=1, region="ERCOT", scenario_id="annual_2024")
+    assert key.model_dump() == {
+        "line_id": 1,
+        "region": "ERCOT",
+        "scenario_id": "annual_2024",
+    }
+    with pytest.raises(ValidationError):
+        LineKey(line_id=1, region="ERCOT", scenario_id="")
+
+
+def test_simulated_run_must_name_the_same_scenario_as_the_artifact():
+    with pytest.raises(ValidationError, match="must match"):
+        _scored(
+            congestion=SimulatedCongestion(
+                usd_per_year=1e6,
+                scenario_id="beryl_2024",
+                run_id="beryl-s0-abc12345",
+            )
+        )
 
 
 def test_provenance_requires_utc():
@@ -127,7 +152,7 @@ def test_only_observed_congestion_carries_market_provenance():
     )
     assert obs.market
     for other in (
-        SimulatedCongestion(usd_per_year=1e6, run_id="r"),
+        SimulatedCongestion(usd_per_year=1e6, scenario_id=SCENARIO_ID, run_id="r"),
         ProxyCongestion(
             usd_per_year=1e6,
             assumed_usd_per_mwh=20.0,
@@ -136,6 +161,29 @@ def test_only_observed_congestion_carries_market_provenance():
     ):
         assert not hasattr(other, "market")
         assert not hasattr(other, "mapping_confidence")
+
+
+def test_non_simulated_congestion_cannot_claim_a_twin_run_or_scenario():
+    with pytest.raises(ValidationError):
+        ObservedCongestion.model_validate(
+            {
+                "usd_per_year": 1e6,
+                "market": "ERCOT SCED",
+                "input_sha256": H,
+                "mapping_confidence": 1.0,
+                "mapping_method": "exact",
+                "run_id": "uri_2021-s0-abc12345",
+            }
+        )
+    with pytest.raises(ValidationError):
+        ProxyCongestion.model_validate(
+            {
+                "usd_per_year": 1e6,
+                "assumed_usd_per_mwh": 20.0,
+                "assumption_note": "declared proxy",
+                "scenario_id": SCENARIO_ID,
+            }
+        )
 
 
 def test_proxy_cannot_forge_market_fields():
@@ -218,27 +266,33 @@ def test_ferc_screen_is_none_not_false_when_congestion_is_unattributed():
 
 def test_ranking_is_deterministic_and_breaks_ties_by_cost_then_id():
     cheap = ScoredLine(
-        key=LineKey(line_id=2, region="ERCOT"),
+        key=LineKey(line_id=2, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(50.0, 1_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
         mw_per_musd=50.0,
     )
     dearer = ScoredLine(
-        key=LineKey(line_id=1, region="ERCOT"),
+        key=LineKey(line_id=1, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(100.0, 2_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
         mw_per_musd=50.0,
     )
     top = ScoredLine(
-        key=LineKey(line_id=3, region="ERCOT"),
+        key=LineKey(line_id=3, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(200.0, 1_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
@@ -258,7 +312,12 @@ def test_every_unavailable_outcome_names_a_reason():
 @pytest.mark.parametrize(
     ("congestion", "method"),
     [
-        (SimulatedCongestion(usd_per_year=1.0, run_id="run-1"), "twin_proxy"),
+        (
+            SimulatedCongestion(
+                usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="run-1"
+            ),
+            "twin_proxy",
+        ),
         (
             ProxyCongestion(
                 usd_per_year=1.0,
@@ -267,13 +326,19 @@ def test_every_unavailable_outcome_names_a_reason():
             ),
             "twin_proxy",
         ),
-        (UnattributedCongestion(reason=UnavailableReason.UNMAPPED_CONSTRAINT), "unmapped"),
+        (
+            UnattributedCongestion(reason=UnavailableReason.UNMAPPED_CONSTRAINT),
+            "unmapped",
+        ),
     ],
 )
 def test_detail_row_maps_non_market_congestion_to_a_legal_schema_value(
     congestion, method
 ):
-    assert _scored(congestion=congestion).to_detail_row(_storage())["congestion_method"] == method
+    assert (
+        _scored(congestion=congestion).to_detail_row(_storage())["congestion_method"]
+        == method
+    )
 
 
 def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
@@ -324,7 +389,10 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
             mapping_method="fuzzy",
         ),
         alternative=ReconductorIntervention(
-            uplift_mw=120.0, cost_usd=8_000_000.0, conductor_material="ACSS", conductor_kcmil=795
+            uplift_mw=120.0,
+            cost_usd=8_000_000.0,
+            conductor_material="ACSS",
+            conductor_kcmil=795,
         ),
         aar_rating_mw=425.0,
         owner="Example Transmission",

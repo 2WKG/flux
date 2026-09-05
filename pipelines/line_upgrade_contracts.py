@@ -100,10 +100,22 @@ class LineUpgradeProvenance(Frozen):
 
 
 class LineKey(Frozen):
-    """Identity of a scored line in the configured region."""
+    """Identity of one line-upgrade artifact within an analysis scenario.
+
+    ``line_id`` identifies the synthetic source-case branch.  It is not by
+    itself sufficient identity for a ranking artifact: the same branch can be
+    ranked for a historical replay, forecast, or declared aggregate period.
+    ``scenario_id`` is therefore required even when the congestion source is
+    observed or a proxy.  It names the scope of the analysis; it does *not*
+    claim that the result came from a Flux simulation.
+    """
 
     line_id: int
     region: str = Field(min_length=1, description='balancing authority, e.g. "ERCOT"')
+    scenario_id: str = Field(
+        min_length=1,
+        description="stable scenario or declared aggregate-period identifier",
+    )
 
 
 class StorageProvenance(Frozen):
@@ -137,6 +149,7 @@ class SimulatedCongestion(Frozen):
 
     source: Literal[CongestionSource.SIMULATED] = CongestionSource.SIMULATED
     usd_per_year: Usd
+    scenario_id: str = Field(min_length=1)
     run_id: str = Field(min_length=1)
 
 
@@ -225,6 +238,13 @@ class ScoredLine(Frozen):
 
     @model_validator(mode="after")
     def _consistency(self) -> ScoredLine:
+        if (
+            isinstance(self.congestion, SimulatedCongestion)
+            and self.congestion.scenario_id != self.key.scenario_id
+        ):
+            raise ValueError(
+                "simulated congestion scenario_id must match the scored line scenario_id"
+            )
         if self.alternative and self.alternative.intervention == self.best.intervention:
             raise ValueError(
                 "alternative must be a different intervention type than best"
@@ -294,7 +314,9 @@ class ScoredLine(Frozen):
         return {
             "line_id": self.key.line_id,
             "congestion_usd_yr": congestion_usd_yr,
-            "dlr_uplift_mw": dlr.uplift_mw if isinstance(dlr, DlrIntervention) else None,
+            "dlr_uplift_mw": dlr.uplift_mw
+            if isinstance(dlr, DlrIntervention)
+            else None,
             "reconductor_uplift_mw": (
                 reconductor.uplift_mw
                 if isinstance(reconductor, ReconductorIntervention)
