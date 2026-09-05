@@ -22,7 +22,7 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Final
+from typing import Final, Literal
 
 from rank_bm25 import BM25Okapi
 
@@ -262,3 +262,84 @@ def search(
             )
         )
     return results
+
+
+UnavailableReason = Literal["corpus_unavailable", "index_unavailable"]
+
+
+@dataclass(frozen=True)
+class RetrievalResponse:
+    """A retrieval result or an explicit, citation-free unavailable outcome.
+
+    An unavailable response deliberately carries no ``RetrievalResult`` values.
+    That makes it impossible for a caller to mistake a missing corpus or index
+    for a valid citation with a plausible-looking fallback excerpt.
+    """
+
+    status: Literal["available", "unavailable"]
+    hits: tuple[RetrievalResult, ...]
+    reason: UnavailableReason | None = None
+
+    def __post_init__(self) -> None:
+        if self.status == "available" and self.reason is not None:
+            raise ValueError(
+                "available retrieval responses cannot have an unavailable reason"
+            )
+        if self.status == "unavailable" and self.reason is None:
+            raise ValueError("unavailable retrieval responses require a named reason")
+        if self.status == "unavailable" and self.hits:
+            raise ValueError("unavailable retrieval responses cannot contain citations")
+
+    def record(self) -> dict[str, object]:
+        """Return the public payload without inventing a citation on failure."""
+
+        return {
+            "hits": [hit.record() for hit in self.hits],
+            "reason": self.reason,
+            "status": self.status,
+        }
+
+
+def retrieve(
+    query: str,
+    corpus: Iterable[CorpusChunk] | None,
+    *,
+    index_available: bool = True,
+    limit: int = DEFAULT_RESULT_LIMIT,
+    excerpt_characters: int = MAX_EXCERPT_CHARACTERS,
+) -> RetrievalResponse:
+    """Retrieve citations or report why retrieval is unavailable.
+
+    ``search`` remains the low-level ranking primitive for callers that
+    already have a populated corpus.  Adapters should use this boundary so a
+    missing persisted index or an absent/empty corpus is visible to the user
+    as a named, citation-free unavailable response.
+    """
+
+    if not isinstance(index_available, bool):
+        raise TypeError("index_available must be a boolean")
+    if not index_available:
+        return RetrievalResponse(
+            status="unavailable", hits=(), reason="index_unavailable"
+        )
+    if corpus is None:
+        return RetrievalResponse(
+            status="unavailable", hits=(), reason="corpus_unavailable"
+        )
+
+    collected = list(corpus)
+    if not collected:
+        return RetrievalResponse(
+            status="unavailable", hits=(), reason="corpus_unavailable"
+        )
+    return RetrievalResponse(
+        status="available",
+        hits=tuple(
+            search(
+                query,
+                collected,
+                limit=limit,
+                excerpt_characters=excerpt_characters,
+            )
+        ),
+    )
