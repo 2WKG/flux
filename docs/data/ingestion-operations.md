@@ -115,6 +115,8 @@ that cannot go stale, not one exempt from checking.
 preference: show the value with its age and staleness stated, or withhold it. Never show it
 unlabelled.
 
+The executable pre-promotion check is [the data quality gate](data-quality-operations.md).
+
 ### What alerting must cover
 
 Stated as requirements, not implemented — there is no scheduler to hang them on yet.
