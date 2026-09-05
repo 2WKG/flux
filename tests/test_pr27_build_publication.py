@@ -132,3 +132,38 @@ def test_successful_publish_preserves_existing_namespaces_and_parquet(tmp_path, 
     assert namespaces == ("preserve-me",)
     assert marker == "new"
     assert files == {"unrelated.parquet": b"unchanged-sentinel", "new.parquet": b"new"}
+
+
+@pytest.mark.parametrize("failed_restore", ["previous.duckdb", "previous-parquet"])
+def test_failed_rollback_retains_recovery_and_restores_other_artifact(tmp_path, monkeypatch, failed_restore):
+    monkeypatch.chdir(tmp_path)
+    db_path, parquet_dir = _seed_live_release(tmp_path)
+    monkeypatch.setattr(build_module, "_missing_p0_inputs", lambda *_args: [])
+    monkeypatch.setattr(build_module, "_build_mutating", _staged_builder("new"))
+    monkeypatch.setattr(build_module, "run_checks", _passing_checks)
+    real_replace = build_module.os.replace
+
+    def fail_publish_and_one_restore(source, destination):
+        if Path(source).name == "parquet" and Path(destination).resolve() == parquet_dir:
+            raise OSError("promotion failed")
+        if Path(source).name == failed_restore:
+            raise OSError("restore failed")
+        return real_replace(source, destination)
+
+    monkeypatch.setattr(build_module.os, "replace", fail_publish_and_one_restore)
+    with pytest.raises(build_module.PublicationRecoveryError, match="recovery files retained at") as error:
+        build_module.build(str(tmp_path / "raw"), str(db_path), "UTC")
+
+    recovery_roots = list(db_path.parent.glob(".grid-stage-*"))
+    assert len(recovery_roots) == 1
+    recovery = recovery_roots[0]
+    assert str(recovery) in str(error.value)
+    recovered_db = recovery / failed_restore if failed_restore == "previous.duckdb" else db_path
+    con = connect(recovered_db, read_only=True)
+    try:
+        assert con.execute("SELECT value FROM release_marker").fetchone() == ("old",)
+        assert con.execute("SELECT value FROM mn_private").fetchone() == ("preserve-me",)
+    finally:
+        con.close()
+    recovered_parquet = recovery / failed_restore if failed_restore == "previous-parquet" else parquet_dir
+    assert (recovered_parquet / "unrelated.parquet").read_bytes() == b"unchanged-sentinel"

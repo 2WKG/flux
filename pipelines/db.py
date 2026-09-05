@@ -252,7 +252,12 @@ def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFram
     """Replace a logical slice, requiring provenance for canonical contract rows."""
     if table in TABLE_COLUMNS and not all((source_name, source_ref, fixture_batch_id)):
         raise ValueError(f"{table} requires source_name, source_ref, and fixture_batch_id")
-    con.execute(f"DELETE FROM {table} WHERE {where}")
+    # Keep referenced identities in place on a repeated release. Deleting and
+    # reinserting an unchanged parent key fails DuckDB's foreign-key checks.
+    parent_key = {"counties": "county_fips", "buses": "bus_id", "lines": "line_id",
+                  "site_candidates": "site_id", "scenarios": "scenario_id"}.get(table)
+    if not parent_key or frame.empty:
+        con.execute(f"DELETE FROM {table} WHERE {where}")
     if frame.empty:
         return 0
     if table in TABLE_COLUMNS:
@@ -261,7 +266,22 @@ def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFram
                                fixture_batch_id=fixture_batch_id)
     con.register("_incoming", frame)
     try:
-        con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming")
+        if parent_key:
+            con.execute(f"DELETE FROM {table} WHERE ({where}) AND {parent_key} NOT IN "
+                        f"(SELECT {parent_key} FROM _incoming)")
+            for column in frame.columns:
+                if column == parent_key:
+                    continue
+                # DuckDB rewrites indexed-column updates as delete/insert;
+                # avoid touching unchanged foreign keys on referenced parents.
+                con.execute(f'UPDATE {table} AS existing SET "{column}" = incoming."{column}" '
+                            f'FROM _incoming AS incoming WHERE existing.{parent_key} = incoming.{parent_key} '
+                            f'AND existing."{column}" IS DISTINCT FROM incoming."{column}"')
+            con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming AS incoming "
+                        f"WHERE NOT EXISTS (SELECT 1 FROM {table} AS existing "
+                        f"WHERE existing.{parent_key} = incoming.{parent_key})")
+        else:
+            con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming")
     finally:
         con.unregister("_incoming")
     return len(frame)
