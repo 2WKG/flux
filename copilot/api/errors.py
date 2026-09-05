@@ -10,21 +10,19 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime
-from typing import Any, ClassVar
+from datetime import UTC, datetime
+from typing import ClassVar
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from copilot.api.envelope import (
-    ArtifactRef,
     Failure,
     FailureCode,
     FailureEnvelope,
+    ResponseMeta,
     ResponseStatus,
-    response_meta,
-    safe_details,
 )
 
 logger = logging.getLogger("copilot.api")
@@ -45,16 +43,15 @@ class ApiError(Exception):
     retryable: ClassVar[bool]
     retry_after_s: ClassVar[int | None] = None
 
-    def __init__(self, message: str, *, details: dict[str, Any] | None = None) -> None:
+    def __init__(self, message: str, *, details: dict[str, str] | None = None) -> None:
         super().__init__(message)
         self.message = message
-        self.details = safe_details(details)
+        self.details = dict(details or {})
 
     def envelope(
         self,
         request_id: str,
         *,
-        artifacts: tuple[ArtifactRef, ...] = (),
         generated_at: datetime | None = None,
     ) -> FailureEnvelope:
         return FailureEnvelope(
@@ -66,8 +63,9 @@ class ApiError(Exception):
                 retry_after_s=self.retry_after_s,
                 details=self.details,
             ),
-            meta=response_meta(
-                request_id, artifacts=artifacts, generated_at=generated_at
+            meta=ResponseMeta(
+                request_id=request_id,
+                generated_at=generated_at or datetime.now(UTC),
             ),
         )
 
@@ -109,7 +107,7 @@ class InternalError(ApiError):
     retryable = False
 
     def __init__(
-        self, message: str = INTERNAL_ERROR_MESSAGE, *, details: dict[str, Any] | None = None
+        self, message: str = INTERNAL_ERROR_MESSAGE, *, details: dict[str, str] | None = None
     ) -> None:
         super().__init__(message, details=details)
 
@@ -121,7 +119,7 @@ def internal_error_from(exc: BaseException, *, request_id: str) -> InternalError
     string — stays in the server log and never reaches the client.
     """
     logger.exception("unhandled API failure request_id=%s", request_id, exc_info=exc)
-    return InternalError(details={"request_id": request_id})
+    return InternalError()
 
 
 def request_id_of(request: Request) -> str:
@@ -145,6 +143,12 @@ def failure_response(error: ApiError, request_id: str) -> JSONResponse:
 
 def install_error_handlers(app: FastAPI) -> FastAPI:
     """Route every failure on ``app`` through the versioned failure envelope."""
+
+    @app.middleware("http")
+    async def _request_id(request: Request, call_next):
+        response = await call_next(request)
+        response.headers.setdefault(REQUEST_ID_HEADER, request_id_of(request))
+        return response
 
     @app.exception_handler(ApiError)
     async def _api_error(request: Request, exc: ApiError) -> JSONResponse:

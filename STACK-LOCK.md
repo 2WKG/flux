@@ -1,5 +1,10 @@
 # Flux demo stack lock
 
+> **⚠ Unresolved contradiction with `README.md`.** This file locks React + Vite served statically,
+> with no API. `README.md` describes the built app as Node/Express with a `GET /api/demo` route and
+> states it "intentionally does not use Vite". Both cannot be true. Recorded here rather than
+> resolved — the team owns this call. See Linear 2WKG-296.
+
 This hackathon demo is a static web app backed by precomputed local JSON.
 
 ## Chosen stack

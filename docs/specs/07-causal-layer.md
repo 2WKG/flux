@@ -1,5 +1,7 @@
 # 07 — Causal layer (Bayesian network, hardening effect estimate, counterfactual replay)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: build spec, weekend scope, with an explicit "what is real vs slideware" ledger.
 Depends on: `01-data-ingest.md` (tables), `02-outage-model.md` (`outage_predictions`,
 `outage_features.parquet`), `03-cascade-sim.md` (`twin/cascade.py::run_scenario(scenario_id, seed, forced_out, net=…)`,
@@ -150,6 +152,8 @@ diff     = per county per hour: customers_out_factual − customers_out_cf (from
   `rate_a_mw` ×1.5 and remove the lines from the weather-failure candidate set — unless spec 03 adds one]`) — this is what makes Idea 3's screen (spec 08) causal rather than a ranking.
 
 ### Copilot citation contract (`copilot/tools/causal_query.py`)
+
+The persisted evidence artifact and the `causal_query` wire response are separate contracts; see [`docs/causal-evidence-artifact.md`](../causal-evidence-artifact.md) for the artifact sufficiency criteria and field mapping.
 
 `causal_query` is registered as a **seventh** tool in `copilot/tools/registry.py` (alongside the six
 contract tools `predict_outage, run_cascade, score_site, top_lines, sql, cite` from 00-overview §2.4;
