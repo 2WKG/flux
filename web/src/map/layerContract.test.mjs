@@ -16,6 +16,15 @@ buildSync({
   platform: "node",
 });
 const { featureProperties, toLayerDisplayState, toLayerPresentation } = await import(pathToFileURL(outfile).href);
+const visibilityOutfile = join(testDirectory, "layerVisibility.mjs");
+buildSync({
+  entryPoints: [new URL("./layerVisibility.ts", import.meta.url).pathname],
+  bundle: true,
+  format: "esm",
+  outfile: visibilityOutfile,
+  platform: "node",
+});
+const { toggleLayerVisibility } = await import(pathToFileURL(visibilityOutfile).href);
 
 test.after(() => rmSync(testDirectory, { force: true, recursive: true }));
 
@@ -62,5 +71,22 @@ test("renders unavailable and empty layers without retaining or inventing geomet
     layer: "buses",
     crs: "EPSG:4326",
     message: "The server returned this layer with no features.",
+  });
+});
+
+test("toggles only declared layer visibility without altering analytical payloads", () => {
+  const layers = [
+    { id: "outage-risk", label: "Outage risk", visible: true },
+    { id: "storm", label: "Storm", visible: false },
+  ];
+  assert.deepEqual(toggleLayerVisibility(layers, "storm"), [
+    { id: "outage-risk", label: "Outage risk", visible: true },
+    { id: "storm", label: "Storm", visible: true },
+  ]);
+  assert.strictEqual(toggleLayerVisibility(layers, "not-a-server-layer"), layers);
+  assert.deepEqual(payload.data.feature_collection.features[0].properties, {
+    bus_id: "10",
+    kv: 115,
+    scenario_id: "uri_2021",
   });
 });
