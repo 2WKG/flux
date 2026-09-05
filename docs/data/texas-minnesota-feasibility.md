@@ -29,24 +29,34 @@ Downloaded and parsed 2026-09-05:
 | | **Minnesota** | **Texas** | ACTIVSg2000 (current) |
 |---|---|---|---|
 | Buses | **718** | **3,889** | 2,000 |
-| Branches | **1,297** | **6,852** | 2,359 |
-| Generators | **97** | **509** | 484 + 59 sgen |
+| Branches (lines + transformers) | **1,297** | **6,852** | 3,206 (2,359 line + 847 transformer) |
+| Generators | **97** | **509** | 544 (484 gen + 59 sgen + 1 ext_grid) |
 | Loads | 718 | 3,889 | 1,125 |
-| Total demand | **7,131 MW** | **74,049 MW** | 67,109 MW |
+| Demand, `04h` off-peak | **4,716 MW** | 47,608 MW | — |
+| Demand, `16h` peak | **7,131 MW** | **74,049 MW** | 67,109 MW (single base case) |
 | Balancing authority | **MISO** | **ERCO** | — |
 | BA coverage | **97.4 %** | **84.0 %** | — |
-| AC-OPF `04h` | **LOCALLY_SOLVED** (21 s) | LOCALLY_SOLVED (45 s) | — |
-| AC-OPF `16h` | **LOCALLY_SOLVED** (21 s) | LOCALLY_SOLVED (51 s) | — |
+| AC-OPF `04h` | **LOCALLY_SOLVED**, L0 Strict, 21 s | LOCALLY_SOLVED, L0 Strict, 45 s | — |
+| AC-OPF `16h` | **LOCALLY_SOLVED**, L0 Strict, 21 s | LOCALLY_SOLVED, L0 Strict, 51 s | — |
+| Units decommitted to solve | **0** | 0 | — |
 | `source_type` | `matpower` v2 | `matpower` v2 | MATPOWER |
 | DC lines / shunts | 2 / 666 | — | — |
 
-**Minnesota is not one of the six single-state models that fail AC-OPF.** It converges at both
-hours. That was the main open risk and it is now closed by direct check, not by citing the
-paper's 88 % figure.
+**Branch counts are compared like for like.** GridSFM's `branch` table is a MATPOWER branch
+table, which holds lines *and* transformers together. ACTIVSg2000's comparable figure is
+therefore **3,206**, not the 2,359 line-only count quoted in `docs/specs/01-data-ingest.md`.
+pandapower splits these into `net.line` and `net.impedance` on import, which is why the repo's
+gate spec carries them separately.
 
-The Texas cross-check is reassuring: GridSFM Texas reports 74,049 MW against ACTIVSg2000's
-67,109 MW — same order, different construction. The two are independent models of the same
-system, not the same model.
+**Minnesota is not one of the six single-state models that fail AC-OPF at peak.** It converges
+at both hours at `relaxation_level = 0` ("Strict", L0) — the strictest level, which is exactly
+the criterion behind the paper's 42/48 figure — with **zero units decommitted** to reach a
+solution. That was the main open risk and it is closed by direct check, not by citing the
+paper.
+
+The Texas cross-check is reassuring: GridSFM Texas peaks at 74,049 MW against ACTIVSg2000's
+67,109 MW base case — same order, different construction. The two are independent models of the
+same system, not the same model, so agreement is evidence rather than tautology.
 
 ---
 
