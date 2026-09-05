@@ -43,11 +43,6 @@ class ArtifactRef(ContractModel):
     source_ref: Annotated[str, Field(min_length=1, max_length=2_048)]
 
 
-class EvidenceCitation(ContractModel):
-    source: Annotated[str, Field(min_length=1, max_length=256)]
-    locator: Annotated[str, Field(min_length=1, max_length=256)]
-
-
 class Unavailable(ContractModel):
     code: UnavailableCode
     reason: Annotated[str, Field(min_length=1, max_length=1_024)]
@@ -59,7 +54,6 @@ class ToolOutput(ContractModel):
 
     status: ToolStatus
     provenance: list[ArtifactRef] = Field(default_factory=list, max_length=50)
-    citations: list[EvidenceCitation] = Field(default_factory=list, max_length=50)
     unavailable: Unavailable | None = None
 
     @model_validator(mode="after")
@@ -153,11 +147,18 @@ class CriticalLoadLoss(ContractModel):
     hour_lost: Annotated[int, Field(ge=0)]
 
 
+class TrippedElement(ContractModel):
+    element_id: Annotated[str, Field(min_length=1, max_length=128)]
+    kind: Literal["line", "trafo", "gen", "bus"]
+    stage: Annotated[int, Field(ge=0)]
+    cause: Literal["weather", "overload", "island", "forced"]
+
+
 class CascadeData(ToolOutput):
     run_id: Annotated[str, Field(min_length=1, max_length=256)]
     scenario_id: ScenarioId
     hour: Annotated[int, Field(ge=0)]
-    tripped_element_ids: list[str]
+    tripped_element_ids: list[TrippedElement]
     lost_load_mw: Annotated[float, Field(ge=0)]
     counties_dark: list[Annotated[str, Field(pattern=r"^\d{5}$")]]
     critical_loads_lost: list[CriticalLoadLoss]
@@ -256,7 +257,7 @@ class CausalData(ToolOutput):
     answer_numbers: dict[str, float | int]
     method: Annotated[str, Field(min_length=1, max_length=256)]
     assumptions: list[str]
-    interval: tuple[float, float] | None = None
+    interval: Annotated[list[float], Field(min_length=2, max_length=2)] | None = None
     evidence_rows: list[dict[str, JsonValue]]
 
 
@@ -265,19 +266,21 @@ class ToolDefinition:
     name: str
     description: str
     input_model: type[ContractModel]
-    output_model: type[BaseModel]
+    # The first model is the documented available result; ToolOutput represents
+    # the canonical unavailable result shared by every tool.
+    output_model: tuple[type[BaseModel], type[ToolOutput]]
 
 
 TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
-    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, PredictOutageData),
-    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, CascadeData),
-    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, SiteScoreData),
-    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, LinesData),
-    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, SqlData),
-    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, CiteData),
-    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, InterventionsData),
-    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, CriticalElementsData),
-    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, CausalData),
+    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, (PredictOutageData, ToolOutput)),
+    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, (CascadeData, ToolOutput)),
+    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, (SiteScoreData, ToolOutput)),
+    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, (LinesData, ToolOutput)),
+    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, (SqlData, ToolOutput)),
+    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, (CiteData, ToolOutput)),
+    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, (InterventionsData, ToolOutput)),
+    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, (CriticalElementsData, ToolOutput)),
+    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, (CausalData, ToolOutput)),
 )
 
 _REGISTRY_BY_NAME = {definition.name: definition for definition in TOOL_REGISTRY}
