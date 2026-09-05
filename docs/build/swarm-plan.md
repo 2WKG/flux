@@ -1,6 +1,6 @@
 ---
-title: "flux — swarm build plan (honesty-gated)"
-status: draft
+title: "Flux — hackathon swarm plan"
+status: active
 created: 2026-09-05
 updated: 2026-09-05
 related:
@@ -8,76 +8,69 @@ related:
   - "[[../specs/00-overview]]"
 ---
 
-# flux swarm plan
+# Flux hackathon swarm plan
 
-Execution pattern borrowed from Buckeye's `swarm-honesty-orchestrator`: an orchestrator that
-writes only markdown, implementation subagents in isolated git worktrees on file-disjoint
-units, and an **independent honesty-analyst** with no implementation context gating every PR
-with behavioral probes. The fitness function is the frozen gate set in
-`converging-swarm-target.md`; this file is the DAG and the operating procedure.
+The amended `docs/specs/00-overview.md` is the current authority for the
+shared technical contract. This plan assigns ownership and integration order
+for a fast hackathon build. It does not impose an old gate baseline, numerical
+threshold suite, or mandatory per-PR approval process.
 
-## Units (one PR each, branch `swarm/flux-u<N>` → `swarm/flux`)
+## Ownership and dependency DAG
 
-| Unit | Spec | Owned paths (exact) | Depends on | Gate(s) it must turn green |
+| Unit | Spec | Owned paths | Depends on | Integration contribution |
 |---|---|---|---|---|
-| U0 gates + contract | 00, target | `gates/**`, `pipelines/schema.py`, `docs/build/freeze-manifest.json`, CI workflow | — | G_ENV, G_HYGIENE, all other gates exist and are RED with neg-controls proven |
-| U1 data ingest | 01 | `pipelines/**` (except schema.py), `scripts/data/download.sh` | U0 | G_INGEST |
-| U2 twin build | 03 §build | `twin/build.py`, `twin/params.yaml` | U1 | G_TWIN |
-| U3 outage model | 02 | `models/outage/**` | U1 | G_OUTAGE |
-| U4 cascade sim | 03 §cascade | `twin/cascade.py`, `twin/tools.py` | U2 | G_CASCADE |
-| U5 siting engine | 04 | `siting/**` | U4 | G_SITING |
-| U6 line upgrades | 08 | `pipelines/line_upgrade.py`, `lines/**` | U1, U2 | G_LINES |
-| U7 copilot | 05 | `copilot/**` | U3, U4, U5, U6 (tool wrappers may stub-fail loudly until deps merge) | G_COPILOT |
-| U8 frontend | 06 | `web/**` | U7 routes (may develop against fixtures written by U0, never against baked answers) | G_WEB |
-| U9 causal layer | 07 | `causal/**` | U3, U4 | contributes `causal_query` to G_COPILOT; C2 slideware stays labeled |
+| U1 data ingest | 01 | `pipelines/**`, `scripts/data/download.sh` | — | DuckDB schema, source provenance, and scenario data |
+| U2 twin build | 03 build | `twin/build.py`, `twin/params.yaml` | U1 | Base pandapower network |
+| U3 outage model | 02 | `models/outage/**` | U1 | Prediction and evaluation artifacts |
+| U4 cascade simulation | 03 cascade | `twin/cascade.py`, `twin/tools.py` | U2 | Scenario replay and cascade results |
+| U5 siting engine | 04 | `siting/**` | U4 | Safety screen and counterfactual scores |
+| U6 line upgrades | 08 | `pipelines/line_upgrade.py`, `lines/**` | U1, U2 | Upgrade ranking data and `top_lines` support |
+| U7 copilot | 05 | `copilot/**` | U3, U4, U5, U6 | Tool wrappers, source retrieval, and read APIs |
+| U8 frontend | 06 | `web/**` | U7 routes | Demo views and playback |
+| U9 causal layer | 07 | `causal/**` | U3, U4 | Labeled causal query support |
 
-Waves: **W0** = U0 (foreground, merge before fanout). **W1** = U1. **W2** = U2 ∥ U3.
-**W3** = U4 ∥ U6. **W4** = U5 ∥ U9 ∥ U7 (U7 starts on U3/U4/U6 wrappers, adds U5 last).
-**W5** = U8. The critical path is U0→U1→U2→U4→U5→U8, matching `00-overview.md`.
+Suggested waves: U1; then U2 and U3; then U4 and U6; then U5, U7, and U9 as
+their dependencies become available; then U8. The critical path is
+U1 → U2 → U4 → U5 → U7 → U8.
 
-## Per-unit procedure
+## How work is coordinated
 
-1. Orchestrator creates the worktree explicitly (never the Agent tool's own worktree mode,
-   which branches off `master`): `git worktree add .worktrees/u<N> -b swarm/flux-u<N> swarm/flux`.
-2. Implementation subagent prompt contains: worktree path + base SHA; bootstrap (`uv sync`,
-   `pnpm --dir web install`); ground-truth reads (the unit's spec, `00-overview.md` amendments,
-   the target's gate row); EXACT file scope; DO-NOT list (every other unit's paths, `gates/`);
-   anti-goals verbatim; the gate command and expected GREEN output; commit format
-   `u<N>: <what>`; escalation protocol (write `.notes/u<N>/escalation.md` and stop when a spec
-   contradiction, an unavailable dataset, or scope ≫ budget appears — never invent).
-3. Subagent must persist proof under `.reports/u<N>/`: `gate-command.txt`, `gate-output.txt`
-   (real timestamps, real row counts), `env.txt`, and for U7/U8 an HTTP transcript.
-4. Orchestrator dispatches the **honesty analyst** (separate subagent, no implementation
-   context) with: the diff, the spec, the target's gate row, the anti-goals, and the probes
-   below. Verdict file `.reports/honesty/u<N>/verdict.txt` with APPROVE | BLOCK.
-5. Merge only on APPROVE; merge message references the verdict path. BLOCK → follow-up
-   subagent with the analyst's required actions, then a fresh analyst pass.
+The primary orchestrator coordinates only. It maintains the DAG, assigns
+file-disjoint scopes to `gpt-5.6-terra` workers, resolves dependency order,
+and keeps an accurate integration status. It does not write product
+implementation.
 
-## Honesty-analyst probes (adapted from the Buckeye template)
+Use an isolated worktree for substantive work when it prevents overlapping
+edits; a small, clearly isolated change may work directly in the shared
+checkout. Before a worker begins, record its paths, dependency assumptions, and
+the portion of the spec it owns. Avoid broad shared-file edits while related
+workers are active.
 
-- **P1 tighten-assertion.** Make one gate assertion stricter; the gate must go RED. Reset.
-- **P2 break-prod.** Mutate the unit's production path per its spec's "break-it" probes
-  (e.g. U4: set `line_failure_prob` to 0; U5: swap the with-unit and baseline nets; U7: strip
-  the number-trace verifier; U8: feed a fixture with an extra tripped element). The matching
-  gate must go RED. Reset after each.
-- **P3 remove-mock.** Any mock of DuckDB, HTTP, or the Anthropic client in tests = BLOCK
-  (real DuckDB file, real spawned FastAPI, real API or SKIPPED-ENV). Timer mocks are fine.
-- **P4 re-run.** Run `.reports/u<N>/gate-command.txt` yourself; exit code, counts, and timings
-  must match the subagent's transcript within reason. Fabrication patterns (placeholder
-  timestamps, `<n>` counts) = BLOCK.
-- **P5 scope-dodge.** `git diff <base>..HEAD --stat` must equal the declared scope; any file
-  under `gates/` or another unit's paths = BLOCK naming the file.
-- **P6 anti-goal sweep.** Grep for baked answers (`demo_fixtures`, literal county names in
-  prompts, hard-coded scores), silent fallbacks (`except: pass`, default returns on failure),
-  secrets, and unverified pitch claims copied into UI/system-prompt text.
-- **Content probe (U7 system prompt, U8 copy).** Every regulatory or market sentence must map
-  to a `docs/specs/verification/` VERIFIED row; one unverified sentence = BLOCK.
+Each worker should:
 
-## Orchestrator rules
+1. Read `CLAUDE.md`, the amended overview, its feature spec, and relevant
+   verification notes.
+2. Implement only its assigned paths and surface a contract conflict early.
+3. Run checks that exercise the changed behavior and record the exact commands
+   and actual outcome.
+4. Hand off integration notes: touched interfaces, data prerequisites, known
+   limits, and unavailability states.
 
-- Writes markdown only: this plan, prompts, `.notes/progress.md`, verdict summaries.
-- Contracts first (U0), inventory before fanout, sequential recovery when parallel units stall.
-- Never lets a green gate stand in for an APPROVE, and never lets an APPROVE stand in for a
-  green gate; both are required per PR.
-- Records every Joshua-gated decision it hit in `.notes/decisions-needed.md` instead of
-  resolving it.
+Peer review, a browser walkthrough, or a targeted mutation probe are useful
+when a change carries risk or a claim is load-bearing. Choose them based on the
+change; they are not automatic merge gates. Health/doctor checks are reserved
+for setup changes or actual connectivity troubleshooting.
+
+## Integration standards
+
+Integrate dependencies in DAG order and keep interfaces aligned with the
+amended overview. For a demo-ready pass, exercise the coherent storm → outage
+→ cascade → siting → frontend → copilot path, plus the line-upgrade view.
+Validate behavior that is visible or load-bearing; do not require unrelated
+components to be green before delivering a focused feature.
+
+Never fabricate a command result, source, citation, model output, or fallback
+value. Missing datasets, credentials, API access, or a failed solve must be
+recorded as an explicit unavailable or error state. Do not copy credentials or
+implementation material into Buckeye repositories; Buckeye practices are
+reference knowledge only.

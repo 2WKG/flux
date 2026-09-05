@@ -2,7 +2,7 @@
 
 Status: **backup** (pitch v2 "Idea 2"). Not on the weekend critical path. Built only if (a) the judges
 signal they want something narrower/nearer-term, (b) the format allows two entries, or (c) the Idea 1
-(GridMind) critical path is green by Day 2 noon and a pair is free. The deck for this pitch (≥ 6 slides)
+(Flux) critical path is green by Day 2 noon and a pair is free. The deck for this pitch (≥ 6 slides)
 IS built regardless (00-overview §10). This spec is written so one pair can build a demoable slice in
 ~10 hours on the shared stack without touching the Idea 1 tables.
 
