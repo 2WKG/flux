@@ -281,3 +281,34 @@ def test_end_to_end_lineage_from_source_documents_through_real_chunking() -> Non
     for hit in index.search("transmission ratings population", limit=5):
         assert hit.chunk_id in by_id
         _assert_exact_lineage(hit, by_id[hit.chunk_id])
+
+
+def test_truncated_excerpt_is_a_verbatim_prefix_bounded_by_the_requested_cap() -> None:
+    long_text = " ".join(f"population clause {index}" for index in range(300))
+    assert len(long_text) > 1_200
+    long_chunk = _chunk(
+        "10cfr100-p20-c0",
+        document_id="10cfr100",
+        source_uri="https://example.test/10-cfr-part-100.pdf",
+        title="10 CFR Part 100",
+        version="2026-07-16",
+        page=20,
+        chunk_index=0,
+        text=long_text,
+    )
+
+    [default_cap] = search("population clause", [long_chunk, *_FILLER], limit=1)
+    [narrow_cap] = search(
+        "population clause", [long_chunk, *_FILLER], limit=1, excerpt_characters=40
+    )
+
+    for result, cap in ((default_cap, 1_200), (narrow_cap, 40)):
+        assert result.chunk_id == long_chunk.chunk_id
+        assert len(result.excerpt) <= cap
+        assert result.excerpt.endswith("…")
+        body = result.excerpt[:-1]
+        assert body == long_text[: len(body)]
+        assert result.record()["excerpt"] == result.excerpt
+        assert RetrievalHit.model_validate(result.hit()).text == result.excerpt
+    assert len(narrow_cap.excerpt) == 40
+    assert len(default_cap.excerpt) == 1_200
