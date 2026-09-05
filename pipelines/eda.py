@@ -30,7 +30,6 @@ from pipelines.metrics import (
     metric_view,
 )
 
-
 EDA_VERSION = "1.0.0"
 
 # Iglewicz-Hoaglin modified z-score constants and threshold.  The mean-absolute
@@ -115,6 +114,25 @@ RECOMMENDED_ACTIONS = {
 }
 
 
+class MissingMetricViewsError(RuntimeError):
+    """The artifact lacks canonical metric views and the run was not allowed to install them."""
+
+    status = "metric_views_missing"
+
+    def __init__(self, missing: list[str]) -> None:
+        self.missing = missing
+        super().__init__(
+            f"Canonical metric views are missing: {', '.join(missing)}. "
+            "Rerun with install_views=True (CLI: --install-views) against a writable artifact, "
+            "or run pipelines.metrics.install_metric_layer first."
+        )
+
+
+# Topology label is derived from the artifact's own ingest log, never assumed:
+# ``pipelines.activsg.log_artifact`` records the ACTIVSg2000 case under this source.
+SYNTHETIC_TOPOLOGY_SOURCES = {"activsg2000": "synthetic ACTIVSg2000"}
+
+
 def _measures_for(public_view: str) -> tuple[tuple[str, str], ...]:
     """Return the ``(kpi_name, column)`` pairs released for one metric view."""
     physical = metric_view(public_view)
@@ -160,20 +178,88 @@ def _json_safe(value: Any) -> Any:
 
 
 def _columns(con: duckdb.DuckDBPyConnection, public_view: str) -> list[str]:
-    return [row[0] for row in con.execute(f"DESCRIBE {metric_view(public_view)}").fetchall()]
+    return [
+        row[0] for row in con.execute(f"DESCRIBE {metric_view(public_view)}").fetchall()
+    ]
 
 
 def _require_views(con: duckdb.DuckDBPyConnection, public_views: list[str]) -> None:
-    present = {row[0] for row in con.execute("SELECT view_name FROM duckdb_views()").fetchall()}
-    missing = sorted(metric_view(name) for name in public_views if metric_view(name) not in present)
+    present = {
+        row[0] for row in con.execute("SELECT view_name FROM duckdb_views()").fetchall()
+    }
+    missing = sorted(
+        metric_view(name) for name in public_views if metric_view(name) not in present
+    )
     if missing:
-        raise RuntimeError(
-            f"Canonical metric views are missing: {', '.join(missing)}. "
-            "Run pipelines.metrics.install_metric_layer against a writable artifact first."
-        )
+        raise MissingMetricViewsError(missing)
 
 
-def _robust_stats(con: duckdb.DuckDBPyConnection, base: str, params: list[Any], expr: str) -> dict[str, Any]:
+def _topology(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
+    """Report the network topology the artifact was built on, from ``ingest_log``."""
+    tables = {
+        row[0]
+        for row in con.execute("SELECT table_name FROM duckdb_tables()").fetchall()
+    }
+    if "ingest_log" not in tables:
+        return {
+            "status": "unavailable",
+            "reason": "The artifact has no ingest_log table.",
+            "label": None,
+        }
+    placeholders = ", ".join("?" for _ in SYNTHETIC_TOPOLOGY_SOURCES)
+    rows = con.execute(
+        f"""SELECT source, source_release, source_file FROM ingest_log
+            WHERE source IN ({placeholders}) ORDER BY source, source_release, source_file""",
+        list(SYNTHETIC_TOPOLOGY_SOURCES),
+    ).fetchall()
+    if not rows:
+        return {
+            "status": "unavailable",
+            "reason": "ingest_log records no topology case load; the network source is unknown.",
+            "label": None,
+        }
+    source, release, source_file = rows[0]
+    return {
+        "status": "ok",
+        "label": SYNTHETIC_TOPOLOGY_SOURCES[source],
+        "synthetic": True,
+        "source": source,
+        "source_release": release,
+        "source_file": source_file,
+    }
+
+
+def _provenance(
+    con: duckdb.DuckDBPyConnection, base: str, params: list[Any], columns: list[str]
+) -> dict[str, Any]:
+    """Surface the scenario kinds and sources of record behind the rows in scope."""
+    source_columns = [column for column in columns if column.endswith("_source_name")]
+    provenance: dict[str, Any] = {"scenario_kinds": [], "source_names": []}
+    if "scenario_kind" in columns:
+        provenance["scenario_kinds"] = [
+            row[0]
+            for row in con.execute(
+                f"SELECT DISTINCT scenario_kind FROM {base} WHERE scenario_kind IS NOT NULL "
+                "ORDER BY scenario_kind",
+                params,
+            ).fetchall()
+        ]
+    for column in source_columns:
+        quoted = _quote(column)
+        provenance["source_names"] += [
+            row[0]
+            for row in con.execute(
+                f"SELECT DISTINCT {quoted} FROM {base} WHERE {quoted} IS NOT NULL ORDER BY {quoted}",
+                params,
+            ).fetchall()
+        ]
+    provenance["source_names"] = sorted(set(provenance["source_names"]))
+    return provenance
+
+
+def _robust_stats(
+    con: duckdb.DuckDBPyConnection, base: str, params: list[Any], expr: str
+) -> dict[str, Any]:
     """Profile one numeric expression, including a median-absolute-deviation scale."""
     row = con.execute(
         f"""SELECT count(*), count({expr}), min({expr}), max({expr}), avg({expr}),
@@ -229,7 +315,11 @@ def _outliers(
     if stats["mad"]:
         scale, constant, spread = "mad", ROBUST_Z_CONSTANT, stats["mad"]
     elif stats["mean_abs_deviation"]:
-        scale, constant, spread = "mean_abs_deviation", MEAN_AD_Z_CONSTANT, stats["mean_abs_deviation"]
+        scale, constant, spread = (
+            "mean_abs_deviation",
+            MEAN_AD_Z_CONSTANT,
+            stats["mean_abs_deviation"],
+        )
     else:
         return {
             "status": "unavailable",
@@ -278,7 +368,11 @@ def _correlations(
                     WHERE {left} IS NOT NULL AND {right} IS NOT NULL""",
                 params,
             ).fetchone()
-            entry: dict[str, Any] = {"x": left_name, "y": right_name, "pairwise_rows": rows}
+            entry: dict[str, Any] = {
+                "x": left_name,
+                "y": right_name,
+                "pairwise_rows": rows,
+            }
             if rows < min_rows:
                 entry |= {
                     "status": "insufficient_rows",
@@ -292,13 +386,21 @@ def _correlations(
                     "pearson_r": None,
                 }
             else:
-                entry |= {"status": "ok", "reason": None, "pearson_r": round(correlation, 4)}
+                entry |= {
+                    "status": "ok",
+                    "reason": None,
+                    "pearson_r": round(correlation, 4),
+                }
             results.append(entry)
     return results
 
 
 def _segments(
-    con: duckdb.DuckDBPyConnection, base: str, params: list[Any], dimension: str, column: str
+    con: duckdb.DuckDBPyConnection,
+    base: str,
+    params: list[Any],
+    dimension: str,
+    column: str,
 ) -> dict[str, Any]:
     """Describe a measure per contract dimension without breaking aggregation rules."""
     dim, measure = _quote(dimension), _quote(column)
@@ -363,14 +465,22 @@ def _changes(
             "candidates": [],
         }
 
-    lagged = (
-        f"""(SELECT {", ".join(_quote(key) for key in keys)},
+    # Only series that met the eligibility count contribute deltas: a shorter
+    # series must neither inflate the pooled scale nor emit a level_shift.
+    lagged = f"""(SELECT {", ".join(_quote(key) for key in keys)},
                     {measure} - lag({measure}) OVER (PARTITION BY {partition} ORDER BY {time_column}) AS delta
-             FROM {base})"""
-    )
+             FROM {base}
+             QUALIFY count({measure}) OVER (PARTITION BY {partition}) >= {MIN_CHANGE_POINTS})"""
     stats = _robust_stats(con, lagged, params, "delta")
     outliers = _outliers(
-        con, lagged, params, "delta", keys, stats, threshold=threshold, limit=MAX_OUTLIERS_PER_MEASURE
+        con,
+        lagged,
+        params,
+        "delta",
+        keys,
+        stats,
+        threshold=threshold,
+        limit=MAX_OUTLIERS_PER_MEASURE,
     )
     return {
         "status": outliers["status"],
@@ -454,16 +564,21 @@ def _analyse_view(
                 "missingness": {},
                 "profiles": {},
                 "correlations": [],
+                "provenance": {"scenario_kinds": [], "source_names": []},
             },
             findings,
         )
 
     columns = _columns(con, public_view)
     missing_sql = ", ".join(
-        f"sum(CASE WHEN {_quote(column)} IS NULL THEN 1 ELSE 0 END)" for column in columns
+        f"sum(CASE WHEN {_quote(column)} IS NULL THEN 1 ELSE 0 END)"
+        for column in columns
     )
     missing_row = con.execute(f"SELECT {missing_sql} FROM {base}", params).fetchone()
-    missingness = {column: round(value / row_count, 6) for column, value in zip(columns, missing_row)}
+    missingness = {
+        column: round(value / row_count, 6)
+        for column, value in zip(columns, missing_row)
+    }
 
     profiles: dict[str, Any] = {}
     for name, column in measures:
@@ -526,7 +641,9 @@ def _analyse_view(
                     public_view,
                     name,
                     f"{name} = {candidate['value']} is {abs(candidate['robust_z']):.1f} modified z from the median.",
-                    severity="high" if abs(candidate["robust_z"]) >= HIGH_SEVERITY_Z else "medium",
+                    severity="high"
+                    if abs(candidate["robust_z"]) >= HIGH_SEVERITY_Z
+                    else "medium",
                     impact=abs(candidate["robust_z"]),
                     evidence=candidate,
                 )
@@ -539,7 +656,9 @@ def _analyse_view(
                     name,
                     f"{name} moved {candidate['value']} between adjacent snapshots "
                     f"({abs(candidate['robust_z']):.1f} modified z).",
-                    severity="high" if abs(candidate["robust_z"]) >= HIGH_SEVERITY_Z else "medium",
+                    severity="high"
+                    if abs(candidate["robust_z"]) >= HIGH_SEVERITY_Z
+                    else "medium",
                     impact=abs(candidate["robust_z"]),
                     evidence=candidate,
                 )
@@ -552,7 +671,10 @@ def _analyse_view(
         "measures": [name for name, _ in measures],
         "missingness": missingness,
         "profiles": profiles,
-        "correlations": _correlations(con, base, params, measures, min_correlation_rows),
+        "correlations": _correlations(
+            con, base, params, measures, min_correlation_rows
+        ),
+        "provenance": _provenance(con, base, params, columns),
     }
     return summary, findings
 
@@ -563,14 +685,24 @@ def _unavailable_checks(views: dict[str, Any]) -> list[dict[str, str]]:
     for view, result in sorted(views.items()):
         if result["status"] != "ok":
             checks.append(
-                {"view": view, "check": "view_scope", "reason": f"View status is {result['status']}."}
+                {
+                    "view": view,
+                    "check": "view_scope",
+                    "reason": f"View status is {result['status']}.",
+                }
             )
             continue
         for metric, profile in sorted(result["profiles"].items()):
             for check in ("outliers", "change"):
                 block = profile[check]
                 if block["status"] != "ok" and block["reason"]:
-                    checks.append({"view": view, "check": f"{metric}.{check}", "reason": block["reason"]})
+                    checks.append(
+                        {
+                            "view": view,
+                            "check": f"{metric}.{check}",
+                            "reason": block["reason"],
+                        }
+                    )
         for correlation in result["correlations"]:
             if correlation["status"] != "ok":
                 checks.append(
@@ -590,10 +722,15 @@ def run_eda(
     scenario_id: str | None = None,
     robust_z_threshold: float = ROBUST_Z_THRESHOLD,
     min_correlation_rows: int = MIN_CORRELATION_ROWS,
-    install_views: bool = True,
+    install_views: bool = False,
     now: datetime | None = None,
 ) -> dict[str, Any]:
-    """Run the parameterized EDA workflow and return a JSON-serializable report."""
+    """Run the parameterized EDA workflow and return a JSON-serializable report.
+
+    The artifact is opened read-only unless ``install_views`` is set; a missing
+    metric layer then raises :class:`MissingMetricViewsError` instead of being
+    written into the curated file.
+    """
     selected = sorted(views or EDA_PROFILES)
     unknown = sorted(set(selected) - set(EDA_PROFILES))
     if unknown:
@@ -603,12 +740,15 @@ def run_eda(
         )
 
     generated_at = (now or datetime.now(UTC)).astimezone(UTC)
+    if not Path(database).is_file():
+        raise FileNotFoundError(f"DuckDB artifact not found: {database}")
     con = duckdb.connect(str(database), read_only=not install_views)
     try:
         if install_views:
             install_metric_layer(con)
         else:
             _require_views(con, selected)
+        topology = _topology(con)
         results: dict[str, Any] = {}
         findings: list[dict[str, Any]] = []
         for name in selected:
@@ -650,6 +790,7 @@ def run_eda(
             "min_correlation_rows": min_correlation_rows,
             "install_views": install_views,
         },
+        "topology": topology,
         "views": results,
         "findings": findings,
         "unavailable_checks": _unavailable_checks(results),
@@ -684,9 +825,33 @@ def render_summary(report: dict[str, Any]) -> str:
             f"| `{view}` | {result['status']} | {result['rows']} | {', '.join(result['measures'])} |"
         )
 
+    lines += ["", "## Topology and provenance", ""]
+    topology = report["topology"]
+    if topology["status"] == "ok":
+        lines.append(
+            f"- Network topology: **{topology['label']}** (ingest_log source `{topology['source']}`, "
+            f"release `{topology['source_release']}`). Cascade and site results describe this "
+            "synthetic network, not the physical grid."
+        )
+    else:
+        lines.append(f"- Network topology: unavailable; {topology['reason']}")
+    for view, result in sorted(report["views"].items()):
+        provenance = result["provenance"]
+        kinds = (
+            ", ".join(f"`{kind}`" for kind in provenance["scenario_kinds"])
+            or "none in scope"
+        )
+        sources = (
+            ", ".join(f"`{name}`" for name in provenance["source_names"])
+            or "none in scope"
+        )
+        lines.append(f"- `{view}`: scenario kinds {kinds}; sources of record {sources}")
+
     lines += ["", "## Prioritized findings", ""]
     if not report["findings"]:
-        lines.append("No anomaly or data-quality candidate crossed its threshold in this scope.")
+        lines.append(
+            "No anomaly or data-quality candidate crossed its threshold in this scope."
+        )
     else:
         lines += [
             "| # | Severity | Code | KPI | Evidence | Recommended action |",
@@ -700,13 +865,18 @@ def render_summary(report: dict[str, Any]) -> str:
             )
 
     lines += ["", "## Follow-up questions", ""]
-    questions = sorted({finding["follow_up_question"] for finding in report["findings"]})
-    lines += [f"- {question}" for question in questions] or ["- None raised by this run."]
+    questions = sorted(
+        {finding["follow_up_question"] for finding in report["findings"]}
+    )
+    lines += [f"- {question}" for question in questions] or [
+        "- None raised by this run."
+    ]
 
     lines += ["", "## Checks reported unavailable", ""]
     checks = report["unavailable_checks"]
     lines += [
-        f"- `{check['view']}` / `{check['check']}`: {check['reason']}" for check in checks
+        f"- `{check['view']}` / `{check['check']}`: {check['reason']}"
+        for check in checks
     ] or ["- None; every requested statistic was computable."]
     lines.append("")
     return "\n".join(lines)

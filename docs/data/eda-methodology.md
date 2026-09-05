@@ -15,9 +15,18 @@ it does not label a row an error.
 ## Running it
 
 ```bash
+# First run on a freshly built artifact: install the canonical views (a write).
+uv run --extra dev python scripts/run_eda.py data/duck/grid.duckdb --install-views
+
+# Every later run opens the artifact read-only.
 uv run --extra dev python scripts/run_eda.py data/duck/grid.duckdb \
   --scenario uri_2021 --report data/eda-report.json --summary data/eda-summary.md
 ```
+
+The script puts the repository root on `sys.path` itself, so it runs from any
+working directory without `PYTHONPATH`. It exits `2` with a named status on
+`stderr` (`artifact_missing`, `metric_views_missing`) instead of a traceback
+when the artifact path does not exist or the metric layer is absent.
 
 | Parameter | Purpose |
 | --- | --- |
@@ -25,13 +34,16 @@ uv run --extra dev python scripts/run_eda.py data/duck/grid.duckdb \
 | `--scenario` | Restrict every view to one `scenario_id` |
 | `--robust-z-threshold` | Modified z-score cutoff for anomaly and change candidates (default 3.5) |
 | `--min-correlation-rows` | Minimum paired rows before a correlation is reported (default 30) |
-| `--no-install-views` | Open the artifact read-only and fail if the metric views are absent |
+| `--install-views` | Open the artifact writable and (re)install the canonical views first; off by default |
 
-By default the run refreshes the canonical views first (view-only DDL from
-`install_metric_layer`, which itself rejects a mismatched contract version) so a
-rebuilt artifact is analysable without a separate step. Rerunning against a
-refreshed database is the intended workflow: outputs are ordered
-deterministically, and the only run-dependent field is `generated_at_utc`.
+By default the artifact is opened **read-only** and the run never mutates the
+curated file: a mistyped path is an `artifact_missing` error rather than a new
+empty `.duckdb`, and a missing metric layer is a `metric_views_missing` error
+rather than a silent install. Pass `--install-views` once after a rebuild to
+create the views (view-only DDL from `install_metric_layer`, which itself
+rejects a mismatched contract version). Rerunning against a refreshed database
+is the intended workflow: outputs are ordered deterministically, and the only
+run-dependent fields are `generated_at_utc` and the `database` path as given.
 Floating-point statistics are rounded to 12 significant digits before they are
 reported, because DuckDB's parallel aggregation may reorder a sum and otherwise
 vary in the last place between two runs over an unchanged artifact.
@@ -77,16 +89,20 @@ median, no scale exists and the test is reported unavailable rather than clean.
 - **Prediction windows are not observations.** `outage_predictions.ts` starts a
   six-hour window, and `cascade_runs.hour` is a simulated offset. A change
   candidate on either is a change in modeled output, never observed history.
-- **Synthetic topology stays labelled.** Findings on ACTIVSg2000-derived rows
-  describe a synthetic network; the provenance columns in each view carry the
-  source of record.
+- **Synthetic topology stays labelled.** The report's top-level `topology`
+  block is derived from the artifact's `ingest_log`: when the ACTIVSg2000 case
+  load is recorded there it reads `synthetic ACTIVSg2000` (with the release and
+  file), otherwise it is reported `unavailable` with a reason — never assumed.
+  Each view also carries a `provenance` block with the distinct `scenario_kind`
+  values and `*_source_name` sources of record for the rows in scope, and the
+  summary prints both under "Topology and provenance".
 
 ## Thresholds and their trade-offs
 
 | Threshold | Default | Why |
 | --- | --- | --- |
 | `MIN_ROBUST_ROWS` | 8 | Below this a median and MAD are too unstable to score against |
-| `MIN_CHANGE_POINTS` | 3 | A series needs at least two differences before a spread is meaningful |
+| `MIN_CHANGE_POINTS` | 3 | A series needs at least two differences before a spread is meaningful; shorter series are excluded from the pooled scale and never yield a `level_shift` |
 | `MIN_CORRELATION_ROWS` | 30 | Small-sample `r` is dominated by noise |
 | `MAX_SEGMENTS_PER_DIMENSION` | 20 | Keeps the summary readable; truncation is flagged per dimension |
 
@@ -123,7 +139,8 @@ codes, and a fixed rank for structural findings.
 
 ## Outputs
 
-`scripts/run_eda.py` writes two artifacts and prints the summary:
+`scripts/run_eda.py` writes two artifacts and prints the summary. The default
+paths below are gitignored; pass `--report`/`--summary` to write elsewhere.
 
 - `data/eda-report.json` — the full machine-readable report: parameters, per-view
   profiles, correlations, segments, change analysis, ranked findings, and the
