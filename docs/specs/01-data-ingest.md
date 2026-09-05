@@ -1,5 +1,7 @@
 # 01 — Data ingest (Layers 1 + 2: grid twin skeleton, geography, load, weather, hazard, outages)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: build spec, weekend scope. Texas first (ACTIVSg2000 / ERCOT); national is a scale slide.
 All access facts below were checked on 2026-09-05 with `curl -I` / WebFetch unless tagged
 `[UNVERIFIED]` or `[GATED: …]`; an independent fact-check pass (ledger:
