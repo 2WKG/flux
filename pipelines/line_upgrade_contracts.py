@@ -26,9 +26,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pipelines.db import SCHEMA_VERSION
-
-CONTRACT_VERSION = SCHEMA_VERSION
+# This is the record/score contract, rather than the DuckDB storage contract.
+# Keep it importable by API and calculation-only consumers that do not install
+# DuckDB, and bump it independently when the scoring semantics change.
+CONTRACT_VERSION = "1.0.0"
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Usd = Annotated[float, Field(ge=0.0, description="US dollars")]
@@ -103,6 +104,16 @@ class LineKey(Frozen):
 
     line_id: int
     region: str = Field(min_length=1, description='balancing authority, e.g. "ERCOT"')
+
+
+class StorageProvenance(Frozen):
+    """The fixture provenance columns required by the shared DuckDB contract."""
+
+    source_name: str = Field(min_length=1)
+    source_ref: str = Field(min_length=1)
+    source_version: str | None = None
+    source_retrieved_at: datetime | None = None
+    fixture_batch_id: str = Field(min_length=1)
 
 
 # --------------------------------------------------------------------------
@@ -201,8 +212,10 @@ class ScoredLine(Frozen):
     best: Intervention
     alternative: Intervention | None = None
     static_rating_mw: Mw
-    aar_rating_mw: Mw
+    aar_rating_mw: Mw | None = None
     mw_per_musd: Annotated[float, Field(ge=0.0)]
+    owner: str | None = None
+    payback_yr: Annotated[float, Field(ge=0.0)] | None = None
     ferc_screen_pass: bool | None = Field(
         default=None,
         description="None means undeterminable (e.g. unattributed congestion), "
@@ -251,6 +264,87 @@ class ScoredLine(Frozen):
         Returned for ascending sort, so the score is negated.
         """
         return (-self.mw_per_musd, self.best.cost_usd, self.key.line_id)
+
+    def _intervention(self, kind: InterventionType) -> Intervention | None:
+        """Return an intervention by type, whether it won or was the alternative."""
+        for intervention in (self.best, self.alternative):
+            if intervention is not None and intervention.intervention is kind:
+                return intervention
+        return None
+
+    def _congestion_method(self) -> str:
+        """Map each source class to the canonical detail-table vocabulary."""
+        if isinstance(self.congestion, ObservedCongestion):
+            return self.congestion.mapping_method
+        if isinstance(self.congestion, UnattributedCongestion):
+            return "unmapped"
+        # The shared schema has one non-market value for a twin result or an
+        # assumed-price proxy; neither may claim an exact/fuzzy market mapping.
+        return "twin_proxy"
+
+    def to_score_row(self, storage: StorageProvenance) -> dict[str, object]:
+        """Return a complete `line_upgrade_scores` row for `pipelines.db`."""
+        dlr = self._intervention(InterventionType.DLR)
+        reconductor = self._intervention(InterventionType.RECONDUCTOR)
+        congestion_usd_yr = (
+            None
+            if isinstance(self.congestion, UnattributedCongestion)
+            else self.congestion.usd_per_year
+        )
+        return {
+            "line_id": self.key.line_id,
+            "congestion_usd_yr": congestion_usd_yr,
+            "dlr_uplift_mw": dlr.uplift_mw if isinstance(dlr, DlrIntervention) else None,
+            "reconductor_uplift_mw": (
+                reconductor.uplift_mw
+                if isinstance(reconductor, ReconductorIntervention)
+                else None
+            ),
+            "dlr_cost_usd": dlr.cost_usd if isinstance(dlr, DlrIntervention) else None,
+            "reconductor_cost_usd": (
+                reconductor.cost_usd
+                if isinstance(reconductor, ReconductorIntervention)
+                else None
+            ),
+            "mw_per_musd": self.mw_per_musd,
+            "ferc_screen_pass": self.ferc_screen_pass,
+            "spark_eligible": self.spark_eligible,
+            **storage.model_dump(),
+        }
+
+    def to_detail_row(self, storage: StorageProvenance) -> dict[str, object]:
+        """Return a complete `line_upgrade_detail` row for `pipelines.db`."""
+        dlr = self._intervention(InterventionType.DLR)
+        reconductor = self._intervention(InterventionType.RECONDUCTOR)
+        return {
+            "line_id": self.key.line_id,
+            "owner": self.owner,
+            "conductor_material": (
+                reconductor.conductor_material
+                if isinstance(reconductor, ReconductorIntervention)
+                else None
+            ),
+            "conductor_kcmil": (
+                reconductor.conductor_kcmil
+                if isinstance(reconductor, ReconductorIntervention)
+                else None
+            ),
+            "static_rating_mw": self.static_rating_mw,
+            "aar_rating_mw": self.aar_rating_mw,
+            "dlr_p50_mw": (
+                self.static_rating_mw + dlr.uplift_mw
+                if isinstance(dlr, DlrIntervention)
+                else None
+            ),
+            "dlr_hours_above_static": (
+                dlr.hours_above_static if isinstance(dlr, DlrIntervention) else None
+            ),
+            "best_tech": self.best.intervention.value,
+            "payback_yr": self.payback_yr,
+            "congestion_method": self._congestion_method(),
+            "region": self.key.region,
+            **storage.model_dump(),
+        }
 
 
 class UnavailableLine(Frozen):
