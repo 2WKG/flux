@@ -1,4 +1,5 @@
 import pytest
+from pydantic import ValidationError
 
 from copilot.retrieval.chunking import CorpusChunk
 from copilot.retrieval.search import (
@@ -7,10 +8,11 @@ from copilot.retrieval.search import (
     MAX_RESULTS,
     CorpusNotIndexable,
     RetrievalResponse,
+    SparseIndex,
     retrieve,
     search,
 )
-from copilot.tools.schemas import RetrievalHit
+from copilot.tools.schemas import RetrievalHit, Unavailable
 
 
 def _chunk(
@@ -250,31 +252,152 @@ def test_input_and_output_bounds_are_enforced(
         search(query, [_chunk("id", "capacity planning")], **kwargs)  # type: ignore[arg-type]
 
 
+def _result(chunk_id: str = "id"):
+    [result] = search("capacity", [_chunk(chunk_id, "capacity planning"), *_FILLER])
+    return result
+
+
 @pytest.mark.parametrize(
-    ("corpus", "index_available", "reason"),
+    ("index", "code", "reason", "retryable"),
     [
-        (None, True, "corpus_unavailable"),
-        ([], True, "corpus_unavailable"),
-        ([_chunk("id", "capacity planning")], False, "index_unavailable"),
+        (None, "invalid_prerequisite", "sparse retrieval index is not built", True),
+        (SparseIndex([]), "artifact_unavailable", "corpus has no chunks", True),
     ],
 )
-def test_unavailable_corpus_or_index_returns_named_citation_free_response(
-    corpus: list[CorpusChunk] | None,
-    index_available: bool,
-    reason: str,
+def test_missing_index_and_empty_corpus_are_detected_not_asserted(
+    index: SparseIndex | None, code: str, reason: str, retryable: bool
 ) -> None:
-    response = retrieve("capacity", corpus, index_available=index_available)
+    response = retrieve("capacity", index)
 
     assert isinstance(response, RetrievalResponse)
     assert response.status == "unavailable"
-    assert response.reason == reason
     assert response.hits == ()
-    assert response.record() == {"hits": [], "reason": reason, "status": "unavailable"}
+    assert response.unavailable == Unavailable(
+        code=code, reason=reason, retryable=retryable
+    )
+    assert response.record() == {
+        "hits": [],
+        "status": "unavailable",
+        "unavailable": {"code": code, "reason": reason, "retryable": retryable},
+    }
+
+
+def test_index_availability_is_not_a_caller_supplied_flag() -> None:
+    with pytest.raises(TypeError, match="SparseIndex or None"):
+        retrieve("capacity", True)  # type: ignore[arg-type]
+
+
+def test_missing_index_wins_over_every_later_check() -> None:
+    assert retrieve("   ", None).unavailable.code == "invalid_prerequisite"
+    assert retrieve("   ", SparseIndex([])).unavailable.code == "artifact_unavailable"
+
+
+@pytest.mark.parametrize("query", ["   ", "!!! ???", "- - -"])
+def test_query_without_searchable_tokens_is_unsupported_not_an_empty_success(
+    query: str,
+) -> None:
+    index = SparseIndex([_chunk("id", "capacity planning"), *_FILLER])
+
+    response = retrieve(query, index)
+
+    assert response.status == "unavailable"
+    assert response.hits == ()
+    assert response.unavailable == Unavailable(
+        code="unsupported_request",
+        reason="query has no searchable tokens",
+        retryable=False,
+    )
+
+
+def test_zero_overlap_query_is_insufficient_evidence_not_zero_score_hits() -> None:
+    index = SparseIndex(
+        [
+            _chunk("a", "grid capacity", chunk_index=0),
+            _chunk("b", "storm outage", chunk_index=1),
+            _chunk("c", "hospital water", chunk_index=2),
+        ]
+    )
+
+    response = retrieve("zzzz qqqq", index, limit=3)
+
+    assert response.status == "unavailable"
+    assert response.hits == ()
+    assert response.unavailable == Unavailable(
+        code="insufficient_evidence",
+        reason="no corpus chunk scores positively against the query",
+        retryable=False,
+    )
 
 
 def test_available_response_preserves_real_ranked_citation() -> None:
-    response = retrieve("capacity", [_chunk("id", "capacity planning"), *_FILLER])
+    index = SparseIndex([_chunk("id", "capacity planning"), *_FILLER])
+
+    response = retrieve("capacity", index)
 
     assert response.status == "available"
-    assert response.reason is None
+    assert response.unavailable is None
     assert [hit.chunk_id for hit in response.hits] == ["id"]
+    assert response.hits[0].relevance > 0
+    assert response.record() == {
+        "hits": [response.hits[0].record()],
+        "status": "available",
+        "unavailable": None,
+    }
+
+
+def test_index_search_matches_the_per_call_convenience_and_is_reusable() -> None:
+    chunks = [
+        _chunk("low", "power outlook", chunk_index=2),
+        _chunk("high", "power transmission upgrade", chunk_index=1),
+        _chunk("none", "unrelated storm report", chunk_index=3),
+    ]
+    index = SparseIndex(chunks)
+
+    assert index.size == 3
+    assert index.search("power transmission") == search("power transmission", chunks)
+    assert index.search("storm") == search("storm", chunks)
+    assert [chunk.chunk_id for chunk in index.chunks] == ["high", "low", "none"]
+
+
+def test_index_over_degenerate_corpus_fails_loudly_at_build_time() -> None:
+    with pytest.raises(CorpusNotIndexable, match="no indexable tokens"):
+        SparseIndex([_chunk("a", "!!! ---"), _chunk("b", "???", chunk_index=1)])
+
+
+def test_retrieve_still_raises_for_malformed_inputs() -> None:
+    index = SparseIndex([_chunk("id", "capacity planning"), *_FILLER])
+
+    with pytest.raises(ValueError, match="limit must be an integer"):
+        retrieve("capacity", index, limit=0)
+    with pytest.raises(ValueError, match="query must be at most"):
+        retrieve("x" * (MAX_QUERY_CHARACTERS + 1), index)
+
+
+def test_response_invariants_reject_contradictory_states() -> None:
+    reason = Unavailable(
+        code="artifact_unavailable", reason="corpus has no chunks", retryable=True
+    )
+
+    with pytest.raises(ValueError, match="cannot carry an unavailable reason"):
+        RetrievalResponse(status="available", hits=(_result(),), unavailable=reason)
+    with pytest.raises(ValueError, match="require at least one citation"):
+        RetrievalResponse(status="available", hits=())
+    with pytest.raises(ValueError, match="require a named reason"):
+        RetrievalResponse(status="unavailable", hits=())
+    with pytest.raises(ValueError, match="cannot contain citations"):
+        RetrievalResponse(status="unavailable", hits=(_result(),), unavailable=reason)
+
+
+def test_unavailable_reasons_use_the_shared_closed_vocabulary_only() -> None:
+    for code in (
+        "artifact_unavailable",
+        "invalid_prerequisite",
+        "unsupported_request",
+        "insufficient_evidence",
+    ):
+        Unavailable(code=code, reason="named cause", retryable=False)
+
+    with pytest.raises(ValidationError):
+        Unavailable(code="corpus_unavailable", reason="x", retryable=False)  # type: ignore[arg-type]
+    with pytest.raises(ValidationError):
+        Unavailable(code="index_unavailable", reason="x", retryable=False)  # type: ignore[arg-type]
