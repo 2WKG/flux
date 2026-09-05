@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
+import pytest
 from fastapi.testclient import TestClient
 
 from copilot.app import create_app
@@ -135,6 +136,28 @@ def test_detail_reports_not_found_for_an_absent_scenario_row(tmp_path: Path) -> 
     assert response.status_code == 404
     assert response.json()["error"]["code"] == "not_found"
     assert response.json()["error"]["details"] == {"scenario_id": "unknown"}
+
+
+@pytest.mark.parametrize(
+    "scenario_id",
+    ["invalid%20identifier", "a" * 65],
+)
+def test_detail_rejects_malformed_or_out_of_bounds_scenario_identifier(
+    tmp_path: Path, scenario_id: str
+) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get(f"/scenarios/{scenario_id}")
+
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "code": "invalid_input",
+        "message": "Request parameters do not match the documented contract.",
+        "retryable": False,
+        "retry_after_s": None,
+        "details": {"field": "path.scenario_id"},
+    }
 
 
 def test_catalog_returns_an_empty_selection_when_the_artifact_has_no_rows(

@@ -7,15 +7,14 @@ for an unbuilt table would hide a broken hand-off.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import duckdb
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel, ConfigDict
 
 from copilot.api import (
     ArtifactRef,
-    NotFoundError,
     SuccessEnvelope,
     UnavailableError,
     success,
@@ -26,6 +25,14 @@ from copilot.config import Settings
 router = APIRouter(prefix="/layers", tags=["layers"])
 
 _CRS_NAME = "EPSG:4326"
+LayerName = Annotated[
+    Literal["buses"],
+    Path(
+        min_length=1,
+        max_length=16,
+        description="Supported map layer identifier.",
+    ),
+]
 _BUS_ATTRIBUTES: dict[str, dict[str, str]] = {
     "bus_id": {"unit": "identifier", "source": "buses.bus_id"},
     "name": {"unit": "label", "source": "buses.name"},
@@ -90,11 +97,8 @@ def _feature_collection(features: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 @router.get("/{layer_name}", response_model=SuccessEnvelope[MapLayerData])
-def get_layer(layer_name: str, request: Request) -> SuccessEnvelope[MapLayerData]:
+def get_layer(layer_name: LayerName, request: Request) -> SuccessEnvelope[MapLayerData]:
     """Return a declared-CRS map layer or the shared named failure envelope."""
-    if layer_name != "buses":
-        raise NotFoundError(f"Unknown map layer '{layer_name}'.")
-
     settings: Settings = request.app.state.settings
     try:
         features = _read_buses(str(settings.duckdb_path))
