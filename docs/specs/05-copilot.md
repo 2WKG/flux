@@ -25,7 +25,10 @@ Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the natio
 
 ## Outputs
 
-- SSE stream on `POST /ask` with `text`, `tool_call`, `tool_result`, `citation`, `done`, `error` events. The versioned wire shapes and delivery rules are defined by the [SSE event schema](../research/sse-event-schema.md).
+- SSE stream on `POST /ask`. Its complete v1 event list, envelopes, ordering,
+  terminal behavior, heartbeats, and resume semantics are defined by the
+  [SSE event schema](../research/sse-event-schema.md); this service and the web
+  client implement that one transport contract.
 - JSON on the engine routes and GeoJSON / Arrow IPC on `GET /layers/{name}`.
 - A structured `answer` record appended to `copilot/logs/asks.jsonl` per question: question, ordered tool calls with inputs/outputs (truncated to the cap), citations, final text, `usage` tokens, wall time. This is the eval artifact.
 
@@ -94,7 +97,7 @@ for iteration in range(MAX_ITER=8):
         async for event in stream:
             if event.type == "text": yield SSE text(delta=event.text)   # TextEvent; .snapshot is the running text
         msg = await stream.get_final_message()
-    if msg.stop_reason == "refusal": yield SSE error; return
+    if msg.stop_reason == "refusal": yield terminal SSE error(code="refusal", retryable=false); return
     messages.append({"role":"assistant","content": msg.content})
     tool_uses = [b for b in msg.content if b.type == "tool_use"]
     if not tool_uses:  break                      # end_turn
@@ -102,7 +105,7 @@ for iteration in range(MAX_ITER=8):
     for tu, res in zip(tool_uses, results): yield SSE tool_call / tool_result
     messages.append({"role":"user","content":[tool_result blocks, ALL in one message]})
 else:
-    yield terminal SSE error(code="deadline", message="The answer reached its iteration limit.")
+    yield terminal SSE error(code="deadline", message="The answer reached its iteration limit.", retryable=false)
 verify(final_text, tool_results, citations) -> yield SSE done{verified:…}
 ```
 
@@ -215,6 +218,7 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 
 ```json
 {
+  "attempt_id": "client-generated-opaque-id",
   "question": "Why this site over the one near Houston?",
   "context": {
     "scenario_id": "uri_2021", "hour": 3,
@@ -225,24 +229,26 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 }
 ```
 
-`history` is optional prior Q/A text only (no tool blocks) — max 6 turns; the server re-injects it as plain messages before the new question.
+`attempt_id` is required: the client creates it, sends it on the initial and any
+resume POST, and verifies the matching `X-Flux-Attempt-Id` response header.
+`history` is optional prior Q/A text only (no tool blocks) — max 6 turns; the
+server re-injects it as plain messages before the new question.
 
-SSE events (each `event: <type>` + `data: <json>`; `id` is a monotonic counter):
-#### Canonical SSE error contract
+SSE events (each `event: <type>` + `data: <json>`) use the complete v1 schema
+in [`sse-event-schema.md`](../research/sse-event-schema.md). In particular,
+`lifecycle` is first; every payload has `v` and `seq` equal to its monotonic
+SSE `id`; `tool_call`/`tool_result` use `call_id`, `tool`, and `elapsed_ms`; and
+exactly one `done` or nested-envelope `error` is terminal. A `citation` is
+emitted for each `cite` hit after its tool result so the UI can render
+footnotes. Producers and clients must not add local event shapes or codes.
 
-[`sse-event-schema.md`](../research/sse-event-schema.md) is authoritative for the v1 `error` event: its envelope, error-code vocabulary, retryability, and terminal semantics are part of that transport contract, not this service specification. Producers and clients must implement that document's v1 contract and must not add a local error code or alternate error shape here.
-
-
-| event | data |
-| --- | --- |
-| `text` | `{"delta": "…"}` |
-| `tool_call` | `{"id","name","input"}` |
-| `tool_result` | `{"id","name","ok":bool,"ms":int,"result":<capped dict>}` |
-| `citation` | `{"doc","title","page","chunk_id","text"}` — one per `cite` hit, emitted right after that tool_result so the UI can render footnotes |
-| `done` | `{"verified":bool,"unverified_numbers":[…],"unverified_citations":[…],"tools_used":[…],"usage":{input_tokens,output_tokens,cache_read_input_tokens},"ms":int}` |
-| `error` | See the [canonical SSE error contract](#canonical-sse-error-contract). |
-
-Because it is a POST, the client uses `fetch` + `ReadableStream`, not `EventSource` (spec 06). Transport: `sse_starlette.sse.EventSourceResponse(gen, ping=10)` yielding `ServerSentEvent(data=json, event=type, id=str(n))` (sse-starlette 3.4.11 verified: `EventSourceResponse(content, ping: float|None = None, ping_message_factory=…, sep=…)`, default ping interval 15 s, default ping is the comment line `: ping - <utc timestamp>`). Heartbeat every 10 s so proxies keep the stream open; the client must ignore **any** line starting with `:` (not just the literal `: ping`) unless we pass `ping_message_factory=lambda: ServerSentEvent(comment="ping")`.
+Because it is a POST, the client uses `fetch` + `ReadableStream`, not
+`EventSource` (spec 06). Transport uses
+`sse_starlette.sse.EventSourceResponse(gen, ping=15,
+ping_message_factory=lambda: ServerSentEvent(comment="keepalive"))`, yielding
+`ServerSentEvent(data=json, event=type, id=str(n))`. Clients ignore every
+comment line beginning with `:`; heartbeats do not advance the application
+sequence.
 
 ### Python signatures (`tools/impl.py`) — the shared contract
 
