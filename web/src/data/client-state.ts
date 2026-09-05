@@ -163,12 +163,16 @@ export function createSseClient(transport: Transport = fetchWithPolicy): SseClie
           signal: request.signal,
         });
         if (isSseResponse(response) && response.body) {
+          const reader = response.body.getReader();
           return {
             kind: "ready",
             data: {
-              reader: response.body.getReader(),
+              reader,
               decode,
-              close: request.close,
+              close: () => {
+                void reader.cancel().catch(() => undefined);
+                request.close();
+              },
             },
           };
         }
