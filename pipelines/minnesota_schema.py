@@ -80,16 +80,21 @@ def _validate(con: duckdb.DuckDBPyConnection) -> None:
     missing = set(TABLES) - actual
     if missing:
         raise RuntimeError(f"Minnesota schema missing tables: {sorted(missing)!r}; migrate explicitly.")
+    expected = ("artifact_id", "artifact_kind", "contract_version", "geography_id", "availability", "model_mode", "identity_json", "created_at", "assumptions_json", "limitations_json", "input_artifact_ids_json")
+    actual_columns = tuple(row[1] for row in con.execute("PRAGMA table_info('mn_artifact_manifests')").fetchall())
+    if actual_columns != expected:
+        raise RuntimeError("mn_artifact_manifests shape is incompatible; migrate explicitly.")
     bad = con.execute("""SELECT m.artifact_id FROM mn_artifact_manifests m
         WHERE m.availability='available' AND NOT EXISTS (SELECT 1 FROM mn_artifact_provenance p WHERE p.artifact_id=m.artifact_id)""").fetchone()
     if bad:
         raise RuntimeError(f"available artifact {bad[0]!r} has no provenance")
     checks = (
-        ("SELECT d.artifact_id FROM mn_model_results d JOIN mn_artifact_manifests m USING(artifact_id) WHERE m.availability <> 'available' LIMIT 1", "domain row requires available manifest"),
+        ("SELECT d.artifact_id FROM (SELECT artifact_id FROM mn_geography_artifacts UNION ALL SELECT artifact_id FROM mn_fixture_artifacts UNION ALL SELECT artifact_id FROM mn_scenario_artifacts UNION ALL SELECT artifact_id FROM mn_model_results UNION ALL SELECT artifact_id FROM mn_score_results) d JOIN mn_artifact_manifests m USING(artifact_id) WHERE m.availability <> 'available' LIMIT 1", "domain row requires available manifest"),
+        ("SELECT m.artifact_id FROM mn_artifact_manifests m WHERE m.availability='unavailable' AND EXISTS (SELECT 1 FROM mn_geography_artifacts d WHERE d.artifact_id=m.artifact_id) LIMIT 1", "unavailable artifact has domain row"),
         ("SELECT g.artifact_id FROM mn_geography_artifacts g WHERE g.coordinate_status='unavailable' AND (g.geometry_wkb IS NOT NULL OR g.lon IS NOT NULL) LIMIT 1", "unavailable geometry has values"),
-        ("SELECT artifact_id FROM mn_artifact_field_provenance WHERE derivation_method IS NULL AND provenance_ordinal > 0 LIMIT 1", "derived provenance lacks method"),
+        ("SELECT f.artifact_id FROM mn_artifact_field_provenance f JOIN mn_artifact_provenance p USING(artifact_id,provenance_ordinal) WHERE p.is_derived AND (f.derivation_method IS NULL OR f.derivation_method='') LIMIT 1", "derived provenance lacks method"),
         ("SELECT artifact_id FROM mn_scenario_artifacts WHERE scenario_label <> 'historical_weather_stress' AND (outcome_artifact_id IS NULL OR matching_method IS NULL OR matching_method='') LIMIT 1", "replay lacks outcome or method"),
-        ("SELECT r.artifact_id FROM mn_model_results r JOIN mn_artifact_manifests m USING(artifact_id) WHERE (m.model_mode='aggregate' AND (r.formula IS NULL OR r.base_mva IS NOT NULL OR r.solver_version IS NOT NULL)) OR (m.model_mode='topology' AND (r.base_mva IS NULL OR r.solver_version IS NULL OR r.converter_version IS NULL)) LIMIT 1", "model mode fields incompatible"),
+        ("SELECT r.artifact_id FROM mn_model_results r JOIN mn_artifact_manifests m USING(artifact_id) WHERE (m.model_mode='aggregate' AND (r.formula IS NULL OR r.base_mva IS NOT NULL OR r.solver_version IS NOT NULL OR r.converter_version IS NOT NULL)) OR (m.model_mode='topology' AND (r.base_mva IS NULL OR r.solver_version IS NULL OR r.converter_version IS NULL)) LIMIT 1", "model mode fields incompatible"),
     )
     for query, message in checks:
         row = con.execute(query).fetchone()
