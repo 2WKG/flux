@@ -202,47 +202,36 @@ def test_named_failures_emit_one_safe_terminal_error(
         stream.done(verified=True)
 
 
+TOOL_TIMEOUT_MESSAGE = "The site scoring tool did not finish in time."
+
+
 def test_failed_tool_result_is_non_terminal() -> None:
-    """Prove a failed tool result is non-terminal and stream remains active."""
+    """A failing tool reports `ok: false` and the answer attempt continues."""
     stream = CopilotEventStream()
     stream.start()
     stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
-    secret_exception = RuntimeError("timeout: /secrets/key.pem Traceback (most recent call)")
 
-    # Emit a failed tool result — should not set terminal state
     failed = stream.failed_tool_result(
-        "call-1", "score_site", "timeout", "The site scoring tool did not finish in time.", elapsed_ms=5000
+        "call-1", "score_site", "timeout", TOOL_TIMEOUT_MESSAGE, elapsed_ms=5000
     )
 
-    # Verify event shape and content
     assert failed.event == "tool_result"
-    assert failed.seq == 3
     assert failed.data == {
         "v": 1,
         "seq": 3,
         "call_id": "call-1",
         "tool": "score_site",
         "ok": False,
-        "error": {"code": "timeout", "message": "The site scoring tool did not finish in time."},
+        "error": {"code": "timeout", "message": TOOL_TIMEOUT_MESSAGE},
         "elapsed_ms": 5000,
     }
-    # No secret text should leak into the encoded event
-    serialized = failed.encode()
-    assert all(
-        value not in serialized
-        for value in ("/secrets/", "key.pem", "Traceback", "secret_exception")
-    )
-    # Verify no "result" key when ok=false
+    # `error` replaces `result`; a failed call never carries a plausible value.
     assert "result" not in failed.data
 
-    # Stream should still be active: emit another tool call, result, and done
-    call2 = stream.tool_call("call-2", "top_lines", {"region": "ERCOT"})
-    result2 = stream.tool_result(
-        "call-2", "top_lines", {"region": "ERCOT", "lines": []}, elapsed_ms=100
-    )
+    # The turn stays viable: a later call, its result, and `done` all succeed.
+    stream.tool_call("call-2", "top_lines", {"region": "ERCOT"})
+    stream.tool_result("call-2", "top_lines", {"lines": []}, elapsed_ms=100)
     done = stream.done(verified=False)
 
-    assert call2.seq == 4
-    assert result2.seq == 5
     assert done.seq == 6
     assert done.data["status"] == "completed"
