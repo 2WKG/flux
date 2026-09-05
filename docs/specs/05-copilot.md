@@ -1,5 +1,7 @@
 # 05 — Copilot service (`copilot/`)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.duckdb` being populated by specs 01–04 (twin, outage model, cascade, siting/line-upgrade).
 
 ## Purpose
