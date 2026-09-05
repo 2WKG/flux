@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "updated": "2026-09-05",
+  "issue": "2WKG-284",
+  "note": "Operational metadata for P0 sources. Joins datasets/catalog.json on `id`. catalog.json answers what a source is and how to get it; this file answers who owns it, how often it changes, how it is refreshed, and when it is stale. Sources outside P0 are inventory-only until promoted — absent here means not yet operated, not exempt.",
+  "field_reference": {
+    "owner": "Named person accountable for the source. `unassigned` is honest and actionable; a wrong name is neither.",
+    "grain": "One row of the landed artifact.",
+    "publisher_cadence": "How often the publisher updates. Observed from the publisher, not chosen by us.",
+    "refresh_mode": "full = re-fetch whole artifact. incremental = fetch only new partitions.",
+    "refresh_trigger": "manual until a scheduler exists. Stated so nobody assumes automation.",
+    "retention": "How many releases of the raw artifact to keep. Raw artifacts are never overwritten (ingest README, Revisions).",
+    "freshness_sla_hours": "Age past which the source is stale and must not back a displayed number. null = static source, cannot go stale.",
+    "backfill": "safe = re-running any prior window is idempotent. bounded = only the stated window is re-fetchable. none = publisher serves current state only; history is whatever we already captured."
+  },
+  "sources": [
+    {
+      "id": "activsg2000", "owner": "unassigned", "grain": "one bus / branch / generator row",
+      "publisher_cadence": "static release", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": null, "backfill": "safe",
+      "note": "Version is load-bearing: the current TAMU bundle and the June-2016 xlsx are different cases. Pin the release."
+    },
+    {
+      "id": "census-tiger-counties", "owner": "unassigned", "grain": "one county polygon",
+      "publisher_cadence": "annual", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "2 releases", "freshness_sla_hours": null, "backfill": "safe",
+      "note": "Vintage changes county geometry and occasionally FIPS. Never mix vintages in one join."
+    },
+    {
+      "id": "fema-nri", "owner": "unassigned", "grain": "one county risk row",
+      "publisher_cadence": "irregular, roughly annual", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "2 releases", "freshness_sla_hours": null, "backfill": "safe"
+    },
+    {
+      "id": "pudl-eia860-plants", "owner": "unassigned", "grain": "one plant-year / generator-year row",
+      "publisher_cadence": "annual, with monthly EIA-860M interim", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "2 releases", "freshness_sla_hours": 8760, "backfill": "safe"
+    },
+    {
+      "id": "eia-930", "owner": "unassigned", "grain": "one balancing-authority hour",
+      "publisher_cadence": "hourly, revised for ~30 days", "refresh_mode": "incremental", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": 48, "backfill": "safe",
+      "note": "Revision window means a hour re-fetched later can legitimately differ. Keep source_release; do not treat a change as corruption."
+    },
+    {
+      "id": "eaglei-2021", "owner": "unassigned", "grain": "one county 15-minute observation",
+      "publisher_cadence": "annual archive release", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": null, "backfill": "safe",
+      "note": "Historical archive, not a live feed. Null is not-reported, never zero customers out."
+    },
+    {
+      "id": "hrrr", "owner": "unassigned", "grain": "one forecast grid cell hour",
+      "publisher_cadence": "hourly", "refresh_mode": "incremental", "refresh_trigger": "manual",
+      "retention": "demo windows only", "freshness_sla_hours": 24, "backfill": "bounded",
+      "note": "Cloud archive is large. Fetch only the declared demo windows; a full pull is out of scope."
+    },
+    {
+      "id": "noaa-storm-events", "owner": "unassigned", "grain": "one storm event record",
+      "publisher_cadence": "monthly, with late-arriving revisions", "refresh_mode": "incremental", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": 1440, "backfill": "safe",
+      "note": "Events are added retroactively. A window fetched today is not final."
+    },
+    {
+      "id": "ercot-load", "owner": "unassigned", "grain": "one ERCOT zone hour",
+      "publisher_cadence": "hourly / daily reports", "refresh_mode": "incremental", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": 48, "backfill": "bounded",
+      "note": "Report retention on the publisher side is limited. What is not captured in the window is not recoverable later."
+    },
+    {
+      "id": "dod-bases-tx", "owner": "unassigned", "grain": "one installation boundary",
+      "publisher_cadence": "irregular", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "2 releases", "freshness_sla_hours": null, "backfill": "safe",
+      "note": "Public boundary data only. Presence in this file is not a protection or criticality claim."
+    }
+  ]
+}
