@@ -12,3 +12,10 @@ graphify-out/cache/
 graphify-out/.graphify_*
 **/graphify-out/cache/
 **/graphify-out/.graphify_*
+graphify-out/graph.json
+graphify-out/graph.html
+.worktrees/
+
+# EDA outputs written by scripts/run_eda.py defaults
+data/eda-report.json
+data/eda-summary.md
