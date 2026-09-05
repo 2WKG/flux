@@ -16,6 +16,7 @@ data/parquet/                                      models/outage/  LightGBM
 siting/   safety + grid-value scoring              causal/      pgmpy / DoWhy
 copilot/  FastAPI + Claude tool loop               web/         Vite + React + deck.gl + MapLibre
 docs/specs/  one spec per unit                     scripts/data/download.sh
+datasets/    source registry + safe downloader
 ```
 
 ## Setup
@@ -41,3 +42,7 @@ checks only after setup changes or for actual connectivity troubleshooting.
 Never present unavailable data, failed solves, missing API access, or
 unverified claims as results. Buckeye material is reference knowledge only:
 do not write Flux material into Buckeye repositories or reuse its credentials.
+Status: specs + dependencies only. No product code yet.
+
+See [`datasets/README.md`](datasets/README.md) for the complete public-data
+catalog, acquisition routes, and commands that keep bulk files out of Git.
