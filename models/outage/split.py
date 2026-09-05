@@ -209,15 +209,21 @@ def manifest_summary(manifest: SplitManifest) -> Mapping[str, object]:
 
 def split(
     df: pd.DataFrame,
+    *,
+    county_catalog: pd.DataFrame | Mapping[str, str],
 ) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]:
     """Return copied train, calibration, and named holdout DataFrames.
 
-    This adapter retains the interface in spec 02. It requires the
-    county/window identity and the county's state; callers that need a durable
-    artifact should use :func:`build_split_manifest` instead.
+    This adapter consumes spec 02's ``outage_features`` transport directly:
+    its row identity is ``(county_fips, window_start)``.  ``state`` is resolved
+    from the shared ``counties`` catalog rather than required as an
+    undocumented feature-table column.  Pass either a ``counties`` query
+    result with ``county_fips`` and ``state`` columns or its equivalent mapping.
+    Callers that need a durable artifact should use :func:`build_split_manifest`
+    instead.
     """
 
-    required = {"county_fips", "scenario_id", "window_start", "state"}
+    required = {"county_fips", "window_start"}
     missing = required.difference(df.columns)
     if missing:
         raise SplitError(
@@ -228,11 +234,8 @@ def split(
     # partition work with vectorized pandas operations rather than creating a
     # Pydantic WindowKey for every row.
     county_fips = df["county_fips"].astype("string")
-    scenario_id = df["scenario_id"].astype("string")
     if county_fips.isna().any() or not county_fips.str.fullmatch(r"\d{5}").all():
         raise SplitError("county_fips must be a five-digit string")
-    if scenario_id.isna().any() or scenario_id.str.strip().eq("").any():
-        raise SplitError("scenario_id must not be empty")
 
     try:
         window_start = pd.to_datetime(df["window_start"], utc=True, errors="raise")
@@ -247,13 +250,9 @@ def split(
     ):
         raise SplitError("window_start must be aligned to 6h UTC boundaries")
 
-    states = df["state"].astype("string").str.strip().str.upper()
-    if states.isna().any() or states.str.len().ne(2).any():
-        raise SplitError("state must be a two-letter abbreviation")
+    states = _states_from_county_catalog(county_fips, county_catalog)
 
-    identity = pd.MultiIndex.from_arrays(
-        [county_fips, scenario_id, window_start.astype("int64")]
-    )
+    identity = pd.MultiIndex.from_arrays([county_fips, window_start.astype("int64")])
     if identity.duplicated().any():
         raise SplitError("input rows contain duplicate WindowKey values")
 
@@ -270,6 +269,49 @@ def split(
         for scenario in HOLDOUT_WINDOWS
     }
     return train, calibration_frame, holdouts
+
+
+def _states_from_county_catalog(
+    county_fips: pd.Series, county_catalog: pd.DataFrame | Mapping[str, str]
+) -> pd.Series:
+    """Resolve states from the contract-owned ``counties`` catalog.
+
+    The feature parquet deliberately has no geographic display columns.  A
+    missing or ambiguous catalog entry must fail closed, because treating such
+    rows as trainable could bypass a state-scoped holdout.
+    """
+
+    if isinstance(county_catalog, pd.DataFrame):
+        required = {"county_fips", "state"}
+        missing = required.difference(county_catalog.columns)
+        if missing:
+            raise SplitError(
+                "county catalog is missing required columns: "
+                f"{sorted(missing)}"
+            )
+        catalog_fips = county_catalog["county_fips"].astype("string")
+        if (
+            catalog_fips.isna().any()
+            or not catalog_fips.str.fullmatch(r"\d{5}").all()
+            or catalog_fips.duplicated().any()
+        ):
+            raise SplitError("county catalog must have unique five-digit county_fips values")
+        raw_states: Mapping[str, object] = dict(
+            zip(catalog_fips.tolist(), county_catalog["state"].tolist(), strict=True)
+        )
+    elif isinstance(county_catalog, Mapping):
+        raw_states = county_catalog
+    else:
+        raise SplitError("county_catalog must be a counties DataFrame or a county-to-state mapping")
+
+    states_by_county = {
+        str(fips): _normalize_state(state) for fips, state in raw_states.items()
+    }
+    states = county_fips.map(states_by_county).astype("string")
+    missing_fips = county_fips.loc[states.isna()].unique().tolist()
+    if missing_fips:
+        raise SplitError(f"county catalog has no state for counties: {sorted(missing_fips)}")
+    return states
 
 
 def _assign_partitions(rows: tuple[_SplitRow, ...]) -> dict[WindowKey, Partition]:
