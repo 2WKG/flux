@@ -8,10 +8,16 @@ import pandas as pd
 
 from pipelines.common import fips5, utc_naive, utc_now
 from pipelines.db import contract_frame, log_artifact, replace_frame
+from pipelines.state_scope import StateScope, scope, sql_in
 
 
-def load_county_customers(con, mcc_csv: str, source_year: int = 2022) -> int:
+def _fips_where(selected: StateScope, column: str = "county_fips") -> str:
+    return " OR ".join(f"{column} LIKE '{item}%'" for item in selected.fips)
+
+
+def load_county_customers(con, mcc_csv: str, source_year: int = 2022, states=None) -> int:
     path = Path(mcc_csv)
+    selected_scope = states if isinstance(states, StateScope) else scope(states)
     raw = pd.read_csv(path, encoding="utf-8-sig", dtype="string")
     required = {"County_FIPS", "Customers"}
     if missing := required - set(raw.columns):
@@ -20,30 +26,37 @@ def load_county_customers(con, mcc_csv: str, source_year: int = 2022) -> int:
         "county_fips": raw["County_FIPS"].map(fips5), "source_year": source_year,
         "customers": pd.to_numeric(raw["Customers"], errors="coerce").astype("Int64"), "source": "mcc_2022",
     })
-    frame = frame[frame.county_fips.str.startswith("48", na=False)]
-    rows = replace_frame(con, "county_customers", frame, where="source = 'mcc_2022'")
+    frame = frame[frame.county_fips.str[:2].isin(selected_scope.fips)]
+    rows = replace_frame(con, "county_customers", frame, where=f"source = 'mcc_2022' AND ({_fips_where(selected_scope)})")
     log_artifact(con, source="eaglei", source_release="mcc_2022", path=path, rows_loaded=rows,
                  schema_fingerprint="County_FIPS,Customers")
     return rows
 
 
-def load_coverage_history(con, coverage_csv: str) -> int:
+def load_coverage_history(con, coverage_csv: str, states=None) -> int:
     path = Path(coverage_csv)
+    selected_scope = states if isinstance(states, StateScope) else scope(states)
     raw = pd.read_csv(path)
-    selected = raw[raw["state"].eq("TX")].copy()
+    selected = raw[raw["state"].isin(selected_scope.source_values("eaglei_coverage"))].copy()
     selected["source_year"] = pd.to_datetime(selected["year"], errors="coerce").dt.year
     frame = selected.rename(columns={"total_customers": "total_customers", "min_covered": "min_covered",
                                     "max_covered": "max_covered", "min_pct_covered": "min_pct_covered",
                                     "max_pct_covered": "max_pct_covered"})[
         ["source_year", "state", "total_customers", "min_covered", "max_covered", "min_pct_covered", "max_pct_covered"]
     ]
-    rows = replace_frame(con, "eaglei_coverage", frame, where="state = 'TX'")
+    predicate, parameters = sql_in("state", selected_scope.source_values("eaglei_coverage"))
+    con.execute(f"DELETE FROM eaglei_coverage WHERE {predicate}", parameters)
+    if not frame.empty:
+        con.register("_coverage", frame)
+        try: con.execute("INSERT INTO eaglei_coverage BY NAME SELECT * FROM _coverage")
+        finally: con.unregister("_coverage")
+    rows = len(frame)
     log_artifact(con, source="eaglei", source_release="coverage_history", path=path, rows_loaded=rows,
                  schema_fingerprint="year,state,total_customers,min/max coverage")
     return rows
 
 
-def load_eaglei(con, csv_path: str, year: int, source_tz: str | None) -> int:
+def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=None) -> int:
     """Load a Texas EAGLE-I file after an explicit source-timezone decision.
 
     `source_tz` is intentionally mandatory: EAGLE-I timestamps arrive without a
@@ -52,16 +65,18 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None) -> int:
     if source_tz is None:
         raise ValueError("EAGLE-I source_tz must be explicitly set after validation")
     path = Path(csv_path)
+    selected_scope = states if isinstance(states, StateScope) else scope(states)
     # DuckDB projection/filter streams the national file and limits Python work to Texas rows.
     schema = con.execute("DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]).fetchdf()
     total_customers = "TRY_CAST(total_customers AS BIGINT)" if "total_customers" in set(schema.column_name) else "NULL::BIGINT"
+    state_placeholders = ", ".join("?" for _ in selected_scope.names)
     query = f"""
         SELECT fips_code, county, state, customers_out, run_start_time,
                {total_customers} AS total_customers
         FROM read_csv_auto(?)
-        WHERE state = 'Texas'
+        WHERE state IN ({state_placeholders})
     """
-    raw = con.execute(query, [str(path)]).fetchdf()
+    raw = con.execute(query, [str(path), *selected_scope.source_values("eaglei")]).fetchdf()
     expected = {"fips_code", "county", "state", "customers_out", "run_start_time"}
     if missing := expected - set(raw.columns):
         raise ValueError(f"{path.name} missing EAGLE-I columns: {sorted(missing)}")
@@ -107,9 +122,10 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None) -> int:
                                AND observations.ts = outages.ts)""",
             [year],
         )
-        replace_frame(con, "eaglei_outage_observations", observation, where=f"source_year = {year}")
+        scope_where = _fips_where(selected_scope)
+        replace_frame(con, "eaglei_outage_observations", observation, where=f"source_year = {year} AND ({scope_where})")
         incoming = contract_frame(frame, "eaglei_outages", source_name="eaglei", source_ref=path.name,
-                                  source_version=str(year), fixture_batch_id=f"p0-eaglei-{year}")
+                                  source_version=str(year), fixture_batch_id=f"p0-eaglei-{year}-{selected_scope.slug}")
         con.register("_eaglei_incoming", incoming)
         try:
             con.execute("INSERT INTO eaglei_outages BY NAME SELECT * FROM _eaglei_incoming")
@@ -121,8 +137,9 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None) -> int:
             denominator["source_year"] = year
             denominator["source"] = "eaglei_file"
             replace_frame(con, "county_customers", denominator,
-                          where=f"source = 'eaglei_file' AND source_year = {year}")
-        replace_frame(con, "eaglei_ingest_quality", quality, where=f"source_year = {year}")
+                          where=f"source = 'eaglei_file' AND source_year = {year} AND ({scope_where})")
+        if selected_scope.is_texas_only:
+            replace_frame(con, "eaglei_ingest_quality", quality, where=f"source_year = {year}")
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")

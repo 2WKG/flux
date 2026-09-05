@@ -10,6 +10,7 @@ import pandas as pd
 
 from pipelines.common import fips5
 from pipelines.db import log_artifact, replace_frame
+from pipelines.state_scope import StateScope, scope
 
 
 # v1.20 exposes inland flooding as IFLD (not the older RFLD shorthand).
@@ -40,10 +41,14 @@ def _number(frame: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_numeric(frame[column], errors="coerce") if column in frame else pd.Series(pd.NA, index=frame.index)
 
 
-def load_nri(con, source_path: str, release: str = "v1.20", state: str = "TX") -> int:
+def load_nri(con, source_path: str, release: str = "v1.20", states=None, *, state: str | None = None) -> int:
     path = Path(source_path)
+    if state is not None:
+        if states is not None: raise ValueError("pass state or states, not both")
+        states = state
+    selected_scope = states if isinstance(states, StateScope) else scope(states)
     source = _county_records(path)
-    selected = source[source["STATEABBRV"].eq(state)].copy()
+    selected = source[source["STATEABBRV"].isin(selected_scope.source_values("fema_nri"))].copy()
     selected["county_fips"] = selected["STCOFIPS"].map(fips5)
     selected = selected[selected.county_fips.notna()]
     hazard = pd.DataFrame({
@@ -52,8 +57,9 @@ def load_nri(con, source_path: str, release: str = "v1.20", state: str = "TX") -
         "wildfire_hazard": pd.NA,
         "seismic_pga": pd.NA,
     })
-    replace_frame(con, "hazard_static", hazard, where="county_fips LIKE '48%'", source_name="fema_nri",
-                  source_ref=path.name, source_version=release, fixture_batch_id=f"p0-nri-{release}")
+    state_where = " OR ".join(f"county_fips LIKE '{value}%'" for value in selected_scope.fips)
+    replace_frame(con, "hazard_static", hazard, where=state_where, source_name="fema_nri",
+                  source_ref=path.name, source_version=release, fixture_batch_id=f"p0-nri-{release}-{selected_scope.slug}")
     # Population belongs in the canonical county table, while the source remains in NRI provenance.
     population = pd.DataFrame({"county_fips": selected.county_fips, "pop": _number(selected, "POPULATION").astype("Int64")})
     con.register("_nri_pop", population)
@@ -73,7 +79,7 @@ def load_nri(con, source_path: str, release: str = "v1.20", state: str = "TX") -
             "eal_value": _number(selected, eal), "source_release": release,
         }))
     if records:
-        replace_frame(con, "nri_hazards", pd.concat(records, ignore_index=True), where=f"source_release = '{release}'")
+        replace_frame(con, "nri_hazards", pd.concat(records, ignore_index=True), where=f"source_release = '{release}' AND ({state_where})")
     log_artifact(con, source="fema_nri", source_release=release, path=path, rows_loaded=len(hazard),
                  schema_fingerprint="STCOFIPS,POPULATION,RISK_SCORE,hazard risk/eal columns")
     return len(hazard)

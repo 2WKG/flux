@@ -6,9 +6,14 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime
 from pathlib import Path
+import sys
 from urllib.request import Request, urlopen
 
-from pipelines.state_scope import parse_states
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from pipelines.state_scope import parse_states, scope
 
 
 def dod_url(state: str) -> str:
@@ -34,12 +39,13 @@ def main() -> int:
         "--states", nargs="+", metavar="STATE",
         help="one or more postal abbreviations; commas are accepted (default: TX)",
     )
+    parser.add_argument("--state", action="append", help="USPS, full name, or two-digit FIPS; repeat or comma-separate")
     parser.add_argument("--dod", action="store_true")
     parser.add_argument("--nws-user-agent", help="required to fetch NWS alerts; include a real contact")
     args = parser.parse_args()
     root = Path(args.raw_dir)
     try:
-        states = parse_states(args.states)
+        states = scope(args.state).usps if args.state else parse_states(args.states)
     except ValueError as error:
         parser.error(str(error))
     if args.dod:
