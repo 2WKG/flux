@@ -484,3 +484,8 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
   - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
+
+- **A10 — SSE transport.** `POST /ask` uses the v1 event names, envelopes,
+  ordering, terminal behavior, heartbeats, and POST-resume identity defined in
+  `docs/research/sse-event-schema.md`. Spec 05 and the web client consume that
+  single transport contract; no route or client invents a second event shape.
