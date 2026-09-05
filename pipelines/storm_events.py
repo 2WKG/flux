@@ -9,11 +9,12 @@ import pandas as pd
 from pipelines.common import fips5, utc_naive
 from pipelines.db import log_artifact, replace_frame
 
-# The Texas-only loader sees two documented NOAA CZ_TIMEZONE labels.  They are
-# POSIX-style labels rather than IANA identifiers; IANA timezones retain DST.
+# Storm Events timestamps use local *standard* time year-round.  The Texas-only
+# loader maps NOAA's POSIX-style labels to fixed-offset IANA zones (whose signs
+# are intentionally reversed) so daylight saving time is never applied.
 _TEXAS_CZ_TIMEZONES = {
-    "CST-6": "America/Chicago",
-    "MST-7": "America/Denver",
+    "CST-6": "Etc/GMT+6",
+    "MST-7": "Etc/GMT+7",
 }
 
 
