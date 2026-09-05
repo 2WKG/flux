@@ -3,6 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
+from pipelines.line_upgrade_contracts import InterventionType
 from twin.reconductor import (
     ConductorParameters,
     Evidence,
@@ -55,6 +56,21 @@ def test_artifact_records_baseline_proposal_units_evidence_and_scenario_linkage(
 
 def test_identical_input_produces_identical_canonical_artifact():
     assert _artifact().canonical_json() == _artifact().canonical_json()
+
+
+def test_reconductor_artifact_has_an_immutable_reconductor_discriminator():
+    artifact = _artifact()
+
+    assert artifact.intervention is InterventionType.RECONDUCTOR
+    assert artifact.model_dump(mode="json")["intervention"] == "reconductor"
+
+    with pytest.raises(ValidationError, match="reconductor"):
+        ReconductorParameterArtifact.model_validate(
+            artifact.model_dump(mode="json") | {"intervention": "dlr"}
+        )
+
+    with pytest.raises(ValidationError, match="frozen"):
+        artifact.intervention = InterventionType.DLR
 
 
 def test_parameter_units_cannot_be_mislabeled():
