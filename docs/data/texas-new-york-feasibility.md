@@ -11,6 +11,10 @@ depends_on: "2WKG-137 (weather/overlays) and 2WKG-140 (demand history) — both 
 
 # Texas + New York — feasibility
 
+> **Scope order (2026-09-05):** the current order is **Minnesota → Texas → further states**.
+> This document was written when Texas was the first case; read any "Texas first" framing below
+> as historical.
+
 **Status: undecided. New York is not cancelled.** This records the available evidence and open
 limitations for a later second-state decision, alongside
 `docs/data/texas-minnesota-feasibility.md`.
