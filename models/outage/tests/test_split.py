@@ -16,7 +16,6 @@ from models.outage.contracts import (
     WindowKey,
 )
 from models.outage.split import (
-    TX_POST_BERYL_GUARD,
     SplitError,
     build_split_manifest,
     manifest_membership,
@@ -79,7 +78,7 @@ def test_manifest_never_assigns_holdouts_to_train_or_calibration():
     assert by_key[rows[1].key] is Partition.HOLDOUT
     assert by_key[rows[2].key] is Partition.HOLDOUT
     assert by_key[rows[3].key] is Partition.HOLDOUT
-    assert by_key[rows[4].key] is Partition.HOLDOUT
+    assert by_key[rows[4].key] is Partition.EXCLUDED
     membership = manifest_membership(manifest)
     assert membership[Partition.HOLDOUT].isdisjoint(membership[Partition.TRAIN])
     assert membership[Partition.HOLDOUT].isdisjoint(membership[Partition.CALIBRATION])
@@ -110,7 +109,8 @@ def test_manifest_audit_includes_hash_counts_and_sorted_membership():
 
     assert len(summary["manifest_sha256"]) == 64
     assert sum(summary["row_counts"].values()) == len(rows)
-    assert summary["row_counts"]["holdout"] == 5
+    assert summary["row_counts"]["holdout"] == 4
+    assert summary["row_counts"]["excluded"] >= 1
     assert tuple(summary["membership"]["train"]) == tuple(
         sorted(summary["membership"]["train"])
     )
@@ -125,13 +125,75 @@ def test_partition_rows_requires_the_exact_manifest_population():
     manifest = build_split_manifest(
         rows, states_by_county=states, input_artifact_sha256=HASH
     )
-    partitions = partition_rows(rows, manifest)
+    partitions = partition_rows(
+        rows, manifest, verified_input_artifact_sha256=HASH
+    )
 
     assert sum(len(bucket) for bucket in partitions.values()) == len(rows)
     with pytest.raises(TypeError):
         partitions[Partition.TRAIN] = ()
     with pytest.raises(SplitError, match="exactly match"):
-        partition_rows(rows[:-1], manifest)
+        partition_rows(rows[:-1], manifest, verified_input_artifact_sha256=HASH)
+
+
+def test_partition_rows_binds_verified_input_hash_and_manifest_integrity():
+    rows, states = sample_rows()
+    manifest = build_split_manifest(
+        rows, states_by_county=states, input_artifact_sha256=HASH
+    )
+
+    with pytest.raises(SplitError, match="verified input artifact hash"):
+        partition_rows(rows, manifest, verified_input_artifact_sha256="b" * 64)
+
+    tampered = manifest.model_copy(update={"split_id": "split-tampered"})
+    with pytest.raises(SplitError, match="split_id"):
+        partition_rows(rows, tampered, verified_input_artifact_sha256=HASH)
+
+
+def test_calibration_uses_whole_county_months_and_is_stable_under_append():
+    rows_and_states = []
+    for month in range(1, 13):
+        for window in range(4):
+            rows_and_states.append(
+                observed(
+                    "48001",
+                    "TX",
+                    datetime(2023, month, 1, 6 * window, tzinfo=UTC),
+                )
+            )
+    rows = tuple(row for row, _ in rows_and_states)
+    states = {"48001": "TX"}
+    original = build_split_manifest(
+        rows, states_by_county=states, input_artifact_sha256=HASH
+    )
+    assignment = {item.key: item.partition for item in original.assignments}
+
+    for month in range(1, 13):
+        monthly = {
+            assignment[row.key]
+            for row in rows
+            if row.key.window_start.month == month
+        }
+        assert len(monthly) == 1
+    monthly_partition = {
+        month: assignment[next(row.key for row in rows if row.key.window_start.month == month)]
+        for month in range(1, 13)
+    }
+    for month in range(1, 12):
+        if monthly_partition[month] is Partition.CALIBRATION:
+            assert monthly_partition[month + 1] is Partition.EXCLUDED
+
+    appended = rows + tuple(
+        observed("48001", "TX", datetime(2024, month, 1, tzinfo=UTC))[0]
+        for month in range(1, 7)
+    )
+    refreshed = build_split_manifest(
+        appended, states_by_county=states, input_artifact_sha256="b" * 64
+    )
+    refreshed_assignment = {
+        item.key: item.partition for item in refreshed.assignments
+    }
+    assert {key: refreshed_assignment[key] for key in assignment} == assignment
 
 
 def test_fixture_labels_cannot_enter_a_manifest():
@@ -151,7 +213,7 @@ def test_fixture_labels_cannot_enter_a_manifest():
         )
 
 
-def test_split_adapter_preserves_input_and_names_every_evaluation_holdout():
+def test_split_adapter_preserves_input_and_names_only_evaluation_holdouts():
     start = datetime(2023, 1, 1, tzinfo=UTC)
     frame = pd.DataFrame(
         [
@@ -186,15 +248,33 @@ def test_split_adapter_preserves_input_and_names_every_evaluation_holdout():
     train, calibration, holdouts = split(frame)
 
     pd.testing.assert_frame_equal(frame, original)
-    assert set(holdouts) >= {
+    assert set(holdouts) == {
         "uri_2021",
         "beryl_2024",
         "helene_2024",
-        TX_POST_BERYL_GUARD,
     }
     assert holdouts["uri_2021"].marker.tolist() == [100]
-    assert holdouts[TX_POST_BERYL_GUARD].marker.tolist() == [101]
     assert {100, 101}.isdisjoint(set(train.marker) | set(calibration.marker))
+    assert 101 not in set().union(*(set(frame.marker) for frame in holdouts.values()))
+
+
+def test_split_dataframe_path_does_not_construct_pydantic_keys(monkeypatch):
+    frame = pd.DataFrame(
+        {
+            "county_fips": ["48001"] * 1000,
+            "scenario_id": ["historical"] * 1000,
+            "window_start": pd.date_range("2023-01-01", periods=1000, freq="6h", tz="UTC"),
+            "state": ["TX"] * 1000,
+        }
+    )
+
+    def unexpected_pydantic_path(*args, **kwargs):
+        raise AssertionError("split DataFrame path must remain vectorized")
+
+    monkeypatch.setattr("models.outage.split.WindowKey", unexpected_pydantic_path)
+    train, calibration, holdouts = split(frame)
+
+    assert len(train) + len(calibration) + sum(len(value) for value in holdouts.values()) <= len(frame)
 
 
 def test_split_rejects_ambiguous_or_invalid_input():

@@ -172,6 +172,7 @@ class Partition(StrEnum):
     TRAIN = "train"
     CALIBRATION = "calibration"
     HOLDOUT = "holdout"
+    EXCLUDED = "excluded"
 
 
 class SplitAssignment(Frozen):
