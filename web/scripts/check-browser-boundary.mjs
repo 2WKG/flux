@@ -1,13 +1,57 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { databasePackageSpecifier } from "./database-packages.mjs";
 
 const webRoot = fileURLToPath(new URL("../", import.meta.url));
-const thisFile = fileURLToPath(import.meta.url);
+// Only browser-shipped code is in scope. Node-side build tooling (scripts/) and the
+// local server (server.mjs) legitimately name database packages and paths.
+// An explicit directory argument lets the test suite run the guard against fixtures.
+const browserRoot = process.argv[2] ? path.resolve(process.argv[2]) : path.join(webRoot, "src");
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
-const duckdbDriver = /(?:from\s*|require\s*\(|import\s*\()["'](?:duckdb|duckdb-async|node-duckdb|@duckdb\/duckdb-wasm)["']/;
+
+// Import forms: `import x from "pkg"`, `import "pkg"`, `import("pkg")`, `require("pkg")`, `export ... from "pkg"`.
+const duckdbDriver = new RegExp(
+  `(?:\\bfrom\\s*|\\brequire\\s*\\(\\s*|\\bimport\\s*\\(\\s*|\\bimport\\s+)["'\`]${databasePackageSpecifier()}["'\`]`,
+);
 const databaseFile = /["'`][^"'`\r\n]*\.(?:duckdb|db)(?:[?#][^"'`\r\n]*)?["'`]/i;
-const databasePath = /\b(?:duckdb(?:[_-]?path)?|(?:database|db)[_-]?path)\b/i;
+// Anchored to path-shaped identifiers; the bare word `duckdb` alone is not a violation
+// (comments, error strings, and identifiers such as `duckdbLike` are legitimate).
+const databasePath = /\b(?:duckdb|database|db)[_-]?path\b/i;
+
+/**
+ * Remove // and /* *\/ comments while keeping string contents and newlines, so rules
+ * neither fire on prose nor lose their line numbers. Quote tracking for ' and " resets
+ * at end of line; if a quote is mis-tracked (JSX apostrophes, regex literals), the only
+ * effect is that a comment on that line is left in place, never that code is dropped.
+ */
+export function stripComments(source) {
+  let out = "";
+  let quote = null;
+  for (let i = 0; i < source.length; ) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (quote) {
+      if (ch === "\\") { out += ch + (next ?? ""); i += 2; continue; }
+      if (ch === quote || (ch === "\n" && quote !== "`")) quote = null;
+      out += ch; i += 1; continue;
+    }
+    if (ch === '"' || ch === "'" || ch === "`") { quote = ch; out += ch; i += 1; continue; }
+    if (ch === "/" && next === "/") {
+      while (i < source.length && source[i] !== "\n") i += 1;
+      continue;
+    }
+    if (ch === "/" && next === "*") {
+      const end = source.indexOf("*/", i + 2);
+      const comment = source.slice(i, end === -1 ? source.length : end + 2);
+      out += comment.replace(/[^\n]/g, "");
+      i += comment.length;
+      continue;
+    }
+    out += ch; i += 1;
+  }
+  return out;
+}
 
 async function sourceFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -19,18 +63,18 @@ async function sourceFiles(directory) {
   return nested.flat(Infinity);
 }
 
+const checks = [
+  [duckdbDriver, "imports a DuckDB driver"],
+  [databaseFile, "references a database file"],
+  [databasePath, "receives a database path"],
+];
+
 const violations = [];
-for (const file of await sourceFiles(path.join(webRoot, "src"))) {
-  if (file === thisFile) continue;
-  const source = await readFile(file, "utf8");
-  const checks = [
-    [duckdbDriver, "imports a DuckDB driver"],
-    [databaseFile, "references a database file"],
-    [databasePath, "receives a database path"],
-  ];
+for (const file of await sourceFiles(browserRoot)) {
+  const source = stripComments(await readFile(file, "utf8"));
   for (const [pattern, message] of checks) {
     const match = source.match(pattern);
-    if (match) violations.push(`${path.relative(webRoot, file)}:${source.slice(0, match.index).split("\n").length} ${message}`);
+    if (match) violations.push(`${path.relative(browserRoot, file)}:${source.slice(0, match.index).split("\n").length} ${message}`);
   }
 }
 
