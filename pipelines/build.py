@@ -7,14 +7,18 @@ from pathlib import Path
 
 from pipelines.activsg import load_activsg
 from pipelines.counties import load_counties
+from pipelines.critical_loads import load_dod
 from pipelines.db import connect, export_parquet
 from pipelines.eaglei import load_county_customers, load_coverage_history, load_eaglei
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
+from pipelines.joins import join_bus_county, join_critical_loads_to_bus
 from pipelines.nri import load_nri
 from pipelines.storm_events import load_storm_events
-from pipelines.critical_loads import load_dod
-from pipelines.joins import join_bus_county, join_critical_loads_to_bus
+
+
+class IncompleteP0BuildError(RuntimeError):
+    """Raised before a partial P0 build can mutate or export the curated release."""
 
 
 def _required(root: Path, *parts: str) -> Path | None:
@@ -22,8 +26,41 @@ def _required(root: Path, *parts: str) -> Path | None:
     return path if path.exists() else None
 
 
+def _missing_p0_inputs(raw: Path, eaglei_source_tz: str | None) -> list[str]:
+    """Return P0 inputs handled by this builder that are absent or not promotable."""
+    required: tuple[tuple[str, tuple[tuple[str, ...], ...]], ...] = (
+        ("activsg2000_current/ACTIVSg2000.aux", (("activsg2000_current", "ACTIVSg2000.aux"),)),
+        ("activsg2000_current/case_ACTIVSg2000.m", (("activsg2000_current", "case_ACTIVSg2000.m"),)),
+        ("tiger/2024/tl_2024_us_county.zip", (("tiger", "2024", "tl_2024_us_county.zip"), ("tiger", "tl_2024_us_county.zip"))),
+        ("NRI v1.20 county data", (("nri", "v1.20", "NRI_Counties_TX.json"), ("nri", "v1.20", "NRI_Table_Counties.zip"), ("nri", "NRI_Table_Counties.zip"))),
+        ("pudl/v2026.2.0/out_eia__yearly_plants.parquet", (("pudl", "v2026.2.0", "out_eia__yearly_plants.parquet"),)),
+        ("pudl/v2026.2.0/out_eia__yearly_generators.parquet", (("pudl", "v2026.2.0", "out_eia__yearly_generators.parquet"),)),
+        ("eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv", (("eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv"),)),
+        ("eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv", (("eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv"),)),
+        ("nws_zone_county/bp16ap26/bp16ap26.dbx", (("nws_zone_county", "bp16ap26", "bp16ap26.dbx"),)),
+        ("storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", (("storm_events", "2021", "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"),)),
+        ("storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", (("storm_events", "2024", "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"),)),
+        ("eaglei/support/MCC.csv", (("eaglei", "support", "MCC.csv"),)),
+        ("eaglei/support/coverage_history.csv", (("eaglei", "support", "coverage_history.csv"),)),
+        ("eaglei/2021/eaglei_outages_2021.csv", (("eaglei", "2021", "eaglei_outages_2021.csv"),)),
+        ("eaglei/2024/eaglei_outages_2024.csv", (("eaglei", "2024", "eaglei_outages_2024.csv"),)),
+        ("ntad_military_bases/fy2024/texas.geojson", (("ntad_military_bases", "fy2024", "texas.geojson"),)),
+    )
+    missing = [label for label, alternatives in required if not any(raw.joinpath(*parts).exists() for parts in alternatives)]
+    if not eaglei_source_tz:
+        missing.append("--eaglei-source-tz (required to promote EAGLE-I)")
+    return missing
+
+
 def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
-    raw, con, counts = Path(raw_dir), connect(db_path), {}
+    raw = Path(raw_dir)
+    if missing := _missing_p0_inputs(raw, eaglei_source_tz):
+        formatted = "\n  - ".join(missing)
+        raise IncompleteP0BuildError(
+            "P0 build was not promoted; missing required inputs:\n  - " + formatted
+        )
+
+    con, counts = connect(db_path), {}
     try:
         aux = _required(raw, "activsg2000_current", "ACTIVSg2000.aux")
         case = _required(raw, "activsg2000_current", "case_ACTIVSg2000.m")
