@@ -6,6 +6,8 @@ from copilot.retrieval.search import (
     MAX_QUERY_CHARACTERS,
     MAX_RESULTS,
     CorpusNotIndexable,
+    RetrievalResponse,
+    retrieve,
     search,
 )
 from copilot.tools.schemas import RetrievalHit
@@ -246,3 +248,33 @@ def test_input_and_output_bounds_are_enforced(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         search(query, [_chunk("id", "capacity planning")], **kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("corpus", "index_available", "reason"),
+    [
+        (None, True, "corpus_unavailable"),
+        ([], True, "corpus_unavailable"),
+        ([_chunk("id", "capacity planning")], False, "index_unavailable"),
+    ],
+)
+def test_unavailable_corpus_or_index_returns_named_citation_free_response(
+    corpus: list[CorpusChunk] | None,
+    index_available: bool,
+    reason: str,
+) -> None:
+    response = retrieve("capacity", corpus, index_available=index_available)
+
+    assert isinstance(response, RetrievalResponse)
+    assert response.status == "unavailable"
+    assert response.reason == reason
+    assert response.hits == ()
+    assert response.record() == {"hits": [], "reason": reason, "status": "unavailable"}
+
+
+def test_available_response_preserves_real_ranked_citation() -> None:
+    response = retrieve("capacity", [_chunk("id", "capacity planning"), *_FILLER])
+
+    assert response.status == "available"
+    assert response.reason is None
+    assert [hit.chunk_id for hit in response.hits] == ["id"]
