@@ -3,6 +3,8 @@ from __future__ import annotations
 import copy
 import importlib.util
 import json
+import math
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -57,3 +59,25 @@ class ScenarioConfigValidationTests(unittest.TestCase):
         config["scenario"]["time_window"]["interval_minutes"] = True
         with self.assertRaisesRegex(ValueError, "positive integer"):
             validator.validate(config)
+
+    def test_rejects_non_finite_samples_and_resource_quantities(self):
+        for value in (math.nan, math.inf, -math.inf):
+            config = copy.deepcopy(EXAMPLE)
+            config["time_series"]["demand"]["samples"][0]["value"] = value
+            with self.assertRaisesRegex(ValueError, "finite number"):
+                validator.validate(config)
+
+            config = copy.deepcopy(EXAMPLE)
+            ramp = config["resources"]["generation"][0]["ramp_mw_per_min"]
+            ramp["status"] = "supported"
+            ramp["value"] = value
+            with self.assertRaisesRegex(ValueError, "finite number"):
+                validator.validate(config)
+
+    def test_rejects_non_finite_json_tokens_at_parse_time(self):
+        for token in ("NaN", "Infinity", "-Infinity"):
+            with tempfile.TemporaryDirectory() as directory:
+                path = Path(directory) / "config.json"
+                path.write_text('{"value": ' + token + '}', encoding="utf-8")
+                with self.assertRaisesRegex(ValueError, "non-finite numeric"):
+                    validator.load_config(path)
