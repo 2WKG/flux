@@ -1,39 +1,26 @@
-# Flux demo
+# Flux resilience desk
 
-An offline, fixture-driven demo that compares two illustrative 300 MW firm-generation additions on a small synthetic grid under a fixed cold-weather stress scenario.
+Flux is a Node-served React application for comparing power-system resilience scenarios. It currently ships a clearly labeled synthetic fixture; its data boundary is designed for upcoming network, scenario, and candidate-site ingestion.
 
-The model is intentionally synthetic. It is not a Texas-grid reconstruction, outage forecast, interconnection study, or licensing assessment.
+## Run
 
-## Run locally
+```powershell
+python model/generate_demo.py
+npm --prefix web install
+npm --prefix web run dev
+```
 
-1. Generate (or refresh) the deterministic demo bundle:
+Open `http://localhost:4173`. `npm --prefix web run build` creates the browser bundle; `npm --prefix web start` serves an already-built bundle.
 
-   ```powershell
-   python model/generate_demo.py
-   ```
+## Data contract
 
-2. Install the UI dependencies and start the local demo:
+The React client loads `GET /api/demo`. The Node server reads `data/demo/bundle.json`; today it is produced by the deterministic synthetic generator. Future ingestion jobs should validate and publish the same versioned contract to that location (or replace the API implementation) without requiring a client rewrite.
 
-   ```powershell
-   npm --prefix web install
-   npm --prefix web run dev
-   ```
-
-3. Open the local URL printed by Vite. For an offline rehearsal, first run `npm --prefix web run build`, then `npm --prefix web run preview`.
-
-## Five-minute walkthrough
-
-1. Start on **Baseline** and call out the fixed stress assumptions and modeled shedding.
-2. Select **Candidate A** and compare the signed reduction in shed MW/MWh.
-3. Select **Candidate B**, then use the loading view toggle to inspect the synthetic branch loading layer.
-4. Open **Sources & limits**. State that all inputs are synthetic and that the result is illustrative.
-5. Close with the next validation: replace the fixture with a supported synthetic or approved study case before making any real-world claim.
-
-## Verification
+## Verify
 
 ```powershell
 python -m unittest discover -s model -p "test_*.py"
 npm --prefix web run build
 ```
 
-`R08` (tunnel/origin discovery) and `D01` (case acquisition) are deliberately not performed. The model uses a checked-in synthetic fixture until those inputs are available.
+The synthetic fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.
