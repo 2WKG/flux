@@ -1,15 +1,15 @@
 # 10 — DuckDB fixture contract
 
 **Contract version:** `1.0.0`  
-**Status:** canonical concrete DDL for the next-wave fixture database  
-**Implementation:** `pipelines/db.py`  
+**Status:** canonical table, identity, unit, and coordinate contract
+**Executable DDL:** owned by 2WKG-98 and 2WKG-153
 **Database:** `data/duck/grid.duckdb`
 
 This document makes the shared table summary in [00-overview.md](00-overview.md)
 implementable. It keeps that overview's table names, UTC `TIMESTAMP` choice,
-and EPSG:4326 geometry rule. `pipelines.db.SCHEMA_STATEMENTS` is the normative
-DDL; this document defines its meanings. Any change to a table, key, type,
-unit, or semantic requires a new contract version and explicit migration.
+and EPSG:4326 geometry rule. This document defines the table meanings and
+serialization rules. Any change to a table, key, type, unit, or semantic
+requires a new contract version and explicit migration.
 
 ## Global rules
 
@@ -104,6 +104,6 @@ the canonical DDL adds the exact checks and foreign keys.
 
 ## Verification
 
-Run `uv run --extra dev pytest tests/test_schema_contract.py`. The focused test
-creates the schema twice in memory, verifies the contract version and required
-tables, and asserts the optional `FLOAT[1024]` embedding declaration.
+Implementations owned by 2WKG-98 and 2WKG-153 must validate their DDL and
+fixtures against this catalogue, including keys, constraints, provenance,
+units, timestamps, geometry, and null semantics.
