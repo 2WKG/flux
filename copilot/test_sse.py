@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from copilot.sse import CopilotEventStream, StreamStateError
+from copilot.sse import CopilotEventStream, SseEvent, StreamStateError
 
 
 def test_lifecycle_start_is_the_first_versioned_event() -> None:
@@ -205,3 +205,80 @@ def test_named_failures_emit_one_safe_terminal_error(
     )
     with pytest.raises(StreamStateError, match="terminal"):
         stream.done(verified=True)
+
+
+def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_terminal() -> (
+    None
+):
+    stream = CopilotEventStream()
+    events = [
+        stream.start(),
+        stream.tool_call("call-site", "score_site", {"site_id": "site_tx_0007"}),
+        stream.tool_call("call-lines", "top_lines", {"region": "ERCOT"}),
+        stream.tool_result("call-lines", "top_lines", {"lines": []}, elapsed_ms=4),
+        stream.tool_result(
+            "call-site", "score_site", {"site_id": "site_tx_0007"}, elapsed_ms=8
+        ),
+        stream.done(verified=True),
+    ]
+
+    consumed = [_consume(event) for event in events]
+
+    assert [record["id"] for record in consumed] == ["1", "2", "3", "4", "5", "6"]
+    assert [record["event"] for record in consumed] == [
+        "lifecycle",
+        "tool_call",
+        "tool_call",
+        "tool_result",
+        "tool_result",
+        "done",
+    ]
+    assert [record["data"]["seq"] for record in consumed] == [1, 2, 3, 4, 5, 6]
+    call_positions = {
+        record["data"]["call_id"]: index
+        for index, record in enumerate(consumed)
+        if record["event"] == "tool_call"
+    }
+    for index, record in enumerate(consumed):
+        if record["event"] == "tool_result":
+            assert call_positions[record["data"]["call_id"]] < index
+    assert [record for record in consumed if record["event"] in {"done", "error"}] == [
+        consumed[-1]
+    ]
+
+
+@pytest.mark.parametrize(
+    ("method", "expected_code"),
+    [
+        ("disconnected", "cancelled"),
+        ("timed_out", "deadline"),
+        ("provider_failed", "upstream_error"),
+        ("tool_failed", "tool_error"),
+    ],
+)
+def test_failure_streams_have_exactly_one_terminal_error(
+    method: str, expected_code: str
+) -> None:
+    stream = CopilotEventStream()
+    events = [stream.start(), getattr(stream, method)()]
+    consumed = [_consume(event) for event in events]
+
+    terminal = [record for record in consumed if record["event"] in {"done", "error"}]
+    assert len(terminal) == 1
+    assert terminal[0]["event"] == "error"
+    assert terminal[0]["data"]["error"]["code"] == expected_code
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.tool_call("call-after-error", "score_site", {})
+
+
+def _consume(event: SseEvent) -> dict[str, object]:
+    """Parse a complete SSE record as a client would, without framework helpers."""
+    encoded = event.encode()
+    lines = encoded.splitlines()
+    assert lines[-1] == ""
+    fields = dict(line.split(": ", 1) for line in lines[:-1])
+    return {
+        "id": fields["id"],
+        "event": fields["event"],
+        "data": json.loads(fields["data"]),
+    }
