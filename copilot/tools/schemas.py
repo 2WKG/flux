@@ -67,6 +67,12 @@ class ToolOutput(ContractModel):
         return self
 
 
+class UnavailableOutput(ToolOutput):
+    """The common result shape for tools that cannot produce their payload."""
+
+    status: Literal["unavailable"]
+
+
 class PredictOutageInput(ContractModel):
     county_fips: Annotated[str, Field(pattern=r"^\d{5}$")]
     scenario_id: ScenarioId
@@ -266,21 +272,21 @@ class ToolDefinition:
     name: str
     description: str
     input_model: type[ContractModel]
-    # The first model is the documented available result; ToolOutput represents
+    # The first model is the documented available result; UnavailableOutput is
     # the canonical unavailable result shared by every tool.
-    output_model: tuple[type[BaseModel], type[ToolOutput]]
+    output_model: tuple[type[BaseModel], type[UnavailableOutput]]
 
 
 TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
-    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, (PredictOutageData, ToolOutput)),
-    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, (CascadeData, ToolOutput)),
-    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, (SiteScoreData, ToolOutput)),
-    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, (LinesData, ToolOutput)),
-    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, (SqlData, ToolOutput)),
-    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, (CiteData, ToolOutput)),
-    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, (InterventionsData, ToolOutput)),
-    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, (CriticalElementsData, ToolOutput)),
-    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, (CausalData, ToolOutput)),
+    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, (PredictOutageData, UnavailableOutput)),
+    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, (CascadeData, UnavailableOutput)),
+    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, (SiteScoreData, UnavailableOutput)),
+    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, (LinesData, UnavailableOutput)),
+    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, (SqlData, UnavailableOutput)),
+    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, (CiteData, UnavailableOutput)),
+    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, (InterventionsData, UnavailableOutput)),
+    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, (CriticalElementsData, UnavailableOutput)),
+    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, (CausalData, UnavailableOutput)),
 )
 
 _REGISTRY_BY_NAME = {definition.name: definition for definition in TOOL_REGISTRY}
@@ -330,10 +336,10 @@ def unavailable_output(
     reason: str,
     *,
     provenance: list[ArtifactRef] | None = None,
-) -> ToolOutput:
+) -> UnavailableOutput:
     """Construct the canonical unavailable result used by every later tool implementation."""
 
-    return ToolOutput(
+    return UnavailableOutput(
         status="unavailable",
         provenance=provenance or [],
         unavailable=Unavailable(code=code, reason=reason),

@@ -104,6 +104,25 @@ def test_real_tool_contract_accepts_its_unavailable_output() -> None:
     assert any(output.status == "unavailable" for output in validated)
 
 
+def test_unavailable_output_variant_rejects_incomplete_available_result() -> None:
+    definition = next(tool for tool in TOOL_REGISTRY if tool.name == "predict_outage")
+
+    with pytest.raises(ValidationError):
+        definition.output_model[1].model_validate(
+            {
+                "status": "available",
+                "provenance": [
+                    {
+                        "artifact_id": "outage_predictions",
+                        "artifact_version": "fixture-v1",
+                        "source_kind": "fixture",
+                        "source_ref": "data/duck/grid.duckdb",
+                    }
+                ],
+            }
+        )
+
+
 def test_unavailable_status_cannot_omit_its_reason() -> None:
     with pytest.raises(ValidationError):
         ToolOutput(status="unavailable")
