@@ -2,7 +2,7 @@
 
 **Status:** implementation-ready design  
 **Owner:** data lane  
-**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline.
+**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline. [`../p0_registry.json`](../p0_registry.json) is the machine-readable source/loader/table/gate registry used to keep the P0 lane auditable.
 
 ## Purpose and scope
 
@@ -74,6 +74,10 @@ The following columns are fixed by the build specs. Do not add source-specific c
 ## Source-by-source field contract
 
 ### P0 — load for the Uri/Beryl Texas demo
+
+#### EAGLE-I timestamp decision
+
+`run_start_time` is a naïve string in the CSV. The loader therefore requires an explicit source timezone. The selected value is **UTC**, supported by Brelsford et al., *A dataset of recorded electricity outages by United States county 2014–2022*, *Scientific Data* (2024), DOI `10.1038/s41597-024-03095-5`, which documents EAGLE-I timestamps as UTC. This does not authorize treating omitted rows as zero: ORNL documents that an omitted county-time may represent either zero outages or a collection gap, so it remains absent from the curated observations.
 
 #### ACTIVSg2000 current bundle + MATPOWER case
 
