@@ -11,10 +11,6 @@ from pipelines.db import log_artifact, replace_frame
 from pipelines.state_scope import StateScope, scope, sql_in
 
 
-def _fips_where(selected: StateScope, column: str = "county_fips") -> str:
-    return selected.county_where(column)
-
-
 def load_county_customers(
     con, mcc_csv: str, source_year: int = 2022, states=None
 ) -> int:
@@ -39,7 +35,7 @@ def load_county_customers(
         con,
         "county_customers",
         frame,
-        where=f"source = 'mcc_2022' AND ({_fips_where(selected_scope)})",
+        where=f"source = 'mcc_2022' AND source_year = {source_year} AND ({selected_scope.county_where()})",
     )
     log_artifact(
         con,
@@ -83,13 +79,26 @@ def load_coverage_history(con, coverage_csv: str, states=None) -> int:
     predicate, parameters = sql_in(
         "state", selected_scope.source_values("eaglei_coverage")
     )
-    con.execute(f"DELETE FROM eaglei_coverage WHERE {predicate}", parameters)
-    if not frame.empty:
-        con.register("_coverage", frame)
-        try:
-            con.execute("INSERT INTO eaglei_coverage BY NAME SELECT * FROM _coverage")
-        finally:
-            con.unregister("_coverage")
+    if (
+        frame.source_year.isna().any()
+        or frame.duplicated(["source_year", "state"]).any()
+    ):
+        raise ValueError("coverage history requires unique valid state/year rows")
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute(f"DELETE FROM eaglei_coverage WHERE {predicate}", parameters)
+        if not frame.empty:
+            con.register("_coverage", frame)
+            try:
+                con.execute(
+                    "INSERT INTO eaglei_coverage BY NAME SELECT * FROM _coverage"
+                )
+            finally:
+                con.unregister("_coverage")
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
     rows = len(frame)
     log_artifact(
         con,
@@ -106,7 +115,7 @@ def load_coverage_history(con, coverage_csv: str, states=None) -> int:
 def load_eaglei(
     con, csv_path: str, year: int, source_tz: str | None, states=None
 ) -> int:
-    """Load a Texas EAGLE-I file after an explicit source-timezone decision.
+    """Load selected states after an explicit source-timezone decision.
 
     `source_tz` is intentionally mandatory: EAGLE-I timestamps arrive without a
     timezone, and an unrecorded assumption would shift Uri by six hours.
@@ -118,7 +127,7 @@ def load_eaglei(
     scope_where = selected_scope.county_where()
     predicate, state_parameters = sql_in("state", selected_scope.names)
     # DuckDB filters and converts the annual national CSV in-process.  Do not
-    # materialize Texas' multi-million-row slice in pandas.
+    # materialize a multi-million-row state slice in pandas.
     schema = con.execute(
         "DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]
     ).fetchall()

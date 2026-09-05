@@ -251,3 +251,111 @@ def test_context_cli_reports_missing_counties(tmp_path, capsys):
         )
     assert error.value.code == 2
     assert "requires loaded counties for MN" in capsys.readouterr().err
+
+
+def test_context_build_late_failure_preserves_database_and_parquet(
+    tmp_path, monkeypatch
+):
+    from pipelines import build_state_context
+
+    live = tmp_path / "grid.duckdb"
+    con = connect(live)
+    seed(con)
+    con.close()
+    before = live.read_bytes()
+    parquet = tmp_path / "parquet"
+    parquet.mkdir()
+    marker = parquet / "other.parquet"
+    marker.write_bytes(b"existing")
+    tiger, nri, outages = (
+        tmp_path / name for name in ("tiger.zip", "nri.json", "outages.csv")
+    )
+    tiger.write_bytes(b"fixture")
+    nri.write_bytes(b"fixture")
+    outages.write_text("invalid_column\ninvalid\n")
+    monkeypatch.setattr(
+        build_state_context,
+        "load_counties",
+        lambda con, *args: con.execute(
+            "UPDATE counties SET pop = 99 WHERE county_fips = '27001'"
+        ),
+    )
+    monkeypatch.setattr(build_state_context, "load_nri", lambda *args, **kwargs: None)
+    with pytest.raises(ValueError, match="missing EAGLE-I columns"):
+        build_state_context.main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--parquet-dir",
+                str(parquet),
+                "--tiger",
+                str(tiger),
+                "--nri",
+                str(nri),
+                "--eaglei",
+                f"2024={outages}",
+                "--eaglei-source-tz",
+                "UTC",
+            ]
+        )
+    assert live.read_bytes() == before
+    assert marker.read_bytes() == b"existing"
+    assert not list(tmp_path.glob(".context-stage-*"))
+
+
+def test_context_build_publishes_scoped_outages_and_preserves_other_tables(tmp_path):
+    from pipelines.build_state_context import main
+
+    live = tmp_path / "grid.duckdb"
+    con = connect(live)
+    seed(con)
+    con.execute("CREATE TABLE mn_marker (value INTEGER)")
+    con.execute("INSERT INTO mn_marker VALUES (7)")
+    con.close()
+    source = tmp_path / "outages.csv"
+    source.write_text(
+        "fips_code,county,state,customers_out,run_start_time\n27001,Aitkin,Minnesota,2,2024-01-01 00:00:00\n"
+    )
+    arguments = [
+        "--state",
+        "MN",
+        "--db-root",
+        str(tmp_path),
+        "--parquet-dir",
+        str(tmp_path / "parquet"),
+        "--eaglei",
+        f"2024={source}",
+        "--eaglei-source-tz",
+        "UTC",
+    ]
+    assert main(arguments) == 0
+    assert main(arguments) == 0
+    con = connect(live)
+    try:
+        assert con.execute("SELECT value FROM mn_marker").fetchone() == (7,)
+        assert con.execute("SELECT county_fips FROM eaglei_outages").fetchall() == [
+            ("27001",)
+        ]
+        assert (tmp_path / "parquet" / "eaglei_outages.parquet").exists()
+    finally:
+        con.close()
+
+
+def test_coverage_invalid_year_preserves_existing_scope(tmp_path):
+    from pipelines.eaglei import load_coverage_history
+
+    con = connect(tmp_path / "grid.duckdb")
+    path = tmp_path / "coverage.csv"
+    header = "year,state,total_customers,min_covered,max_covered,min_pct_covered,max_pct_covered\n"
+    try:
+        path.write_text(header + "2024-01-01,MN,10,5,10,50,100\n")
+        load_coverage_history(con, path, "MN")
+        before = con.execute("SELECT * FROM eaglei_coverage").fetchall()
+        path.write_text(header + "invalid,MN,10,5,10,50,100\n")
+        with pytest.raises(ValueError, match="valid state/year"):
+            load_coverage_history(con, path, "MN")
+        assert con.execute("SELECT * FROM eaglei_coverage").fetchall() == before
+    finally:
+        con.close()
