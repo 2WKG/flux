@@ -1,1 +1,0 @@
-"""Fixture-pipeline shared modules."""
