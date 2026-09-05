@@ -1,6 +1,8 @@
-# 00 — Overview: Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
+# 00 — Overview: GridMind — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
 
-Status: frozen for the weekend build. Source pitch: `hackathon-pitches-and-designs.md` (3 Sept 2026).
+Status: frozen for the weekend build. Product name: **GridMind** (amendment A8; the repo stays `flux`).
+Source pitch: `hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas"; identical copy at
+`docs/pitch/hackathon-pitches-and-designs.md`). Product description: `discription.md` (repo root).
 Every other spec in this directory conforms to the shared contract restated here. If a downstream
 spec disagrees with this file on a table name, column name, tool signature, or scenario ID, this
 file wins and the downstream spec is wrong.
@@ -15,16 +17,22 @@ Build a demoable, end-to-end planning layer that connects three questions on one
 2. **What does that failure cascade into?** — a physics cascade on a synthetic Texas grid (pandapower DC power flow, iterative overload tripping), tagged with critical loads (DoD installations, hospitals, water).
 3. **Where should the next gigawatt of firm generation go?** — a siting engine that scores every candidate site on NRC-style safety exclusions AND on measured grid-strength value (loss-of-load reduction, congestion relief, black-start reach) by re-running the cascade with the unit online.
 
-Plus one screen from Idea 3 ("which existing wires to upgrade": DLR vs. reconductor ranking) and a
-Claude tool-calling copilot that narrates, plans, and cites — and never computes.
+Plus one line-upgrade screen inside Idea 1 ("which existing wires to upgrade": DLR vs. reconductor
+ranking, spec 08) and a Claude tool-calling copilot that narrates, plans, and cites — and never computes.
 
 ### The decision (already made — do not relitigate)
 
+The pitch is **two ideas** (pitch v2). Idea 1 (GridMind) is the headline. The line-upgrade screen
+(spec 08) stays inside Idea 1 — it is not a separate idea. The backup is **Speed-to-Power: large-load
+verification + grid headroom ranking** (spec 09); its "wire half" REUSES spec 08's
+`line_upgrade_scores` + `line_upgrade_detail` tables and the `top_lines` tool, so no line-scoring code
+is duplicated whichever pitch leads.
+
 | Item | Decision |
 |---|---|
-| Headline | Idea 1: grid digital twin + outage prediction + nuclear siting |
-| Embedded screen | Idea 3: line-upgrade ranking, one screen inside the twin (`08-line-upgrade-screen.md`) |
-| Backup pitch | Idea 2: data-center load verification, separate deck and spec (`09-backup-idea2-datacenter-load.md`) |
+| Headline | Idea 1 — **GridMind**: grid digital twin + outage prediction + nuclear siting |
+| Embedded screen | Line-upgrade ranking, one screen inside the twin (`08-line-upgrade-screen.md`); also the wire half of the backup |
+| Backup pitch | Idea 2 — Speed-to-Power: large-load verification (load half, `dc_*` tables) + grid headroom ranking (wire half = spec 08), separate deck (`09-backup-idea2-datacenter-load.md`) |
 | Geographic scope | **Texas first.** ACTIVSg2000 synthetic grid, ERCOT balancing authority, 254 Texas counties. |
 | National | A single scale slide (static map render of a larger synthetic grid or H3-aggregated HIFLD lines). Not interactive. Not a build target. |
 | Topology honesty | Synthetic topology, stated plainly on the slide and in the copilot system prompt. Real topology is CEII; architecture has a slot for it. |
@@ -119,11 +127,18 @@ def score_site(site_id: str, unit_mw: int, scenario_id: str) -> dict
 def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10) -> dict
 def sql(query: str) -> dict            # read-only DuckDB; rejects anything but SELECT/WITH; row cap 200
 def cite(query: str, k: int = 5) -> dict  # retrieval over regulatory PDFs
+# added by amendment A8 (nine tools total):
+def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict   # ids "site:<site_id>" | "line:<line_id>"
+def top_critical_elements(region: str, n: int = 10) -> dict                          # ranks by cascade reach from cascade_runs
+def causal_query(...) -> dict                                                        # spec 07 owns the signature
+# helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
 ```
 
 `cite` corpus (in `data/raw/regs/`, chunked by spec 05): 10 CFR Part 100; DOE coal-to-nuclear reports
-(Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed siting rule
-[UNVERIFIED — exact docket/title to be confirmed by spec 05 when downloading]; FERC DLR ANOPR RM24-6.
+(Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed rule
+"Modernizing Reactor Licensing, Safety Oversight, and Siting Practices" (proposed 1 July 2026; 91 FR 44560,
+16 July 2026, FR Doc. 2026-14341; revises 10 CFR Part 100 with a Tier 1 / Tier 2 siting framework and a
+societal risk-benefit assessment for higher-density sites) [VERIFIED 2026-09-05]; FERC DLR ANOPR RM24-6.
 
 ---
 
@@ -226,6 +241,8 @@ POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
 POST /site-score   {site_id, unit_mw, scenario_id}    → score_site(...) dict
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
+POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
+GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
 POST /ask          {messages:[...]}                   → text/event-stream of {type: text|tool_call|tool_result|citation}
 ```
 
@@ -296,7 +313,7 @@ Team size assumed 4–6. Owners are `TBD` — fill in at kickoff. Times are loca
 | 13:00–17:00 | 02 | Train LightGBM; hold out `uri_2021`, `beryl_2024`, `helene_2024`; write `outage_predictions` for all four scenarios. | TBD | AUC on Uri holdout printed; ≥0.75 target [UNVERIFIED achievable]. |
 | 13:00–17:00 | 03 | Cascade loop on real ACTIVSg2000: weather-driven line failure probs → trip → DC PF → overload trip → repeat; county + critical-load translation; write `cascade_runs` for `base_uri_2021`. | TBD | A base run with nonzero `lost_load_mw` and ≥1 DoD load lost. |
 | 13:00–17:00 | 06 | Outage choropleth + actual toggle + time scrubber; cascade playback layer reading `cascade_runs`. | TBD | Beats 2 and 3 click through on fixture data. |
-| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists 6. |
+| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists all nine (A8). |
 | 15:00–17:00 | 04 | Safety scorer (`safety_score`, `safety_flags_json`) on all Texas candidates. | TBD | 30 rows in `site_scores` with safety only. |
 | 15:00–17:00 | 07 | pgmpy DAG fit on EAGLE-I + weather + hazard for Texas counties; write `causal/artifacts/decomposition.json`. | TBD | One county decomposition prints. |
 | 17:00–19:00 | 03+04 | Grid-value delta: inject `unit_mw` gen at `site.bus_id`, re-run cascade on stress hours, compute `lol_reduction_mwh`, `congestion_relief_pct`, `blackstart_reach_mw`. | TBD | One `GridValueResult` with `lol_reduction_mwh > 0`; one persisted counterfactual run in `cascade_runs`. |
@@ -317,7 +334,7 @@ Team size assumed 4–6. Owners are `TBD` — fill in at kickoff. Times are loca
 | **12:00** | **all** | **Gate C: full demo click-through on real data, start to finish, by someone who didn't build it.** | TBD | §10 checklist ≥ 80%. |
 | 13:00–15:00 | all | Fix list from Gate C. Polish: colours, legends, labels. National scale slide rendered. | TBD | — |
 | 15:00–16:00 | 03/04 | Customer-hours-avoided number for the closing slide computed and cross-checked by two people. | TBD | Number is reproducible from `cascade_runs`. |
-| 16:00–17:00 | all | Deck: pitch + 6 beats + honest answers + scale slide. Backup Idea 2 deck (spec 09 §demo). | TBD | — |
+| 16:00–17:00 | all | Deck: pitch + 6 beats + honest answers + scale slide. Backup Speed-to-Power deck (spec 09 §demo; wire-half slides reuse the 08 screen). | TBD | — |
 | 17:00–18:00 | all | Rehearsal 1, timed. | TBD | ≤ 5:30. |
 | 18:00–19:00 | all | Fix. Freeze code. Tag `demo-freeze`. | TBD | — |
 | 19:00–20:00 | all | Rehearsal 2 on frozen tag, from a cold start (`uv run`, `pnpm dev`, browser). | TBD | §10 fully checked. |
@@ -331,7 +348,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 
 1. **"Your topology is fake."** — Yes. The electrical topology is ACTIVSg2000, a synthetic Texas grid built by Texas A&M to be statistically realistic. Real topology is Critical Energy/Electric Infrastructure Information (CEII). Synthetic grids are the research standard (DOE, Microsoft GridSFM, Texas A&M). The architecture is a slot: replace `buses`/`lines`/`gens` under a data-use agreement and nothing downstream changes.
 2. **"Palantir will do this."** — Palantir's Chain Reaction is workflow and ontology. It has no power-flow physics and no siting engine. We are the engine they would want to partner with or buy.
-3. **"Nuclear takes a decade."** — The siting decision is being made now: Army Janus microreactor program (Aug 2026), DOE federal AI/energy sites, ten large reactors under construction by 2030 under EO 14302. The tool is for the decision, not the construction.
+3. **"Nuclear takes a decade."** — The siting decision is being made now: Army Janus microreactor program (26 Aug 2026: five vendors, up to $2.2 B, first five installations incl. Fort Hood, TX → General Atomics), DOE federal AI/energy sites (INL, Oak Ridge, Paducah, Savannah River — July 2025), ten large reactors under construction by 2030 under EO 14302 (23 May 2025). The tool is for the decision, not the construction.
 4. **"Is the outage model any good?"** — It is a county-level LightGBM trained on EAGLE-I 2014–2025 with three storms held out. We show the held-out score on screen. It predicts *where and how many*, not *which pole*.
 5. **"Is the cascade real?"** — It is DC power flow with iterative overload tripping on a synthetic grid, with weather-driven initial failure probabilities. It is the standard academic cascade model, not an RTO-grade EMS. Hour-by-hour element order is illustrative; the aggregate lost-load and critical-load exposure is the claim.
 6. **"Your siting safety score is not an NRC review."** — Correct. It re-implements the published OR-SAGE/STAND screening criteria on open layers (population density within 20 miles, seismic PGA, floodplain, cooling water, protected land, wildfire, state moratorium flag). It is a screener, like DOE's 2022 tool, but ours has a grid model under it.
@@ -350,7 +367,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 | FAI (Levine, Dauber) | NRC July 2026 siting rule invites societal risk-benefit quantification; Brookhaven GridFM (1 Sept 2026) shows government wants a national model — we are the decision layer. | 4, 5 |
 | Craft Ventures (Murray) | Buyers: utilities, RTOs, developers, DOE, hyperscalers. Enverus/Pearl Street prove siting market; GridCARE $64M proves appetite. | 4, 4b |
 | Forterra / Dirac / KAIROS | Real systems product with physics under it, not a chatbot. Tool calls are visible. | 3, 5 |
-| White House anti-fraud (McCarthy), OPM (Hennecken) | Backup pitch (Idea 2) — see spec 09. | backup |
+| White House anti-fraud (McCarthy), OPM (Hennecken) | Backup pitch (Speed-to-Power, Idea 2) — see spec 09. | backup |
 
 ---
 
@@ -367,7 +384,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 - [ ] Every number on the closing slide (customer-hours avoided, MWh reduction) is reproducible with one `sql()` query pasted in the copilot.
 - [ ] Honest answers §8 are in the copilot system prompt and on a backup slide.
 - [ ] National scale slide exists as a PNG in the deck.
-- [ ] Backup Idea 2 deck exists (≥ 6 slides) even if no Idea 2 code shipped.
+- [ ] Backup Speed-to-Power deck exists (≥ 6 slides) even if no load-half (`dc_*`) code shipped; its wire-half slides are screenshots of the spec 08 screen.
 - [ ] Someone who did not build it has clicked through all six beats without help.
 - [ ] Rehearsed twice, timed ≤ 5:30, once from cold start.
 
@@ -382,8 +399,8 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 | Cascade re-runs for siting too slow (30 sites × 2 sizes × 168 h) | Medium | DC PF is ms-scale; cap hours to the 24 h peak window of Uri; parallelise with multiprocessing; precompute Day 1 night. |
 | HRRR reanalysis for Feb 2021 is large / hard to subset | High | ERA5 county-mean via a small subset; or NOAA ISD station data interpolated to counties; 01 decides, 02 consumes the same columns. |
 | Archived HIFLD lines unreachable | Medium | The demo map uses ACTIVSg2000 line geometry (synthetic lat/lon are provided by the dataset). HIFLD only for the national scale slide; OSM `power=line` as fallback. |
-| `claude-sonnet-5` tool loop slow with 6 tools + SSE | Low | Cap tool iterations at 6; pre-warm one answer for beat 5 as a cached transcript fallback. |
-| NRC July 2026 proposed siting rule PDF not locatable | Medium | [UNVERIFIED]. Cite 10 CFR 100 + Reg Guide 4.7 instead; mention the proposed rule verbally. |
+| `claude-sonnet-5` tool loop slow with nine tools + SSE | Low | Cap tool iterations at 6; pre-warm one answer for beat 5 as a cached transcript fallback. |
+| NRC July 2026 proposed siting rule PDF not locatable | Low | Located: Federal Register 2026-14341 (16 July 2026), NRC ADAMS ML26176A438. Fallback: cite 10 CFR 100 + Reg Guide 4.7 and mention the proposed rule verbally. |
 | Nobody on the team has run pandapower before | Medium | 03 starts on fixture DB at 08:30; the DC PF example in pandapower docs is 10 lines. |
 
 ---
@@ -413,5 +430,44 @@ These are decisions, not proposals. Every spec is read as if these were in its c
 - **A4 — additive tables accepted:** `line_upgrade_detail(...)` (spec 08, per-line card fields) and `corpus_chunks(...)` (spec 05, retrieval chunks, written at ingest time only). Spec 01's ingest runbook must create both.
 - **A5 — additive copilot surface accepted:** routes `POST /predict`, `GET /health`; layer names `eaglei`, `storm`, `national_hex`; `score_site` return adds `critical_loads_protected` and `regulatory_path`. The six tool signatures in the contract are unchanged.
 - **A6 — `tripped_element_ids_json` entries are objects** `{element_id, stage, cause}`, not bare strings (spec 03); every consumer (05, 06) parses them as objects.
-- **A7 — cascade solver default:** lightsim2grid `pandapower_compat.dcpf` for full 168-hour runs, pandapower `rundcpp` with a 6-hour stride as the fallback (spec 03), budget 120 s per scenario, 10 s per copilot `run_cascade` call.
+- **A7 — cascade solver default (rewritten after the 03/04 fact-check, `docs/specs/verification/03-04.md`):** pandapower `rundcpp` is the default and the only solver in scope, run hourly with **no stride** (spec 03). Measured: warm `pp.rundcpp` is 9–14 ms per solve, so a 168-hour `uri_2021` replay is ~6–12 s with plain pandapower. Budgets unchanged: 120 s per scenario, 10 s per copilot `run_cascade` call. lightsim2grid is **stretch-only and currently incompatible**: `init_from_pandapower` raises "Unsupported element (Impedance)" on this case (847 branches import as `net.impedance`); `solver="lightsim"` raises `NotImplementedError` until that is fixed.
+- **A8 — product name GridMind, tool-name mapping, and two new contract tools (from `discription.md`).**
+  - **Name.** The product is **GridMind**. Use it in titles, decks, the copilot identity line, and prose wherever the project is named. The repository, package paths, and DuckDB file stay `flux` / as in §2.1.
+  - **Tool-name mapping.** The description's copilot tool list uses different names and argument shapes from this contract. The contract names below are the ones implemented; the description names are aliases in prose only, never in code.
+
+    | `discription.md` tool | Contract tool (this file) | Note |
+    |---|---|---|
+    | `predict_outage(county, horizon)` | `predict_outage(county_fips, scenario_id, horizon_h)` | county is a FIPS string; scenario is explicit |
+    | `run_cascade(element_ids, scenario)` | `run_cascade(element_ids, scenario_id, hour)` | hour is explicit |
+    | `score_site(latitude, longitude, capacity)` | `score_site(site_id, unit_mw, scenario_id)` | ad-hoc lat/lon is resolved to a `site_candidates` row by the helper `resolve_site(lat: float, lon: float) -> dict` (`{site_id, name, distance_km}`; nearest candidate, error if > 25 km) before `score_site` is called; `capacity` → `unit_mw ∈ {300, 1000}` |
+    | `compare_interventions(scenario, intervention_ids)` | `compare_interventions(scenario_id, intervention_ids)` | **new**, below |
+    | `top_critical_elements(region, count)` | `top_critical_elements(region, n)` | **new**, below |
+    | `top_line_upgrades(region, technology, count)` | `top_lines(region, tech, n)` | rename only |
+    | `sql(query)` | `sql(query)` | identical |
+    | — | `cite(query, k)` | contract-only (retrieval) |
+    | — | `causal_query(...)` | contract-only; spec 07 owns the signature and implementation; registered here so the tool count is consistent |
+
+  - **New tool 1.**
+    ```python
+    def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict
+    ```
+    `intervention_ids` are prefixed: `site:<site_id>` (a `site_candidates` row; unit size defaults to 1000 MW, override with `site:<site_id>@300`) or `line:<line_id>` (a `lines` row upgraded to its `line_upgrade_detail.dlr_p50_mw` rating, or `reconductor_uplift_mw` if `best_tech = reconductor`). For each id the tool runs spec 03's `run_scenario` pair — baseline (seed 0, no intervention, the persisted `<scenario_id>-s0-<sha8>` row is reused) versus with-intervention (`write=False`, stress hours only, same seed) — and returns:
+    ```
+    {scenario_id, baseline_run_id,
+     interventions: [{intervention_id, kind: site|line, run_id,
+                      lol_reduction_mwh, customer_hours_avoided, critical_loads_protected: [cl_id]}],
+     assumptions: [str]}
+    ```
+    Ordered by `lol_reduction_mwh` desc. `customer_hours_avoided` = Σ over hours of (baseline − intervention) customers dark, computed inside the tool from `counties_dark_json` × `counties.pop` customer share — never by the model. Route: `POST /compare`. Timeout 30 s.
+  - **New tool 2.**
+    ```python
+    def top_critical_elements(region: str, n: int = 10) -> dict
+    ```
+    Ranks elements by **cascade reach** read from persisted `cascade_runs` (no live solve): for every element that appears as a `cause = weather|forced` entry in any `tripped_element_ids_json` of a run for the region's scenarios, attribute that run's `lost_load_mw` and `critical_loads_lost_json` to it; rank by lost load. `region` ∈ `"ERCOT"`, `"TX"`, or a county FIPS (filters by the element's bus county). Returns:
+    ```
+    {region, n, scenario_ids: [str],
+     elements: [{element_id, kind: line|bus|gen, lost_load_mw, critical_loads_lost: [cl_id], runs: int}]}
+    ```
+    Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
+  - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
 

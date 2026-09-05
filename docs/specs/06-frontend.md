@@ -16,7 +16,7 @@ Texas-first: the app boots on Texas (`uri_2021`, hour 0). The national view is o
 | `GET /layers/{name}` | spec 05 | GeoJSON for geometry; Arrow IPC for `outage_risk`, `eaglei`, `national_hex` |
 | `POST /site-score`, `POST /cascade`, `POST /predict`, `GET /lines/top` | spec 05 | click-driven cards |
 | `POST /ask` SSE | spec 05 | Ask box |
-| Basemap tiles | OpenFreeMap (verified 2026-09-05): `https://tiles.openfreemap.org/styles/positron` (light), `https://tiles.openfreemap.org/styles/dark` (dark, default for the demo), also `liberty`, `bright`, `fiord`. No API key. Attribution required: "OpenFreeMap © OpenMapTiles Data from OpenStreetMap". | Fallback: Protomaps self-hosted PMTiles — `@protomaps/basemaps` `layers("protomaps", namedFlavor("dark"))` with a `pmtiles://` source and glyphs `https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf` (verified). The Protomaps *hosted* API URL/key page could not be fetched this session — treat hosted Protomaps as unverified; if OpenFreeMap is down at demo time, ship a Texas-extent PMTiles file in `web/public/` instead. |
+| Basemap tiles | OpenFreeMap (re-verified 2026-09-05 by `curl`: all five style URLs return 200 `application/json`): `https://tiles.openfreemap.org/styles/positron` (light), `https://tiles.openfreemap.org/styles/dark` (dark, default for the demo), also `liberty`, `bright`, `fiord`. No API key. Attribution required (openfreemap.org, verified): "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"; the styles' `openmaptiles` source points at `https://tiles.openfreemap.org/planet`, whose TileJSON carries that attribution string, so MapLibre's default `AttributionControl` renders it automatically — do not pass `attributionControl: false`. Glyphs: `https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`. | Fallback: Protomaps self-hosted PMTiles — `@protomaps/basemaps` 5.7.2 (npm latest, verified: ESM `index.d.ts` exports `layers(source, flavor, options?)` and `namedFlavor(name)`) `layers("protomaps", namedFlavor("dark"))` with a `pmtiles://` source (needs the `pmtiles` package's `Protocol` registered on maplibre) and glyphs `https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf` (curl 200). **Neither `@protomaps/basemaps` nor `pmtiles` is in `web/package.json` yet** — add both only if the fallback is built. The Protomaps *hosted* API URL/key page was not fetched — treat hosted Protomaps as `[UNVERIFIED]`; if OpenFreeMap is down at demo time, ship a Texas-extent PMTiles file in `web/public/` instead. |
 | `VITE_API_URL` | env | default `http://localhost:8000` |
 
 ## Outputs
@@ -26,16 +26,16 @@ Texas-first: the app boots on Texas (`uri_2021`, hour 0). The national view is o
 
 ## Algorithm or Design
 
-### Stack (versions checked on npm 2026-09-05)
+### Stack (versions introspected from `web/node_modules` 2026-09-05)
 
-- `vite` 8.x, `react` 19.x, `typescript` 5.x, `pnpm`.
-- `deck.gl` 9.3.x (`@deck.gl/core`, `@deck.gl/layers`, `@deck.gl/geo-layers`, `@deck.gl/mapbox`, `@deck.gl/react`).
-- `maplibre-gl` 6.x + `react-map-gl` 8.x (import from `react-map-gl/maplibre`).
-- deck.gl ↔ MapLibre integration: `MapboxOverlay` from `@deck.gl/mapbox` in **interleaved** mode (`interleaved: true`, needs maplibre-gl ≥ 3 — satisfied), so lines render under basemap labels via `beforeId`. Attach with react-map-gl's `useControl`.
-- `h3-js` 4.x only if we aggregate client-side; default is server-precomputed hex (`/layers/national_hex`) so h3-js is not needed for the demo.
-- `apache-arrow` 21.x to read Arrow IPC (`tableFromIPC`); `@loaders.gl/arrow` not required.
-- `zustand` 5.x for the state model; `@tanstack/react-query` 5.x for fetch caching (static layers cached forever, scenario layers keyed by params).
-- Tailwind 4 + shadcn/ui for panels (dark theme). Lucide icons.
+- `vite` 8.2.2, `react` 19.2.8, `typescript` 5.9.3, `pnpm`.
+- `deck.gl` 9.3.11 (`@deck.gl/core`, `@deck.gl/layers`, `@deck.gl/geo-layers`, `@deck.gl/mapbox`, `@deck.gl/react`, plus `@deck.gl/aggregation-layers` already in package.json). Verified exports: `GeoJsonLayer, ScatterplotLayer, PathLayer, PolygonLayer, IconLayer, TextLayer` from `@deck.gl/layers`; `H3HexagonLayer` (and `TripsLayer`) from `@deck.gl/geo-layers`; `MapboxOverlay` (the only export) from `@deck.gl/mapbox`. **`@deck.gl/extensions` is not a direct dependency** — it is present transitively via the `deck.gl` umbrella (9.3.11) but `PathStyleExtension` (dashed tripped lines) must be imported from `@deck.gl/extensions`, so add it to `package.json` explicitly.
+- `maplibre-gl` 6.7.0 + `react-map-gl` 8.1.3 (import from `react-map-gl/maplibre` — verified: that entry re-exports `@vis.gl/react-maplibre` 8.1.3, which exports `Map` (default), `useControl`, `AttributionControl`, `Source`, `Layer`, `useMap`, `MapProvider`, and types `MapProps`, `MapRef`).
+- deck.gl ↔ MapLibre integration: `MapboxOverlay` from `@deck.gl/mapbox` in **interleaved** mode (`MapboxOverlayProps = Omit<DeckProps, …> & {interleaved?: boolean}` verified in `mapbox-overlay.d.ts`; deck.gl docs' compatibility table: interleaved requires maplibre-gl-js v3+ — 6.7.0 satisfies), so lines render under basemap labels via the per-layer `beforeId` (`LayerOverlayProps {slot?, beforeId?}` in `@deck.gl/mapbox/dist/types.d.ts`). Attach with react-map-gl's `useControl`.
+- `h3-js` 4.5.0 only if we aggregate client-side; default is server-precomputed hex (`/layers/national_hex`) so h3-js is not needed for the demo.
+- `apache-arrow` 21.2.0 to read Arrow IPC (`tableFromIPC` verified as an exported function); `@loaders.gl/arrow` not required.
+- `zustand` 5.0.15 (`create`, `createStore`, `useStore` exported) for the state model; `@tanstack/react-query` 5.102.8 (`QueryClient`, `QueryClientProvider`, `useQuery`, `useQueries` verified) for fetch caching (static layers cached forever, scenario layers keyed by params).
+- Tailwind 4 + shadcn/ui for panels (dark theme). Lucide icons. `react-markdown` for the Ask bubble. **None of `tailwindcss`, `lucide-react`, `react-markdown` (nor shadcn) is installed in `web/` yet** — Sat AM scaffold adds them.
 
 ### State model (`web/src/state/store.ts`, zustand)
 
@@ -85,7 +85,7 @@ URL sync: a tiny effect writes `view, scenario, h, site, cf` to `history.replace
 
 | # | Layer (LayerName) | deck.gl type | Data | Encoding | Demo step |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `lines` — line loading | `GeoJsonLayer` (LineString, `lineWidthUnits:"pixels"`) or `PathLayer` if we pre-flatten | `/layers/lines?scenario_id&hour` props `loading_pct`; at hour `h` the tripped set from cascade overrides | width by `kv` (69→1px … 500→4px); color ramp by `loading_pct` (0–60 grey, 60–90 amber, 90–100 orange, >100 red); tripped → dashed dark red (`getDashArray`, `PathStyleExtension`) and drawn on a second thin layer so they stay visible | 1, 3 |
+| 1 | `lines` — line loading | `GeoJsonLayer` (LineString, `lineWidthUnits:"pixels"`) or `PathLayer` if we pre-flatten | `/layers/lines?scenario_id&hour` props `loading_pct`; at hour `h` the tripped set from cascade overrides | width by `kv` (69→1px … 500→4px); color ramp by `loading_pct` (0–60 grey, 60–90 amber, 90–100 orange, >100 red); tripped → dashed dark red (`getDashArray: [number, number]` accessor + `dashJustified` from `PathStyleExtension` in `@deck.gl/extensions` 9.3.11, verified `path-style-extension.d.ts`) and drawn on a second thin layer so they stay visible | 1, 3 |
 | 2 | `outage_risk` — county choropleth | `GeoJsonLayer` (Polygon, `filled`, `stroked:false`, `extruded:false`) | `counties` geometry + `outage_risk` series | fill alpha by `p_out` at `hour` (sequential ramp, 6 steps); `updateTriggers.getFillColor: [hour, scenarioId]`; when `compareActual` is on, a second `GeoJsonLayer` with EAGLE-I `customers_out` and a CSS split slider clipping the two canvases (simplest split: two `DeckGL` overlays is expensive — instead one layer, and the split toggles per-feature color source by screen-x using a `getFillColor` that reads a uniform `splitX` via `updateTriggers`; fallback: side-by-side toggle button) | 2 |
 | 3 | `storm` — animated storm polygon | `PolygonLayer` | `/layers/storm` feature for `hour` (and `hour-1` for a trailing ghost at 30 % alpha) | fill by `severity`; `transitions: {getPolygon: 400}` for smooth motion between hours | 2, 3 |
 | 4 | `cascade` — playback | not a separate geometry layer: it *drives* `lines` (tripped set), `outage_risk` (dark counties overlay in near-black), and a `ScatterplotLayer` pulse on the bus that trips at exactly `hour` (`radiusMinPixels 6→18` via `transitions`) | `cascade` JSON | element trips appear in hour order; the pulse plays once per newly tripped element | 3, 4 (counterfactual run) |
@@ -99,15 +99,15 @@ Common: `pickable` only on layers with a card (`counties`, `lines`, `sites`, `cr
 
 ### Map container (`web/src/map/MapView.tsx`)
 
-- `<Map mapStyle={STYLE_URL} initialViewState={TX_VIEW} mapLib={maplibregl} attributionControl>` from `react-map-gl/maplibre`.
-- `<DeckOverlay layers={layers} interleaved />` — a `useControl(() => new MapboxOverlay({interleaved: true}))` wrapper, `overlay.setProps({layers})` on every render; layers ordered as the table above with `beforeId: "waterway-name"` (a label layer id in the OpenFreeMap style — read the actual id from `map.getStyle().layers` at runtime and pick the first `symbol` layer; do not hardcode blindly).
+- `<Map mapStyle={STYLE_URL} initialViewState={TX_VIEW} mapLib={maplibregl}>` from `react-map-gl/maplibre`. Verified `MapProps` (`@vis.gl/react-maplibre` 8.1.3 `map.d.ts`): `mapLib?: MapLib | Promise<MapLib>` (optional — the maplibre entry imports maplibre-gl itself), `mapStyle?: string | StyleSpecification`, `initialViewState?`, and all maplibre `MapOptions` except `style|container|bounds|fitBoundsOptions|center` pass through — including `attributionControl?: false | AttributionControlOptions` (maplibre-gl 6.7.0 d.ts). Leave `attributionControl` unset (default control shows the OpenFreeMap TileJSON attribution); do not write the bare boolean `attributionControl` prop — its type is `false | options`, not `true`.
+- `<DeckOverlay layers={layers} interleaved />` — a `useControl(() => new MapboxOverlay({interleaved: true}))` wrapper, `overlay.setProps({layers})` (verified `MapboxOverlay.setProps(props: MapboxOverlayProps)`) on every render; layers ordered as the table above with a `beforeId` pointing at a label layer. **`waterway-name` does not exist in the OpenFreeMap `dark` style** (fetched 2026-09-05; its `symbol` layers are `water_name, road_oneway, road_oneway_opposite, highway_name_other, highway_name_motorway, place_other, place_suburb, place_village, place_town, place_city, place_city_large, place_state, …`). Default to `beforeId: "water_name"` (the first symbol layer in `dark`) but still read `map.getStyle().layers` at runtime and pick the first `type === "symbol"` layer, since ids differ across `positron`/`liberty`.
 - View presets: `TX_VIEW = {longitude:-99.3, latitude:31.2, zoom:5.6}`, `US_VIEW = {longitude:-98, latitude:38.5, zoom:3.6, pitch:45}`; `flyTo` between them (2.5 s) on `view` change.
 - Tooltip: `getTooltip` → small HTML with 2–3 props; cards are React panels, not tooltips.
 
 ### Ask box (`web/src/ask/`)
 
 - `AskPanel.tsx`: right-side drawer, message list, input, suggested-question chips (the two demo questions + 2 regression ones).
-- `useAsk.ts`: `fetch(`${API}/ask`, {method:"POST", body})` → `response.body.getReader()` → SSE parser (`web/src/ask/sse.ts`: split on `\n\n`, parse `event:`/`data:`/`id:`; ignore `: ping`). `EventSource` is not usable for POST.
+- `useAsk.ts`: `fetch(`${API}/ask`, {method:"POST", body})` → `response.body.getReader()` → SSE parser (`web/src/ask/sse.ts`: split on `\n\n`, parse `event:`/`data:`/`id:`; ignore every line starting with `:` — sse-starlette's default heartbeat is `: ping - <utc timestamp>`, not the literal `: ping`; spec 05). `EventSource` is not usable for POST.
 - Rendering per event: `text` appends to the current assistant bubble (markdown via `react-markdown`, minimal); `tool_call` renders a collapsed chip "score_site(site_tx_0007, 300, uri_2021)" with spinner; `tool_result` fills the chip (✓/✗ + ms) and is expandable to the JSON; `citation` adds a footnote entry and highlights `[doc p.N]` tokens in the text as links to the footnote; `done` shows the badge: green "verified" or amber "n unverified numbers" (hover lists them); `error` shows an inline red line.
 - **Map linkage:** on `tool_call` the UI reacts — `score_site` → selects that site and opens its card; `run_cascade` → sets `hour` and plays the cascade; `predict_outage` → selects the county; `top_lines` → switches to the Upgrades mode and highlights the returned line ids. This is what makes step 5 visual.
 - Context sent with every question: `{scenario_id, hour, selected_site_id, compare_site_id, selected_element_id, unit_mw}` from the store.
@@ -192,14 +192,14 @@ Target: **60 fps while scrubbing the hour** on the Texas twin on a MacBook (M-se
 - County polygons simplified server-side (spec 05: ≤ 5 kB/county) → < 1.3 MB GeoJSON; lines ≤ 3 MB gzipped. Boot-to-interactive < 3 s on localhost.
 - Storm polygon transition 400 ms; hour playback at 1×/s means one accessor pass per second, far under budget; at 4× still fine.
 - National: res-4 H3 for CONUS (~3–5k hexes, extruded) is trivial; **do not** draw 82k buses / 100k+ lines as GeoJSON — that is the case the hex layer exists for. If a "lines at national" look is wanted, serve res-5 hex with line density only.
-- Measure with `deck.gl`'s `metrics` (`onMetrics` on the overlay → `fps`) rendered in a hidden dev badge (`F` key).
-- Escape hatch if fps drops: switch `lines` from `GeoJsonLayer` to a pre-flattened `PathLayer` with binary attributes (`data: {length, attributes:{getPath:{value,size:2}, …}}`) built once in `reshape.ts`.
+- Measure with deck.gl's metrics callback — in 9.3.11 it is the experimental, underscore-prefixed `_onMetrics?: (metrics: DeckMetrics) => void` on `DeckProps` (verified `core/dist/lib/deck.d.ts`; there is no public `onMetrics`), passed through `MapboxOverlay` props → `metrics.fps`, rendered in a hidden dev badge (`F` key). Expect it to rename in a minor release.
+- Escape hatch if fps drops: switch `lines` from `GeoJsonLayer` to a pre-flattened `PathLayer` with binary attributes (`LayerData = {length: number, attributes?: Record<string, TypedArray | Buffer | BinaryAttribute>}` verified in `core/dist/types/layer-props.d.ts`; e.g. `data: {length, attributes:{getPath:{value,size:2}, …}}`) built once in `reshape.ts`.
 
 ## Interfaces
 
 - API: exactly spec 05's routes and shapes; TS types in `src/types/api.ts` are hand-mirrored (no codegen this weekend) with a single `assertShape` dev check per layer on first load.
 - Env: `VITE_API_URL` (default `http://localhost:8000`), `VITE_BASEMAP_STYLE` (default `https://tiles.openfreemap.org/styles/dark`), `VITE_NATIONAL=1` to show the national toggle even if `/layers/national_hex` 404s (renders an empty layer with a "not built" label — for slide rehearsal only).
-- Scripts: `pnpm dev`, `pnpm build`, `pnpm preview`, `pnpm typecheck`, `pnpm lint`.
+- Scripts: `pnpm dev`, `pnpm build` (`tsc -b && vite build`), `pnpm preview` exist in `web/package.json`; **`pnpm typecheck` and `pnpm lint` do not yet** — add `"typecheck": "tsc -b --noEmit"` and an eslint script (no eslint config is installed either) before criterion 1 can be run.
 - Store actions are the only way to mutate state; panels never call the API for writes (there are none).
 
 ## Acceptance criteria
@@ -218,6 +218,13 @@ Target: **60 fps while scrubbing the hour** on the Texas twin on a MacBook (M-se
 12. Every demo preset `D1`–`D6` lands on the storyboard state below without a fetch spinner (prefetch verified in the network tab).
 13. Losing the API mid-stream shows the error line in the Ask panel and the map stays interactive (no unhandled promise rejections in console).
 14. Lighthouse-free sanity: no console errors on boot; bundle < 2.5 MB gzipped (deck.gl + maplibre dominate).
+15. **Mutation probes (each must turn red; run by hand before rehearsal, reset after):**
+    - (a) delete `updateTriggers.getFillColor` from the `outage_risk` layer → a Playwright/vitest-browser check that samples a county's fill at hour 0 vs hour 36 must fail (colour freezes because deck.gl does not re-run the accessor).
+    - (b) set `interleaved: false` on the overlay → a check that `map.getLayer(<first symbol id>)` renders above deck's lines (pixel sample on a label glyph over a red line) must fail.
+    - (c) hardcode `beforeId: "waterway-name"` → deck.gl must throw/warn on the missing layer id and the overlay smoke test must fail; this pins the runtime-lookup rule.
+    - (d) make the SSE parser skip only the literal `: ping` line → a test feeding `: ping - 2026-09-05T00:00:00Z\n\n` followed by a `text` event must fail (the comment line is mis-parsed as a malformed event).
+    - (e) in `SiteCard`, sum two `lol_reduction_mwh` values client-side and render the total → criterion 6/7's "every rendered number equals a field in the `POST /site-score` response" test must fail.
+    If any probe stays green, the criterion it targets is an assertion that cannot fail and must be rewritten.
 
 ## Demo hook — storyboard per step
 
@@ -235,13 +242,13 @@ Target: **60 fps while scrubbing the hour** on the Texas twin on a MacBook (M-se
 
 ## Risks / unknowns
 
-- **Interleaved overlay + label `beforeId`:** OpenFreeMap style layer ids are not verified here; read them at runtime and fall back to overlaid mode (`interleaved:false`) if no symbol layer is found. Loses "under labels" only.
+- **Interleaved overlay + label `beforeId`:** OpenFreeMap `dark` symbol layer ids were fetched 2026-09-05 (first is `water_name`; `waterway-name` does not exist) but other styles differ — read them at runtime and fall back to overlaid mode (`interleaved:false`) if no symbol layer is found. Loses "under labels" only.
 - **Split-screen actual-vs-predicted** is the fiddliest visual; the fallback is a toggle (`A` swaps colour source) plus the county-card sparkline. Decide by Saturday night; do not spend > 1 h on the split.
 - **Hurricane Beryl / Helene** storm polygons depend on spec 02 output; if only Uri has a polygon, hide the storm layer for other scenarios (empty FeatureCollection renders nothing — already handled).
 - **National hex** depends on spec 01 building the 82k join; the `VITE_NATIONAL=1` stub keeps step 6 rehearsable as a slide-like view.
 - **GeoJsonLayer accessor cost on 254 polygons × multi-ring** is fine, but if counties come in unsimplified (> 10 MB) fps will drop — enforce spec 05's simplification, not a client fix.
 - **OpenFreeMap availability** at demo time (public, keyless): pre-warm by loading the app 10 min before; fallback PMTiles file for Texas extent in `web/public/tx.pmtiles` if the connection is unreliable (Protomaps self-host path verified; hosted API not).
-- **react-map-gl 8 + maplibre-gl 6 API drift:** `react-map-gl/maplibre` entry and `useControl` are the documented shapes; verify the `MapboxOverlay` interleaved path against deck.gl 9.3 docs at install time (the overview page was fetched; the React guide page was not).
+- **react-map-gl 8 + maplibre-gl 6 API drift:** `react-map-gl/maplibre` entry, `useControl`, `MapProps` and `MapboxOverlay({interleaved})` / `setProps` were introspected from the installed packages 2026-09-05 (ledger: `docs/specs/verification/05-06.md`). Still `[UNVERIFIED]`: the exact `useControl` + `MapboxOverlay` React wiring example (deck.gl "Using with React" guide page was not fetched) — write it from the `IControl` types and test at install time.
 - **SSE through Vite proxy** buffers by default — call the API origin directly with CORS (spec 05 sets `CORS_ORIGINS`), do not proxy `/ask`.
 
 ## Weekend time-box (hours)

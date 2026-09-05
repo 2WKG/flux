@@ -4,9 +4,9 @@ Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.du
 
 ## Purpose
 
-A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the four engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`) as HTTP routes for the UI, and (c) hosts the tool-calling Claude copilot behind `POST /ask`.
+A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling Claude copilot behind `POST /ask`.
 
-The copilot is the "answers questions in English with citations" layer of Idea 1 (pitch §"What it does" item 5, Layer 6). Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
+The copilot is the "answers questions in English with citations" layer of Idea 1 — **GridMind** (pitch §"What it does" item 5, Layer 6; `discription.md` §5.7). The description's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
 Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the national 82k model is a scale slide, not a copilot target this weekend.
 
@@ -34,13 +34,18 @@ Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the natio
 ```
 copilot/
   (no copilot/pyproject.toml — deps live in the ROOT pyproject.toml; see 00 §amendments)
-                            # pypdf, rank-bm25, voyageai (optional extra), numpy
+                            # pypdf, rank-bm25, numpy are in root pyproject (verified 2026-09-05).
+                            # NOT yet in root pyproject (must be added before this lane builds):
+                            #   pydantic-settings  (for Settings(BaseSettings) below — `import pydantic_settings` fails in the uv env)
+                            #   voyageai           (no optional extra exists; add a `dense` extra or install ad hoc)
   app.py                    # FastAPI app factory, CORS, lifespan opens DuckDB
-  config.py                 # Settings(BaseSettings): ANTHROPIC_API_KEY, DUCKDB_PATH, VOYAGE_API_KEY, MODEL, ...
+  config.py                 # Settings(BaseSettings) from `pydantic_settings`: ANTHROPIC_API_KEY, DUCKDB_PATH, VOYAGE_API_KEY, MODEL, ...
   db.py                     # one duckdb.connect(read_only=True); per-request cursor(); SQL guard
   tools/
     schemas.py              # TOOL_SCHEMAS: list[dict]  (JSON Schema, strict)
-    impl.py                 # predict_outage, run_cascade, score_site, top_lines, sql, cite  -> dict
+    impl.py                 # predict_outage, run_cascade, score_site, top_lines, sql, cite,
+                            # compare_interventions, top_critical_elements (00 §A8), causal_query (spec 07) -> dict
+                            # + resolve_site(lat, lon) helper (A8; not a model-facing tool)
     registry.py             # name -> callable, per-tool timeout, result cap
   agent/
     system_prompt.py        # SYSTEM_PROMPT constant (frozen text, cache-controlled)
@@ -61,18 +66,18 @@ One process, one DuckDB connection (read-only), async FastAPI; blocking DuckDB a
 
 ### Model and SDK
 
-- SDK: `anthropic` (Python). Client: `anthropic.AsyncAnthropic()` (reads `ANTHROPIC_API_KEY`).
-- Model: `claude-opus-5` (default; `COPILOT_MODEL` env can override, e.g. `claude-sonnet-5` for cheaper eval runs). Adaptive thinking is on by default on Opus 5; we set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
+- SDK: `anthropic` (Python; installed 1.4.0, introspected 2026-09-05). Client: `anthropic.AsyncAnthropic()` (reads `ANTHROPIC_API_KEY`).
+- Model: `claude-opus-5` (default; `COPILOT_MODEL` env can override, e.g. `claude-sonnet-5` for cheaper eval runs). Ids match the Anthropic `claude-api` skill model table (cached 2026-06-24); not confirmed against the live Models API this session (no key in the checkout) — the `/health` startup check must call `client.models.retrieve(COPILOT_MODEL)` and fail loud. Adaptive thinking is on by default on Opus 5; we set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
 
 ```python
 thinking={"type": "adaptive"},
 output_config={"effort": "medium"},
 ```
 
-  No `temperature`/`top_p` (rejected on Opus 5). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` plus the system-prompt rule; `strict: true` on every tool so arguments always validate.
-- Streaming: `client.messages.stream(...)` on every model turn (long outputs, tool chains). `max_tokens=8000` per turn (answers are short; tool inputs are tiny).
-- Refusal handling: check `stop_reason == "refusal"` before reading content; emit an `error` SSE event. (Server-side `fallbacks` is a beta on `client.beta.messages`; we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.)
-- Prompt caching: `system` is a single frozen text block with `cache_control: {"type": "ephemeral"}`; tools list is a module constant in fixed order; volatile UI context goes in the first **user** message, never in `system`. Verify `usage.cache_read_input_tokens > 0` on the second demo question.
+  (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus 5 per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
+- Streaming: `client.messages.stream(...)` on every model turn (long outputs, tool chains). Verified signature (`AsyncMessages.stream`): keyword-only `max_tokens, messages, model, system, tools, tool_choice, thinking, output_config, cache_control, …`; returns an async context manager whose stream yields typed events (`TextEvent{type:"text", text, snapshot}`, `InputJsonEvent`, `ThinkingEvent`, raw `RawContentBlockDeltaEvent`…) and exposes `get_final_message()` / `get_final_text()`. `max_tokens=8000` per turn (answers are short; tool inputs are tiny).
+- Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None` — read `category`/`explanation` into the error event); emit an `error` SSE event. Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
+- Prompt caching: `system` is a single frozen text block with `cache_control: {"type": "ephemeral"}` (`CacheControlEphemeralParam{type, ttl?: "5m"|"1h"}`); tools list is a module constant in fixed order; volatile UI context goes in the first **user** message, never in `system`. Verify `usage.cache_read_input_tokens > 0` on the second demo question (`Usage` fields verified: `input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, …`).
 
 ### Tool-use loop (`agent/loop.py`)
 
@@ -85,7 +90,7 @@ for iteration in range(MAX_ITER=8):
                                       tools=TOOL_SCHEMAS, thinking=..., output_config=...,
                                       messages=messages) as stream:
         async for event in stream:
-            if text_delta: yield SSE text
+            if event.type == "text": yield SSE text(delta=event.text)   # TextEvent; .snapshot is the running text
         msg = await stream.get_final_message()
     if msg.stop_reason == "refusal": yield SSE error; return
     messages.append({"role":"assistant","content": msg.content})
@@ -102,7 +107,7 @@ verify(final_text, tool_results, citations) -> yield SSE done{verified:…}
 Rules:
 
 - `MAX_ITER = 8` model turns per question. Demo questions need 2–4.
-- Per-tool timeout (`asyncio.wait_for`): `predict_outage` 5 s, `run_cascade` 20 s (precomputed hit is ms; live pandapower on a miss can take seconds), `score_site` 20 s, `top_lines` 5 s, `sql` 5 s, `cite` 5 s. Timeout → `tool_result` with `is_error: true` and content `{"error":"timeout","tool":…}`; the model is told (system prompt) to report the failure, not to guess.
+- Per-tool timeout (`asyncio.wait_for`): `predict_outage` 5 s, `run_cascade` 20 s (precomputed hit is ms; live pandapower on a miss can take seconds), `score_site` 20 s, `top_lines` 5 s, `sql` 5 s, `cite` 5 s, `compare_interventions` 30 s (runs a baseline/with-intervention `run_scenario` pair per id), `top_critical_elements` 5 s (reads persisted `cascade_runs` only), `causal_query` 5 s. Timeout → `tool_result` with `is_error: true` and content `{"error":"timeout","tool":…}`; the model is told (system prompt) to report the failure, not to guess.
 - Tool exceptions → `is_error: true` with the exception message (no traceback). Never dropped.
 - Result size cap: each `tool_result` content is JSON-serialized and truncated to **8 KB** (`sql` rows capped at 200 before serialization; `cite` chunks capped at 1,200 chars each). Truncation appends `{"truncated": true, "omitted_rows": n}`.
 - Parallel tool calls are executed concurrently and returned in a single user message (splitting them degrades parallel calling).
@@ -111,7 +116,7 @@ Rules:
 
 ### Tool schemas (`tools/schemas.py`)
 
-All six use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract and must not change.
+All nine use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract (00 §2.4 + amendment A8) and must not change. The nine: the six below plus `compare_interventions`, `top_critical_elements` (both A8, rows below), and `causal_query` (spec 07 owns its schema; registered here in the same list).
 
 | name | input schema (required unless default) | returns (JSON dict) |
 | --- | --- | --- |
@@ -121,8 +126,12 @@ All six use `strict: true`, `additionalProperties: false`, explicit `required`. 
 | `top_lines` | `region: str` (e.g. `"ERCOT"`, `"TX"`, or a county fips), `tech: "dlr"\|"reconductor"\|"any"`, `n: int = 10` | `{region, tech, lines:[{line_id, from_bus, to_bus, kv, congestion_usd_yr, uplift_mw, cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible}]}` |
 | `sql` | `query: str` | `{columns:[str], rows:[[…]], row_count, truncated}` |
 | `cite` | `query: str`, `k: int = 5` | `{hits:[{doc, title, page, chunk_id, score, text}]}` |
+| `compare_interventions` (A8) | `scenario_id: str` (same enum), `intervention_ids: list[str]` (each `site:<site_id>`, `site:<site_id>@300`, or `line:<line_id>`; 1–5 ids) | `{scenario_id, baseline_run_id, interventions:[{intervention_id, kind: site\|line, run_id, lol_reduction_mwh, customer_hours_avoided, critical_loads_protected:[cl_id]}], assumptions:[str]}` — sorted by `lol_reduction_mwh` desc; the tool computes every delta, the model reports them |
+| `top_critical_elements` (A8) | `region: str` (`"ERCOT"`, `"TX"`, or a county fips), `n: int = 10` | `{region, n, scenario_ids:[str], elements:[{element_id, kind: line\|bus\|gen, lost_load_mw, critical_loads_lost:[cl_id], runs:int}], partial?:bool}` — ranked by cascade reach from persisted `cascade_runs`; `partial: true` when fewer than `n` elements have any persisted run |
 
-`sql` guard (`db.py`): strip comments; reject unless the statement, after `sqlglot`-free heuristics, starts with `SELECT` or `WITH`, contains none of `INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|ATTACH|COPY|PRAGMA|INSTALL|LOAD|CALL|EXPORT`, contains a single statement (no `;` except trailing), and the connection is `read_only=True` (belt and braces). Wrap as `SELECT * FROM (<q>) LIMIT 201` to detect truncation; query timeout via DuckDB `SET statement_timeout`? — not available; use `asyncio.wait_for` plus `conn.interrupt()` on timeout.
+`resolve_site(lat: float, lon: float) -> {site_id, name, distance_km}` (A8) is a helper inside `impl.py`, not in `TOOL_SCHEMAS`: when a question carries a bare lat/lon (the description's `score_site(latitude, longitude, capacity)` shape), the `score_site` wrapper resolves it to the nearest `site_candidates` row (error if > 25 km) and the UI context / answer names that `site_id`. The model never sees lat/lon-shaped `score_site` arguments.
+
+`sql` guard (`db.py`): strip comments; reject unless the statement, after `sqlglot`-free heuristics, starts with `SELECT` or `WITH`, contains none of `INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|ATTACH|COPY|PRAGMA|INSTALL|LOAD|CALL|EXPORT`, contains a single statement (no `;` except trailing), and the connection is `duckdb.connect(path, read_only=True)`. The denylist is load-bearing, not belt-and-braces: verified on duckdb 1.5.5 that a `read_only=True` connection rejects `INSERT` ("Cannot execute statement of type INSERT on database … attached in read-only mode") and `ATTACH`, but **`COPY (SELECT …) TO '/path'` still writes a file** on a read-only connection — only the denylist stops it. Wrap as `SELECT * FROM (<q>) LIMIT 201` to detect truncation; there is no DuckDB `statement_timeout` (verified: `SET statement_timeout` → "unrecognized configuration parameter", and no `%timeout%` entry in `duckdb_settings()`); use `asyncio.wait_for` plus `conn.interrupt()` (method exists on `DuckDBPyConnection`) on timeout.
 
 `regulatory_path` in `score_site` is a lookup from `site_candidates.kind` (spec 04 defines it): `coal_retired|coal_retiring → "ADVANCE Act brownfield / DOE coal-to-nuclear"`, `nuclear_existing → "NRC early site permit, existing licensed site"`, `federal → "DOE authorization on federal land (EO 14301)"`, `defense → "DoD installation (EO 14299 / Army Janus)"`. The model must still `cite` before repeating it.
 
@@ -134,7 +143,7 @@ Frozen text, ~600 tokens. Required contents (write them as plain prose; do not o
 2. **Never compute.** Every number (MW, MWh, %, counts, dollars, probabilities, distances, scores) you state must be copied from a tool result in this conversation. Do not add, subtract, average, convert units, or estimate. If a comparison needs a number you don't have, call a tool. If no tool can produce it, say you cannot answer that part.
 3. **Cite regulation only from `cite`.** Any statement about NRC, DOE, FERC, executive orders, or statutes must follow a `cite` call and quote the `doc` + `page`. Inline citation format: `[doc p.N]`. Never cite from memory.
 4. **No tool, no answer.** If the question is about the grid, outages, cascades, sites, or lines and you have made no tool call, do not answer — call a tool first. Greetings/meta questions are the only exception.
-5. Planning: prefer `score_site`/`predict_outage`/`run_cascade`/`top_lines` over `sql`; use `sql` only for lists/lookups (e.g. resolve a name to an id, list top-N). Batch independent calls in one turn.
+5. Planning: prefer `score_site`/`predict_outage`/`run_cascade`/`top_lines`/`compare_interventions`/`top_critical_elements` over `sql`; use `sql` only for lists/lookups (e.g. resolve a name to an id, list top-N). "Which elements/substations carry the most cascade risk" → `top_critical_elements`; "compare site X with line upgrade Y" → `compare_interventions`, never two `run_cascade` calls plus your own subtraction. Batch independent calls in one turn.
 6. UI context: the user message may carry `scenario_id`, `hour`, `selected_site_id`, `selected_element_id`, `compare_site_id`. "This site"/"the one near Houston" resolve to those ids; if absent, resolve via `sql` on `site_candidates`.
 7. Answer shape: ≤ 180 words, lead with the recommendation, then 3 reasons and up to 3 risks as bullets, each with its number and source (`tool:score_site` or `[doc p.N]`). End with one line listing which tools were used.
 8. Report tool failures plainly ("cascade timed out; I can't quantify lost load") — do not fill the gap.
@@ -152,11 +161,11 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 
 **Corpus:** `copilot/corpus/<doc_key>.pdf`, doc keys: `10cfr100`, `regguide-4.7`, `doe-c2n-2022`, `doe-c2n-2024`, `eo-14299`, `eo-14300`, `eo-14301`, `eo-14302`, `nrc-siting-rule-2026`, `ferc-dlr-anopr-rm24-6`, `advance-act`. A `corpus/manifest.yaml` maps key → title, source URL, date, and is what `cite` returns as `title`.
 
-**Ingest (`ingest.py`, run once, idempotent):** `pypdf` page text → per-page normalization (dehyphenate line breaks, collapse whitespace) → chunk by ~800 tokens (≈3,200 chars) with 150-token overlap, never crossing a page boundary (so `page` is exact) → rows into DuckDB table `corpus_chunks(chunk_id, doc, title, page, text, embedding FLOAT[1024] NULL)`. This table lives in `grid.duckdb` too (spec 01 owns the file; this service creates the table via a separate write connection during ingest only, never at request time).
+**Ingest (`ingest.py`, run once, idempotent):** `pypdf` page text (`pypdf.PdfReader(path).pages[i].extract_text()`; pypdf 6.17.0 installed) → per-page normalization (dehyphenate line breaks, collapse whitespace) → chunk by ~800 tokens (≈3,200 chars) with 150-token overlap, never crossing a page boundary (so `page` is exact) → rows into DuckDB table `corpus_chunks(chunk_id, doc, title, page, text, embedding FLOAT[1024] NULL)`. This table lives in `grid.duckdb` too (spec 01 owns the file; this service creates the table via a separate write connection during ingest only, never at request time).
 
-**Dense (optional):** if `VOYAGE_API_KEY` is set, embed chunks with `voyageai.Client().embed(texts, model="voyage-4", input_type="document")` (1024-d) and queries with `input_type="query"`; store in `embedding`; query with DuckDB `array_cosine_similarity` (or `list_cosine_similarity`) over the ~1,500 chunks — brute force is fine, no index. Anthropic has no embedding model; Voyage is the documented recommendation.
+**Dense (optional):** if `VOYAGE_API_KEY` is set, embed chunks with `voyageai.Client().embed(texts, model="voyage-4", input_type="document")` (1024-d default; Voyage docs verified 2026-09-05: `voyage-4` / `voyage-4-large` / `voyage-4-lite` / `voyage-4-nano`, 32k context, dims 1024 default + 256/512/2048; signature `Client.embed(texts, model, input_type=None, truncation=None, output_dimension=None)`) and queries with `input_type="query"`; store in `embedding`; query with DuckDB `array_cosine_similarity(embedding, ?::FLOAT[1024])` — both `array_cosine_similarity` and `list_cosine_similarity` exist in duckdb 1.5.5 (verified via `duckdb_functions()`; use the `array_` form on the `FLOAT[1024]` column) over the ~1,500 chunks — brute force is fine, no index. Anthropic has no embedding model; Voyage is the documented recommendation (Anthropic embeddings guide, fetched 2026-09-05: "Anthropic does not offer its own embedding model … Voyage AI"). The `voyageai` package is not installed in the uv env yet (see layout note).
 
-**Sparse (always):** `rank_bm25.BM25Okapi` over lowercased, punctuation-stripped tokens, built at startup from `corpus_chunks` (< 1 s). Legal text is heavy on exact terms (`"exclusion area"`, `"500 persons per square mile"`, `"population center distance"`), so BM25 alone is demo-adequate.
+**Sparse (always):** `rank_bm25.BM25Okapi(corpus_tokens, k1=1.5, b=0.75)` (`get_scores` / `get_top_n`; verified installed) over lowercased, punctuation-stripped tokens, built at startup from `corpus_chunks` (< 1 s). Legal text is heavy on exact terms (`"exclusion area"`, `"500 persons per square mile"`, `"population center distance"`), so BM25 alone is demo-adequate.
 
 **Fusion:** if dense is available, take top-20 from each, reciprocal-rank fusion (`k=60`), return top-`k`. Otherwise BM25 top-`k`. `cite` returns `{doc, title, page, chunk_id, score, text[:1200]}`.
 
@@ -181,7 +190,7 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 | `national_hex` | Arrow IPC (`h3: str, res: i8, buses: i32, lines: i32, gen_mw: f32`) | `res?=4` | precomputed from the 82k model (spec 01); if not built returns 404 `{"not_built":true}` and the UI hides the layer |
 | `eaglei` | Arrow IPC (`county_fips, ts, customers_out`) | `scenario_id` | actual outages for the compare slider |
 
-Arrow responses: `pyarrow.ipc` stream, `Content-Type: application/vnd.apache.arrow.stream`. GeoJSON: `application/geo+json`, gzip via middleware.
+Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (pyarrow 25.0.1 installed), `Content-Type: application/vnd.apache.arrow.stream` (IANA-registered media type, HTTP 200 on the registry entry 2026-09-05). GeoJSON: `application/geo+json`, gzip via `fastapi.middleware.gzip.GZipMiddleware` (fastapi 0.141.1 installed).
 
 ## Interfaces
 
@@ -196,6 +205,8 @@ Arrow responses: `pyarrow.ipc` stream, `Content-Type: application/vnd.apache.arr
 | `POST /site-score` | `{site_id, unit_mw, scenario_id}` | `score_site` dict |
 | `POST /predict` | `{county_fips, scenario_id, horizon_h?}` | `predict_outage` dict (UI uses it for the county click card) |
 | `GET /lines/top` | `region, tech=any, n=10` | `top_lines` dict |
+| `POST /compare` (A8) | `{scenario_id, intervention_ids:[str]}` | `compare_interventions` dict (UI: "compare a site with a line upgrade" card) |
+| `GET /elements/critical` (A8) | `region, n=10` | `top_critical_elements` dict (UI: critical-elements panel) |
 | `POST /ask` | see below | `text/event-stream` |
 
 `POST /ask` request:
@@ -225,7 +236,7 @@ SSE events (each `event: <type>` + `data: <json>`; `id` is a monotonic counter):
 | `done` | `{"verified":bool,"unverified_numbers":[…],"unverified_citations":[…],"tools_used":[…],"usage":{input_tokens,output_tokens,cache_read_input_tokens},"ms":int}` |
 | `error` | `{"code":"refusal"\|"max_iterations"\|"deadline"\|"api_error"\|"bad_request","message"}` |
 
-Because it is a POST, the client uses `fetch` + `ReadableStream`, not `EventSource` (spec 06). Heartbeat comment line `: ping` every 10 s so proxies keep the stream open.
+Because it is a POST, the client uses `fetch` + `ReadableStream`, not `EventSource` (spec 06). Transport: `sse_starlette.sse.EventSourceResponse(gen, ping=10)` yielding `ServerSentEvent(data=json, event=type, id=str(n))` (sse-starlette 3.4.11 verified: `EventSourceResponse(content, ping: float|None = None, ping_message_factory=…, sep=…)`, default ping interval 15 s, default ping is the comment line `: ping - <utc timestamp>`). Heartbeat every 10 s so proxies keep the stream open; the client must ignore **any** line starting with `:` (not just the literal `: ping`) unless we pass `ping_message_factory=lambda: ServerSentEvent(comment="ping")`.
 
 ### Python signatures (`tools/impl.py`) — the shared contract
 
@@ -236,6 +247,11 @@ def score_site(site_id: str, unit_mw: int, scenario_id: str) -> dict: ...
 def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10) -> dict: ...
 def sql(query: str) -> dict: ...
 def cite(query: str, k: int = 5) -> dict: ...
+# amendment A8 (00-overview):
+def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict: ...
+def top_critical_elements(region: str, n: int = 10) -> dict: ...
+def resolve_site(lat: float, lon: float) -> dict: ...        # helper, not in TOOL_SCHEMAS
+# spec 07 owns: def causal_query(...) -> dict
 ```
 
 ### Env vars (`config.py`)
@@ -271,6 +287,13 @@ Run: `uv run uvicorn copilot.app:app --port 8000 --reload`.
 12. Second consecutive `/ask` shows `usage.cache_read_input_tokens > 0`.
 13. p50 end-to-end for the demo questions < 12 s, p95 < 25 s on the demo laptop with warm DuckDB.
 14. `eval/run_eval.py` runs all questions and writes `eval/report.md` with pass/fail per criterion 6–10; the demo Q&As must be green before rehearsal.
+15. **Mutation probes (each must turn red, run in CI as `pytest -m mutation`, reset after):**
+    - (a) comment out the `is_error: true` branch in `run_tool`'s timeout handler → criterion 11 must fail (the stream no longer emits `tool_result{ok:false}`).
+    - (b) replace the `sql` denylist with an accept-all → criterion 5 must fail on `COPY (SELECT 1) TO 'x.csv'` (this is the case `read_only=True` does **not** stop — verified on duckdb 1.5.5), and the DB-hash check must catch a file write if the probe targets the DB path.
+    - (c) delete the regulatory-claim guard in `verify.py` → a fixture answer that mentions "10 CFR 100" with no `cite` call must flip from `verified=false` to `verified=true`, failing the unit test that pins `reason="regulatory_claim_without_cite"`.
+    - (d) drop `cache_control` from the `system` block → criterion 12 must fail (`cache_read_input_tokens == 0` on the second `/ask`).
+    - (e) set `ping=0` on `EventSourceResponse` → a 12 s idle-stream test asserting at least one `:`-comment line must fail.
+    If any probe stays green, the corresponding criterion is an assertion that cannot fail and must be rewritten before it counts.
 
 ## Demo hook
 
@@ -308,7 +331,18 @@ Expected trace:
 
 Guard: if the answer contains a total MWh not present in any tool result, criterion 7 fails (this is the exact failure mode the never-compute rule is for; the eval asserts it).
 
-**Regression questions (in `eval/questions.yaml`, not in the demo):** "Which Texas counties are at highest outage risk in the next 72 hours?" (`sql` or `predict_outage` on top counties + driver), "What happens if line {L} trips at hour 3 of Uri?" (`run_cascade`), "Which ten lines give the cheapest new MW in ERCOT and by which technology?" (`top_lines("ERCOT","any",10)`; the Idea 3 screen), "How does the predicted Uri outage compare to what actually happened in {county}?" (`predict_outage` + `sql` on `eaglei_outages` — model reports both, never a delta it computed).
+**Q3 — "Which three substations create the greatest cascade risk for critical facilities?"** (`discription.md` §5.7 example; A8)
+Context: `scenario_id=uri_2021`, no selection.
+
+Expected trace:
+
+1. turn 1: `top_critical_elements("ERCOT", 10)` (the model asks for 10 and filters to `kind == "bus"` with non-empty `critical_loads_lost` when reporting; it must not call `run_cascade` per element — the ranking is precomputed from `cascade_runs`).
+2. turn 2 (optional, parallel): `sql("SELECT cl_id, name, kind FROM critical_loads WHERE cl_id IN (...)")` to name the stranded facilities.
+3. turn 3: final text naming three `bus` element ids (with `buses.name` if resolved), each with its `lost_load_mw` and the critical facilities in `critical_loads_lost`, stated separately — no totals. If `partial: true` or fewer than three buses strand a critical load, say so and list what exists.
+
+Guard: any `lost_load_mw` in the answer must appear verbatim in the `top_critical_elements` result (number trace); a `run_cascade` call in this trace fails criterion 7.
+
+**Regression questions (in `eval/questions.yaml`, not in the demo):** "Which Texas counties are at highest outage risk in the next 72 hours?" (`sql` or `predict_outage` on top counties + driver), "What happens if line {L} trips at hour 3 of Uri?" (`run_cascade`), "Which ten lines give the cheapest new MW in ERCOT and by which technology?" (`top_lines("ERCOT","any",10)`; the spec 08 line-upgrade screen), "Compare the #1 site with DLR on its serving line" (`compare_interventions("uri_2021", ["site:<id>", "line:<id>"])`; model reports both deltas, never a difference it computed), "How does the predicted Uri outage compare to what actually happened in {county}?" (`predict_outage` + `sql` on `eaglei_outages` — model reports both, never a delta it computed).
 
 ## Evaluation checklist
 
@@ -330,15 +364,15 @@ Guard: if the answer contains a total MWh not present in any tool result, criter
 - **BM25 misses a legal phrase** (e.g. the query says "population density" but the rule says "population center distance"). Mitigation: `cite` runs two rewordings when the top score is low (< 0.3 of max) and RRF-merges; and the Voyage upgrade path exists.
 - **PDF text extraction quality** for the Federal Register PDFs (two-column). `pypdf` may interleave columns; if so, fall back to `pdfplumber` for those docs only. Check by eyeballing 3 chunks per doc during ingest.
 - **Rate limits / API outage during the demo.** Keep `COPILOT_MODEL` switchable and the two demo answers cached as a last resort (`eval/cached_answers/`), replayed through the same SSE emitter so the UI path is identical — label as cached in the log; never present cached as live to the judges.
-- **Anthropic SDK drift.** Shapes used here (`messages.stream`, `thinking={"type":"adaptive"}`, `output_config.effort`, `strict` tools, no prefill, no forced tool_choice, `stop_reason=="refusal"`) are current as of 2026-09; pin `anthropic>=1.0` and run the health check on install.
-- **Not verified this session:** the exact `duckdb` list/array cosine function name for the dense path (`list_cosine_similarity` vs `array_cosine_similarity` depending on version) — check at ingest time; irrelevant on the BM25-only default.
+- **Anthropic SDK drift.** Shapes used here (`messages.stream`, `thinking={"type":"adaptive"}`, `output_config.effort`, `strict` tools, no prefill, no forced tool_choice, `stop_reason=="refusal"`) were introspected against the installed `anthropic` 1.4.0 on 2026-09-05 (see `docs/specs/verification/05-06.md`). Pin `anthropic>=1.0` — the root `pyproject.toml` currently says `anthropic>=0.40`, which admits the pre-1.0 API (bump it) — and run the health check on install. Not exercised live this session (no API key in the checkout): the 400s on `temperature`/prefill/forced `tool_choice`, and the model ids themselves — the skill table is the source; `/health` calling `models.retrieve` is the runtime guard.
+- **Resolved 2026-09-05:** both `list_cosine_similarity` and `array_cosine_similarity` exist in duckdb 1.5.5; the spec uses `array_cosine_similarity` on the `FLOAT[1024]` column. Irrelevant on the BM25-only default.
 
 ## Weekend time-box (hours)
 
 | Block | Hours | Deliverable |
 | --- | --- | --- |
 | Sat AM | 2 | `app.py`, `config.py`, `db.py` with SQL guard, `/health`, `/scenarios`, static `/layers/*` from DuckDB |
-| Sat PM | 3 | tool schemas + impl wrappers over precomputed tables; `/cascade`, `/site-score`, `/lines/top`, `/predict` |
+| Sat PM | 3 | tool schemas + impl wrappers over precomputed tables; `/cascade`, `/site-score`, `/lines/top`, `/predict`, `/elements/critical`, `/compare` (A8) |
 | Sat PM | 2 | corpus fetch script, ingest, BM25 `cite`, manifest |
 | Sat eve | 3 | `/ask` loop with SSE, timeouts, caps, system prompt v1, `verify.py` |
 | Sun AM | 2 | `eval/questions.yaml` + `run_eval.py`; iterate prompt on Q1/Q2 until 5/5 verified |
