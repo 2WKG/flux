@@ -5,6 +5,10 @@ retrieval/line-detail tables, and initializer lifecycle behaviour belong to
 their respective pipeline issues.
 """
 
+import duckdb
+
+SCHEMA_VERSION = "1.0.0"
+
 CONTRACT_TABLES = (
     "counties",
     "buses",
@@ -265,3 +269,36 @@ ADDITIVE_SCHEMA_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS idx_line_upgrade_detail_region ON line_upgrade_detail (region)",
     "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_doc_page ON corpus_chunks (doc, page)",
 )
+
+
+_SCHEMA_METADATA_STATEMENT = """CREATE TABLE IF NOT EXISTS schema_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+)"""
+
+
+def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
+    """Create the contract schema without rewriting existing fixture rows.
+
+    A fixture database may only advertise this schema version after callers have
+    explicitly migrated it. The table declarations themselves use additive
+    ``IF NOT EXISTS`` creation; this function contains no destructive SQL.
+    """
+
+    con.execute(_SCHEMA_METADATA_STATEMENT)
+    existing = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
+    if existing is None:
+        con.execute(
+            "INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)",
+            [SCHEMA_VERSION],
+        )
+    elif existing[0] != SCHEMA_VERSION:
+        raise RuntimeError(
+            f"DuckDB contract version is {existing[0]!r}, expected "
+            f"{SCHEMA_VERSION!r}; migrate explicitly."
+        )
+
+    for statement in SCHEMA_STATEMENTS + ADDITIVE_SCHEMA_STATEMENTS:
+        con.execute(statement)
