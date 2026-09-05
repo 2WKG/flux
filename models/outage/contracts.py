@@ -19,6 +19,7 @@ that table; the rest travel with the artifact.
 
 from __future__ import annotations
 
+from collections import Counter
 from datetime import datetime
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -107,7 +108,14 @@ class FixtureLabel(Frozen):
     reason: str = Field(min_length=1, description="why a fixture stands here")
 
 
-Label = Annotated[ObservedLabel | FixtureLabel, Field(discriminator="kind")]
+class UncoveredLabel(Frozen):
+    """No EAGLE-I sample exists for this window, so it is not a zero-outage label."""
+
+    kind: Literal["uncovered"] = "uncovered"
+    reason: str = Field(min_length=1, description="why the source does not cover this window")
+
+
+Label = Annotated[ObservedLabel | FixtureLabel | UncoveredLabel, Field(discriminator="kind")]
 
 
 class CountyOutageRow(Frozen):
@@ -150,17 +158,28 @@ class FeatureValue(Frozen):
         return self
 
 
+FeatureName = Annotated[str, Field(min_length=1)]
+FeatureEntries = tuple[tuple[FeatureName, FeatureValue], ...]
+
+
 class FeatureRow(Frozen):
     """Assembled features for one county-window."""
 
     key: WindowKey
     feature_set_version: str = Field(min_length=1)
-    features: dict[str, FeatureValue] = Field(min_length=1)
+    features: FeatureEntries = Field(min_length=1)
     source_input_sha256: Sha256 = Field(description="hash of the input artifact this was built from")
+
+    @model_validator(mode="after")
+    def _feature_names_are_unique(self) -> FeatureRow:
+        names = tuple(name for name, _ in self.features)
+        if len(set(names)) != len(names):
+            raise ValueError("features must not contain duplicate names")
+        return self
 
     @property
     def missing(self) -> tuple[str, ...]:
-        return tuple(n for n, f in self.features.items() if f.status != FeatureStatus.PRESENT)
+        return tuple(name for name, feature in self.features if feature.status != FeatureStatus.PRESENT)
 
 
 # --------------------------------------------------------------------------
@@ -194,7 +213,8 @@ class SplitManifest(Frozen):
         return self
 
     def counts(self) -> dict[Partition, int]:
-        return {p: sum(1 for a in self.assignments if a.partition is p) for p in Partition}
+        counts = Counter(assignment.partition for assignment in self.assignments)
+        return {partition: counts[partition] for partition in Partition}
 
 
 # --------------------------------------------------------------------------
@@ -284,6 +304,49 @@ Prediction = Annotated[
 ]
 
 
+class OutagePredictionRow(Frozen):
+    """The six pinned columns of the `outage_predictions` table."""
+
+    scenario_id: str = Field(min_length=1)
+    county_fips: CountyFips
+    ts: datetime
+    p_out: Probability
+    customers_at_risk: int = Field(ge=0)
+    driver: Driver
+
+
+class LightGBMPredictionProvenance(Frozen):
+    """Companion metadata for a persisted LightGBM prediction row."""
+
+    model_kind: Literal["lightgbm"] = "lightgbm"
+    model_version: str = Field(min_length=1)
+    artifact_sha256: Sha256
+    split_id: str = Field(min_length=1)
+    feature_set_version: str = Field(min_length=1)
+    evaluation_sha256: Sha256 | None = None
+
+
+class HeuristicPredictionProvenance(Frozen):
+    """Companion metadata for a persisted heuristic prediction row."""
+
+    model_kind: Literal["heuristic"] = "heuristic"
+    rule_id: str = Field(min_length=1)
+    rule_version: str = Field(min_length=1)
+
+
+PredictionProvenance = Annotated[
+    LightGBMPredictionProvenance | HeuristicPredictionProvenance,
+    Field(discriminator="model_kind"),
+]
+
+
+class PredictionPersistence(Frozen):
+    """A pinned table row and its companion provenance record, persisted together."""
+
+    row: OutagePredictionRow
+    provenance: PredictionProvenance
+
+
 class PredictionRecord(Frozen):
     """What gets persisted and served."""
 
@@ -291,8 +354,8 @@ class PredictionRecord(Frozen):
     prediction: Prediction
     contract_version: Literal[CONTRACT_VERSION] = CONTRACT_VERSION
 
-    def to_outage_predictions_row(self) -> dict[str, object] | None:
-        """The six pinned columns of `outage_predictions`, or None if unavailable.
+    def to_persistence(self) -> PredictionPersistence | None:
+        """Return the table row plus typed provenance, or None if unavailable.
 
         Unavailable predictions are deliberately not writable to this table:
         a row there means "the model produced a number".
@@ -300,11 +363,39 @@ class PredictionRecord(Frozen):
         p = self.prediction
         if p.model_kind == "unavailable":
             return None
+        row = OutagePredictionRow(
+            scenario_id=self.key.scenario_id,
+            county_fips=self.key.county_fips,
+            ts=self.key.window_start,
+            p_out=p.p_out,
+            customers_at_risk=p.customers_at_risk,
+            driver=p.driver,
+        )
+        if p.model_kind == "lightgbm":
+            provenance: PredictionProvenance = LightGBMPredictionProvenance(
+                model_version=p.artifact.model_version,
+                artifact_sha256=p.artifact.artifact_sha256,
+                split_id=p.artifact.split_id,
+                feature_set_version=p.artifact.feature_set_version,
+                evaluation_sha256=p.evaluation.evaluation_sha256 if p.evaluation else None,
+            )
+        else:
+            provenance = HeuristicPredictionProvenance(
+                rule_id=p.rule_id,
+                rule_version=p.rule_version,
+            )
+        return PredictionPersistence(row=row, provenance=provenance)
+
+    def to_outage_predictions_row(self) -> dict[str, object] | None:
+        """The six pinned columns, preserving provenance through `to_persistence()`."""
+        persisted = self.to_persistence()
+        if persisted is None:
+            return None
         return {
-            "scenario_id": self.key.scenario_id,
-            "county_fips": self.key.county_fips,
-            "ts": self.key.window_start,
-            "p_out": p.p_out,
-            "customers_at_risk": p.customers_at_risk,
-            "driver": p.driver.value,
+            "scenario_id": persisted.row.scenario_id,
+            "county_fips": persisted.row.county_fips,
+            "ts": persisted.row.ts,
+            "p_out": persisted.row.p_out,
+            "customers_at_risk": persisted.row.customers_at_risk,
+            "driver": persisted.row.driver.value,
         }
