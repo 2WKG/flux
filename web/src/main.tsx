@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
+import fixture from "../../data/demo/bundle.json";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
