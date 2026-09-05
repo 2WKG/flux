@@ -121,7 +121,7 @@ Rules:
 
 ### Tool schemas (`tools/schemas.py`)
 
-All nine use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract (00 §2.4 + amendment A8) and must not change. The nine: the six below plus `compare_interventions`, `top_critical_elements` (both A8, rows below), and `causal_query` (spec 07 owns its schema; registered here in the same list).
+All nine use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract (00 §2.4 + amendment A8) and must not change. `tools/schemas.py` bounds the two ranking page sizes to `1 ≤ n ≤ 50` (`TOP_LINES_MAX_LIMIT`; `top_critical_elements.n` carries the same bound); `top_lines` exposes no `offset` or `sort` parameter — pagination is not model-facing and the result order is spec 08's `mw_per_musd` desc, owned by the implementation. The nine: the six below plus `compare_interventions`, `top_critical_elements` (both A8, rows below), and `causal_query` (spec 07 owns its schema; registered here in the same list).
 
 | name | input schema (required unless default) | returns (JSON dict) |
 | --- | --- | --- |

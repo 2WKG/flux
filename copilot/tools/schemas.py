@@ -94,21 +94,16 @@ class ScoreSiteInput(ContractModel):
 TOP_LINES_MAX_LIMIT = 50
 """The largest page a ``top_lines`` read may request."""
 
-TOP_LINES_MAX_OFFSET = 10_000
-"""The largest zero-based page offset a ``top_lines`` read may request."""
-
-TOP_LINES_DEFAULT_SORT = "mw_per_musd DESC, cost_usd ASC, line_id ASC"
-"""The fixed ranking order; callers cannot supply an arbitrary sort expression."""
-
 
 class TopLinesInput(ContractModel):
     """Closed, bounded input for the persisted line-upgrade ranking read.
 
-    ``region`` and ``tech`` are the complete filter allowlist.  Results use
-    :data:`TOP_LINES_DEFAULT_SORT`; that fixed order gives equal primary scores
-    a deterministic cost and line-id tie-breaker.  ``offset`` is zero-based and
-    skips rows in that same order.  A page beyond the result set is empty rather
-    than wrapping or changing sort order.
+    ``region``, ``tech`` and ``n`` are the complete model-facing input: the
+    frozen contract signature ``top_lines(region, tech, n=10)`` from
+    ``docs/specs/00-overview.md`` §2.4 and ``05-copilot.md``.  No pagination or
+    sort parameter is exposed to the model; the result order is spec 08's
+    ``mw_per_musd`` descending and belongs to the ``top_lines`` implementation,
+    which must pin it with a behavioural test when it lands.
     """
 
     region: Annotated[
@@ -128,14 +123,6 @@ class TopLinesInput(ContractModel):
             description="Page size; at most 50 persisted ranking rows.",
         ),
     ] = 10
-    offset: Annotated[
-        int,
-        Field(
-            ge=0,
-            le=TOP_LINES_MAX_OFFSET,
-            description="Zero-based number of rows to skip in the fixed ranking order.",
-        ),
-    ] = 0
 
 
 class SqlInput(ContractModel):
