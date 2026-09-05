@@ -7,6 +7,8 @@ The full, machine-readable result is
 The committed artifact is fully deterministic: `model/test_validate_robustness.py::test_committed_report_matches_code`
 regenerates it from the code and compares byte-for-byte, so a hand edit to the
 JSON or a code change without regeneration fails the suite.
+Its top-level `units` block declares MW, MWh, hours, and fraction units for all
+reported metric rows, including zero-shed rows.
 
 ## Results
 

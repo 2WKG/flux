@@ -9,6 +9,7 @@ from model import validate_robustness
 from model.generate_demo import load_inputs
 from model.validate_robustness import (
     DRIVEN_FIELDS,
+    METRIC_UNITS,
     NETWORK_COPIES,
     NOT_CONSUMED_FIELDS,
     OUTPUT,
@@ -46,11 +47,11 @@ def test_base_metrics_keep_absolute_and_normalized_units() -> None:
         "unservedMw": 188,
         "unservedMwhOverHorizon": 752,
         "horizonHours": 4,
-        "fractionDemandUnserved": 188 / 1365,
+        "fractionDemandUnserved": round(188 / 1365, 6),
         "improvementMw": 0,
     }
     assert metrics["a"]["unservedMwhOverHorizon"] == metrics["a"]["unservedMw"] * 4
-    assert metrics["b"]["fractionDemandUnserved"] == 82 / 1365
+    assert metrics["b"]["fractionDemandUnserved"] == round(82 / 1365, 6)
 
 
 def test_horizon_follows_fixture_duration() -> None:
@@ -62,6 +63,17 @@ def test_horizon_follows_fixture_duration() -> None:
     assert metrics["baseline"]["horizonHours"] == 3
     for row in metrics.values():
         assert row["unservedMwhOverHorizon"] == row["unservedMw"] * 3
+
+
+def test_zero_shed_rows_keep_the_fixture_horizon_and_report_units() -> None:
+    inputs = load_inputs()
+    inputs["assumptions"]["durationHours"] = 3
+    inputs["assumptions"]["baselineAvailableGenerationMw"] = 2000
+
+    report = validation_report(inputs)
+
+    assert report["units"] == METRIC_UNITS
+    assert {row["horizonHours"] for row in report["baseMetrics"]} == {3}
 
 
 def test_sensitivity_reports_no_reversal_and_low_shortage_ties() -> None:

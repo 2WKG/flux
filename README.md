@@ -27,4 +27,7 @@ python -m unittest discover -s model -p "test_*.py"
 npm --prefix web run build
 ```
 
+The synthetic fixture's cross-scenario validation report is documented in
+[`docs/data/synthetic-cross-scenario-validation.md`](docs/data/synthetic-cross-scenario-validation.md).
+
 The current fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.

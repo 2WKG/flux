@@ -35,6 +35,14 @@ SENSITIVITY_GRID = (
 UNSEEN_PERTURBATION = {"demandScale": 1.08, "generationAvailabilityScale": 0.94}
 NETWORK_COPIES = (1, 5, 10, 20)
 CANDIDATE_IDS = ("a", "b")
+METRIC_UNITS = {
+    "demandMw": "MW",
+    "unservedMw": "MW",
+    "unservedMwhOverHorizon": "MWh",
+    "horizonHours": "h",
+    "fractionDemandUnserved": "fraction",
+    "improvementMw": "MW",
+}
 
 # Fields the grid actually scales, and the fixture fields it deliberately does
 # not touch because ``generate_demo.py`` never reads them (see PR #106 review).
@@ -144,26 +152,28 @@ def _perturbed_inputs(
     return changed
 
 
-def _metric_row(scenario: dict) -> dict:
+def _metric_row(scenario: dict, duration_hours: float) -> dict:
     metrics = scenario["metrics"]
     return {
         "scenarioId": scenario["id"],
         "label": scenario["label"],
-        "demandMw": metrics["demandMw"],
-        "unservedMw": metrics["shedMw"],
-        "unservedMwhOverHorizon": metrics["shedMwh"],
-        "horizonHours": metrics["shedMwh"] / metrics["shedMw"]
-        if metrics["shedMw"]
-        else None,
-        "fractionDemandUnserved": metrics["shedMw"] / metrics["demandMw"],
-        "improvementMw": metrics["improvementMw"],
+        "demandMw": round(metrics["demandMw"], 4),
+        "unservedMw": round(metrics["shedMw"], 4),
+        "unservedMwhOverHorizon": round(metrics["shedMwh"], 4),
+        "horizonHours": round(duration_hours, 4),
+        "fractionDemandUnserved": round(metrics["shedMw"] / metrics["demandMw"], 6),
+        "improvementMw": round(metrics["improvementMw"], 4),
     }
 
 
 def normalized_metrics(inputs: dict) -> list[dict]:
     """Report absolute MW/MWh and fraction-unserved for the base fixture."""
     validate_inputs(inputs)
-    return [_metric_row(item) for item in result_payload(inputs)["scenarios"].values()]
+    duration_hours = inputs["assumptions"]["durationHours"]
+    return [
+        _metric_row(item, duration_hours)
+        for item in result_payload(inputs)["scenarios"].values()
+    ]
 
 
 def _a_vs_b(payload: dict) -> str:
@@ -197,6 +207,7 @@ def sensitivity_analysis(inputs: dict) -> dict:
     """
     validate_inputs(inputs)
     base_ranking = _a_vs_b(result_payload(inputs))
+    duration_hours = inputs["assumptions"]["durationHours"]
     rows = []
     for demand_scale, generation_scale in SENSITIVITY_GRID:
         payload = result_payload(
@@ -208,7 +219,7 @@ def sensitivity_analysis(inputs: dict) -> dict:
                 "generationAvailabilityScale": generation_scale,
                 "aVsB": _a_vs_b(payload),
                 "scenarios": [
-                    _metric_row(payload["scenarios"][name])
+                    _metric_row(payload["scenarios"][name], duration_hours)
                     for name in ("baseline", "a", "b")
                 ],
             }
@@ -240,6 +251,7 @@ def sensitivity_analysis(inputs: dict) -> dict:
 def unseen_scenario(inputs: dict) -> dict:
     """Run an out-of-grid deterministic perturbation of the same fixture."""
     validate_inputs(inputs)
+    duration_hours = inputs["assumptions"]["durationHours"]
     payload = result_payload(
         _perturbed_inputs(
             inputs,
@@ -252,7 +264,8 @@ def unseen_scenario(inputs: dict) -> dict:
         "perturbation": UNSEEN_PERTURBATION,
         "aVsB": _a_vs_b(payload),
         "scenarios": [
-            _metric_row(payload["scenarios"][name]) for name in ("baseline", "a", "b")
+            _metric_row(payload["scenarios"][name], duration_hours)
+            for name in ("baseline", "a", "b")
         ],
         "scope": (
             "Unseen deterministic perturbation of the checked-in synthetic fixture; "
@@ -363,6 +376,7 @@ def validation_report(inputs: dict) -> dict:
         "inputArtifactId": inputs["artifactId"],
         "inputHash": artifact_hash(inputs),
         "modelMode": inputs["assumptions"]["modelMode"],
+        "units": METRIC_UNITS,
         "baseMetrics": normalized_metrics(inputs),
         "sensitivity": sensitivity_analysis(inputs),
         "unseenScenario": unseen_scenario(inputs),

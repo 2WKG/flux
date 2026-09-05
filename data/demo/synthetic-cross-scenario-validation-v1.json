@@ -4,6 +4,14 @@
   "inputArtifactId": "flux:synthetic-scenario-input:v1",
   "inputHash": "f5b2c271416b",
   "modelMode": "synthetic_power_balance_preview",
+  "units": {
+    "demandMw": "MW",
+    "unservedMw": "MW",
+    "unservedMwhOverHorizon": "MWh",
+    "horizonHours": "h",
+    "fractionDemandUnserved": "fraction",
+    "improvementMw": "MW"
+  },
   "baseMetrics": [
     {
       "scenarioId": "baseline",
@@ -11,8 +19,8 @@
       "demandMw": 1365,
       "unservedMw": 188,
       "unservedMwhOverHorizon": 752,
-      "horizonHours": 4.0,
-      "fractionDemandUnserved": 0.13772893772893774,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.137729,
       "improvementMw": 0
     },
     {
@@ -21,8 +29,8 @@
       "demandMw": 1365,
       "unservedMw": 51,
       "unservedMwhOverHorizon": 204,
-      "horizonHours": 4.0,
-      "fractionDemandUnserved": 0.03736263736263736,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.037363,
       "improvementMw": 137
     },
     {
@@ -31,8 +39,8 @@
       "demandMw": 1365,
       "unservedMw": 82,
       "unservedMwhOverHorizon": 328,
-      "horizonHours": 4.0,
-      "fractionDemandUnserved": 0.060073260073260075,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.060073,
       "improvementMw": 106
     }
   ],
@@ -60,31 +68,31 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1296.75,
-            "unservedMw": 237.45000000000005,
-            "unservedMwhOverHorizon": 949.8000000000002,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.1831116252168884,
+            "unservedMw": 237.45,
+            "unservedMwhOverHorizon": 949.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.183112,
             "improvementMw": 0.0
           },
           {
             "scenarioId": "a",
             "label": "Candidate A",
             "demandMw": 1296.75,
-            "unservedMw": 114.15000000000009,
-            "unservedMwhOverHorizon": 456.60000000000036,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.08802776171197231,
-            "improvementMw": 123.29999999999995
+            "unservedMw": 114.15,
+            "unservedMwhOverHorizon": 456.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.088028,
+            "improvementMw": 123.3
           },
           {
             "scenarioId": "b",
             "label": "Candidate B",
             "demandMw": 1296.75,
-            "unservedMw": 142.04999999999995,
-            "unservedMwhOverHorizon": 568.1999999999998,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.10954308849045688,
-            "improvementMw": 95.40000000000009
+            "unservedMw": 142.05,
+            "unservedMwhOverHorizon": 568.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.109543,
+            "improvementMw": 95.4
           }
         ]
       },
@@ -99,8 +107,8 @@
             "demandMw": 1296.75,
             "unservedMw": 119.75,
             "unservedMwhOverHorizon": 479.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.09234625024098708,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.092346,
             "improvementMw": 0.0
           },
           {
@@ -109,7 +117,7 @@
             "demandMw": 1296.75,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
             "improvementMw": 119.75
           },
@@ -119,8 +127,8 @@
             "demandMw": 1296.75,
             "unservedMw": 13.75,
             "unservedMwhOverHorizon": 55.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.010603431656063235,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.010603,
             "improvementMw": 106.0
           }
         ]
@@ -134,10 +142,10 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1296.75,
-            "unservedMw": 2.0499999999999545,
-            "unservedMwhOverHorizon": 8.199999999999818,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.0015808752650857563,
+            "unservedMw": 2.05,
+            "unservedMwhOverHorizon": 8.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.001581,
             "improvementMw": 0.0
           },
           {
@@ -146,9 +154,9 @@
             "demandMw": 1296.75,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
-            "improvementMw": 2.0499999999999545
+            "improvementMw": 2.05
           },
           {
             "scenarioId": "b",
@@ -156,9 +164,9 @@
             "demandMw": 1296.75,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
-            "improvementMw": 2.0499999999999545
+            "improvementMw": 2.05
           }
         ]
       },
@@ -171,31 +179,31 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1365.0,
-            "unservedMw": 305.70000000000005,
-            "unservedMwhOverHorizon": 1222.8000000000002,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.223956043956044,
+            "unservedMw": 305.7,
+            "unservedMwhOverHorizon": 1222.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.223956,
             "improvementMw": 0.0
           },
           {
             "scenarioId": "a",
             "label": "Candidate A",
             "demandMw": 1365.0,
-            "unservedMw": 182.4000000000001,
-            "unservedMwhOverHorizon": 729.6000000000004,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.1336263736263737,
-            "improvementMw": 123.29999999999995
+            "unservedMw": 182.4,
+            "unservedMwhOverHorizon": 729.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.133626,
+            "improvementMw": 123.3
           },
           {
             "scenarioId": "b",
             "label": "Candidate B",
             "demandMw": 1365.0,
-            "unservedMw": 210.29999999999995,
-            "unservedMwhOverHorizon": 841.1999999999998,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.15406593406593402,
-            "improvementMw": 95.40000000000009
+            "unservedMw": 210.3,
+            "unservedMwhOverHorizon": 841.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.154066,
+            "improvementMw": 95.4
           }
         ]
       },
@@ -210,8 +218,8 @@
             "demandMw": 1365.0,
             "unservedMw": 188.0,
             "unservedMwhOverHorizon": 752.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.13772893772893774,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.137729,
             "improvementMw": 0.0
           },
           {
@@ -220,8 +228,8 @@
             "demandMw": 1365.0,
             "unservedMw": 51.0,
             "unservedMwhOverHorizon": 204.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.03736263736263736,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.037363,
             "improvementMw": 137.0
           },
           {
@@ -230,8 +238,8 @@
             "demandMw": 1365.0,
             "unservedMw": 82.0,
             "unservedMwhOverHorizon": 328.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.060073260073260075,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.060073,
             "improvementMw": 106.0
           }
         ]
@@ -245,10 +253,10 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1365.0,
-            "unservedMw": 70.29999999999995,
-            "unservedMwhOverHorizon": 281.1999999999998,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.05150183150183147,
+            "unservedMw": 70.3,
+            "unservedMwhOverHorizon": 281.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.051502,
             "improvementMw": 0.0
           },
           {
@@ -257,9 +265,9 @@
             "demandMw": 1365.0,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
-            "improvementMw": 70.29999999999995
+            "improvementMw": 70.3
           },
           {
             "scenarioId": "b",
@@ -267,9 +275,9 @@
             "demandMw": 1365.0,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
-            "improvementMw": 70.29999999999995
+            "improvementMw": 70.3
           }
         ]
       },
@@ -282,31 +290,31 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1433.25,
-            "unservedMw": 373.95000000000005,
-            "unservedMwhOverHorizon": 1495.8000000000002,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.26091051805337523,
+            "unservedMw": 373.95,
+            "unservedMwhOverHorizon": 1495.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.260911,
             "improvementMw": 0.0
           },
           {
             "scenarioId": "a",
             "label": "Candidate A",
             "demandMw": 1433.25,
-            "unservedMw": 250.6500000000001,
-            "unservedMwhOverHorizon": 1002.6000000000004,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.17488226059654638,
-            "improvementMw": 123.29999999999995
+            "unservedMw": 250.65,
+            "unservedMwhOverHorizon": 1002.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.174882,
+            "improvementMw": 123.3
           },
           {
             "scenarioId": "b",
             "label": "Candidate B",
             "demandMw": 1433.25,
-            "unservedMw": 278.54999999999995,
-            "unservedMwhOverHorizon": 1114.1999999999998,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.1943485086342229,
-            "improvementMw": 95.40000000000009
+            "unservedMw": 278.55,
+            "unservedMwhOverHorizon": 1114.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.194349,
+            "improvementMw": 95.4
           }
         ]
       },
@@ -321,8 +329,8 @@
             "demandMw": 1433.25,
             "unservedMw": 256.25,
             "unservedMwhOverHorizon": 1025.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.17878946450375022,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.178789,
             "improvementMw": 0.0
           },
           {
@@ -331,8 +339,8 @@
             "demandMw": 1433.25,
             "unservedMw": 119.25,
             "unservedMwhOverHorizon": 477.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.08320251177394035,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.083203,
             "improvementMw": 137.0
           },
           {
@@ -341,8 +349,8 @@
             "demandMw": 1433.25,
             "unservedMw": 150.25,
             "unservedMwhOverHorizon": 601.0,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.10483167626024768,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.104832,
             "improvementMw": 106.0
           }
         ]
@@ -356,10 +364,10 @@
             "scenarioId": "baseline",
             "label": "Baseline",
             "demandMw": 1433.25,
-            "unservedMw": 138.54999999999995,
-            "unservedMwhOverHorizon": 554.1999999999998,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.0966684109541252,
+            "unservedMw": 138.55,
+            "unservedMwhOverHorizon": 554.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.096668,
             "improvementMw": 0.0
           },
           {
@@ -368,19 +376,19 @@
             "demandMw": 1433.25,
             "unservedMw": 0,
             "unservedMwhOverHorizon": 0,
-            "horizonHours": null,
+            "horizonHours": 4,
             "fractionDemandUnserved": 0.0,
-            "improvementMw": 138.54999999999995
+            "improvementMw": 138.55
           },
           {
             "scenarioId": "b",
             "label": "Candidate B",
             "demandMw": 1433.25,
-            "unservedMw": 21.950000000000045,
-            "unservedMwhOverHorizon": 87.80000000000018,
-            "horizonHours": 4.0,
-            "fractionDemandUnserved": 0.01531484388627249,
-            "improvementMw": 116.59999999999991
+            "unservedMw": 21.95,
+            "unservedMwhOverHorizon": 87.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.015315,
+            "improvementMw": 116.6
           }
         ]
       }
@@ -402,31 +410,31 @@
         "scenarioId": "baseline",
         "label": "Baseline",
         "demandMw": 1474.2,
-        "unservedMw": 367.82000000000016,
-        "unservedMwhOverHorizon": 1471.2800000000007,
-        "horizonHours": 4.0,
-        "fractionDemandUnserved": 0.24950481617148293,
+        "unservedMw": 367.82,
+        "unservedMwhOverHorizon": 1471.28,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.249505,
         "improvementMw": 0.0
       },
       {
         "scenarioId": "a",
         "label": "Candidate A",
         "demandMw": 1474.2,
-        "unservedMw": 239.0400000000002,
-        "unservedMwhOverHorizon": 956.1600000000008,
-        "horizonHours": 4.0,
-        "fractionDemandUnserved": 0.16214896214896227,
-        "improvementMw": 128.77999999999997
+        "unservedMw": 239.04,
+        "unservedMwhOverHorizon": 956.16,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.162149,
+        "improvementMw": 128.78
       },
       {
         "scenarioId": "b",
         "label": "Candidate B",
         "demandMw": 1474.2,
-        "unservedMw": 268.18000000000006,
-        "unservedMwhOverHorizon": 1072.7200000000003,
-        "horizonHours": 4.0,
-        "fractionDemandUnserved": 0.18191561524894861,
-        "improvementMw": 99.6400000000001
+        "unservedMw": 268.18,
+        "unservedMwhOverHorizon": 1072.72,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.181916,
+        "improvementMw": 99.64
       }
     ],
     "scope": "Unseen deterministic perturbation of the checked-in synthetic fixture; it is not a temporal or geographic holdout."
