@@ -10,26 +10,30 @@ scope: "Next wave. Non-blocking for the current Texas demo."
 
 # Texas + Minnesota — feasibility
 
-**Verdict: FEASIBLE.** Minnesota exists and solves cleanly. Every claim below was verified by
-downloading and parsing the actual files, not from documentation.
+**Verdict: pending reproducible evidence.** Minnesota is an available candidate, but the
+GridSFM inventory and solve results below are **[UNVERIFIED]** until this repository contains
+the pinned release inputs and the commands or output needed to reproduce them. They are not
+decision evidence in their current form.
 
 **This does not close out New York.** Both states are live candidates; the choice is deferred
-until more data is in. New York's verified inventory and the head-to-head trade-off are in
+until more data is in. New York's provisional inventory and the head-to-head trade-off are in
 `docs/data/texas-new-york-feasibility.md`.
 
 One finding changes how the scenario must be built — see §3. Read it before committing.
 
 ---
 
-## 1. Verified inventory
+## 1. Provisional GridSFM inventory **[UNVERIFIED]**
 
 `microsoft/GridSFM_US_power_grid`, release `2026_05_07`, **MIT licence**. Single-state models
 for all 48 contiguous states plus 6 multi-state regions. Two snapshots per region, `04h` and
 `16h`. File pattern `{hour}/{region}_{model|ac_results|dc_results}.json`.
 
-Downloaded and parsed 2026-09-05:
+The values below were recorded as a working note, but this PR includes no parsing script, raw
+output, file manifest, or checksum to reproduce them. **Do not use this table to choose a state
+until it is reproduced from the pinned release.**
 
-| | **Minnesota** | **Texas** | ACTIVSg2000 (current) |
+| | **Minnesota** | **Texas** | ACTIVSg2000 (current synthetic case) |
 |---|---|---|---|
 | Buses | **718** | **3,889** | 2,000 |
 | Branches (lines + transformers) | **1,297** | **6,852** | 3,206 (2,359 line + 847 transformer) |
@@ -45,21 +49,15 @@ Downloaded and parsed 2026-09-05:
 | `source_type` | `matpower` v2 | `matpower` v2 | MATPOWER |
 | DC lines / shunts | 2 / 666 | — | — |
 
-**Branch counts are compared like for like.** GridSFM's `branch` table is a MATPOWER branch
-table, which holds lines *and* transformers together. ACTIVSg2000's comparable figure is
-therefore **3,206**, not the 2,359 line-only count quoted in `docs/specs/01-data-ingest.md`.
-pandapower splits these into `net.line` and `net.impedance` on import, which is why the repo's
-gate spec carries them separately.
+If reproduced, branch counts should be compared like for like: GridSFM's `branch` table holds
+lines *and* transformers together, while the documented ACTIVSg2000 import splits them into
+`net.line` and `net.impedance`.
 
-**Minnesota is not one of the six single-state models that fail AC-OPF at peak.** It converges
-at both hours at `relaxation_level = 0` ("Strict", L0) — the strictest level, which is exactly
-the criterion behind the paper's 42/48 figure — with **zero units decommitted** to reach a
-solution. That was the main open risk and it is closed by direct check, not by citing the
-paper.
+The Minnesota AC-OPF and unit-commitment entries in the table are likewise **[UNVERIFIED]**;
+they do not close the solver risk until a reproducible check is committed.
 
-The Texas cross-check is reassuring: GridSFM Texas peaks at 74,049 MW against ACTIVSg2000's
-67,109 MW base case — same order, different construction. The two are independent models of the
-same system, not the same model, so agreement is evidence rather than tautology.
+GridSFM and ACTIVSg2000 have different modelling origins. ACTIVSg2000 is a synthetic topology,
+and agreement in aggregate MW would not independently validate either model's topology.
 
 ---
 
@@ -79,15 +77,12 @@ Under Winter Storm Uri, February 2021 (FERC/NERC final report):
 Same week, adjacent geography, three grids, three outcomes. The difference is interconnection,
 market design and winterisation — exactly what a firm-generation siting tool is about.
 
-Supporting context, all sourced:
+Supporting context:
 
-- The 2021 event drove the loss of 61,800 MW of generation; more than 1,000 units were forced
-  offline, derated or failed to start on over 4,000 occasions.
 - Freezing equipment caused 44 % of unplanned outages, derates and start-up failures.
-- NERC projects MISO capacity falling from 144 GW to 121 GW in an extreme winter, cutting the
-  reserve margin from 43 % to 12 %. This is live, documented winter risk — not hypothetical.
-- The NWS-flagged cold band runs along the Canadian border through Montana, the Dakotas,
-  Minnesota, Wisconsin and Michigan's Upper Peninsula.
+- In its **2014–15** Winter Reliability Assessment extreme-winter scenario, NERC projected MISO
+  available capacity falling from 144 GW to 121 GW and reserve margin from 43 % to 12 %.
+  This is historical scenario context, not a current forecast.
 
 Minnesota is in the grid that held. Texas is the grid that did not.
 
@@ -111,9 +106,9 @@ Consequences, none fatal but all load-bearing:
 3. **`load_allocation_method` is `per_ba_census`** and `dispatch_method` is `merit_order` —
    demand is allocated to buses by census population within each BA, not measured per bus. Two
    buses in the same area differ by population weight, not by metered load.
-4. **Texas BA coverage is 84 %.** Roughly a sixth of ERCOT demand is unaccounted for in that
-   model. Minnesota's 97.4 % is much cleaner. Do not compare absolute shed MW between the two
-   states without stating this asymmetry.
+4. **Texas reports 84 % BA coverage.** This document does not interpret that metadata as the
+   fraction of ERCOT demand missing from the model. The two cases are constructed differently,
+   so their absolute shed-MW outputs are case-specific rather than a cross-state comparison.
 
 **Recommendation: keep the stress preset as the single declared scenario, state that the
 baseline snapshot is 2024-07-15, and do not describe the result as a winter reconstruction.**
@@ -153,12 +148,11 @@ Availability is settled. Cost is not.
 - **Format.** GridSFM ships PowerModels-compatible JSON with MATPOWER structure, per-unit on a
   100 MVA base. pandapower reads MATPOWER `.m` via `matpowercaseframes`. Reading this JSON needs
   a small converter. This is the one genuine engineering task and it is **unscoped**.
-- **Switching Texas is not required.** Minnesota can be added as a second case while Texas stays
-  on ACTIVSg2000 — but then the two states come from different pipelines and absolute numbers
-  are not comparable. Using GridSFM for both is the honest option and invalidates [D01]–[D03],
-  already merged in PR #6.
-- **Runtime.** Minnesota at 718 buses is roughly a fifth of GridSFM Texas and a third of
-  ACTIVSg2000. It is the cheap half of the pair, not the expensive one.
+- **Switching Texas is out of scope for 2WKG-186.** Minnesota may be assessed as a second case
+  while the current Texas pipeline remains unchanged. This document does not invalidate or
+  replace the existing Texas ingest decisions.
+- **Runtime.** The reported inventory suggests Minnesota may be smaller, but a reproducible
+  solver check is needed before treating that as a runtime estimate.
 
 ---
 
@@ -176,30 +170,11 @@ the build plan's own instruction not to build stretch features before that point
 
 ---
 
-## 7. Correction to 2WKG-138, and New York's standing
+## 7. New York's standing
 
-The first version of the New York assessment rejected a second state on the grounds that *no
-public case existed at a resolution comparable to ACTIVSg2000*. **That was wrong.** GridSFM
-publishes single-state models for all 48 contiguous states; New York is `new_york_model.json`,
-comparable in size to Minnesota's. That evaluation considered only the TAMU ACTIVSg family,
-Cornell's NYgrid and NPCC-140, and did not carry GridSFM across from the Brookhaven assessment
-where it had been found.
-
-**New York is not cancelled.** `docs/data/texas-new-york-feasibility.md` has been corrected and
-kept as a sibling to this document, carrying New York's own verified inventory and a head-to-head
-trade-off table. The short version: New York has better BA coverage (98.1 % vs 97.4 %) and a load
-scale within a factor of three of Texas rather than ten, but it is **one of the six state models
-that fail AC-OPF at the strictest relaxation** — its peak case needs full relaxation and takes
-322 s against Minnesota's 21 s. Neither state is chosen here.
-
-**Scenario inputs, carried forward unchanged:**
-
-- *Energy-source shift* — EIA state-level generation by fuel; MWh and MW; monthly and annual;
-  public domain. API caps at 5,000 rows per request; bulk refreshes twice daily. **EIA also
-  publishes AEO projections, which may never sit beside historical generation unlabelled.**
-- *Economic disruption* — no dataset exists. It is a declared scenario assumption with stated
-  magnitude, duration and rationale, not an input. QCEW and PEP measure activity and people, not
-  disruption and not megawatts.
+See `docs/data/texas-new-york-feasibility.md` for the correction, open prerequisites,
+interconnection caveat, and second-state trade-off; it is the single source of record for New
+York.
 
 ---
 
@@ -210,7 +185,7 @@ that fail AC-OPF at the strictest relaxation** — its peak case needs full rela
 - [Building Power Grid Models from Open Data (arXiv 2605.04289)](https://arxiv.org/html/2605.04289)
 - [FERC/NERC final report on the February 2021 freeze](https://www.ferc.gov/news-events/news/final-report-february-2021-freeze-underscores-winterization-recommendations)
 - [FERC/NERC report — MISO summary](https://www.misoenergy.org/meet-miso/media-center/miso-matters/fercnerc-release-final-report-on-february-2021-winter-storm-uri/?epslanguage=en)
-- [NERC 2025–2026 Winter Reliability Assessment](https://www.nerc.com/globalassets/our-work/assessments/nerc_wra_2025.pdf)
+- [EIA Today in Energy: NERC 2014–15 Winter Reliability Assessment](https://www.eia.gov/todayinenergy/detail.php?id=19631)
 - [MISO Market Reports](https://www.misoenergy.org/markets-and-operations/real-time--market-data/market-reports/)
 - [MISO real-time 5-min LMP public API](https://public-api.misoenergy.org/api/MarketPricing/GetRealTimeFiveMinExPost/Rolling)
 - [gridstatus — MISO support](https://opensource.gridstatus.io/en/latest/autoapi/gridstatus/miso/index.html)
