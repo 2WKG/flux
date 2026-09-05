@@ -3,7 +3,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const webRoot = fileURLToPath(new URL("../", import.meta.url));
-const thisFile = fileURLToPath(import.meta.url);
+// Only browser-shipped code is in scope. Node-side build tooling (scripts/) and the
+// local server (server.mjs) legitimately name database packages and paths.
+const browserRoot = path.join(webRoot, "src");
 const sourceExtensions = new Set([".js", ".jsx", ".mjs", ".cjs", ".ts", ".tsx"]);
 const duckdbDriver = /(?:from\s*|require\s*\(|import\s*\()["'](?:duckdb|duckdb-async|node-duckdb|@duckdb\/duckdb-wasm)["']/;
 const databaseFile = /["'`][^"'`\r\n]*\.(?:duckdb|db)(?:[?#][^"'`\r\n]*)?["'`]/i;
@@ -20,8 +22,7 @@ async function sourceFiles(directory) {
 }
 
 const violations = [];
-for (const file of await sourceFiles(webRoot)) {
-  if (file === thisFile) continue;
+for (const file of await sourceFiles(browserRoot)) {
   const source = await readFile(file, "utf8");
   const checks = [
     [duckdbDriver, "imports a DuckDB driver"],
