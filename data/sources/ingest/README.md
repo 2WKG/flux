@@ -2,7 +2,7 @@
 
 **Status:** implementation-ready design  
 **Owner:** data lane  
-**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline. [`../p0_registry.json`](../p0_registry.json) is the machine-readable source/loader/table/gate registry used to keep the P0 lane auditable.
+**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline. [`../p0_registry.json`](../p0_registry.json) is the canonical machine-readable artifact registry consumed by acquisition and build preflight; source-specific loader and gate rationale lives here.
 
 ## Purpose and scope
 
