@@ -98,6 +98,11 @@ def test_simulated_run_must_name_the_same_scenario_as_the_artifact():
         )
 
 
+def test_simulated_congestion_requires_a_nonempty_scenario():
+    with pytest.raises(ValidationError):
+        SimulatedCongestion(usd_per_year=1e6, scenario_id="", run_id="run-1")
+
+
 def test_provenance_requires_utc():
     with pytest.raises(ValidationError, match="UTC"):
         LineUpgradeProvenance(
@@ -301,6 +306,23 @@ def test_ranking_is_deterministic_and_breaks_ties_by_cost_then_id():
     order = [line.key.line_id for line in rank([cheap, dearer, top])]
     assert order == [3, 2, 1]
     assert rank([dearer, top, cheap]) == rank([cheap, dearer, top])
+
+
+def test_ranking_rejects_mixed_scenarios():
+    with pytest.raises(ValueError, match="exactly one scenario_id"):
+        rank(
+            [
+                _scored(),
+                _scored(
+                    key=LineKey(line_id=2, region="ERCOT", scenario_id="beryl_2024"),
+                    congestion=SimulatedCongestion(
+                        usd_per_year=1e6,
+                        scenario_id="beryl_2024",
+                        run_id="beryl_2024-s0-abc12345",
+                    ),
+                ),
+            ]
+        )
 
 
 def test_every_unavailable_outcome_names_a_reason():

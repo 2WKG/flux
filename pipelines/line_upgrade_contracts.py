@@ -381,5 +381,8 @@ LineUpgradeRecord = ScoredLine | UnavailableLine
 
 
 def rank(lines: list[ScoredLine]) -> list[ScoredLine]:
-    """Total order, stable across runs (2WKG-181 tie-breaker)."""
+    """Rank one analysis scenario, stably, by the 2WKG-181 tie-breaker."""
+    scenario_ids = {line.key.scenario_id for line in lines}
+    if len(scenario_ids) > 1:
+        raise ValueError("rank requires lines from exactly one scenario_id")
     return sorted(lines, key=ScoredLine.sort_key)
