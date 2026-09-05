@@ -44,6 +44,25 @@ def test_storm_events_rejects_undocumented_timezone():
         _cz_timezone("CDT-5")
 
 
+def test_storm_events_records_unmatched_zone_assignments(tmp_path):
+    details = tmp_path / "details.csv.gz"
+    pd.DataFrame([{
+        "EVENT_ID": 1, "STATE": "TEXAS", "STATE_FIPS": 48, "CZ_TYPE": "Z", "CZ_FIPS": 999,
+        "CZ_TIMEZONE": "CST-6", "BEGIN_DATE_TIME": "2021-07-01 12:00:00",
+        "END_DATE_TIME": "2021-07-01 13:00:00", "EVENT_TYPE": "High Wind", "MAGNITUDE": 50,
+    }]).to_csv(details, index=False, compression="gzip")
+    crosswalk = tmp_path / "zones.dbx"
+    crosswalk.write_text("TX|001|XXX|Example||Example|48001|CST-6\n")
+    con = connect(str(tmp_path / "grid.duckdb"))
+    try:
+        assert load_storm_events(con, str(details), str(crosswalk), 2021) == 0
+        assert con.execute("SELECT source_key, warning FROM ingest_warnings").fetchall() == [
+            ("2021:zone:999", "1 Texas zone-type Storm Events had no county crosswalk mapping"),
+        ]
+    finally:
+        con.close()
+
+
 def test_dod_county_assignment_prevents_cross_county_bus_matches(tmp_path):
     county = Polygon([(-98, 30), (-96, 30), (-96, 32), (-98, 32), (-98, 30)])
     dod_inside = Polygon([(-97.2, 30.5), (-97.0, 30.5), (-97.0, 30.7), (-97.2, 30.7), (-97.2, 30.5)])
