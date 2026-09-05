@@ -15,21 +15,41 @@ def _fips_where(selected: StateScope, column: str = "county_fips") -> str:
     return selected.county_where(column)
 
 
-def load_county_customers(con, mcc_csv: str, source_year: int = 2022, states=None) -> int:
+def load_county_customers(
+    con, mcc_csv: str, source_year: int = 2022, states=None
+) -> int:
     path = Path(mcc_csv)
     selected_scope = states if isinstance(states, StateScope) else scope(states)
     raw = pd.read_csv(path, encoding="utf-8-sig", dtype="string")
     required = {"County_FIPS", "Customers"}
     if missing := required - set(raw.columns):
         raise ValueError(f"MCC.csv missing columns: {sorted(missing)}")
-    frame = pd.DataFrame({
-        "county_fips": raw["County_FIPS"].map(fips5), "source_year": source_year,
-        "customers": pd.to_numeric(raw["Customers"], errors="coerce").astype("Int64"), "source": "mcc_2022",
-    })
+    frame = pd.DataFrame(
+        {
+            "county_fips": raw["County_FIPS"].map(fips5),
+            "source_year": source_year,
+            "customers": pd.to_numeric(raw["Customers"], errors="coerce").astype(
+                "Int64"
+            ),
+            "source": "mcc_2022",
+        }
+    )
     frame = frame[frame.county_fips.str[:2].isin(selected_scope.fips)]
-    rows = replace_frame(con, "county_customers", frame, where=f"source = 'mcc_2022' AND ({_fips_where(selected_scope)})")
-    log_artifact(con, source="eaglei", source_release="mcc_2022", path=path, rows_loaded=rows,
-                 schema_fingerprint="County_FIPS,Customers")
+    rows = replace_frame(
+        con,
+        "county_customers",
+        frame,
+        where=f"source = 'mcc_2022' AND ({_fips_where(selected_scope)})",
+    )
+    log_artifact(
+        con,
+        source="eaglei",
+        source_release="mcc_2022",
+        path=path,
+        rows_loaded=rows,
+        scope_key=selected_scope.slug,
+        schema_fingerprint="County_FIPS,Customers",
+    )
     return rows
 
 
@@ -37,26 +57,55 @@ def load_coverage_history(con, coverage_csv: str, states=None) -> int:
     path = Path(coverage_csv)
     selected_scope = states if isinstance(states, StateScope) else scope(states)
     raw = pd.read_csv(path)
-    selected = raw[raw["state"].isin(selected_scope.source_values("eaglei_coverage"))].copy()
+    selected = raw[
+        raw["state"].isin(selected_scope.source_values("eaglei_coverage"))
+    ].copy()
     selected["source_year"] = pd.to_datetime(selected["year"], errors="coerce").dt.year
-    frame = selected.rename(columns={"total_customers": "total_customers", "min_covered": "min_covered",
-                                    "max_covered": "max_covered", "min_pct_covered": "min_pct_covered",
-                                    "max_pct_covered": "max_pct_covered"})[
-        ["source_year", "state", "total_customers", "min_covered", "max_covered", "min_pct_covered", "max_pct_covered"]
+    frame = selected.rename(
+        columns={
+            "total_customers": "total_customers",
+            "min_covered": "min_covered",
+            "max_covered": "max_covered",
+            "min_pct_covered": "min_pct_covered",
+            "max_pct_covered": "max_pct_covered",
+        }
+    )[
+        [
+            "source_year",
+            "state",
+            "total_customers",
+            "min_covered",
+            "max_covered",
+            "min_pct_covered",
+            "max_pct_covered",
+        ]
     ]
-    predicate, parameters = sql_in("state", selected_scope.source_values("eaglei_coverage"))
+    predicate, parameters = sql_in(
+        "state", selected_scope.source_values("eaglei_coverage")
+    )
     con.execute(f"DELETE FROM eaglei_coverage WHERE {predicate}", parameters)
     if not frame.empty:
         con.register("_coverage", frame)
-        try: con.execute("INSERT INTO eaglei_coverage BY NAME SELECT * FROM _coverage")
-        finally: con.unregister("_coverage")
+        try:
+            con.execute("INSERT INTO eaglei_coverage BY NAME SELECT * FROM _coverage")
+        finally:
+            con.unregister("_coverage")
     rows = len(frame)
-    log_artifact(con, source="eaglei", source_release="coverage_history", path=path, rows_loaded=rows,
-                 schema_fingerprint="year,state,total_customers,min/max coverage")
+    log_artifact(
+        con,
+        source="eaglei",
+        source_release="coverage_history",
+        path=path,
+        rows_loaded=rows,
+        scope_key=selected_scope.slug,
+        schema_fingerprint="year,state,total_customers,min/max coverage",
+    )
     return rows
 
 
-def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=None) -> int:
+def load_eaglei(
+    con, csv_path: str, year: int, source_tz: str | None, states=None
+) -> int:
     """Load a Texas EAGLE-I file after an explicit source-timezone decision.
 
     `source_tz` is intentionally mandatory: EAGLE-I timestamps arrive without a
@@ -70,18 +119,26 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
     predicate, state_parameters = sql_in("state", selected_scope.names)
     # DuckDB filters and converts the annual national CSV in-process.  Do not
     # materialize Texas' multi-million-row slice in pandas.
-    schema = con.execute("DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]).fetchall()
+    schema = con.execute(
+        "DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]
+    ).fetchall()
     columns = {row[0] for row in schema}
     expected = {"fips_code", "county", "state", "customers_out", "run_start_time"}
     if missing := expected - columns:
         raise ValueError(f"{path.name} missing EAGLE-I columns: {sorted(missing)}")
-    total_customers = "TRY_CAST(total_customers AS BIGINT)" if "total_customers" in columns else "NULL::BIGINT"
+    total_customers = (
+        "TRY_CAST(total_customers AS BIGINT)"
+        if "total_customers" in columns
+        else "NULL::BIGINT"
+    )
     con.execute("DROP TABLE IF EXISTS _eaglei_tx")
     con.execute(
         f"""
         CREATE TEMP TABLE _eaglei_tx AS
         SELECT
-            LPAD(CAST(TRY_CAST(fips_code AS BIGINT) AS VARCHAR), 5, '0') AS county_fips,
+            CASE WHEN regexp_full_match(trim(CAST(fips_code AS VARCHAR)), '[0-9]{{1,5}}')
+                 THEN LPAD(trim(CAST(fips_code AS VARCHAR)), 5, '0') END AS county_fips,
+            CAST(state AS VARCHAR) AS source_state,
             timezone('UTC', timezone(?, try_strptime(CAST(run_start_time AS VARCHAR), '%Y-%m-%d %H:%M:%S'))) AS ts,
             TRY_CAST(customers_out AS BIGINT) AS customers_out,
             CAST(run_start_time AS VARCHAR) AS raw_timestamp,
@@ -91,12 +148,28 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
         """,
         [source_tz, str(path), *state_parameters],
     )
-    raw_rows, missing_customers, negative_customers, invalid_timestamps, invalid_fips = con.execute(
+    (
+        _raw_rows,
+        _missing_customers,
+        negative_customers,
+        invalid_timestamps,
+        invalid_fips,
+    ) = con.execute(
         """SELECT count(*), count(*) FILTER (WHERE customers_out IS NULL),
                   count(*) FILTER (WHERE customers_out < 0), count(*) FILTER (WHERE ts IS NULL),
                   count(*) FILTER (WHERE county_fips IS NULL)
            FROM _eaglei_tx"""
     ).fetchone()
+    inconsistent = con.execute(
+        f"SELECT count(*) FROM _eaglei_tx WHERE county_fips IS NOT NULL AND NOT ({scope_where})"
+    ).fetchone()[0]
+    for state in selected_scope.states:
+        inconsistent += con.execute(
+            "SELECT count(*) FROM _eaglei_tx WHERE source_state = ? AND substr(county_fips, 1, 2) != ?",
+            [state.name, state.fips],
+        ).fetchone()[0]
+    if inconsistent:
+        raise ValueError("EAGLE-I county FIPS does not match source state")
     if invalid_timestamps:
         raise ValueError("EAGLE-I has unparseable run_start_time values")
     if invalid_fips:
@@ -112,7 +185,7 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
     ).fetchone()[0]
     if duplicate_keys:
         raise ValueError("EAGLE-I has duplicate county/timestamp observations")
-    valid_rows, source_counties = con.execute(
+    valid_rows, _source_counties = con.execute(
         "SELECT count(*), count(DISTINCT county_fips) FROM _eaglei_tx WHERE customers_out IS NOT NULL"
     ).fetchone()
     # The source release, rather than the converted UTC timestamp, defines a
@@ -127,7 +200,10 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
                                AND observations.ts = outages.ts)""",
             [year],
         )
-        con.execute(f"DELETE FROM eaglei_outage_observations WHERE source_year = ? AND ({scope_where})", [year])
+        con.execute(
+            f"DELETE FROM eaglei_outage_observations WHERE source_year = ? AND ({scope_where})",
+            [year],
+        )
         con.execute(
             """INSERT INTO eaglei_outage_observations
                (county_fips, ts, customers_out, source_year, source_file, raw_timestamp, total_customers)
@@ -143,7 +219,10 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
                FROM _eaglei_tx WHERE customers_out IS NOT NULL""",
             [path.name, str(year), f"p0-eaglei-{year}-{selected_scope.slug}"],
         )
-        con.execute(f"DELETE FROM county_customers WHERE source = 'eaglei_file' AND source_year = ? AND ({scope_where})", [year])
+        con.execute(
+            f"DELETE FROM county_customers WHERE source = 'eaglei_file' AND source_year = ? AND ({scope_where})",
+            [year],
+        )
         # Select the denominator from the latest actual source timestamp for
         # each county. Duplicate county/timestamp observations were rejected
         # above, so this is a stable one-row county/year/source replacement.
@@ -158,17 +237,70 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
                ) WHERE ordinal = 1""",
             [year],
         )
-        con.execute("DELETE FROM eaglei_ingest_quality WHERE source_year = ?", [year])
-        con.execute(
-            """INSERT INTO eaglei_ingest_quality VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            [year, path.name, source_tz, raw_rows, valid_rows, missing_customers,
-             negative_customers, duplicate_keys, source_counties, utc_now()],
-        )
+        for state in selected_scope.states:
+            counts = con.execute(
+                """SELECT count(*), count(*) FILTER (WHERE customers_out IS NOT NULL),
+                          count(*) FILTER (WHERE customers_out IS NULL),
+                          count(DISTINCT county_fips) FILTER (WHERE customers_out IS NOT NULL)
+                   FROM _eaglei_tx WHERE source_state = ?""",
+                [state.name],
+            ).fetchone()
+            state_raw, state_valid, state_missing, state_counties = counts
+            con.execute(
+                "DELETE FROM eaglei_ingest_quality_by_state WHERE source_year = ? AND state_fips = ?",
+                [year, state.fips],
+            )
+            con.execute(
+                """INSERT INTO eaglei_ingest_quality_by_state
+                   (source_year, state_fips, source_file, source_timezone, raw_rows, valid_rows,
+                    missing_customers, negative_customers, duplicate_keys, source_counties, loaded_at)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                [
+                    year,
+                    state.fips,
+                    path.name,
+                    source_tz,
+                    state_raw,
+                    state_valid,
+                    state_missing,
+                    0,
+                    0,
+                    state_counties,
+                    utc_now(),
+                ],
+            )
+            # Keep the existing Texas quality relation compatible with its readers.
+            if state.usps == "TX":
+                con.execute(
+                    "DELETE FROM eaglei_ingest_quality WHERE source_year = ?", [year]
+                )
+                con.execute(
+                    """INSERT INTO eaglei_ingest_quality VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    [
+                        year,
+                        path.name,
+                        source_tz,
+                        state_raw,
+                        state_valid,
+                        state_missing,
+                        0,
+                        0,
+                        state_counties,
+                        utc_now(),
+                    ],
+                )
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
     rows = int(valid_rows)
-    log_artifact(con, source="eaglei", source_release=str(year), path=path, rows_loaded=rows,
-                 schema_fingerprint="fips_code,county,state,customers_out,run_start_time[,total_customers]; null targets excluded and counted")
+    log_artifact(
+        con,
+        source="eaglei",
+        source_release=str(year),
+        path=path,
+        rows_loaded=rows,
+        scope_key=selected_scope.slug,
+        schema_fingerprint="fips_code,county,state,customers_out,run_start_time[,total_customers]; null targets excluded and counted",
+    )
     return rows

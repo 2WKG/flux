@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
-
 
 _DATA = """01|AL|Alabama
 02|AK|Alaska
@@ -59,40 +57,65 @@ _DATA = """01|AL|Alabama
 55|WI|Wisconsin
 56|WY|Wyoming"""
 
-SOURCE_ENCODINGS = {"census_tiger_counties": "fips", "eaglei": "name", "eaglei_coverage": "usps",
-    "fema_nri": "usps", "noaa_storm_events": "upper_name", "nws_zone_county_crosswalk": "usps",
-    "pudl_eia860": "usps", "ntad_military_bases": "lower_usps"}
+SOURCE_ENCODINGS = {"eaglei": "name", "eaglei_coverage": "usps", "fema_nri": "usps"}
 
 
-class StateScopeError(ValueError): pass
+class StateScopeError(ValueError):
+    pass
 
-def _key(value: str) -> str: return re.sub(r"[^a-z0-9]", "", value.lower())
+
+def _key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", value.lower())
+
 
 @dataclass(frozen=True, order=True)
 class State:
     fips: str
     usps: str
     name: str
+
     def source_value(self, encoding: str) -> str:
-        return {"fips": self.fips, "usps": self.usps, "name": self.name, "upper_name": self.name.upper(), "lower_usps": self.usps.lower()}[encoding]
+        return {
+            "fips": self.fips,
+            "usps": self.usps,
+            "name": self.name,
+            "upper_name": self.name.upper(),
+            "lower_usps": self.usps.lower(),
+        }[encoding]
+
 
 STATES = tuple(State(*line.split("|")) for line in _DATA.splitlines())
-_BY_KEY = {_key(value): state for state in STATES for value in (state.fips, state.usps, state.name)}
+_BY_KEY = {
+    _key(value): state
+    for state in STATES
+    for value in (state.fips, state.usps, state.name)
+}
 _BY_KEY[_key("Washington DC")] = _BY_KEY["dc"]
 
+
 def normalize_state(value: str | int | State) -> State:
-    if isinstance(value, State): return value
-    if isinstance(value, bool): raise StateScopeError("boolean is not a state")
+    if isinstance(value, State):
+        return value
+    if isinstance(value, bool):
+        raise StateScopeError("boolean is not a state")
     text = str(value).strip()
     if text.isdigit():
-        if len(text) > 2: raise StateScopeError(f"expected state FIPS, not {value!r}")
+        if len(text) > 2:
+            raise StateScopeError(f"expected state FIPS, not {value!r}")
         text = text.zfill(2)
-    try: return _BY_KEY[_key(text)]
-    except KeyError as error: raise StateScopeError(f"unknown state {value!r}; use USPS, full name, or two-digit FIPS") from error
+    try:
+        return _BY_KEY[_key(text)]
+    except KeyError as error:
+        raise StateScopeError(
+            f"unknown state {value!r}; use USPS, full name, or two-digit FIPS"
+        ) from error
+
 
 def _flatten(values) -> tuple:
-    if values is None: return ("TX",)
-    if isinstance(values, (str, int, State)): values = (values,)
+    if values is None:
+        return ("TX",)
+    if isinstance(values, (str, int, State)):
+        values = (values,)
     result = []
     for value in values:
         if isinstance(value, str):
@@ -101,38 +124,61 @@ def _flatten(values) -> tuple:
             result.append(value)
     return tuple(result)
 
+
 @dataclass(frozen=True)
 class StateScope:
     states: tuple[State, ...]
+
     @classmethod
     def parse(cls, values=None):
-        states = tuple(sorted(set(normalize_state(item) for item in _flatten(values))))
-        if not states: raise StateScopeError("at least one state is required")
+        states = tuple(sorted({normalize_state(item) for item in _flatten(values)}))
+        if not states:
+            raise StateScopeError("at least one state is required")
         return cls(states)
+
     @property
-    def fips(self): return tuple(item.fips for item in self.states)
+    def fips(self):
+        return tuple(item.fips for item in self.states)
+
     @property
-    def usps(self): return tuple(item.usps for item in self.states)
+    def usps(self):
+        return tuple(item.usps for item in self.states)
+
     @property
-    def names(self): return tuple(item.name for item in self.states)
+    def names(self):
+        return tuple(item.name for item in self.states)
+
     @property
-    def slug(self): return "-".join(item.usps.lower() for item in self.states)
+    def slug(self):
+        return "-".join(item.usps.lower() for item in self.states)
+
     @property
-    def is_texas_only(self): return self.usps == ("TX",)
+    def is_texas_only(self):
+        return self.usps == ("TX",)
+
     def source_values(self, source_id: str):
-        try: encoding = SOURCE_ENCODINGS[source_id]
-        except KeyError as error: raise StateScopeError(f"source {source_id!r} has no declared state encoding") from error
+        try:
+            encoding = SOURCE_ENCODINGS[source_id]
+        except KeyError as error:
+            raise StateScopeError(
+                f"source {source_id!r} has no declared state encoding"
+            ) from error
         return tuple(item.source_value(encoding) for item in self.states)
+
     def county_where(self, column: str = "county_fips") -> str:
-        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?", column):
+        if not re.fullmatch(
+            r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?", column
+        ):
             raise StateScopeError("unsafe county column")
         return " OR ".join(f"{column} LIKE '{item}%'" for item in self.fips)
 
-    def raw_dir(self, root: str | Path, source: str, release: str, *, shared_national_artifact=False) -> Path:
-        return Path(root) / source / release / ("national" if shared_national_artifact else f"scope={self.slug}")
 
-def scope(values=None) -> StateScope: return StateScope.parse(values)
+def scope(values=None) -> StateScope:
+    return StateScope.parse(values)
+
+
 STATE_CODES = frozenset(state.usps for state in STATES)
+
 
 def parse_states(values: list[str] | None, *, default=("TX",)) -> tuple[str, ...]:
     """Legacy ``--states`` parser: USPS-only and preserves caller order."""
@@ -143,13 +189,21 @@ def parse_states(values: list[str] | None, *, default=("TX",)) -> tuple[str, ...
         for part in value.split(","):
             code = part.strip().upper()
             if code not in STATE_CODES:
-                raise ValueError(f"unsupported state {part!r}; use two-letter US postal abbreviations")
+                raise ValueError(
+                    f"unsupported state {part!r}; use two-letter US postal abbreviations"
+                )
             if code not in result:
                 result.append(code)
     if not result:
         raise ValueError("at least one state is required")
     return tuple(result)
-def synthetic_topology_supported(values=None) -> bool: return (values if isinstance(values, StateScope) else scope(values)).is_texas_only
+
+
+def synthetic_topology_supported(values=None) -> bool:
+    return (values if isinstance(values, StateScope) else scope(values)).is_texas_only
+
+
 def sql_in(column: str, values: tuple[str, ...]) -> tuple[str, list[str]]:
-    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", column) or not values: raise StateScopeError("unsafe/empty predicate")
+    if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", column) or not values:
+        raise StateScopeError("unsafe/empty predicate")
     return f"{column} IN ({', '.join('?' for _ in values)})", list(values)

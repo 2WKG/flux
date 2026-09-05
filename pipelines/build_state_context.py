@@ -1,4 +1,5 @@
 """Build non-Texas public context in the shared database from local artifacts."""
+
 from __future__ import annotations
 
 import argparse
@@ -35,7 +36,12 @@ def main(argv=None) -> int:
     artifacts = []
     for item in args.eaglei or []:
         year, separator, path = item.partition("=")
-        if not separator or not year.isdigit() or not 1900 <= int(year) <= 2100 or not path:
+        if (
+            not separator
+            or not year.isdigit()
+            or not 1900 <= int(year) <= 2100
+            or not path
+        ):
             parser.error("--eaglei requires YEAR=PATH with a valid four-digit year")
         artifacts.append((int(year), path))
     for path in [args.tiger, args.nri, *(path for _, path in artifacts)]:
@@ -45,8 +51,13 @@ def main(argv=None) -> int:
     try:
         if artifacts and not args.tiger:
             for state in selected.states:
-                if not con.execute("SELECT count(*) FROM counties WHERE substr(county_fips, 1, 2) = ?", [state.fips]).fetchone()[0]:
-                    parser.error(f"--eaglei requires loaded counties for {state.usps}; supply --tiger and --nri")
+                if not con.execute(
+                    "SELECT count(*) FROM counties WHERE substr(county_fips, 1, 2) = ?",
+                    [state.fips],
+                ).fetchone()[0]:
+                    parser.error(
+                        f"--eaglei requires loaded counties for {state.usps}; supply --tiger and --nri"
+                    )
         if args.tiger:
             load_counties(con, args.tiger, args.nri, selected)
         if args.nri:

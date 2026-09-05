@@ -17,5 +17,7 @@ def connect_context(states=None, db_root: str | Path = "data/duck"):
     """Open the shared store for non-Texas context acquisition."""
     selected = states if isinstance(states, StateScope) else scope(states)
     if selected.is_texas_only:
-        raise ValueError("Texas P0 uses pipelines.build; context stores are non-Texas only")
+        raise ValueError(
+            "Texas P0 uses pipelines.build; context stores are non-Texas only"
+        )
     return connect(context_db_path(selected, db_root))

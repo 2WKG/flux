@@ -185,6 +185,11 @@ P0_HELPER_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS eaglei_ingest_quality(source_year INTEGER PRIMARY KEY, source_file TEXT,
         source_timezone TEXT, raw_tx_rows BIGINT, valid_rows BIGINT, missing_customers BIGINT,
         negative_customers BIGINT, duplicate_keys BIGINT, source_counties INTEGER, loaded_at TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS eaglei_ingest_quality_by_state(
+        source_year INTEGER, state_fips TEXT, source_file TEXT, source_timezone TEXT,
+        raw_rows BIGINT, valid_rows BIGINT, missing_customers BIGINT,
+        negative_customers BIGINT, duplicate_keys BIGINT, source_counties INTEGER,
+        loaded_at TIMESTAMP, PRIMARY KEY(source_year, state_fips))""",
     """CREATE TABLE IF NOT EXISTS eia_plants(plant_id_eia INTEGER PRIMARY KEY, plant_name TEXT, lon DOUBLE,
         lat DOUBLE, state TEXT, county_fips TEXT, capacity_mw DOUBLE, primary_fuel TEXT,
         retirement_year INTEGER, operational_status TEXT, report_date DATE)""",
@@ -289,8 +294,10 @@ def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFram
 
 def log_artifact(con: duckdb.DuckDBPyConnection, *, source: str, source_release: str,
                  path: str | Path, rows_loaded: int, schema_fingerprint: str,
-                 loader_version: str = "p0-v1") -> None:
+                 loader_version: str = "p0-v1", scope_key: str | None = None) -> None:
     artifact = Path(path)
+    if scope_key is not None:
+        source_release = f"{source_release};scope={scope_key}"
     con.execute(
         """INSERT OR REPLACE INTO ingest_log VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [source, source_release, artifact.name, sha256_file(artifact), artifact.stat().st_size,
