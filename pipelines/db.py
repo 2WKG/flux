@@ -227,3 +227,41 @@ SCHEMA_STATEMENTS = (
     "CREATE INDEX IF NOT EXISTS idx_cascade_runs_scenario_id ON cascade_runs (scenario_id)",
     "CREATE INDEX IF NOT EXISTS idx_site_scores_scenario_id ON site_scores (scenario_id)",
 )
+
+
+# These tables extend the shared contract without changing its original table
+# catalogue. They are kept separate so a later initializer can add them to an
+# existing fixture database without rebuilding or truncating core artifacts.
+ADDITIVE_TABLES = ("line_upgrade_detail", "corpus_chunks")
+
+
+ADDITIVE_SCHEMA_STATEMENTS = (
+    f"""CREATE TABLE IF NOT EXISTS line_upgrade_detail (
+        line_id BIGINT PRIMARY KEY REFERENCES lines(line_id),
+        owner TEXT,
+        conductor_material TEXT,
+        conductor_kcmil DOUBLE CHECK (conductor_kcmil IS NULL OR (isfinite(conductor_kcmil) AND conductor_kcmil > 0)),
+        static_rating_mw DOUBLE NOT NULL CHECK (isfinite(static_rating_mw) AND static_rating_mw >= 0),
+        aar_rating_mw DOUBLE CHECK (aar_rating_mw IS NULL OR (isfinite(aar_rating_mw) AND aar_rating_mw >= 0)),
+        dlr_p50_mw DOUBLE CHECK (dlr_p50_mw IS NULL OR (isfinite(dlr_p50_mw) AND dlr_p50_mw >= 0)),
+        dlr_hours_above_static INTEGER CHECK (dlr_hours_above_static IS NULL OR dlr_hours_above_static >= 0),
+        best_tech TEXT CHECK (best_tech IS NULL OR best_tech IN ('dlr', 'reconductor')),
+        payback_yr DOUBLE CHECK (payback_yr IS NULL OR (isfinite(payback_yr) AND payback_yr >= 0)),
+        congestion_method TEXT NOT NULL CHECK (congestion_method IN ('exact', 'fuzzy', 'twin_proxy', 'unmapped')),
+        region TEXT NOT NULL,
+        {PROVENANCE_COLUMNS}
+    )""",
+    f"""CREATE TABLE IF NOT EXISTS corpus_chunks (
+        chunk_id TEXT PRIMARY KEY,
+        doc TEXT NOT NULL,
+        title TEXT NOT NULL,
+        page INTEGER NOT NULL CHECK (page > 0),
+        chunk_ordinal INTEGER NOT NULL CHECK (chunk_ordinal >= 0),
+        text TEXT NOT NULL,
+        embedding FLOAT[1024],
+        {PROVENANCE_COLUMNS},
+        UNIQUE (doc, page, chunk_ordinal)
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_line_upgrade_detail_region ON line_upgrade_detail (region)",
+    "CREATE INDEX IF NOT EXISTS idx_corpus_chunks_doc_page ON corpus_chunks (doc, page)",
+)
