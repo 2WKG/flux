@@ -167,3 +167,32 @@ def test_failed_rollback_retains_recovery_and_restores_other_artifact(tmp_path, 
         con.close()
     recovered_parquet = recovery / failed_restore if failed_restore == "previous-parquet" else parquet_dir
     assert (recovered_parquet / "unrelated.parquet").read_bytes() == b"unchanged-sentinel"
+
+
+
+def test_snapshot_copies_populated_foreign_keys_and_unrelated_namespaces(tmp_path):
+    source, stage = tmp_path / "live.duckdb", tmp_path / "staged.duckdb"
+    con = connect(source)
+    try:
+        con.execute("INSERT INTO counties (county_fips, name, state, pop, geom_wkb, source_name, "
+                    "source_ref, fixture_batch_id) VALUES ('27001','fixture','MN',1,'fixture','test','test','test')")
+        con.execute("INSERT INTO eaglei_outages (county_fips, ts, customers_out, source_name, "
+                    "source_ref, fixture_batch_id) VALUES ('27001','2024-01-01',7,'test','test','test')")
+        con.execute('CREATE SCHEMA "other space"')
+        con.execute('CREATE TABLE "other space".z_parent (id INTEGER PRIMARY KEY)')
+        con.execute('CREATE TABLE "other space".a_child (id INTEGER REFERENCES "other space".z_parent(id))')
+        con.execute('INSERT INTO "other space".z_parent VALUES (42)')
+        con.execute('INSERT INTO "other space".a_child VALUES (42)')
+        con.execute('CREATE VIEW "other space".summary AS SELECT count(*) AS n FROM "other space".a_child')
+    finally:
+        con.close()
+    build_module._copy_database(source, stage)
+    copied = connect(stage, read_only=True)
+    try:
+        assert copied.execute("SELECT county_fips, customers_out FROM eaglei_outages").fetchall() == [("27001", 7)]
+        assert copied.execute('SELECT * FROM "other space".a_child').fetchall() == [(42,)]
+        assert copied.execute('SELECT * FROM "other space".summary').fetchone() == (1,)
+        assert copied.execute("SELECT count(*) FROM duckdb_constraints() WHERE schema_name = 'other space' "
+                              "AND constraint_type = 'FOREIGN KEY'").fetchone() == (1,)
+    finally:
+        copied.close()
