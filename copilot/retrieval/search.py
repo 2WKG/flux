@@ -14,6 +14,14 @@ floors the idf of a term that appears in most of the corpus at
 ``epsilon * average_idf`` (which is ``<= 0`` on tiny or degenerate corpora), so
 a non-positive score is treated as "no discriminative match" rather than
 being presented as a citation.
+
+Two boundaries are exposed.  :func:`search` and :class:`SparseIndex` are the
+ranking primitives: malformed *inputs* (bounds, types, duplicate ids, a corpus
+with nothing to index) raise named Python errors.  :func:`retrieve` is the
+adapter boundary: every *unavailability* of evidence is returned as a
+:class:`RetrievalResponse` whose ``unavailable`` field uses the closed
+``copilot.tools.schemas.UnavailableCode`` vocabulary, never as a plausible
+empty success.
 """
 
 from __future__ import annotations
@@ -22,11 +30,12 @@ import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
-from typing import Final
+from typing import Final, Literal
 
 from rank_bm25 import BM25Okapi
 
 from copilot.retrieval.chunking import CorpusChunk
+from copilot.tools.schemas import Unavailable
 
 MAX_QUERY_CHARACTERS: Final = 2_000
 MAX_RESULTS: Final = 20
@@ -195,6 +204,101 @@ def _ordered_corpus(chunks: Iterable[CorpusChunk]) -> list[CorpusChunk]:
     return sorted(collected, key=_tie_key)
 
 
+class SparseIndex:
+    """A BM25 index built once over an ordered, validated corpus.
+
+    Spec 05 builds the sparse index at startup from ``corpus_chunks``; this
+    object is that built artifact.  Its *existence* is what :func:`retrieve`
+    checks — an adapter that has not built (or failed to load) the index holds
+    ``None`` and gets a named ``invalid_prerequisite`` result rather than
+    asserting availability through a flag.
+
+    Building an index over an empty corpus is allowed (the table may exist and
+    be empty); building one over a non-empty corpus with no indexable token
+    raises :class:`CorpusNotIndexable`.
+    """
+
+    __slots__ = ("_chunks", "_scorer", "_tokens")
+
+    def __init__(self, chunks: Iterable[CorpusChunk]) -> None:
+        self._chunks: tuple[CorpusChunk, ...] = tuple(_ordered_corpus(chunks))
+        self._tokens: tuple[list[str], ...] = tuple(
+            tokenize(chunk.text) for chunk in self._chunks
+        )
+        if self._chunks and not any(self._tokens):
+            raise CorpusNotIndexable("corpus contains no indexable tokens")
+        self._scorer: BM25Okapi | None = (
+            BM25Okapi(list(self._tokens), k1=BM25_K1, b=BM25_B)
+            if self._chunks
+            else None
+        )
+
+    @property
+    def size(self) -> int:
+        """Number of indexed chunks."""
+
+        return len(self._chunks)
+
+    @property
+    def chunks(self) -> tuple[CorpusChunk, ...]:
+        """The indexed chunks in the documented deterministic order."""
+
+        return self._chunks
+
+    def search(
+        self,
+        query: str,
+        *,
+        limit: int = DEFAULT_RESULT_LIMIT,
+        excerpt_characters: int = MAX_EXCERPT_CHARACTERS,
+    ) -> list[RetrievalResult]:
+        """Return bounded, positively scored results in deterministic order.
+
+        See :func:`search` for the contract; this method does not rebuild the
+        index per query.
+        """
+
+        _validate_bounds(query, limit, excerpt_characters)
+        query_tokens = tokenize(query)
+        if self._scorer is None or not query_tokens:
+            return []
+
+        scored = sorted(
+            (
+                (float(score), chunk, chunk_tokens)
+                for score, chunk, chunk_tokens in zip(
+                    self._scorer.get_scores(query_tokens),
+                    self._chunks,
+                    self._tokens,
+                    strict=True,
+                )
+                if float(score) > 0.0
+            ),
+            key=lambda item: (-item[0], _tie_key(item[1])),
+        )[:limit]
+
+        matched_terms = set(query_tokens)
+        results: list[RetrievalResult] = []
+        for score, chunk, chunk_tokens in scored:
+            shared = sorted(matched_terms & set(chunk_tokens))
+            results.append(
+                RetrievalResult(
+                    doc=chunk.document_id,
+                    source=chunk.source_uri,
+                    title=chunk.title or chunk.document_id,
+                    page=chunk.page,
+                    locator=_locator(chunk),
+                    excerpt=_excerpt(chunk.text, limit=excerpt_characters),
+                    version=chunk.version,
+                    date=_date_from_version(chunk.version),
+                    relevance=score,
+                    relevance_rationale="BM25 sparse match for " + ", ".join(shared),
+                    chunk_id=chunk.chunk_id,
+                )
+            )
+        return results
+
+
 def search(
     query: str,
     chunks: Iterable[CorpusChunk],
@@ -214,51 +318,131 @@ def search(
 
     Raises :class:`CorpusNotIndexable` when the corpus is non-empty but no
     chunk tokenizes to anything, and ``ValueError`` for duplicate chunk ids.
+    This convenience builds a :class:`SparseIndex` per call; adapters that
+    serve many queries should build the index once.
     """
 
     _validate_bounds(query, limit, excerpt_characters)
-    query_tokens = tokenize(query)
-    ordered_chunks = _ordered_corpus(chunks)
-    if not ordered_chunks:
-        return []
-    corpus_tokens = [tokenize(chunk.text) for chunk in ordered_chunks]
-    if not any(corpus_tokens):
-        raise CorpusNotIndexable("corpus contains no indexable tokens")
-    if not query_tokens:
-        return []
+    return SparseIndex(chunks).search(
+        query, limit=limit, excerpt_characters=excerpt_characters
+    )
 
-    scorer = BM25Okapi(corpus_tokens, k1=BM25_K1, b=BM25_B)
-    scored = sorted(
-        (
-            (float(score), chunk, chunk_tokens)
-            for score, chunk, chunk_tokens in zip(
-                scorer.get_scores(query_tokens),
-                ordered_chunks,
-                corpus_tokens,
-                strict=True,
-            )
-            if float(score) > 0.0
-        ),
-        key=lambda item: (-item[0], _tie_key(item[1])),
-    )[:limit]
 
-    matched_terms = set(query_tokens)
-    results: list[RetrievalResult] = []
-    for score, chunk, chunk_tokens in scored:
-        shared = sorted(matched_terms & set(chunk_tokens))
-        results.append(
-            RetrievalResult(
-                doc=chunk.document_id,
-                source=chunk.source_uri,
-                title=chunk.title or chunk.document_id,
-                page=chunk.page,
-                locator=_locator(chunk),
-                excerpt=_excerpt(chunk.text, limit=excerpt_characters),
-                version=chunk.version,
-                date=_date_from_version(chunk.version),
-                relevance=score,
-                relevance_rationale="BM25 sparse match for " + ", ".join(shared),
-                chunk_id=chunk.chunk_id,
+@dataclass(frozen=True)
+class RetrievalResponse:
+    """Ranked citations, or an explicit citation-free unavailable outcome.
+
+    ``unavailable`` carries the shared ``{code, reason, retryable}`` contract
+    from ``copilot.tools.schemas`` (closed ``UnavailableCode`` vocabulary; the
+    specific cause lives in ``reason``).  The invariants make the two states
+    mutually exclusive: an unavailable response never carries a citation, and
+    an available response always carries at least one — "available but
+    empty" is not a state this type can represent.
+    """
+
+    status: Literal["available", "unavailable"]
+    hits: tuple[RetrievalResult, ...]
+    unavailable: Unavailable | None = None
+
+    def __post_init__(self) -> None:
+        if self.status == "available" and self.unavailable is not None:
+            raise ValueError(
+                "available retrieval responses cannot carry an unavailable reason"
             )
+        if self.status == "available" and not self.hits:
+            raise ValueError(
+                "available retrieval responses require at least one citation"
+            )
+        if self.status == "unavailable" and self.unavailable is None:
+            raise ValueError("unavailable retrieval responses require a named reason")
+        if self.status == "unavailable" and self.hits:
+            raise ValueError("unavailable retrieval responses cannot contain citations")
+
+    def record(self) -> dict[str, object]:
+        """Return the public payload without inventing a citation on failure."""
+
+        return {
+            "hits": [hit.record() for hit in self.hits],
+            "status": self.status,
+            "unavailable": (
+                None
+                if self.unavailable is None
+                else self.unavailable.model_dump(mode="json")
+            ),
+        }
+
+
+def _unavailable(
+    code: Literal[
+        "artifact_unavailable",
+        "invalid_prerequisite",
+        "unsupported_request",
+        "insufficient_evidence",
+    ],
+    reason: str,
+    *,
+    retryable: bool,
+) -> RetrievalResponse:
+    return RetrievalResponse(
+        status="unavailable",
+        hits=(),
+        unavailable=Unavailable(code=code, reason=reason, retryable=retryable),
+    )
+
+
+def retrieve(
+    query: str,
+    index: SparseIndex | None,
+    *,
+    limit: int = DEFAULT_RESULT_LIMIT,
+    excerpt_characters: int = MAX_EXCERPT_CHARACTERS,
+) -> RetrievalResponse:
+    """Retrieve citations or report, in the shared vocabulary, why there are none.
+
+    Unavailability is *detected*, in this precedence:
+
+    1. ``index is None`` — the sparse index was never built or failed to load:
+       ``invalid_prerequisite`` (retryable once ingest builds it).
+    2. The index holds zero chunks — the corpus artifact is empty:
+       ``artifact_unavailable`` (retryable once ingest populates it).
+    3. The query has no searchable token (whitespace/punctuation only):
+       ``unsupported_request`` (not retryable as-is).
+    4. No chunk scores positively against the query:
+       ``insufficient_evidence`` (not retryable as-is).
+
+    Malformed *inputs* (bounds, non-index argument) raise as they do for
+    :func:`search`; those are programming errors at the call site, not
+    evidence states.
+    """
+
+    if index is not None and not isinstance(index, SparseIndex):
+        raise TypeError("index must be a SparseIndex or None")
+    _validate_bounds(query, limit, excerpt_characters)
+
+    if index is None:
+        return _unavailable(
+            "invalid_prerequisite",
+            "sparse retrieval index is not built",
+            retryable=True,
         )
-    return results
+    if index.size == 0:
+        return _unavailable(
+            "artifact_unavailable",
+            "corpus has no chunks",
+            retryable=True,
+        )
+    if not tokenize(query):
+        return _unavailable(
+            "unsupported_request",
+            "query has no searchable tokens",
+            retryable=False,
+        )
+
+    hits = index.search(query, limit=limit, excerpt_characters=excerpt_characters)
+    if not hits:
+        return _unavailable(
+            "insufficient_evidence",
+            "no corpus chunk scores positively against the query",
+            retryable=False,
+        )
+    return RetrievalResponse(status="available", hits=tuple(hits))
