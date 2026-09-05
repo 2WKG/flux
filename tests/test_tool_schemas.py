@@ -7,10 +7,10 @@ from copilot.tools.schemas import (
     TOOL_REGISTRY,
     TOOL_SCHEMAS,
     ArtifactRef,
+    CiteData,
     PredictOutageData,
     PredictOutageInput,
     ToolOutput,
-    ToolResult,
     unavailable_output,
     validate_tool_input,
 )
@@ -93,23 +93,88 @@ def test_unavailable_status_cannot_omit_its_reason() -> None:
         ToolOutput(status="unavailable")
 
 
-def test_available_result_requires_a_typed_payload() -> None:
-    with pytest.raises(ValidationError):
-        ToolResult[PredictOutageData](status="available")
-
-
-def test_available_result_requires_provenance() -> None:
+def test_available_output_requires_provenance() -> None:
     with pytest.raises(ValidationError, match="provenance"):
-        ToolResult[PredictOutageData](
-            status="available",
-            data=PredictOutageData(
-                county_fips="48453",
-                scenario_id="uri_2021",
-                horizon_h=72,
-                peak_p_out=0.5,
-                peak_ts="2021-02-16T19:00:00Z",
-                customers_at_risk=10,
-                driver="fixture",
-                series=[],
-            ),
-        )
+        ToolOutput(status="available")
+
+
+def test_documented_outage_fields_are_top_level() -> None:
+    fields = PredictOutageData.model_fields
+    assert {"county_fips", "county_name", "scenario_id", "horizon_h", "peak_p_out", "series"} <= set(fields)
+    assert "data" not in fields
+
+
+def test_consumer_shaped_outage_response_validates_with_top_level_payload() -> None:
+    response = PredictOutageData(
+        status="available",
+        provenance=[
+            ArtifactRef(
+                artifact_id="outage_predictions",
+                artifact_version="fixture-v1",
+                source_kind="fixture",
+                source_ref="data/duck/grid.duckdb",
+            )
+        ],
+        county_fips="48453",
+        county_name="Travis",
+        scenario_id="uri_2021",
+        horizon_h=72,
+        peak_p_out=0.5,
+        peak_ts="2021-02-16T19:00:00Z",
+        customers_at_risk=10,
+        driver="fixture",
+        series=[],
+    )
+    assert response.county_name == "Travis"
+    assert "data" not in response.model_dump()
+
+
+def test_cite_hits_match_the_shared_retrieval_shape() -> None:
+    hit = CiteData.model_fields["hits"].annotation
+    assert hit is not None
+    assert {"doc", "title", "page", "chunk_id", "score", "text"} <= set(
+        CiteData.model_json_schema()["$defs"]["RetrievalHit"]["properties"]
+    )
+
+
+def test_consumer_shaped_cite_response_validates() -> None:
+    response = CiteData(
+        status="available",
+        provenance=[
+            ArtifactRef(
+                artifact_id="corpus_chunks",
+                artifact_version="fixture-v1",
+                source_kind="retrieval",
+                source_ref="data/duck/grid.duckdb",
+            )
+        ],
+        hits=[
+            {
+                "doc": "10cfr100",
+                "title": "10 CFR Part 100",
+                "page": 2,
+                "chunk_id": "10cfr100-p2-c1",
+                "score": 0.9,
+                "text": "A bounded retrieval excerpt.",
+            }
+        ],
+    )
+    assert response.hits[0].doc == "10cfr100"
+
+
+def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
+    expected = {
+        "predict_outage": {"county_fips", "county_name", "scenario_id", "horizon_h", "peak_p_out", "peak_ts", "customers_at_risk", "driver", "series"},
+        "run_cascade": {"run_id", "scenario_id", "hour", "tripped_element_ids", "lost_load_mw", "counties_dark", "critical_loads_lost", "steps"},
+        "score_site": {"site_id", "name", "kind", "county_fips", "unit_mw", "safety_score", "safety_flags", "grid_value_score", "lol_reduction_mwh", "congestion_relief_pct", "blackstart_reach_mw", "critical_loads_protected", "regulatory_path"},
+        "top_lines": {"region", "tech", "lines"},
+        "sql": {"columns", "rows", "row_count", "truncated"},
+        "cite": {"hits"},
+        "compare_interventions": {"scenario_id", "baseline_run_id", "interventions", "assumptions"},
+        "top_critical_elements": {"region", "n", "scenario_ids", "elements", "partial"},
+        "causal_query": {"answer_numbers", "method", "assumptions", "interval", "evidence_rows"},
+    }
+    for definition in TOOL_REGISTRY:
+        fields = definition.output_model.model_fields
+        assert expected[definition.name] <= set(fields)
+        assert "data" not in fields
