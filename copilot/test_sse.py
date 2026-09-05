@@ -136,8 +136,21 @@ def test_named_failures_emit_one_safe_terminal_error(
     assert all(
         value not in serialized for value in ("abc123", "/secrets/", "Traceback")
     )
+    # The failure is the one and only terminal: neither success nor a second
+    # failure may follow it.
     with pytest.raises(StreamStateError, match="terminal"):
         stream.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(stream, method)()
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.disconnected()
+
+    # And a failure cannot follow the success terminal either.
+    finished = CopilotEventStream()
+    finished.start()
+    finished.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(finished, method)(secret_failure)
 
 
 TOOL_TIMEOUT_MESSAGE = "The site scoring tool did not finish in time."
@@ -232,3 +245,70 @@ def test_non_finite_values_are_rejected_at_construction(bad: float) -> None:
 
     with pytest.raises(ValueError):
         stream.tool_result("call-1", "score_site", {"score": bad}, elapsed_ms=1)
+
+
+def test_failed_tool_result_requires_lifecycle_start() -> None:
+    stream = CopilotEventStream()
+
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.failed_tool_result(
+            "call-1", "score_site", "timeout", TOOL_TIMEOUT_MESSAGE, elapsed_ms=1
+        )
+
+
+@pytest.mark.parametrize("code", ["", "TIMEOUT", "boom", "upstream_error", "cancelled"])
+def test_failed_tool_result_rejects_codes_outside_the_vocabulary(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    with pytest.raises(ValueError, match="unsupported tool error code"):
+        stream.failed_tool_result(
+            "call-1", "score_site", code, TOOL_TIMEOUT_MESSAGE, elapsed_ms=1
+        )
+    # The rejected payload did not consume the pending call.
+    settled = stream.failed_tool_result(
+        "call-1", "score_site", "timeout", TOOL_TIMEOUT_MESSAGE, elapsed_ms=1
+    )
+    assert settled.data["error"]["code"] == "timeout"
+    assert settled.seq == 3
+
+
+@pytest.mark.parametrize(
+    "code", sorted(["timeout", "invalid_input", "unavailable", "tool_error"])
+)
+def test_failed_tool_result_accepts_each_vocabulary_code(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {})
+
+    failed = stream.failed_tool_result(
+        "call-1", "score_site", code, TOOL_TIMEOUT_MESSAGE, elapsed_ms=1
+    )
+
+    assert failed.data["ok"] is False
+    assert failed.data["error"] == {"code": code, "message": TOOL_TIMEOUT_MESSAGE}
+
+
+def test_failed_tool_result_bounds_the_message_length() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {})
+
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.failed_tool_result("call-1", "score_site", "timeout", "", elapsed_ms=1)
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.failed_tool_result(
+            "call-1", "score_site", "timeout", "x" * 1025, elapsed_ms=1
+        )
+    with pytest.raises(ValueError, match="non-negative"):
+        stream.failed_tool_result(
+            "call-1", "score_site", "timeout", TOOL_TIMEOUT_MESSAGE, elapsed_ms=-1
+        )
+
+    # Exactly the cap is accepted, and the earlier rejections left the call pending.
+    failed = stream.failed_tool_result(
+        "call-1", "score_site", "timeout", "x" * 1024, elapsed_ms=1
+    )
+    assert len(failed.data["error"]["message"]) == 1024
+    assert failed.seq == 3

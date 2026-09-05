@@ -144,7 +144,8 @@ class CopilotEventStream:
         Codes are a small fixed vocabulary and messages are bounded so callers
         cannot turn a tool error into an unbounded exception transport.
         """
-        self._validate_tool_call(call_id, tool)
+        # Bound the caller-supplied fields before consuming the pending call so a
+        # rejected payload leaves the call settleable with a valid one.
         if code not in _TOOL_ERROR_CODES:
             raise ValueError(f"unsupported tool error code: {code!r}")
         if not message or len(message) > _MAX_TOOL_ERROR_MESSAGE_CHARS:
@@ -153,6 +154,7 @@ class CopilotEventStream:
             )
         if elapsed_ms < 0:
             raise ValueError("elapsed_ms must be non-negative")
+        self._validate_tool_call(call_id, tool)
         return self._event(
             "tool_result",
             {
