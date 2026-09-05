@@ -1,0 +1,4 @@
+.layer-toggle-controls { border: 1px solid #28506a; border-radius: 10px; color: #eef8ff; display: grid; gap: 8px; margin: 0; padding: 12px 14px; }
+.layer-toggle-controls legend { color: #7dd3fc; font-size: .78rem; letter-spacing: .08em; text-transform: uppercase; }
+.layer-toggle-controls label { align-items: center; cursor: pointer; display: flex; gap: 8px; font-size: .9rem; }
+.layer-toggle-controls input { accent-color: #38bdf8; }
