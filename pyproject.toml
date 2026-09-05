@@ -1,0 +1,59 @@
+[project]
+name = "flux"
+version = "0.0.1"
+description = "National grid digital twin: outage prediction, cascade simulation, nuclear siting (hackathon)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  # storage / data
+  "duckdb>=1.1",
+  "pyarrow>=17",
+  "polars>=1.10",
+  "pandas>=2.2",
+  "geopandas>=1.0",
+  "shapely>=2.0",
+  "pyproj>=3.6",
+  "h3>=4.1",
+  "networkx>=3.3",
+  "xarray>=2024.9",
+  "netcdf4>=1.7",
+  "cfgrib>=0.9",
+  "herbie-data>=2024.8",
+  "gridstatus>=0.28",
+  "requests>=2.32",
+  "httpx>=0.27",
+  "tqdm>=4.66",
+  # physics
+  "pandapower>=2.14",
+  "lightsim2grid>=0.9",
+  "pypsa>=0.31",
+  "scipy>=1.14",
+  # ML + causal
+  "lightgbm>=4.5",
+  "scikit-learn>=1.5",
+  "dowhy>=0.11",
+  "econml>=0.15",
+  "pgmpy>=0.1.26",
+  # copilot
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "sse-starlette>=2.1",
+  "anthropic>=1.4",
+  "pydantic-settings>=2.5",
+  "pydantic>=2.9",
+  "pypdf>=5.0",
+  "rank-bm25>=0.2",
+  "python-dotenv>=1.0",
+  "matpower>=8.1.0.2.3.0",
+  "matpowercaseframes>=2.1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6", "ipykernel", "jupyter"]
+stretch = ["grid2op>=1.10", "torch>=2.4", "torch-geometric>=2.6"]
+embeddings = ["voyageai>=0.3"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
