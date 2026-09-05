@@ -1,0 +1,94 @@
+{
+  "issue": "2WKG-38 [D01] Download one synthetic Texas case",
+  "retrieved_at": "2026-09-05T15:21:50+00:00",
+  "provider": {
+    "name": "Texas A&M University \u2014 Electric Grid Test Case Repository",
+    "case": "ACTIVSg2000 (Synthetic Texas, 2000 bus)",
+    "version": "current (post-2016; PowerWorld v21 build 2018-08-30)",
+    "page": "https://electricgrids.engr.tamu.edu/electric-grid-test-cases/activsg2000/",
+    "download_url": "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t",
+    "licence": "Free for commercial or non-commercial use; contains no CEII.",
+    "citation": "A.B. Birchfield, T. Xu, K.M. Gegner, K.S. Shetye, T.J. Overbye, 'Grid Structural Characteristics as Validation Criteria for Synthetic Networks', IEEE Transactions on Power Systems, 2017. doi:10.1109/TPWRS.2016.2616385",
+    "not_used": "The 'Texas2000_June2016' bundle is a different case version (2,007 buses, 49,776 MW) sharing only 98 of 2,000 bus numbers with this one. Not used."
+  },
+  "files": {
+    "ACTIVSg2000_current.zip": {
+      "bytes": 125303682,
+      "sha256": "817a6dc579c43fd5a4214852aebc8e60105c843dbd466ff1d1deabdc65f24f21"
+    },
+    "ACTIVSg2000.aux": {
+      "bytes": 6255512,
+      "sha256": "4cfa04232705f058f73e616452e732fe240c0bf8354ca63d4f533f86a2085cdc"
+    },
+    "case_ACTIVSg2000.m": {
+      "bytes": 659545,
+      "sha256": "5edb60e97153c27de68403499174557213090a5b04da1bbc34b3196715c5da94"
+    }
+  },
+  "aux_check": {
+    "substation_fields": [
+      "SubNum",
+      "SubName",
+      "SubID",
+      "Latitude",
+      "Longitude",
+      "DataMaintainerAssign",
+      "GICSubGroundOhms",
+      "GICUsedSubGroundOhms"
+    ],
+    "substation_records": 1250,
+    "substations_with_coords": 1250,
+    "bus_fields": [
+      "BusNum",
+      "BusName",
+      "BusNomVolt",
+      "BusSlack",
+      "BusB:1",
+      "BusG:1",
+      "BusPUVolt",
+      "BusAngle",
+      "DCLossMultiplier",
+      "AreaNum",
+      "ZoneNum",
+      "BANumber",
+      "OwnerNum",
+      "SubNum",
+      "Latitude:1",
+      "Longitude:1",
+      "BusMonEle",
+      "LSName",
+      "BusVoltLim",
+      "BusVoltLimLow:1",
+      "BusVoltLimLow:2",
+      "BusVoltLimLow:3",
+      "BusVoltLimLow:4",
+      "BusVoltLimHigh:1",
+      "BusVoltLimHigh:2",
+      "BusVoltLimHigh:3",
+      "BusVoltLimHigh:4",
+      "Latitude",
+      "Longitude",
+      "TopologyBusType",
+      "Priority",
+      "EMSType",
+      "EMSDeviceID",
+      "DataMaintainerAssign",
+      "AllLabels",
+      "GICConductance"
+    ],
+    "bus_records": 2000,
+    "buses_with_coords": 2000,
+    "extent": {
+      "lon_min": -104.6245,
+      "lon_max": -94.3673,
+      "lat_min": 25.9131,
+      "lat_max": 35.8308
+    },
+    "mpc_bus_records": 2000,
+    "bus_ids_match": true,
+    "ids_only_in_mpc": 0,
+    "ids_only_in_aux": 0,
+    "kv_mismatches": 0,
+    "mpc_buses_without_coords": 0
+  }
+}
