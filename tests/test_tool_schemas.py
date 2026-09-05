@@ -83,7 +83,9 @@ def test_top_lines_schema_is_exactly_the_frozen_contract_signature() -> None:
     assert request.n == 10
     assert not hasattr(request, "offset")
 
-    request = validate_tool_input("top_lines", {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT})
+    request = validate_tool_input(
+        "top_lines", {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT}
+    )
     assert request.n == TOP_LINES_MAX_LIMIT == 50
 
 
@@ -122,7 +124,9 @@ def test_representative_unavailable_output_keeps_provenance() -> None:
 
 
 def test_real_tool_contract_accepts_its_unavailable_output() -> None:
-    result = unavailable_output("artifact_unavailable", "fixture prediction artifact is absent")
+    result = unavailable_output(
+        "artifact_unavailable", "fixture prediction artifact is absent"
+    )
     definition = next(tool for tool in TOOL_REGISTRY if tool.name == "predict_outage")
 
     validated = []
@@ -166,7 +170,14 @@ def test_available_output_requires_provenance() -> None:
 
 def test_documented_outage_fields_are_top_level() -> None:
     fields = PredictOutageData.model_fields
-    assert {"county_fips", "county_name", "scenario_id", "horizon_h", "peak_p_out", "series"} <= set(fields)
+    assert {
+        "county_fips",
+        "county_name",
+        "scenario_id",
+        "horizon_h",
+        "peak_p_out",
+        "series",
+    } <= set(fields)
     assert "data" not in fields
 
 
@@ -311,15 +322,59 @@ def test_causal_interval_round_trips_as_a_json_list() -> None:
 
 def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
     expected = {
-        "predict_outage": {"county_fips", "county_name", "scenario_id", "horizon_h", "peak_p_out", "peak_ts", "customers_at_risk", "driver", "series"},
-        "run_cascade": {"run_id", "scenario_id", "hour", "tripped_element_ids", "lost_load_mw", "counties_dark", "critical_loads_lost", "steps"},
-        "score_site": {"site_id", "name", "kind", "county_fips", "unit_mw", "safety_score", "safety_flags", "grid_value_score", "lol_reduction_mwh", "congestion_relief_pct", "blackstart_reach_mw", "critical_loads_protected", "regulatory_path"},
+        "predict_outage": {
+            "county_fips",
+            "county_name",
+            "scenario_id",
+            "horizon_h",
+            "peak_p_out",
+            "peak_ts",
+            "customers_at_risk",
+            "driver",
+            "series",
+        },
+        "run_cascade": {
+            "run_id",
+            "scenario_id",
+            "hour",
+            "tripped_element_ids",
+            "lost_load_mw",
+            "counties_dark",
+            "critical_loads_lost",
+            "steps",
+        },
+        "score_site": {
+            "site_id",
+            "name",
+            "kind",
+            "county_fips",
+            "unit_mw",
+            "safety_score",
+            "safety_flags",
+            "grid_value_score",
+            "lol_reduction_mwh",
+            "congestion_relief_pct",
+            "blackstart_reach_mw",
+            "critical_loads_protected",
+            "regulatory_path",
+        },
         "top_lines": {"region", "tech", "lines"},
         "sql": {"columns", "rows", "row_count", "truncated"},
         "cite": {"hits"},
-        "compare_interventions": {"scenario_id", "baseline_run_id", "interventions", "assumptions"},
+        "compare_interventions": {
+            "scenario_id",
+            "baseline_run_id",
+            "interventions",
+            "assumptions",
+        },
         "top_critical_elements": {"region", "n", "scenario_ids", "elements", "partial"},
-        "causal_query": {"answer_numbers", "method", "assumptions", "interval", "evidence_rows"},
+        "causal_query": {
+            "answer_numbers",
+            "method",
+            "assumptions",
+            "interval",
+            "evidence_rows",
+        },
     }
     for definition in TOOL_REGISTRY:
         fields = definition.output_model[0].model_fields
