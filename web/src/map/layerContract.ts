@@ -1,7 +1,7 @@
 import type { Feature, FeatureCollection, Geometry, GeoJsonProperties } from "geojson";
 
 export type AttributeDescriptor = Readonly<{
-  unit: string;
+  unit: string | null;
   source: string;
 }>;
 
@@ -41,9 +41,72 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function isAttributeDescriptor(value: unknown): value is AttributeDescriptor {
   return (
     isRecord(value) &&
-    typeof value.unit === "string" &&
+    (typeof value.unit === "string" || value.unit === null) &&
     typeof value.source === "string"
   );
+}
+
+function parseAttributes(value: unknown): Record<string, AttributeDescriptor> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const attributes: Record<string, AttributeDescriptor> = {};
+  for (const [field, descriptor] of Object.entries(value)) {
+    if (!isAttributeDescriptor(descriptor)) {
+      return null;
+    }
+    attributes[field] = descriptor;
+  }
+  return attributes;
+}
+
+function scenarioFromFeatures(featureCollection: FeatureCollection<Geometry, GeoJsonProperties>): string | null {
+  return featureCollection.features
+    .map((feature) => feature.properties?.scenario_id)
+    .find((scenario): scenario is string => typeof scenario === "string") ?? null;
+}
+
+function bareLayerPresentation(payload: Record<string, unknown>): LayerPresentation | null {
+  if (!isFeatureCollection(payload) || typeof payload.layer !== "string") {
+    return null;
+  }
+  const crs = payload.crs;
+  const provenance = payload.provenance;
+  if (
+    !isRecord(crs) ||
+    !isRecord(crs.properties) ||
+    typeof crs.properties.name !== "string" ||
+    !isRecord(provenance) ||
+    !Array.isArray(provenance.source_kinds)
+  ) {
+    return null;
+  }
+  const attributes = parseAttributes(payload.attributes);
+  if (!attributes) {
+    return null;
+  }
+  const sourceClasses: string[] = [];
+  for (const sourceKind of provenance.source_kinds) {
+    if (sourceKind === null) {
+      continue;
+    }
+    if (typeof sourceKind !== "string") {
+      return null;
+    }
+    if (!sourceClasses.includes(sourceKind)) {
+      sourceClasses.push(sourceKind);
+    }
+  }
+
+  return {
+    layer: payload.layer,
+    crs: crs.properties.name,
+    scenario: scenarioFromFeatures(payload),
+    attributes,
+    sourceClasses,
+    featureCollection: payload,
+  };
 }
 
 function isFeatureCollection(value: unknown): value is FeatureCollection<
@@ -58,11 +121,20 @@ function isFeatureCollection(value: unknown): value is FeatureCollection<
 }
 
 /**
- * Accept only a successful, declared server layer. Rendering never synthesizes
+ * Accept only a declared server layer: the legacy success envelope or the
+ * documented bare GeoJSON route response. Rendering never synthesizes
  * geometry, values, source classes, or scenario information from client state.
  */
 export function toLayerPresentation(payload: unknown): LayerPresentation | null {
-  if (!isRecord(payload) || payload.status !== "ok" || !isRecord(payload.data)) {
+  if (!isRecord(payload)) {
+    return null;
+  }
+
+  if (isFeatureCollection(payload)) {
+    return bareLayerPresentation(payload);
+  }
+
+  if (payload.status !== "ok" || !isRecord(payload.data)) {
     return null;
   }
 
@@ -70,7 +142,6 @@ export function toLayerPresentation(payload: unknown): LayerPresentation | null 
   if (
     typeof data.layer !== "string" ||
     typeof data.crs !== "string" ||
-    !isRecord(data.attributes) ||
     !isFeatureCollection(data.feature_collection) ||
     !isRecord(meta) ||
     !Array.isArray(meta.artifacts)
@@ -78,12 +149,9 @@ export function toLayerPresentation(payload: unknown): LayerPresentation | null 
     return null;
   }
 
-  const attributes: Record<string, AttributeDescriptor> = {};
-  for (const [field, value] of Object.entries(data.attributes)) {
-    if (!isAttributeDescriptor(value)) {
-      return null;
-    }
-    attributes[field] = value;
+  const attributes = parseAttributes(data.attributes);
+  if (!attributes) {
+    return null;
   }
 
   const sourceClasses = [...new Set(
@@ -93,14 +161,10 @@ export function toLayerPresentation(payload: unknown): LayerPresentation | null 
         : [],
     ),
   )];
-  const featureScenario = data.feature_collection.features
-    .map((feature) => feature.properties?.scenario_id)
-    .find((scenario): scenario is string => typeof scenario === "string");
-
   return {
     layer: data.layer,
     crs: data.crs,
-    scenario: typeof data.scenario_id === "string" ? data.scenario_id : featureScenario ?? null,
+    scenario: typeof data.scenario_id === "string" ? data.scenario_id : scenarioFromFeatures(data.feature_collection),
     attributes,
     sourceClasses,
     featureCollection: data.feature_collection,
