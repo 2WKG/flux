@@ -10,6 +10,8 @@ export const DEFAULT_TIMEOUT_MS = 10_000;
 export const DEFAULT_RETRIES = 2;
 /** Default maximum body size for a read response (5 MiB). */
 export const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+/** A healthy SSE connection sends the server heartbeat every 10 seconds. */
+export const DEFAULT_SSE_IDLE_TIMEOUT_MS = 30_000;
 export const SAFE_RETRY_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export type FetchImplementation = (
@@ -237,6 +239,73 @@ async function responseWithBoundedBody(
   return new Response(body, responseInit(response));
 }
 
+async function responseWithSseIdleBody(response: Response): Promise<Response> {
+  if (response.body === null) {
+    return response;
+  }
+
+  const reader = response.body.getReader();
+  let terminalError: RequestTimeoutError | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearIdleTimer = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  const failForIdle = () => {
+    if (terminalError !== undefined) {
+      return;
+    }
+    terminalError = new RequestTimeoutError(DEFAULT_SSE_IDLE_TIMEOUT_MS);
+    clearIdleTimer();
+    void reader.cancel(terminalError).catch(() => undefined);
+  };
+  const resetIdleTimer = () => {
+    clearIdleTimer();
+    timer = setTimeout(failForIdle, DEFAULT_SSE_IDLE_TIMEOUT_MS);
+  };
+
+  resetIdleTimer();
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (terminalError !== undefined) {
+        controller.error(terminalError);
+        return;
+      }
+
+      try {
+        const { done, value } = await reader.read();
+        if (terminalError !== undefined) {
+          controller.error(terminalError);
+          return;
+        }
+        if (done) {
+          clearIdleTimer();
+          controller.close();
+          return;
+        }
+        resetIdleTimer();
+        controller.enqueue(value);
+      } catch (error) {
+        clearIdleTimer();
+        controller.error(terminalError ?? error);
+      }
+    },
+    async cancel(reason) {
+      clearIdleTimer();
+      await reader.cancel(reason);
+    },
+  });
+
+  return new Response(body, responseInit(response));
+}
+
+function isSseResponse(response: Response): boolean {
+  return response.headers.get("content-type")?.toLowerCase().startsWith("text/event-stream") ?? false;
+}
+
 /**
  * Fetch with Flux's browser-safe policy. It returns the final Response so
  * response-envelope validation remains owned by the client validation layer.
@@ -274,6 +343,9 @@ export async function fetchWithPolicy(
         fetchImplementation,
       );
       if (!shouldRetryResponse(response) || !canRetry(method, attempt, retries)) {
+        if (isSseResponse(response)) {
+          return responseWithSseIdleBody(response);
+        }
         return responseWithBoundedBody(response, timeoutMs, maxResponseBytes);
       }
       await cancelResponseBody(response);

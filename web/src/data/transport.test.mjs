@@ -104,6 +104,21 @@ test("times out a response body that stalls after headers", async () => {
   await assert.rejects(response.text(), RequestTimeoutError);
 });
 
+test("keeps an active SSE stream open beyond the JSON body deadline", async () => {
+  const response = await fetchWithPolicy("https://example.test/ask", {
+    timeoutMs: 10,
+    retries: 0,
+    fetchImplementation: async () => new Response(new ReadableStream({
+      start(controller) {
+        setTimeout(() => controller.enqueue(new TextEncoder().encode(": ping\\n\\n")), 20);
+        setTimeout(() => controller.close(), 30);
+      },
+    }), { headers: { "content-type": "text/event-stream" } }),
+  });
+
+  assert.equal(await response.text(), ": ping\n\n");
+});
+
 test("rejects declared and streamed response bodies over the configured cap", async () => {
   let declaredBodyCancelled = false;
   let declaredBodyCalls = 0;
