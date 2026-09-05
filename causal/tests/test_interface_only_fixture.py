@@ -5,7 +5,6 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
-
 FIXTURE_PATH = (
     Path(__file__).resolve().parents[1]
     / "fixtures"
@@ -61,11 +60,27 @@ def _sufficient_study() -> dict:
                 "time_window": "test period",
             },
         },
-        "sources": [{"source_id": "source-1", "name": "test", "version": "1", "locator": "table-1", "coverage": "test period"}],
-        "sample": {"unit": "county", "n_total": 2, "n_treated": 1, "n_control": 1, "period": "test period"},
+        "sources": [
+            {
+                "source_id": "source-1",
+                "name": "test",
+                "version": "1",
+                "locator": "table-1",
+                "coverage": "test period",
+            }
+        ],
+        "sample": {
+            "unit": "county",
+            "n_total": 2,
+            "n_treated": 1,
+            "n_control": 1,
+            "period": "test period",
+        },
         "covariates": [],
         "assumptions": ["test assumption"],
-        "diagnostics": [{"name": "test diagnostic", "status": "pass", "evidence": "test evidence"}],
+        "diagnostics": [
+            {"name": "test diagnostic", "status": "pass", "evidence": "test evidence"}
+        ],
         "citations": [citation],
         "availability": {"status": "available"},
         "estimate": {
