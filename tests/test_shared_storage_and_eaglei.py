@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pandas as pd
 
 from pipelines.db import CONTRACT_TABLES, connect, export_parquet, replace_frame
@@ -28,6 +30,25 @@ def test_shared_store_replaces_empty_slice_and_exports_parquet(tmp_path) -> None
         assert len(written) == len(CONTRACT_TABLES)
         assert all(path.exists() for path in written)
         assert con.execute("SELECT count(*) FROM read_parquet(?)", [str(target / "buses.parquet")]).fetchone()[0] == 0
+    finally:
+        con.close()
+
+
+def test_retrieval_timestamp_is_preserved_or_honestly_unknown(tmp_path) -> None:
+    con = connect(tmp_path / "grid.duckdb")
+    try:
+        seed = pd.DataFrame([{"county_fips": "48001", "name": "Anderson", "state": "TX", "pop": 1,
+                              "geom_wkb": b"fixture"}])
+        retrieved = datetime(2026, 9, 5, 15, 21, 50, tzinfo=UTC)
+        replace_frame(con, "counties", seed, source_name="trusted", source_ref="receipt",
+                      source_retrieved_at=retrieved, fixture_batch_id="known")
+        assert con.execute("SELECT source_retrieved_at FROM counties").fetchone()[0] == retrieved.replace(tzinfo=None)
+        target = tmp_path / "parquet"
+        export_parquet(con, target)
+        assert con.execute("SELECT source_retrieved_at FROM read_parquet(?)", [str(target / "counties.parquet")]).fetchone()[0] == retrieved.replace(tzinfo=None)
+        replace_frame(con, "counties", seed, source_name="unknown", source_ref="no-receipt",
+                      fixture_batch_id="unknown")
+        assert con.execute("SELECT source_retrieved_at FROM counties").fetchone()[0] is None
     finally:
         con.close()
 

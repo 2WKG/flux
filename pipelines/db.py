@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 
 import duckdb
@@ -228,22 +229,26 @@ def validate_schema(con: duckdb.DuckDBPyConnection) -> None:
 
 
 def contract_frame(frame: pd.DataFrame, table: str, *, source_name: str, source_ref: str,
-                   source_version: str | None = None, fixture_batch_id: str) -> pd.DataFrame:
-    """Attach required provenance to a canonical-contract frame before insertion."""
+                   source_version: str | None = None, source_retrieved_at: datetime | None = None,
+                   fixture_batch_id: str) -> pd.DataFrame:
+    """Attach provenance without manufacturing an unavailable retrieval timestamp."""
     if table not in TABLE_COLUMNS:
         return frame
+    if source_retrieved_at is not None and source_retrieved_at.tzinfo is None:
+        raise ValueError("source_retrieved_at must be UTC-aware when it is known")
     result = frame.copy()
     result["source_name"] = source_name
     result["source_ref"] = source_ref
     result["source_version"] = source_version
-    result["source_retrieved_at"] = None
+    result["source_retrieved_at"] = source_retrieved_at.astimezone(UTC).replace(tzinfo=None) if source_retrieved_at else None
     result["fixture_batch_id"] = fixture_batch_id
     return result
 
 
 def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFrame, where: str = "TRUE",
                   *, source_name: str | None = None, source_ref: str | None = None,
-                  source_version: str | None = None, fixture_batch_id: str | None = None) -> int:
+                  source_version: str | None = None, source_retrieved_at: datetime | None = None,
+                  fixture_batch_id: str | None = None) -> int:
     """Replace a logical slice, requiring provenance for canonical contract rows."""
     if table in TABLE_COLUMNS and not all((source_name, source_ref, fixture_batch_id)):
         raise ValueError(f"{table} requires source_name, source_ref, and fixture_batch_id")
@@ -252,7 +257,8 @@ def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFram
         return 0
     if table in TABLE_COLUMNS:
         frame = contract_frame(frame, table, source_name=source_name, source_ref=source_ref,
-                               source_version=source_version, fixture_batch_id=fixture_batch_id)
+                               source_version=source_version, source_retrieved_at=source_retrieved_at,
+                               fixture_batch_id=fixture_batch_id)
     con.register("_incoming", frame)
     try:
         con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming")
