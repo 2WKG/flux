@@ -16,7 +16,7 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
-from copilot.routes.layers import BUILT_LAYERS, DOCUMENTED_LAYERS
+from copilot.routes.contract import BUILT_LAYERS, DOCUMENTED_LAYERS
 
 PROVENANCE_COLUMNS = """
     source_name TEXT NOT NULL,
@@ -348,8 +348,8 @@ def test_documented_but_unbuilt_layers_are_unavailable_not_built(
     assert body["error"]["details"] == {"artifact": layer, "reason": "not_built"}
 
 
-@pytest.mark.parametrize("layer", ["not-a-layer", "BUSES", "bus"])
-def test_undocumented_layer_is_not_found_not_an_empty_success(
+@pytest.mark.parametrize("layer", ["bus", "busses", "line", "national_hex2"])
+def test_well_formed_undocumented_layer_is_not_found_not_an_empty_success(
     tmp_path: Path, layer: str
 ) -> None:
     database = tmp_path / "fixture.duckdb"
@@ -362,3 +362,59 @@ def test_undocumented_layer_is_not_found_not_an_empty_success(
     assert response.json()["data"] is None
     assert response.json()["error"]["code"] == "not_found"
     assert response.json()["error"]["details"] == {"layer": layer}
+
+
+@pytest.mark.parametrize(
+    "layer",
+    ["not-a-layer", "BUSES", "Buses", "1lines", "b" * 33, "a%2Fb", "%C3%BCri", "a.b"],
+)
+def test_malformed_layer_name_is_invalid_input_before_any_lookup(
+    tmp_path: Path, layer: str
+) -> None:
+    # A missing database must not matter: shape validation runs first.
+    response = _client(tmp_path / "missing.duckdb").get(f"/layers/{layer}")
+
+    assert response.status_code in (404, 422)
+    body = response.json()
+    assert body["status"] == "error"
+    assert body["data"] is None
+    if response.status_code == 422:
+        assert body["error"] == {
+            "code": "invalid_input",
+            "message": "Request parameters do not match the documented contract.",
+            "retryable": False,
+            "retry_after_s": None,
+            "details": {"field": "path.layer_name"},
+        }
+    else:
+        # ``a%2Fb`` decodes to two path segments and misses every route; it
+        # still gets the versioned envelope, never a raw {"detail": "Not Found"}.
+        assert layer == "a%2Fb"
+        assert body["error"]["code"] == "not_found"
+        assert body["error"]["message"] == "No route matches the request path."
+    assert body["meta"]["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_lines_is_documented_but_not_built(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get("/layers/lines")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+    assert response.json()["error"]["details"] == {
+        "artifact": "lines",
+        "reason": "not_built",
+    }
+
+
+def test_layers_root_is_an_enveloped_not_found(tmp_path: Path) -> None:
+    response = _client(tmp_path / "missing.duckdb").get("/layers/")
+
+    assert response.status_code == 404
+    body = response.json()
+    assert body["status"] == "error"
+    assert body["data"] is None
+    assert body["error"]["code"] == "not_found"
+    assert body["meta"]["request_id"] == response.headers["X-Request-ID"]

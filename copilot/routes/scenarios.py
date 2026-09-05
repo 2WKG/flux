@@ -25,6 +25,7 @@ from pydantic import BaseModel, ConfigDict
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from copilot.routes.contract import ScenarioId
 
 router = APIRouter(tags=["scenarios"])
 
@@ -241,7 +242,7 @@ def scenario_catalog(request: Request) -> list[ScenarioRow]:
 
 
 @router.get("/scenarios/{scenario_id}", response_model=ScenarioRow)
-def scenario_detail(request: Request, scenario_id: str) -> ScenarioRow:
+def scenario_detail(request: Request, scenario_id: ScenarioId) -> ScenarioRow:
     """Return one persisted scenario row, unwrapped."""
 
     settings: Settings = request.app.state.settings

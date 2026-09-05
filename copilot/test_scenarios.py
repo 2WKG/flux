@@ -258,6 +258,98 @@ def test_detail_reports_not_found_for_an_absent_scenario_row(tmp_path: Path) -> 
     assert response.json()["error"]["details"] == {"scenario_id": "unknown"}
 
 
+@pytest.mark.parametrize(
+    "scenario_id",
+    [
+        "invalid%20identifier",
+        "a" * 65,
+        "URI_2021",
+        "Uri_2021",
+        "-leading",
+        "_leading",
+        "a.b",
+        "%C3%BCri",
+        "a%00b",
+        "uri_2021%20",
+    ],
+)
+def test_detail_rejects_malformed_or_out_of_bounds_scenario_identifier(
+    tmp_path: Path, scenario_id: str
+) -> None:
+    # Validation runs before the database is touched: a missing file must not
+    # change the answer for a malformed id.
+    response = _client(tmp_path / "missing.duckdb").get(f"/scenarios/{scenario_id}")
+
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "code": "invalid_input",
+        "message": "Request parameters do not match the documented contract.",
+        "retryable": False,
+        "retry_after_s": None,
+        "details": {"field": "path.scenario_id"},
+    }
+    assert response.json()["meta"]["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_sixty_four_character_identifier_is_within_bounds(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get(f"/scenarios/{'a' * 64}")
+
+    assert response.status_code == 404  # well-formed, absent: the DB was consulted
+    assert response.json()["error"]["code"] == "not_found"
+
+
+@pytest.mark.parametrize(
+    "path", ["/scenarios/a%2Fb", "/scenarios/a/b", "/scenarios/.."]
+)
+def test_route_misses_get_the_shared_envelope_not_starlette_default(
+    tmp_path: Path, path: str
+) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get(path, headers={"X-Request-ID": "miss-1"})
+
+    assert response.status_code in (200, 404)
+    body = response.json()
+    if response.status_code == 404:
+        assert body == {
+            "status": "error",
+            "data": None,
+            "error": {
+                "code": "not_found",
+                "message": "No route matches the request path.",
+                "retryable": False,
+                "retry_after_s": None,
+                "details": {},
+            },
+            "meta": {
+                "api_version": "v1",
+                "request_id": "miss-1",
+                "generated_at": body["meta"]["generated_at"],
+            },
+        }
+        assert response.headers["X-Request-ID"] == "miss-1"
+    else:
+        # The HTTP client normalised ``..`` away before the request left it.
+        assert path == "/scenarios/.."
+        assert isinstance(body, list)
+
+
+def test_empty_scenario_segment_resolves_to_the_catalog_not_a_raw_404(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get("/scenarios/")
+
+    assert response.status_code == 200
+    assert isinstance(response.json(), list)
+
+
 def test_empty_scenarios_table_is_unavailable_not_an_empty_success(
     tmp_path: Path,
 ) -> None:
@@ -432,5 +524,7 @@ def test_scenario_lookup_is_parameterised(tmp_path: Path) -> None:
 
     response = _client(database).get("/scenarios/fixture_a'%20OR%20'1'='1")
 
-    assert response.status_code == 404
-    assert response.json()["error"]["code"] == "not_found"
+    # Rejected by shape validation before any lookup; the catalog is intact.
+    assert response.status_code == 422
+    assert response.json()["error"]["code"] == "invalid_input"
+    assert _client(database).get("/scenarios/fixture_a").status_code == 200
