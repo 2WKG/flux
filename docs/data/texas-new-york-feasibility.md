@@ -11,9 +11,8 @@ depends_on: "2WKG-137 (weather/overlays) and 2WKG-140 (demand history) — both 
 
 # Texas + New York — feasibility
 
-> **Scope order (2026-09-05):** the current order is **Minnesota → Texas → further states**.
-> This document was written when Texas was the first case; read any "Texas first" framing below
-> as historical.
+> **Scope order (2026-09-05):** Texas is the current critical path. Minnesota and New York are
+> optional next-wave candidates only after the complete Texas demo is frozen and rehearsed.
 
 **Status: undecided. New York is not cancelled.** This records the available evidence and open
 limitations for a later second-state decision, alongside
