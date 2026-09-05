@@ -23,6 +23,7 @@ from fastapi.responses import JSONResponse
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from copilot.routes.contract import BUILT_LAYERS, DOCUMENTED_LAYERS, LayerName
 
 router = APIRouter(prefix="/layers", tags=["layers"])
 
@@ -31,25 +32,6 @@ CRS_NAME: Final = "EPSG:4326"
 SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"
 _FIXTURE_PREFIX: Final = "fixture:"
 _ACTIVSG_MARKER: Final = "activsg"
-
-# The layer names documented by 05-copilot §Layers / 00-overview §4.2.
-DOCUMENTED_LAYERS: Final = frozenset(
-    {
-        "buses",
-        "lines",
-        "gens",
-        "counties",
-        "critical_loads",
-        "outage_risk",
-        "cascade",
-        "sites",
-        "line_upgrades",
-        "storm",
-        "national_hex",
-        "eaglei",
-    }
-)
-BUILT_LAYERS: Final = frozenset({"buses"})
 
 BUS_ATTRIBUTES: Final[dict[str, dict[str, str | None]]] = {
     "bus_id": {"unit": None, "kind": "identifier", "source": "buses.bus_id"},
@@ -214,9 +196,11 @@ def _buses_collection(rows: list[tuple[Any, ...]]) -> dict[str, Any]:
 
 
 @router.get("/{layer_name}")
-def get_layer(layer_name: str, request: Request) -> JSONResponse:
+def get_layer(layer_name: LayerName, request: Request) -> JSONResponse:
     """Return a bare GeoJSON layer or the shared named failure envelope."""
 
+    # Shape is validated by ``LayerName`` (422 invalid_input); this decides
+    # documented-vs-not and built-vs-not for a well-formed name.
     if layer_name not in DOCUMENTED_LAYERS:
         raise NotFoundError(
             f"Unknown map layer '{layer_name}'.", details={"layer": layer_name}

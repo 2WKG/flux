@@ -17,26 +17,17 @@ is never an empty success and never a 500.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Annotated, Final, Literal
+from typing import Final, Literal
 
 import duckdb
-from fastapi import APIRouter, Path, Request
+from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from copilot.routes.contract import ScenarioId
 
 router = APIRouter(tags=["scenarios"])
-
-ScenarioId = Annotated[
-    str,
-    Path(
-        min_length=1,
-        max_length=64,
-        pattern=r"^[a-z0-9][a-z0-9_-]*$",
-        description="Lowercase scenario identifier from the scenario catalog.",
-    ),
-]
 
 SCENARIO_KINDS: Final = ("historical", "forecast", "synthetic")
 SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"

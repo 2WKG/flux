@@ -16,6 +16,7 @@ from typing import ClassVar
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from copilot.api.envelope import (
     Failure,
@@ -107,7 +108,10 @@ class InternalError(ApiError):
     retryable = False
 
     def __init__(
-        self, message: str = INTERNAL_ERROR_MESSAGE, *, details: dict[str, str] | None = None
+        self,
+        message: str = INTERNAL_ERROR_MESSAGE,
+        *,
+        details: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message, details=details)
 
@@ -168,9 +172,32 @@ def install_error_handlers(app: FastAPI) -> FastAPI:
             request_id_of(request),
         )
 
+    @app.exception_handler(StarletteHTTPException)
+    async def _http_exception(
+        request: Request, exc: StarletteHTTPException
+    ) -> JSONResponse:
+        # Route misses (an unknown path, an encoded slash, an empty segment)
+        # and method mismatches are raised by Starlette itself, outside any
+        # route body.  They still get the versioned envelope, never the raw
+        # ``{"detail": "Not Found"}`` body.
+        request_id = request_id_of(request)
+        error: ApiError
+        if exc.status_code == 404:
+            error = NotFoundError("No route matches the request path.")
+        elif 400 <= exc.status_code < 500:
+            error = InvalidInputError(
+                "The request is not part of the documented contract.",
+                details={"http_status": str(exc.status_code)},
+            )
+        else:
+            error = internal_error_from(exc, request_id=request_id)
+        return failure_response(error, request_id)
+
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         request_id = request_id_of(request)
-        return failure_response(internal_error_from(exc, request_id=request_id), request_id)
+        return failure_response(
+            internal_error_from(exc, request_id=request_id), request_id
+        )
 
     return app
