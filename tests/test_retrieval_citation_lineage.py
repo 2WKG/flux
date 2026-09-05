@@ -39,7 +39,14 @@ def _assert_exact_lineage(result: RetrievalResult, chunk: CorpusChunk) -> None:
     assert result.date == chunk.version
     assert result.locator == f"page {chunk.page}; chunk {chunk.chunk_index}"
     assert result.excerpt == chunk.text
-    assert result.record()["chunk_id"] == chunk.chunk_id
+    record = result.record()
+    assert record["chunk_id"] == chunk.chunk_id
+    assert record["source"] == chunk.source_uri
+    assert record["title"] == chunk.title
+    assert record["version"] == chunk.version
+    assert record["date"] == chunk.version
+    assert record["locator"] == f"page {chunk.page}; chunk {chunk.chunk_index}"
+    assert record["excerpt"] == chunk.text
 
 
 def test_each_citation_is_traceable_to_the_exact_ranked_chunk() -> None:
