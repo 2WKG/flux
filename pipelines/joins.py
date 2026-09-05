@@ -12,23 +12,25 @@ def join_bus_county(con, fallback_km: float = 30.0) -> int:
     if counties.empty:
         raise ValueError("counties must load before bus-to-county assignment")
     county_geo = gpd.GeoDataFrame(
-        counties.drop(columns="geom_wkb"), geometry=gpd.GeoSeries.from_wkb(counties.geom_wkb.map(bytes)), crs=4326
+        counties[["county_fips"]].rename(columns={"county_fips": "_matched_county_fips"}),
+        geometry=gpd.GeoSeries.from_wkb(counties.geom_wkb.map(bytes)), crs=4326,
     )
     bus_geo = gpd.GeoDataFrame(buses, geometry=gpd.points_from_xy(buses.lon, buses.lat), crs=4326)
-    hit = gpd.sjoin(bus_geo, county_geo[["county_fips", "geometry"]], how="left", predicate="within")
+    # ``intersects`` includes a bus exactly on a county boundary; sorting below
+    # then gives that shared boundary a stable, documented FIPS tie-break.
+    hit = gpd.sjoin(bus_geo, county_geo[["_matched_county_fips", "geometry"]], how="left", predicate="intersects")
     # County polygons can share an edge or overlap in an input release.  Keep a
     # deterministic county when the containment join returns more than one row.
-    hit = hit.sort_values(["bus_id", "county_fips"], kind="stable").drop_duplicates("bus_id", keep="first")
-    unmatched = hit[hit.county_fips.isna()].drop(columns=["index_right"], errors="ignore")
+    hit = hit.sort_values(["bus_id", "_matched_county_fips"], kind="stable").drop_duplicates("bus_id", keep="first")
+    unmatched = hit.loc[hit._matched_county_fips.isna(), ["bus_id", "geometry"]]
     if not unmatched.empty:
-        nearest = gpd.sjoin_nearest(unmatched.to_crs(3083), county_geo[["county_fips", "geometry"]].to_crs(3083),
+        nearest = gpd.sjoin_nearest(unmatched.to_crs(3083), county_geo[["_matched_county_fips", "geometry"]].to_crs(3083),
                                     how="left", max_distance=fallback_km * 1000, distance_col="fallback_m")
-        nearest_county_column = "county_fips_right" if "county_fips_right" in nearest else "county_fips"
-        nearest = nearest.sort_values(["bus_id", "fallback_m", nearest_county_column], kind="stable")
+        nearest = nearest.sort_values(["bus_id", "fallback_m", "_matched_county_fips"], kind="stable")
         nearest = nearest.drop_duplicates("bus_id", keep="first")
-        nearest_county = nearest.set_index("bus_id")[nearest_county_column]
-        hit["county_fips"] = hit["county_fips"].fillna(hit["bus_id"].map(nearest_county))
-    result = hit[["bus_id", "county_fips"]]
+        nearest_county = nearest.set_index("bus_id")._matched_county_fips
+        hit["_matched_county_fips"] = hit["_matched_county_fips"].fillna(hit["bus_id"].map(nearest_county))
+    result = hit[["bus_id", "_matched_county_fips"]].rename(columns={"_matched_county_fips": "county_fips"})
     con.register("_bus_county", result)
     try:
         con.execute("UPDATE buses AS b SET county_fips = m.county_fips FROM _bus_county AS m WHERE b.bus_id = m.bus_id")
