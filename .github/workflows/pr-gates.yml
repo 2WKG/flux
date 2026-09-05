@@ -1,0 +1,237 @@
+# Required merge gates. One job per gate so each can be a named required status
+# check in the master ruleset (see docs/runbooks/merge-gates.md).
+name: pr-gates
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-gates-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  BASE_BRANCH: master
+
+jobs:
+  up-to-date:
+    name: gate/up-to-date
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The PR head itself, not GitHub's synthetic merge commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Measure distance from master and probe for conflicts
+        env:
+          MAX_BEHIND: "20"
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "merge_group already carries master; nothing to measure"; exit 0
+          fi
+          git fetch --no-tags origin "$BASE_BRANCH"
+          behind=$(git rev-list --count "HEAD..origin/$BASE_BRANCH")
+          echo "commits behind origin/$BASE_BRANCH: $behind (limit $MAX_BEHIND)"
+          if [ "$behind" -gt "$MAX_BEHIND" ]; then
+            echo "::error::branch is $behind commits behind $BASE_BRANCH (limit $MAX_BEHIND): rebase or merge master"
+            exit 1
+          fi
+          # merge-tree exits 1 (and prints the conflicted paths) when the two tips conflict.
+          if ! out=$(git merge-tree --write-tree --name-only HEAD "origin/$BASE_BRANCH" 2>&1); then
+            printf '%s\n' "$out"
+            echo "::error::merging origin/$BASE_BRANCH into this branch conflicts: rebase or merge master and resolve"
+            exit 1
+          fi
+          echo "clean merge with origin/$BASE_BRANCH"
+
+  stack-base:
+    name: gate/stack-base
+    runs-on: ubuntu-latest
+    steps:
+      - name: Base branch must be master or the head of an open PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.base_ref }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ "$BASE_REF" = "$BASE_BRANCH" ]; then
+            echo "base is $BASE_BRANCH: not stacked"; exit 0
+          fi
+          json=$(gh pr list -R "$REPO" --state open --head "$BASE_REF" --json number,url,statusCheckRollup --limit 5)
+          number=$(printf '%s' "$json" | jq -r '.[0].number // empty')
+          if [ -z "$number" ]; then
+            echo "::error::base branch '$BASE_REF' has no open PR. This stack is orphaned: retarget the PR at $BASE_BRANCH or reopen the base PR"
+            exit 1
+          fi
+          echo "stacked on open PR #$number ($(printf '%s' "$json" | jq -r '.[0].url'))"
+          not_green=$(printf '%s' "$json" | jq -r '[.[0].statusCheckRollup[]? | select((.conclusion // .state) != "SUCCESS" and (.conclusion // .state) != "NEUTRAL" and (.conclusion // .state) != "SKIPPED")] | length')
+          if [ "$not_green" != "0" ]; then
+            echo "::warning::base PR #$number has $not_green check(s) that are not green; this PR cannot merge before its base does"
+          fi
+      - name: merge_group
+        if: github.event_name == 'merge_group'
+        run: echo "merge_group targets $BASE_BRANCH by construction"
+
+  ruff:
+    name: gate/ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - name: Lint and format-check the Python files this PR touches
+        # master itself is not ruff-clean, so the gate is scoped to changed files.
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "$BASE_BRANCH"
+          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_BRANCH...HEAD" -- '*.py')
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "no Python files changed relative to $BASE_BRANCH"; exit 0
+          fi
+          printf 'checking %d file(s):\n' "${#files[@]}"; printf '  %s\n' "${files[@]}"
+          uv sync --frozen --extra dev
+          uv run --extra dev ruff check "${files[@]}"
+          uv run --extra dev ruff format --check "${files[@]}"
+
+  pytest:
+    name: gate/pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - name: Full suite (includes the wire-coverage plugin from tests/conftest.py)
+        run: |
+          set -euo pipefail
+          uv sync --frozen --extra dev
+          uv run --extra dev pytest -q
+
+  web:
+    name: gate/web
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Did web/ change?
+        id: changed
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git fetch --no-tags origin "$BASE_BRANCH"
+          if git diff --quiet "origin/$BASE_BRANCH...HEAD" -- web/; then
+            echo "web/ unchanged; skipping"; echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.changed.outputs.changed == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: npm ci, typecheck, build, node --test
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: web
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run typecheck
+          npm run build
+          mapfile -t tests < <(find src -name '*.test.mjs' -type f | sort)
+          if [ "${#tests[@]}" -eq 0 ]; then
+            echo "no web/src/**/*.test.mjs files; nothing to run"
+          else
+            node --test "${tests[@]}"
+          fi
+
+  contract-drift:
+    name: gate/contract-drift
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - name: Regenerate web/src/contracts and require no diff
+        run: |
+          set -euo pipefail
+          uv sync --frozen --extra dev
+          uv run --extra dev python scripts/ci/export_tool_contracts.py
+          if ! git diff --exit-code -- web/src/contracts/ || [ -n "$(git status --porcelain -- web/src/contracts/)" ]; then
+            git status --porcelain -- web/src/contracts/
+            echo "::error::web/src/contracts/ is out of date: regenerate with \`uv run --extra dev python scripts/ci/export_tool_contracts.py\` and commit"
+            exit 1
+          fi
+          echo "generated contracts match copilot/tools/schemas.py"
+
+  spec-authority:
+    name: gate/spec-authority
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Frozen contract files require a spec amendment in the same PR
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "merge_group" ]; then exit 0; fi
+          git fetch --no-tags origin "$BASE_BRANCH"
+          changed=$(git diff --name-only "origin/$BASE_BRANCH...HEAD")
+          frozen="copilot/tools/schemas.py copilot/api/envelope.py copilot/api/errors.py pipelines/db.py"
+          specs="docs/specs/00-overview.md docs/specs/05-copilot.md docs/specs/10-duckdb-contract.md"
+          touched=""
+          for f in $frozen; do
+            if printf '%s\n' "$changed" | grep -qx "$f"; then touched="$touched $f"; fi
+          done
+          if [ -z "$touched" ]; then echo "no frozen contract file changed"; exit 0; fi
+          for s in $specs; do
+            if printf '%s\n' "$changed" | grep -qx "$s"; then
+              echo "frozen file(s)$touched changed together with $s"; exit 0
+            fi
+          done
+          echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables) in this PR."
+          exit 1
+
+  linear-key:
+    name: gate/linear-key
+    runs-on: ubuntu-latest
+    steps:
+      - name: Branch or title carries a 2wkg-NNN key, or the PR opts out
+        if: github.event_name == 'pull_request'
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+        run: |
+          set -euo pipefail
+          if printf '%s\n%s\n' "$HEAD_REF" "$PR_TITLE" | grep -qiE '2wkg-[0-9]+'; then
+            echo "Linear key found in branch or title"; exit 0
+          fi
+          if printf '%s' "$PR_LABELS" | tr ',' '\n' | grep -qx 'no-linear'; then
+            echo "label no-linear present"; exit 0
+          fi
+          if printf '%s\n' "$PR_BODY" | grep -qiE '^\s*Linear:\s*none\b'; then
+            echo "PR body declares 'Linear: none'"; exit 0
+          fi
+          echo "::error::no Linear key. Put 2wkg-NNN in the branch name or PR title, or add the label 'no-linear', or a body line 'Linear: none (reason)'"
+          exit 1
+      - name: merge_group
+        if: github.event_name == 'merge_group'
+        run: echo "checked on the pull_request event"
