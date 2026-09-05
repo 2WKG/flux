@@ -2,7 +2,7 @@
 
 `causal-evidence-artifact.schema.json` is the versioned contract for every causal response. Its default is fail closed: an effect may be exposed only by the `estimable_study` + `available` branch, which requires a labeled question, source versions and coverage, sample, covariates, assumptions, diagnostics, citations, estimate evidence, interval, and caveats.
 
-`interface_fixture` is deliberately not an estimate. It must carry `FIXTURE_NOT_ESTIMABLE`, cannot contain `estimate`, and may demonstrate response rendering only. No unlabeled treatment, outcome, covariate, or source can satisfy the schema: each has its own definition and provenance fields.
+`interface_fixture` is deliberately not an estimate. It is a minimal identity/classification/availability record: it must carry `FIXTURE_NOT_ESTIMABLE`, omits study evidence fields, cannot contain `estimate` or claim availability, and may demonstrate response rendering only. No unlabeled treatment, outcome, covariate, or source can satisfy the schema: each has its own definition and provenance fields.
 
 ## Sufficiency decision table
 
