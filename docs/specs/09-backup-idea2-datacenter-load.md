@@ -1,5 +1,7 @@
 # 09 — Backup: Speed-to-Power (large-load verification + grid headroom ranking)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: **backup** (pitch v2 "Idea 2"). Not on the weekend critical path. Built only if (a) the judges
 signal they want something narrower/nearer-term, (b) the format allows two entries, or (c) the Idea 1
 (Flux) critical path is green by Day 2 noon and a pair is free. The deck for this pitch (≥ 6 slides)

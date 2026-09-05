@@ -10,6 +10,10 @@ depends_on: "2WKG-137 (weather/overlays) and 2WKG-140 (demand history) — both 
 
 # Texas + New York — feasibility
 
+> **Stale scope (2026-09-05).** Written when Texas was the first case. The current order is
+> **Minnesota → Texas → further states**. The verified inventory and the AC-OPF relaxation findings
+> below still hold; the framing of Texas as "the first case" does not.
+
 ## Verdict: **Texas-only. Do not add New York as a second simulated grid.**
 
 The issue asks for New York "only if data/scenario feasibility supports it." It does not.
