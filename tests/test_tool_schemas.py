@@ -7,6 +7,8 @@ from copilot.tools.schemas import (
     TOOL_REGISTRY,
     TOOL_SCHEMAS,
     ArtifactRef,
+    CascadeData,
+    CausalData,
     CiteData,
     PredictOutageData,
     PredictOutageInput,
@@ -88,6 +90,20 @@ def test_representative_unavailable_output_keeps_provenance() -> None:
     assert result.provenance[0].artifact_id == "outage_predictions"
 
 
+def test_real_tool_contract_accepts_its_unavailable_output() -> None:
+    result = unavailable_output("artifact_unavailable", "fixture prediction artifact is absent")
+    definition = next(tool for tool in TOOL_REGISTRY if tool.name == "predict_outage")
+
+    validated = []
+    for model in definition.output_model:
+        try:
+            validated.append(model.model_validate(result.model_dump()))
+        except ValidationError:
+            pass
+
+    assert any(output.status == "unavailable" for output in validated)
+
+
 def test_unavailable_status_cannot_omit_its_reason() -> None:
     with pytest.raises(ValidationError):
         ToolOutput(status="unavailable")
@@ -162,6 +178,87 @@ def test_consumer_shaped_cite_response_validates() -> None:
     assert response.hits[0].doc == "10cfr100"
 
 
+def test_tool_output_has_no_unused_citation_channel() -> None:
+    result = unavailable_output("artifact_unavailable", "fixture is absent")
+
+    assert "citations" not in ToolOutput.model_fields
+    assert "citations" not in result.model_dump()
+
+
+def test_cascade_output_accepts_persisted_tripped_element_shape() -> None:
+    response = CascadeData(
+        status="available",
+        provenance=[
+            ArtifactRef(
+                artifact_id="cascade_runs",
+                artifact_version="fixture-v1",
+                source_kind="simulated",
+                source_ref="data/duck/grid.duckdb",
+            )
+        ],
+        run_id="cascade-1",
+        scenario_id="uri_2021",
+        hour=1,
+        tripped_element_ids=[
+            {"element_id": "L1", "kind": "line", "stage": 1, "cause": "weather"}
+        ],
+        lost_load_mw=0.0,
+        counties_dark=[],
+        critical_loads_lost=[],
+        steps=1,
+    )
+
+    assert response.tripped_element_ids[0].cause == "weather"
+
+
+def test_cascade_output_rejects_unknown_tripped_element_kind() -> None:
+    with pytest.raises(ValidationError):
+        CascadeData(
+            status="available",
+            provenance=[
+                ArtifactRef(
+                    artifact_id="cascade_runs",
+                    artifact_version="fixture-v1",
+                    source_kind="simulated",
+                    source_ref="data/duck/grid.duckdb",
+                )
+            ],
+            run_id="cascade-1",
+            scenario_id="uri_2021",
+            hour=1,
+            tripped_element_ids=[
+                {"element_id": "L1", "kind": "switch", "stage": 1, "cause": "weather"}
+            ],
+            lost_load_mw=0.0,
+            counties_dark=[],
+            critical_loads_lost=[],
+            steps=1,
+        )
+
+
+def test_causal_interval_round_trips_as_a_json_list() -> None:
+    response = CausalData(
+        status="available",
+        provenance=[
+            ArtifactRef(
+                artifact_id="causal_results",
+                artifact_version="fixture-v1",
+                source_kind="fixture",
+                source_ref="data/duck/grid.duckdb",
+            )
+        ],
+        answer_numbers={},
+        method="fixture",
+        assumptions=[],
+        interval=[0.1, 0.9],
+        evidence_rows=[],
+    )
+
+    assert response.interval == [0.1, 0.9]
+    with pytest.raises(ValidationError):
+        response.model_validate({**response.model_dump(), "interval": [0.1]})
+
+
 def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
     expected = {
         "predict_outage": {"county_fips", "county_name", "scenario_id", "horizon_h", "peak_p_out", "peak_ts", "customers_at_risk", "driver", "series"},
@@ -175,6 +272,6 @@ def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
         "causal_query": {"answer_numbers", "method", "assumptions", "interval", "evidence_rows"},
     }
     for definition in TOOL_REGISTRY:
-        fields = definition.output_model.model_fields
+        fields = definition.output_model[0].model_fields
         assert expected[definition.name] <= set(fields)
         assert "data" not in fields
