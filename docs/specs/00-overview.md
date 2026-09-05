@@ -1,8 +1,9 @@
 # 00 — Overview: Flux — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
-Source pitch: `hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas"; identical copy at
-`docs/pitch/hackathon-pitches-and-designs.md`).
+Source pitch: `docs/pitch/hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas").
 Every other spec in this directory conforms to the shared contract restated here. If a downstream
 spec disagrees with this file on a table name, column name, tool signature, or scenario ID, this
 file wins and the downstream spec is wrong.
@@ -432,6 +433,12 @@ These are decisions, not proposals. Every spec is read as if these were in its c
 - **A5 — additive copilot surface accepted:** routes `POST /predict`, `GET /health`; layer names `eaglei`, `storm`, `national_hex`; `score_site` return adds `critical_loads_protected` and `regulatory_path`. The six tool signatures in the contract are unchanged.
 - **A6 — `tripped_element_ids_json` entries are objects** `{element_id, stage, cause}`, not bare strings (spec 03); every consumer (05, 06) parses them as objects.
 - **A7 — cascade solver default (rewritten after the 03/04 fact-check, `docs/specs/verification/03-04.md`):** pandapower `rundcpp` is the default and the only solver in scope, run hourly with **no stride** (spec 03). Measured: warm `pp.rundcpp` is 9–14 ms per solve, so a 168-hour `uri_2021` replay is ~6–12 s with plain pandapower. Budgets unchanged: 120 s per scenario, 10 s per copilot `run_cascade` call. lightsim2grid is **stretch-only and currently incompatible**: `init_from_pandapower` raises "Unsupported element (Impedance)" on this case (847 branches import as `net.impedance`); `solver="lightsim"` raises `NotImplementedError` until that is fixed.
+- **A9 — storage engine is DuckDB (closes the open `[DECISION]`).** `data/duck/grid.duckdb` is the
+  contract store. Postgres/PostGIS is not adopted. This records a decision already made in code:
+  `pipelines/db.py` ships DuckDB at `SCHEMA_VERSION 1.0.0` with the 19 contract tables, FK
+  constraints and per-table provenance columns. The Parquet mirrors under `data/parquet/` remain the
+  demo-day hand-off. `docs/plans/data-collection-and-curation-plan.md` §2 asked for this to be an
+  amendment before any lane depended on it; the dependency landed first, so it is recorded here.
 - **A8 — product name Flux, tool-name mapping, and two new contract tools (from the prior product briefing).**
   - **Name.** The product is **Flux**. Use it in titles, decks, the copilot identity line, and prose wherever the project is named. The repository, package paths, and DuckDB file stay `flux` / as in §2.1.
   - **Tool-name mapping.** The description's copilot tool list uses different names and argument shapes from this contract. The contract names below are the ones implemented; the description names are aliases in prose only, never in code.
