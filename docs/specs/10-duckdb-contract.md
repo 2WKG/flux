@@ -1,6 +1,6 @@
 # 10 — DuckDB fixture contract
 
-**Contract version:** `1.0.0`  
+**Contract version:** `2.0.0`
 **Status:** canonical concrete DDL for the next-wave fixture database  
 **Implementation:** `pipelines/db.py`  
 **Database:** `data/duck/grid.duckdb`
@@ -79,8 +79,8 @@ the canonical DDL adds the exact checks and foreign keys.
 | `outage_predictions` | scenario/county/time | `scenario_id TEXT`, `county_fips TEXT`, `ts TIMESTAMP`, `p_out DOUBLE`, `customers_at_risk BIGINT`, `driver TEXT` | — |
 | `cascade_runs` | run/hour | `run_id TEXT`, `scenario_id TEXT`, `hour INTEGER`, `tripped_element_ids_json JSON`, `lost_load_mw DOUBLE`, `counties_dark_json JSON`, `critical_loads_lost_json JSON`, `counterfactual_site_id BIGINT` | counterfactual site on baseline |
 | `site_scores` | site/scenario/unit | `site_id BIGINT`, `scenario_id TEXT`, `unit_mw DOUBLE`, `safety_score DOUBLE`, `safety_flags_json JSON`, `grid_value_score DOUBLE`, `lol_reduction_mwh DOUBLE`, `congestion_relief_pct DOUBLE`, `blackstart_reach_mw DOUBLE` | four grid-value fields |
-| `line_upgrade_scores` | `line_id` | `line_id BIGINT`, `congestion_usd_yr DOUBLE`, `dlr_uplift_mw DOUBLE`, `reconductor_uplift_mw DOUBLE`, `dlr_cost_usd DOUBLE`, `reconductor_cost_usd DOUBLE`, `mw_per_musd DOUBLE`, `ferc_screen_pass BOOLEAN`, `spark_eligible BOOLEAN` | source-dependent scores/flags |
-| `line_upgrade_detail` | `line_id` | `line_id BIGINT`, `owner TEXT`, `conductor_material TEXT`, `conductor_kcmil DOUBLE`, `static_rating_mw DOUBLE`, `aar_rating_mw DOUBLE`, `dlr_p50_mw DOUBLE`, `dlr_hours_above_static INTEGER`, `best_tech TEXT`, `payback_yr DOUBLE`, `congestion_method TEXT`, `region TEXT` | owner/conductor/detail, best tech/payback |
+| `line_upgrade_scores` | `line_id, scenario_id` | `line_id BIGINT`, `scenario_id TEXT`, `congestion_usd_yr DOUBLE`, `dlr_uplift_mw DOUBLE`, `reconductor_uplift_mw DOUBLE`, `dlr_cost_usd DOUBLE`, `reconductor_cost_usd DOUBLE`, `mw_per_musd DOUBLE`, `ferc_screen_pass BOOLEAN`, `spark_eligible BOOLEAN`, `ranking_version TEXT`, `contract_version TEXT`, `computed_at TIMESTAMP`, `simulation_run_id TEXT?`, `grid_input_sha256 TEXT`, `weather_input_sha256 TEXT?`, `cost_params_sha256 TEXT` | source-dependent scores/flags; scenario-ranking index |
+| `line_upgrade_detail` | `line_id, scenario_id` | `line_id BIGINT`, `scenario_id TEXT`, `owner TEXT`, `conductor_material TEXT`, `conductor_kcmil DOUBLE`, `static_rating_mw DOUBLE`, `aar_rating_mw DOUBLE`, `dlr_p50_mw DOUBLE`, `dlr_hours_above_static INTEGER`, `best_tech TEXT`, `payback_yr DOUBLE`, `congestion_method TEXT`, `region TEXT`, `ranking_version TEXT`, `contract_version TEXT`, `computed_at TIMESTAMP`, `simulation_run_id TEXT?`, `grid_input_sha256 TEXT`, `weather_input_sha256 TEXT?`, `cost_params_sha256 TEXT` | owner/conductor/detail, best tech/payback |
 | `corpus_chunks` | `chunk_id`; doc/page/ordinal | `chunk_id TEXT`, `doc TEXT`, `title TEXT`, `page INTEGER`, `chunk_ordinal INTEGER`, `text TEXT`, `embedding FLOAT[1024]` | embedding only |
 
 ## Semantics that are easy to get wrong
@@ -101,6 +101,13 @@ the canonical DDL adds the exact checks and foreign keys.
 - `line_upgrade_detail.congestion_method='twin_proxy'` must not be presented as
   an RTO shadow-price result. `embedding=NULL` means BM25-only retrieval, never
   a zero vector.
+- Each line-upgrade artifact is identified by `(line_id, scenario_id)`. The
+  scenario may name a historical/forecast scenario or an explicitly declared
+  aggregate period. `run_id` is recorded only by the simulated-congestion
+  contract variant as nullable `simulation_run_id`; observed and proxy inputs
+  persist `NULL` and must not imply a Flux run.
+  `ranking_version`, `contract_version`, `computed_at`, and the three declared
+  input hashes make the persisted score and detail rows reproducible.
 
 ## Verification
 

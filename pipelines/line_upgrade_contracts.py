@@ -302,6 +302,12 @@ class ScoredLine(Frozen):
         # assumed-price proxy; neither may claim an exact/fuzzy market mapping.
         return "twin_proxy"
 
+    def _simulation_run_id(self) -> str | None:
+        """Persist a run identifier only for an actually simulated input."""
+        if isinstance(self.congestion, SimulatedCongestion):
+            return self.congestion.run_id
+        return None
+
     def to_score_row(self, storage: StorageProvenance) -> dict[str, object]:
         """Return a complete `line_upgrade_scores` row for `pipelines.db`."""
         dlr = self._intervention(InterventionType.DLR)
@@ -313,6 +319,7 @@ class ScoredLine(Frozen):
         )
         return {
             "line_id": self.key.line_id,
+            "scenario_id": self.key.scenario_id,
             "congestion_usd_yr": congestion_usd_yr,
             "dlr_uplift_mw": dlr.uplift_mw
             if isinstance(dlr, DlrIntervention)
@@ -331,6 +338,8 @@ class ScoredLine(Frozen):
             "mw_per_musd": self.mw_per_musd,
             "ferc_screen_pass": self.ferc_screen_pass,
             "spark_eligible": self.spark_eligible,
+            **self.provenance.model_dump(),
+            "simulation_run_id": self._simulation_run_id(),
             **storage.model_dump(),
         }
 
@@ -340,6 +349,7 @@ class ScoredLine(Frozen):
         reconductor = self._intervention(InterventionType.RECONDUCTOR)
         return {
             "line_id": self.key.line_id,
+            "scenario_id": self.key.scenario_id,
             "owner": self.owner,
             "conductor_material": (
                 reconductor.conductor_material
@@ -365,6 +375,8 @@ class ScoredLine(Frozen):
             "payback_yr": self.payback_yr,
             "congestion_method": self._congestion_method(),
             "region": self.key.region,
+            **self.provenance.model_dump(),
+            "simulation_run_id": self._simulation_run_id(),
             **storage.model_dump(),
         }
 

@@ -6,13 +6,26 @@ from pathlib import Path
 
 import duckdb
 
-
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.0.0"
 CONTRACT_TABLES = (
-    "buses", "lines", "gens", "loads", "counties", "critical_loads",
-    "eaglei_outages", "weather_hourly", "storm_events", "hazard_static",
-    "ba_load_hourly", "site_candidates", "scenarios", "outage_predictions",
-    "cascade_runs", "site_scores", "line_upgrade_scores", "line_upgrade_detail",
+    "buses",
+    "lines",
+    "gens",
+    "loads",
+    "counties",
+    "critical_loads",
+    "eaglei_outages",
+    "weather_hourly",
+    "storm_events",
+    "hazard_static",
+    "ba_load_hourly",
+    "site_candidates",
+    "scenarios",
+    "outage_predictions",
+    "cascade_runs",
+    "site_scores",
+    "line_upgrade_scores",
+    "line_upgrade_detail",
     "corpus_chunks",
 )
 
@@ -24,6 +37,19 @@ PROVENANCE_COLUMNS = """
     source_version TEXT,
     source_retrieved_at TIMESTAMP,
     fixture_batch_id TEXT NOT NULL
+"""
+
+# These fields are the typed line-upgrade calculation contract, separate from
+# the fixture-source provenance above.  They make an artifact reproducible
+# without reclassifying an observed or proxy congestion input as a twin run.
+LINE_UPGRADE_CONTRACT_COLUMNS = """
+    ranking_version TEXT NOT NULL,
+    contract_version TEXT NOT NULL,
+    computed_at TIMESTAMP NOT NULL,
+    simulation_run_id TEXT,
+    grid_input_sha256 TEXT NOT NULL CHECK (regexp_full_match(grid_input_sha256, '[0-9a-f]{64}')),
+    weather_input_sha256 TEXT CHECK (weather_input_sha256 IS NULL OR regexp_full_match(weather_input_sha256, '[0-9a-f]{64}')),
+    cost_params_sha256 TEXT NOT NULL CHECK (regexp_full_match(cost_params_sha256, '[0-9a-f]{64}'))
 """
 
 SCHEMA_STATEMENTS = (
@@ -107,17 +133,23 @@ SCHEMA_STATEMENTS = (
         congestion_relief_pct DOUBLE, blackstart_reach_mw DOUBLE, {PROVENANCE_COLUMNS},
         PRIMARY KEY (site_id, scenario_id, unit_mw))""",
     f"""CREATE TABLE IF NOT EXISTS line_upgrade_scores (
-        line_id BIGINT PRIMARY KEY REFERENCES lines(line_id), congestion_usd_yr DOUBLE,
+        line_id BIGINT NOT NULL REFERENCES lines(line_id), scenario_id TEXT NOT NULL,
+        congestion_usd_yr DOUBLE,
         dlr_uplift_mw DOUBLE, reconductor_uplift_mw DOUBLE, dlr_cost_usd DOUBLE,
         reconductor_cost_usd DOUBLE, mw_per_musd DOUBLE, ferc_screen_pass BOOLEAN,
-        spark_eligible BOOLEAN, {PROVENANCE_COLUMNS})""",
+        spark_eligible BOOLEAN, {LINE_UPGRADE_CONTRACT_COLUMNS}, {PROVENANCE_COLUMNS},
+        PRIMARY KEY (line_id, scenario_id))""",
     f"""CREATE TABLE IF NOT EXISTS line_upgrade_detail (
-        line_id BIGINT PRIMARY KEY REFERENCES lines(line_id), owner TEXT, conductor_material TEXT,
+        line_id BIGINT NOT NULL REFERENCES lines(line_id), scenario_id TEXT NOT NULL,
+        owner TEXT, conductor_material TEXT,
         conductor_kcmil DOUBLE, static_rating_mw DOUBLE NOT NULL CHECK (static_rating_mw >= 0),
         aar_rating_mw DOUBLE, dlr_p50_mw DOUBLE, dlr_hours_above_static INTEGER,
         best_tech TEXT CHECK (best_tech IN ('dlr', 'reconductor')), payback_yr DOUBLE,
         congestion_method TEXT NOT NULL CHECK (congestion_method IN ('exact', 'fuzzy', 'twin_proxy', 'unmapped')),
-        region TEXT NOT NULL, {PROVENANCE_COLUMNS})""",
+        region TEXT NOT NULL, {LINE_UPGRADE_CONTRACT_COLUMNS}, {PROVENANCE_COLUMNS},
+        PRIMARY KEY (line_id, scenario_id))""",
+    """CREATE INDEX IF NOT EXISTS line_upgrade_scores_scenario_rank
+        ON line_upgrade_scores (scenario_id, mw_per_musd, line_id)""",
     f"""CREATE TABLE IF NOT EXISTS corpus_chunks (
         chunk_id TEXT PRIMARY KEY, doc TEXT NOT NULL, title TEXT NOT NULL,
         page INTEGER NOT NULL CHECK (page > 0), chunk_ordinal INTEGER NOT NULL CHECK (chunk_ordinal >= 0),
@@ -125,29 +157,159 @@ SCHEMA_STATEMENTS = (
 )
 
 TABLE_COLUMNS = {
-    "buses": ("bus_id", "name", "base_kv", "lon", "lat", "county_fips", "ba_code", "coord_source", "zone", "area"),
-    "lines": ("line_id", "from_bus", "to_bus", "circuit", "base_kv", "r_pu", "x_pu", "rate_a_mw", "length_km", "geom_wkb", "is_transformer"),
+    "buses": (
+        "bus_id",
+        "name",
+        "base_kv",
+        "lon",
+        "lat",
+        "county_fips",
+        "ba_code",
+        "coord_source",
+        "zone",
+        "area",
+    ),
+    "lines": (
+        "line_id",
+        "from_bus",
+        "to_bus",
+        "circuit",
+        "base_kv",
+        "r_pu",
+        "x_pu",
+        "rate_a_mw",
+        "length_km",
+        "geom_wkb",
+        "is_transformer",
+    ),
     "gens": ("gen_id", "bus_id", "fuel", "pmax_mw", "eia_plant_id", "source_unit_id"),
-    "loads": ("load_id", "bus_id", "p_mw_nominal"), "counties": ("county_fips", "name", "state", "pop", "geom_wkb"),
+    "loads": ("load_id", "bus_id", "p_mw_nominal"),
+    "counties": ("county_fips", "name", "state", "pop", "geom_wkb"),
     "critical_loads": ("cl_id", "kind", "name", "lon", "lat", "bus_id", "county_fips"),
     "eaglei_outages": ("county_fips", "ts", "customers_out"),
-    "weather_hourly": ("county_fips", "ts", "wind_ms", "gust_ms", "temp_c", "ice_mm", "precip_mm"),
-    "storm_events": ("event_id", "county_fips", "ts_begin", "ts_end", "type", "magnitude"),
+    "weather_hourly": (
+        "county_fips",
+        "ts",
+        "wind_ms",
+        "gust_ms",
+        "temp_c",
+        "ice_mm",
+        "precip_mm",
+    ),
+    "storm_events": (
+        "event_id",
+        "county_fips",
+        "ts_begin",
+        "ts_end",
+        "type",
+        "magnitude",
+    ),
     "hazard_static": ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga"),
     "ba_load_hourly": ("ba_code", "ts", "demand_mw"),
-    "site_candidates": ("site_id", "name", "kind", "lon", "lat", "county_fips", "bus_id", "capacity_slot_mw", "source_site_id"),
+    "site_candidates": (
+        "site_id",
+        "name",
+        "kind",
+        "lon",
+        "lat",
+        "county_fips",
+        "bus_id",
+        "capacity_slot_mw",
+        "source_site_id",
+    ),
     "scenarios": ("scenario_id", "name", "kind", "ts_start", "ts_end"),
-    "outage_predictions": ("scenario_id", "county_fips", "ts", "p_out", "customers_at_risk", "driver"),
-    "cascade_runs": ("run_id", "scenario_id", "hour", "tripped_element_ids_json", "lost_load_mw", "counties_dark_json", "critical_loads_lost_json", "counterfactual_site_id"),
-    "site_scores": ("site_id", "scenario_id", "unit_mw", "safety_score", "safety_flags_json", "grid_value_score", "lol_reduction_mwh", "congestion_relief_pct", "blackstart_reach_mw"),
-    "line_upgrade_scores": ("line_id", "congestion_usd_yr", "dlr_uplift_mw", "reconductor_uplift_mw", "dlr_cost_usd", "reconductor_cost_usd", "mw_per_musd", "ferc_screen_pass", "spark_eligible"),
-    "line_upgrade_detail": ("line_id", "owner", "conductor_material", "conductor_kcmil", "static_rating_mw", "aar_rating_mw", "dlr_p50_mw", "dlr_hours_above_static", "best_tech", "payback_yr", "congestion_method", "region"),
-    "corpus_chunks": ("chunk_id", "doc", "title", "page", "chunk_ordinal", "text", "embedding"),
+    "outage_predictions": (
+        "scenario_id",
+        "county_fips",
+        "ts",
+        "p_out",
+        "customers_at_risk",
+        "driver",
+    ),
+    "cascade_runs": (
+        "run_id",
+        "scenario_id",
+        "hour",
+        "tripped_element_ids_json",
+        "lost_load_mw",
+        "counties_dark_json",
+        "critical_loads_lost_json",
+        "counterfactual_site_id",
+    ),
+    "site_scores": (
+        "site_id",
+        "scenario_id",
+        "unit_mw",
+        "safety_score",
+        "safety_flags_json",
+        "grid_value_score",
+        "lol_reduction_mwh",
+        "congestion_relief_pct",
+        "blackstart_reach_mw",
+    ),
+    "line_upgrade_scores": (
+        "line_id",
+        "scenario_id",
+        "congestion_usd_yr",
+        "dlr_uplift_mw",
+        "reconductor_uplift_mw",
+        "dlr_cost_usd",
+        "reconductor_cost_usd",
+        "mw_per_musd",
+        "ferc_screen_pass",
+        "spark_eligible",
+        "ranking_version",
+        "contract_version",
+        "computed_at",
+        "simulation_run_id",
+        "grid_input_sha256",
+        "weather_input_sha256",
+        "cost_params_sha256",
+    ),
+    "line_upgrade_detail": (
+        "line_id",
+        "scenario_id",
+        "owner",
+        "conductor_material",
+        "conductor_kcmil",
+        "static_rating_mw",
+        "aar_rating_mw",
+        "dlr_p50_mw",
+        "dlr_hours_above_static",
+        "best_tech",
+        "payback_yr",
+        "congestion_method",
+        "region",
+        "ranking_version",
+        "contract_version",
+        "computed_at",
+        "simulation_run_id",
+        "grid_input_sha256",
+        "weather_input_sha256",
+        "cost_params_sha256",
+    ),
+    "corpus_chunks": (
+        "chunk_id",
+        "doc",
+        "title",
+        "page",
+        "chunk_ordinal",
+        "text",
+        "embedding",
+    ),
 }
-PROVENANCE_COLUMN_NAMES = ("source_name", "source_ref", "source_version", "source_retrieved_at", "fixture_batch_id")
+PROVENANCE_COLUMN_NAMES = (
+    "source_name",
+    "source_ref",
+    "source_version",
+    "source_retrieved_at",
+    "fixture_batch_id",
+)
 
 
-def connect(path: str | Path = "data/duck/grid.duckdb", *, read_only: bool = False) -> duckdb.DuckDBPyConnection:
+def connect(
+    path: str | Path = "data/duck/grid.duckdb", *, read_only: bool = False
+) -> duckdb.DuckDBPyConnection:
     return duckdb.connect(str(path), read_only=read_only)
 
 
@@ -155,18 +317,29 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Create v1, refusing to silently use a different contract version."""
     for statement in SCHEMA_STATEMENTS:
         con.execute(statement)
-    existing = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+    existing = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
     if existing is None:
-        con.execute("INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)", [SCHEMA_VERSION])
+        con.execute(
+            "INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)",
+            [SCHEMA_VERSION],
+        )
     elif existing[0] != SCHEMA_VERSION:
-        raise RuntimeError(f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly.")
+        raise RuntimeError(
+            f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly."
+        )
     validate_schema(con)
 
 
 def validate_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Raise when a pre-existing table cannot satisfy this contract."""
     for table, columns in TABLE_COLUMNS.items():
-        actual = tuple(row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall())
+        actual = tuple(
+            row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()
+        )
         expected = columns + PROVENANCE_COLUMN_NAMES
         if actual != expected:
-            raise RuntimeError(f"{table} columns are {actual!r}, expected {expected!r}; migrate explicitly.")
+            raise RuntimeError(
+                f"{table} columns are {actual!r}, expected {expected!r}; migrate explicitly."
+            )
