@@ -22,7 +22,7 @@ docs/specs/  one spec per unit                     scripts/data/download.sh
 
 ```
 uv sync --frozen --extra dev
-pnpm install --frozen-lockfile
+pnpm --dir web install --frozen-lockfile
 ```
 
 The development extras, key imports, a DuckDB query, a tiny LightGBM fit, and
