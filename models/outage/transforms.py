@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 
 from models.outage.contracts import Partition, SplitManifest
+from models.outage.split import SplitError, verify_manifest_integrity
 
 TRANSFORM_VERSION: Final = "1.0.0"
 """Bump when transform semantics change."""
@@ -119,6 +120,10 @@ def fit_feature_transforms(
     sneak calibration or holdout rows into a fitting subset by accident.
     """
 
+    try:
+        verify_manifest_integrity(manifest)
+    except SplitError as error:
+        raise TransformError(f"invalid split manifest: {error}") from error
     if verified_input_artifact_sha256 != manifest.input_artifact_sha256:
         raise TransformError("verified input artifact hash does not match the split manifest")
     if not feature_set_version.strip():
