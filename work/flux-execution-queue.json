@@ -1,0 +1,22 @@
+{
+  "claims": [
+    {
+      "issue": "2WKG-97",
+      "owner": "Joshua Wangia",
+      "status": "active",
+      "base": "origin/master@7e24cc7",
+      "branch": "joshuawangia/2wkg-97-define-the-minnesota-data-identity-unit-and-coordinate",
+      "files": [
+        "docs/specs/10-duckdb-contract.md",
+        "work/flux-execution-queue.json",
+        "reports/outputs/2wkg-97-contract.md"
+      ],
+      "shared_surfaces": [
+        "Minnesota artifact identity, units, coordinates, source and model provenance",
+        "explicit available and unavailable result semantics consumed by fixtures, model, API, and Copilot"
+      ],
+      "dependency": "2WKG-98 consumes this contract and owns executable DDL/initializer enforcement",
+      "expected_output": "reviewable Minnesota contract with no fixture, DDL, API, or Copilot implementation"
+    }
+  ]
+}
