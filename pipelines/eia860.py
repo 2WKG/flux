@@ -6,10 +6,9 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from shapely import wkb
-from shapely.geometry import Point
+from shapely import Point, from_wkb
 
-from pipelines.texas_db import log_artifact, replace_frame
+from pipelines.db import log_artifact, replace_frame
 
 
 def _first(frame: pd.DataFrame, *names: str) -> pd.Series:
@@ -37,42 +36,12 @@ def _latest_generator_reports(inventory: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _candidate_locations(con, candidates: pd.DataFrame, min_kv: float = 138.0,
-                         max_bus_km: float = 40.0) -> pd.DataFrame:
-    """Assign county containment and the nearest qualifying synthetic bus.
-
-    Candidate coordinates are real EIA plant locations while the bus topology is
-    synthetic, so the assignment stays explicitly geometric.  A location beyond
-    the siting contract's 40 km radius remains unconnected instead of receiving
-    a misleading statewide nearest-bus match.
-    """
-    result = candidates.copy()
+def _county_fips_for_points(con, lon: pd.Series, lat: pd.Series) -> list[str | None]:
+    """Assign EIA plant points to the already-loaded canonical county geography."""
     counties = con.execute("SELECT county_fips, geom_wkb FROM counties").fetchall()
-    county_geometries = [(fips, wkb.loads(bytes(geometry))) for fips, geometry in counties
-                         if geometry is not None]
-    result["county_fips"] = [
-        next((fips for fips, geometry in county_geometries if geometry.covers(Point(lon, lat))), None)
-        for lon, lat in zip(result.lon, result.lat, strict=True)
-    ]
-
-    buses = con.execute("""SELECT bus_id, lon, lat FROM buses
-        WHERE base_kv >= ? AND lon IS NOT NULL AND lat IS NOT NULL""", [min_kv]).fetchdf()
-    assigned: list[int | None] = []
-    if buses.empty:
-        assigned = [None] * len(result)
-    else:
-        bus_lat = np.radians(buses.lat.to_numpy())
-        bus_lon = np.radians(buses.lon.to_numpy())
-        for lon, lat in zip(result.lon, result.lat, strict=True):
-            candidate_lat, candidate_lon = np.radians([lat, lon])
-            haversine = np.sin((bus_lat - candidate_lat) / 2) ** 2
-            haversine += np.cos(candidate_lat) * np.cos(bus_lat) * np.sin((bus_lon - candidate_lon) / 2) ** 2
-            distance_km = 2 * 6371.0088 * np.arcsin(np.sqrt(haversine))
-            nearest_index = int(np.argmin(distance_km))
-            assigned.append(int(buses.iloc[nearest_index].bus_id)
-                            if distance_km[nearest_index] <= max_bus_km else None)
-    result["bus_id"] = pd.array(assigned, dtype="Int64")
-    return result
+    shapes = [(county_fips, from_wkb(bytes(geom_wkb))) for county_fips, geom_wkb in counties]
+    return [next((fips for fips, shape in shapes if shape.covers(Point(x, y))), None)
+            for x, y in zip(lon, lat, strict=True)]
 
 
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
@@ -117,7 +86,8 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
     plant_frame = pd.DataFrame({
         "plant_id_eia": curated["plant_id_eia"].astype(int), "plant_name": _first(curated, "plant_name_eia").astype(str),
         "lon": pd.to_numeric(curated["longitude"], errors="coerce"), "lat": pd.to_numeric(curated["latitude"], errors="coerce"),
-        "state": curated["state"], "county_fips": None, "capacity_mw": curated["capacity_mw"],
+        "state": curated["state"], "county_fips": _county_fips_for_points(con, curated["longitude"], curated["latitude"]),
+        "capacity_mw": curated["capacity_mw"],
         "primary_fuel": curated["primary_fuel"], "retirement_year": curated["retirement_year"].astype("Int64"),
         "operational_status": curated["operational_status"], "report_date": pd.to_datetime(curated["report_date"]).dt.date,
     }).dropna(subset=["lon", "lat"])
@@ -166,6 +136,10 @@ def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
     candidates = selected.rename(columns={"plant_name": "name"})[
         ["site_id", "name", "kind", "lon", "lat", "county_fips"]
     ]
-    candidates = _candidate_locations(con, candidates)
+    candidates = candidates.dropna(subset=["county_fips"])
+    candidates["bus_id"] = None
     candidates["capacity_slot_mw"] = capacity_slot_mw
-    return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')")
+    candidates["source_site_id"] = candidates["site_id"].astype(str)
+    return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')",
+                         source_name="pudl_eia860", source_ref="eia_plants", source_version="v2026.2.0",
+                         fixture_batch_id="p0-eia860-v2026.2.0")

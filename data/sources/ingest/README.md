@@ -2,13 +2,14 @@
 
 **Status:** implementation-ready design  
 **Owner:** data lane  
-**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline. [`../p0_registry.json`](../p0_registry.json) is the canonical machine-readable artifact registry consumed by acquisition and build preflight; source-specific loader and gate rationale lives here.
+**Companion:** [`docs/plans/data-collection-and-curation-plan.md`](../../../docs/plans/data-collection-and-curation-plan.md) is the source-by-source execution plan. This document narrows it into the exact data to retain, reject, normalize, and prove for the ingest pipeline. [`../../../datasets/catalog.json`](../../../datasets/catalog.json) is the canonical machine-readable source catalog; the builder performs a read-only raw-custody preflight before it can mutate a curated release.
 
 ## Purpose and scope
 
-This is the legacy **Texas-only P0** adapter. Its commands write
-`data/duck/texas.duckdb` and `data/parquet/texas/`; they intentionally do not
-populate the shared `pipelines.db` / `grid.duckdb` contract.
+This is the legacy **Texas-only P0** adapter. Its commands write the shared
+`data/duck/grid.duckdb` and `data/parquet/<table>.parquet` contract through
+`pipelines.db`. Texas source labels remain explicit in the data; Minnesota
+uses its independent `mn_*` namespace in the same database.
 
 This project needs one repeatable data path from public raw material to a small set of stable DuckDB/Parquet contract tables. The input plan covers a much broader universe than the product should load indiscriminately. This document prevents that drift.
 

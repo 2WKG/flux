@@ -7,30 +7,30 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.texas_db import log_artifact
+from pipelines.db import contract_frame, log_artifact
 
 
 def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_numeric(frame[column], errors="coerce") if column in frame else pd.Series(pd.NA, index=frame.index)
 
 
-def _upsert_frame(con, table: str, frame: pd.DataFrame) -> int:
-    """Apply incoming BA-hours without removing history from other source files."""
-    con.register("_incoming", frame)
-    try:
-        con.execute(f"INSERT OR REPLACE INTO {table} BY NAME SELECT * FROM _incoming")
-    finally:
-        con.unregister("_incoming")
-    return len(frame)
-
-
 def _release_for(path: Path) -> str:
-    """Return the registry release slug for one official six-month file."""
     match = re.fullmatch(r"EIA930_BALANCE_(\d{4})_(Jan_Jun|Jul_Dec)\.csv", path.name)
     if not match:
         raise ValueError(f"unrecognized EIA-930 release filename: {path.name}")
     year, half = match.groups()
     return f"{year}_{'h1' if half == 'Jan_Jun' else 'h2'}"
+
+
+def _upsert_frame(con, table: str, frame: pd.DataFrame, *, source_ref: str) -> int:
+    """Apply incoming BA-hours without removing history from other source files."""
+    con.register("_incoming", contract_frame(frame, table, source_name="eia930", source_ref=source_ref,
+                                              source_version="p0", fixture_batch_id="p0-eia930"))
+    try:
+        con.execute(f"INSERT OR REPLACE INTO {table} BY NAME SELECT * FROM _incoming")
+    finally:
+        con.unregister("_incoming")
+    return len(frame)
 
 
 def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", "EPE", "SWPP", "MISO")) -> int:
@@ -66,8 +66,8 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
     # slice here would silently erase all other periods already curated.
     con.execute("BEGIN TRANSACTION")
     try:
-        _upsert_frame(con, "ba_load_hourly", contracts)
-        _upsert_frame(con, "ba_operations_hourly", combined)
+        _upsert_frame(con, "ba_load_hourly", contracts, source_ref=";".join(Path(path).name for path in csv_paths))
+        _upsert_frame(con, "ba_operations_hourly", combined, source_ref=";".join(Path(path).name for path in csv_paths))
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")

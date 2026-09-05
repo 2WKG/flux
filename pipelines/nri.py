@@ -9,7 +9,8 @@ from pathlib import Path
 import pandas as pd
 
 from pipelines.common import fips5
-from pipelines.texas_db import log_artifact, replace_frame
+from pipelines.db import log_artifact, replace_frame
+
 
 # v1.20 exposes inland flooding as IFLD (not the older RFLD shorthand).
 HIGH_VALUE_HAZARDS = ("WNTW", "HRCN", "SWND", "ISTM", "WFIR", "IFLD", "CFLD", "HWAV", "TRND", "LTNG")
@@ -51,7 +52,8 @@ def load_nri(con, source_path: str, release: str = "v1.20", state: str = "TX") -
         "wildfire_hazard": pd.NA,
         "seismic_pga": pd.NA,
     })
-    replace_frame(con, "hazard_static", hazard, where="county_fips LIKE '48%'")
+    replace_frame(con, "hazard_static", hazard, where="county_fips LIKE '48%'", source_name="fema_nri",
+                  source_ref=path.name, source_version=release, fixture_batch_id=f"p0-nri-{release}")
     # Population belongs in the canonical county table, while the source remains in NRI provenance.
     population = pd.DataFrame({"county_fips": selected.county_fips, "pop": _number(selected, "POPULATION").astype("Int64")})
     con.register("_nri_pop", population)
