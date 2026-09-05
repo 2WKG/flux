@@ -1,0 +1,82 @@
+# Automated "bobvi pass" review on every non-draft PR from this repository.
+# Posts ONE comment review; never approves or requests changes. Skips (does not
+# fail) when the ANTHROPIC_API_KEY secret is absent. See docs/runbooks/merge-gates.md.
+name: bobvi-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+concurrency:
+  group: bobvi-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    name: bobvi/preflight
+    runs-on: ubuntu-latest
+    # Fork PRs never see repository secrets; drafts are not reviewed.
+    if: >-
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    outputs:
+      has_key: ${{ steps.check.outputs.has_key }}
+    steps:
+      - id: check
+        # Secrets cannot be read in a job-level `if`; route through env first.
+        env:
+          KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -n "$KEY" ]; then
+            echo "has_key=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_key=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::ANTHROPIC_API_KEY is not configured; bobvi review skipped (repo admin: Settings > Secrets and variables > Actions)"
+          fi
+
+  review:
+    name: bobvi/review
+    needs: preflight
+    if: needs.preflight.outputs.has_key == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v10.0.1
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
+          prompt: |
+            REPO: ${{ github.repository }}
+            PR NUMBER: ${{ github.event.pull_request.number }}
+            BASE: ${{ github.base_ref }}   HEAD: ${{ github.head_ref }}
+
+            Read `.github/bobvi-brief.md` in this checkout first and review this pull
+            request exactly per that brief: grade all six legs, REPRODUCE the PR body's
+            stated verification commands yourself (`uv sync --frozen --extra dev` first
+            if needed), run the mandatory mutation probes and restore the tree with
+            `git checkout -- .`, and check the substrate (is BASE `master`? if not, has
+            it drifted from `origin/master`?).
+
+            Then post your report as ONE pull-request comment using
+            `gh pr comment ${{ github.event.pull_request.number }} --body-file <file>`
+            in the brief's report format. Do NOT approve, request changes, push,
+            commit, edit files that you do not restore, or write anywhere else.
+            Never fabricate a command result; if something could not be run, say so.
+          claude_args: |
+            --allowedTools "Bash(uv:*),Bash(npm:*),Bash(node:*),Bash(git:*),Bash(gh pr:*),Read,Grep,Glob"
+            --max-turns 60

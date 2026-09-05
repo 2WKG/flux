@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import sys
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -57,22 +59,53 @@ def print_entry(entry: dict) -> None:
     )
 
 
-def download_file(url: str, destination: Path, force: bool) -> None:
+def _sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as input_file:
+        for block in iter(lambda: input_file.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def download_file(url: str, destination: Path, force: bool, *, expected_sha256: str | None = None,
+                  attempts: int = 3) -> None:
+    """Publish a complete, optionally checksum-pinned direct download.
+
+    A ``.part`` file is never promoted. Failed attempts retain it for forensic
+    inspection, while each retry starts a fresh response so an incomplete body
+    cannot be mistaken for a complete artifact.
+    """
     if destination.exists() and not force:
+        if expected_sha256 and _sha256(destination).lower() != expected_sha256.lower():
+            raise RuntimeError(f"existing file checksum differs from catalog: {destination}")
         print(f"  exists: {destination}")
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = destination.with_suffix(destination.suffix + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": "flux-data/1.0"})
-    try:
-        with urllib.request.urlopen(request, timeout=60) as response:
-            with temporary.open("wb") as output:
-                shutil.copyfileobj(response, output)
-        temporary.replace(destination)
-        print(f"  saved:  {destination}")
-    except (OSError, urllib.error.URLError) as exc:
-        temporary.unlink(missing_ok=True)
-        raise RuntimeError(f"failed to download {url}: {exc}") from exc
+    for attempt in range(1, attempts + 1):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                content_length = response.headers.get("Content-Length")
+                if content_length is None:
+                    raise ValueError("response omitted Content-Length; completeness cannot be verified")
+                expected_bytes = int(content_length)
+                with temporary.open("wb") as output:
+                    shutil.copyfileobj(response, output)
+            actual_bytes = temporary.stat().st_size
+            if actual_bytes != expected_bytes:
+                raise ValueError(f"downloaded {actual_bytes} bytes; expected {expected_bytes}")
+            actual_sha256 = _sha256(temporary)
+            if expected_sha256 and actual_sha256.lower() != expected_sha256.lower():
+                raise ValueError("download checksum differs from catalog")
+            temporary.replace(destination)
+            print(f"  saved:  {destination}")
+            return
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            if attempt == attempts:
+                raise RuntimeError(f"failed to download {url}: {exc}") from exc
+            time.sleep(attempt)
+    raise AssertionError("unreachable")
 
 
 def main() -> int:
@@ -112,7 +145,7 @@ def main() -> int:
                 print(f"  would download {item['url']} -> {target}")
                 continue
             try:
-                download_file(item["url"], target, args.force)
+                download_file(item["url"], target, args.force, expected_sha256=item.get("sha256"))
             except RuntimeError as exc:
                 failures += 1
                 print(f"  ERROR: {exc}", file=sys.stderr)

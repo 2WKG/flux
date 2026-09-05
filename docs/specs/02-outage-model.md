@@ -1,5 +1,7 @@
 # 02 — County outage model (LightGBM on EAGLE-I, Layer 3)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: build spec, weekend scope. Texas first; the model is county-generic so P1 national is
 "add rows", not "add code". Depends on `01-data-ingest.md` tables: `eaglei_outages`,
 `county_customers` (helper), `weather_hourly`, `storm_events`, `hazard_static`, `nri_hazards`
@@ -153,7 +155,10 @@ def build_rows(con, county_fips: str, window_starts: list[datetime],
 
 # models/outage/split.py
 HOLDOUT_WINDOWS: dict[str, tuple[datetime, datetime, tuple[str, ...]]]  # scenario_id -> (start, end, states)
-def split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...  # train, calib, holdouts
+def split(df: pd.DataFrame, *, county_catalog: pd.DataFrame | Mapping[str, str]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...
+# `df` is `outage_features` (keyed only by county_fips/window_start); county_catalog is the
+# shared `counties` lookup with county_fips/state, resolved separately to keep display metadata
+# out of the feature transport.  # train, calib, holdouts
 
 # models/outage/train.py
 @dataclass
