@@ -1,0 +1,17 @@
+.server-layer-map { background: #081827; border: 1px solid #28506a; border-radius: 12px; color: #eef8ff; overflow: hidden; }
+.server-layer-map__legend, .server-layer-map__details { display: flex; gap: 24px; justify-content: space-between; padding: 16px; }
+.server-layer-map__kicker { color: #7dd3fc; font: 700 .72rem ui-monospace, monospace; letter-spacing: .1em; margin: 0; text-transform: uppercase; }
+.server-layer-map h2, .server-layer-map h3 { margin: 4px 0; }
+.server-layer-map dl, .server-layer-map ul { margin: 0; padding: 0; }
+.server-layer-map__legend dl { display: grid; gap: 5px; grid-template-columns: repeat(2, minmax(130px, 1fr)); }
+.server-layer-map dt { color: #8baabd; font-size: .72rem; text-transform: uppercase; }
+.server-layer-map dd { margin: 0; overflow-wrap: anywhere; }
+.server-layer-map__canvas { height: 420px; }
+.server-layer-map__canvas > div { height: 100%; }
+.server-layer-map__details { align-items: start; border-top: 1px solid #28506a; }
+.server-layer-map__details > section { flex: 1; min-width: 0; }
+.server-layer-map__details li { display: grid; gap: 4px; grid-template-columns: minmax(90px, 1fr) minmax(80px, 1fr) minmax(130px, 2fr); list-style: none; padding: 5px 0; }
+.server-layer-map__details code { color: #7dd3fc; overflow-wrap: anywhere; }
+.server-layer-map__details > section > p { color: #a9bfce; margin: 0; }
+.server-layer-map__details dl > div { display: grid; gap: 8px; grid-template-columns: minmax(90px, 1fr) 2fr; padding: 4px 0; }
+@media (max-width: 720px) { .server-layer-map__legend, .server-layer-map__details { display: block; } .server-layer-map__legend dl { margin-top: 14px; } .server-layer-map__details > section + section { margin-top: 20px; } .server-layer-map__details li { grid-template-columns: 1fr; } }
