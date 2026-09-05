@@ -78,3 +78,62 @@ def test_done_is_the_single_successful_terminal_event() -> None:
         stream.done(verified=True)
     with pytest.raises(StreamStateError, match="terminal"):
         stream.tool_call("call-late", "score_site", {})
+
+
+def test_lifecycle_start_is_emitted_only_once() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(StreamStateError, match="only once"):
+        stream.start()
+    # The rejected second start must not have advanced the stream.
+    assert stream.done(verified=True).seq == 2
+
+
+def test_events_before_lifecycle_start_are_rejected() -> None:
+    stream = CopilotEventStream()
+
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.tool_call("call-early", "score_site", {})
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.tool_result("call-early", "score_site", {}, elapsed_ms=1)
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.done(verified=True)
+    # Nothing leaked into the sequence: start is still event 1.
+    assert stream.start().seq == 1
+
+
+def test_done_refuses_while_tool_calls_are_pending() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    with pytest.raises(StreamStateError, match="pending"):
+        stream.done(verified=True)
+
+    # Settling the call re-opens the successful terminal.
+    stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
+    assert stream.done(verified=True).event == "done"
+
+
+def test_duplicate_pending_call_id_is_rejected() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    with pytest.raises(StreamStateError, match="already emitted"):
+        stream.tool_call("call-1", "top_lines", {"region": "ERCOT"})
+    # The rejected duplicate did not replace the pending call's tool binding.
+    with pytest.raises(StreamStateError, match="expected 'score_site'"):
+        stream.tool_result("call-1", "top_lines", {}, elapsed_ms=1)
+
+
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_non_finite_values_are_rejected_at_construction(bad: float) -> None:
+    """Malformed payloads fail when the event is built, never at encode time."""
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    with pytest.raises(ValueError):
+        stream.tool_result("call-1", "score_site", {"score": bad}, elapsed_ms=1)
