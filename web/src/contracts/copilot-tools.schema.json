@@ -1,0 +1,1544 @@
+{
+  "$defs": {
+    "ArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "artifact_version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Version",
+          "type": "string"
+        },
+        "source_kind": {
+          "enum": [
+            "fixture",
+            "observed",
+            "simulated",
+            "heuristic",
+            "retrieval"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "source_ref": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact_id",
+        "artifact_version",
+        "source_kind",
+        "source_ref"
+      ],
+      "title": "ArtifactRef",
+      "type": "object"
+    },
+    "CascadeData": {
+      "additionalProperties": false,
+      "properties": {
+        "counties_dark": {
+          "items": {
+            "pattern": "^\\d{5}$",
+            "type": "string"
+          },
+          "title": "Counties Dark",
+          "type": "array"
+        },
+        "critical_loads_lost": {
+          "items": {
+            "$ref": "#/$defs/CriticalLoadLoss"
+          },
+          "title": "Critical Loads Lost",
+          "type": "array"
+        },
+        "hour": {
+          "minimum": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "lost_load_mw": {
+          "minimum": 0,
+          "title": "Lost Load Mw",
+          "type": "number"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "run_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "steps": {
+          "minimum": 0,
+          "title": "Steps",
+          "type": "integer"
+        },
+        "tripped_element_ids": {
+          "items": {
+            "$ref": "#/$defs/TrippedElement"
+          },
+          "title": "Tripped Element Ids",
+          "type": "array"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "run_id",
+        "scenario_id",
+        "hour",
+        "tripped_element_ids",
+        "lost_load_mw",
+        "counties_dark",
+        "critical_loads_lost",
+        "steps"
+      ],
+      "title": "CascadeData",
+      "type": "object"
+    },
+    "CausalData": {
+      "additionalProperties": false,
+      "properties": {
+        "answer_numbers": {
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "title": "Answer Numbers",
+          "type": "object"
+        },
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "evidence_rows": {
+          "items": {
+            "additionalProperties": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "object"
+          },
+          "title": "Evidence Rows",
+          "type": "array"
+        },
+        "interval": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "number"
+              },
+              "maxItems": 2,
+              "minItems": 2,
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Interval"
+        },
+        "method": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "answer_numbers",
+        "method",
+        "assumptions",
+        "evidence_rows"
+      ],
+      "title": "CausalData",
+      "type": "object"
+    },
+    "CausalQueryInput": {
+      "additionalProperties": false,
+      "properties": {
+        "capacity_mw": {
+          "anyOf": [
+            {
+              "enum": [
+                300,
+                1000
+              ],
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capacity Mw"
+        },
+        "county_fips": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{5}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "County Fips"
+        },
+        "kind": {
+          "enum": [
+            "attribution",
+            "effect",
+            "counterfactual"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId",
+          "default": "uri_2021"
+        },
+        "site_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Site Id"
+        },
+        "treatment": {
+          "anyOf": [
+            {
+              "enum": [
+                "hardening_saidi",
+                "firm_generation_100mw"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Treatment"
+        }
+      },
+      "required": [
+        "kind"
+      ],
+      "title": "CausalQueryInput",
+      "type": "object"
+    },
+    "CiteData": {
+      "additionalProperties": false,
+      "properties": {
+        "hits": {
+          "items": {
+            "$ref": "#/$defs/RetrievalHit"
+          },
+          "title": "Hits",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "hits"
+      ],
+      "title": "CiteData",
+      "type": "object"
+    },
+    "CiteInput": {
+      "additionalProperties": false,
+      "properties": {
+        "k": {
+          "default": 5,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "K",
+          "type": "integer"
+        },
+        "query": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "CiteInput",
+      "type": "object"
+    },
+    "CompareInterventionsInput": {
+      "additionalProperties": false,
+      "properties": {
+        "intervention_ids": {
+          "items": {
+            "pattern": "^(site:[^@:\\s]+(?:@(300|1000))?|line:[^:\\s]+)$",
+            "type": "string"
+          },
+          "maxItems": 5,
+          "minItems": 1,
+          "title": "Intervention Ids",
+          "type": "array"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        }
+      },
+      "required": [
+        "scenario_id",
+        "intervention_ids"
+      ],
+      "title": "CompareInterventionsInput",
+      "type": "object"
+    },
+    "ContractModel": {
+      "additionalProperties": false,
+      "description": "Base model that rejects fields outside the declared contract.",
+      "properties": {},
+      "title": "ContractModel",
+      "type": "object"
+    },
+    "CriticalElement": {
+      "additionalProperties": false,
+      "properties": {
+        "critical_loads_lost": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Critical Loads Lost",
+          "type": "array"
+        },
+        "element_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Element Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "line",
+            "bus",
+            "gen"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "lost_load_mw": {
+          "minimum": 0,
+          "title": "Lost Load Mw",
+          "type": "number"
+        },
+        "runs": {
+          "minimum": 0,
+          "title": "Runs",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "element_id",
+        "kind",
+        "lost_load_mw",
+        "critical_loads_lost",
+        "runs"
+      ],
+      "title": "CriticalElement",
+      "type": "object"
+    },
+    "CriticalElementsData": {
+      "additionalProperties": false,
+      "properties": {
+        "elements": {
+          "items": {
+            "$ref": "#/$defs/CriticalElement"
+          },
+          "title": "Elements",
+          "type": "array"
+        },
+        "n": {
+          "maximum": 50,
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "partial": {
+          "default": false,
+          "title": "Partial",
+          "type": "boolean"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "region": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        },
+        "scenario_ids": {
+          "items": {
+            "$ref": "#/$defs/ScenarioId"
+          },
+          "title": "Scenario Ids",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "region",
+        "n",
+        "scenario_ids",
+        "elements"
+      ],
+      "title": "CriticalElementsData",
+      "type": "object"
+    },
+    "CriticalLoadLoss": {
+      "additionalProperties": false,
+      "properties": {
+        "hour_lost": {
+          "minimum": 0,
+          "title": "Hour Lost",
+          "type": "integer"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "dod",
+            "hospital",
+            "water"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "kind",
+        "hour_lost"
+      ],
+      "title": "CriticalLoadLoss",
+      "type": "object"
+    },
+    "Intervention": {
+      "additionalProperties": false,
+      "properties": {
+        "critical_loads_protected": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Critical Loads Protected",
+          "type": "array"
+        },
+        "customer_hours_avoided": {
+          "minimum": 0,
+          "title": "Customer Hours Avoided",
+          "type": "number"
+        },
+        "intervention_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Intervention Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "site",
+            "line"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "lol_reduction_mwh": {
+          "minimum": 0,
+          "title": "Lol Reduction Mwh",
+          "type": "number"
+        },
+        "run_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Run Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "intervention_id",
+        "kind",
+        "run_id",
+        "lol_reduction_mwh",
+        "customer_hours_avoided",
+        "critical_loads_protected"
+      ],
+      "title": "Intervention",
+      "type": "object"
+    },
+    "InterventionsData": {
+      "additionalProperties": false,
+      "properties": {
+        "assumptions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Assumptions",
+          "type": "array"
+        },
+        "baseline_run_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Baseline Run Id",
+          "type": "string"
+        },
+        "interventions": {
+          "items": {
+            "$ref": "#/$defs/Intervention"
+          },
+          "title": "Interventions",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "scenario_id",
+        "baseline_run_id",
+        "interventions",
+        "assumptions"
+      ],
+      "title": "InterventionsData",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "LineSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "congestion_usd_yr": {
+          "minimum": 0,
+          "title": "Congestion Usd Yr",
+          "type": "number"
+        },
+        "cost_usd": {
+          "minimum": 0,
+          "title": "Cost Usd",
+          "type": "number"
+        },
+        "ferc_screen_pass": {
+          "title": "Ferc Screen Pass",
+          "type": "boolean"
+        },
+        "from_bus": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "From Bus",
+          "type": "string"
+        },
+        "kv": {
+          "exclusiveMinimum": 0,
+          "title": "Kv",
+          "type": "number"
+        },
+        "line_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Line Id",
+          "type": "string"
+        },
+        "mw_per_musd": {
+          "minimum": 0,
+          "title": "Mw Per Musd",
+          "type": "number"
+        },
+        "spark_eligible": {
+          "title": "Spark Eligible",
+          "type": "boolean"
+        },
+        "to_bus": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "To Bus",
+          "type": "string"
+        },
+        "uplift_mw": {
+          "minimum": 0,
+          "title": "Uplift Mw",
+          "type": "number"
+        }
+      },
+      "required": [
+        "line_id",
+        "from_bus",
+        "to_bus",
+        "kv",
+        "congestion_usd_yr",
+        "uplift_mw",
+        "cost_usd",
+        "mw_per_musd",
+        "ferc_screen_pass",
+        "spark_eligible"
+      ],
+      "title": "LineSummary",
+      "type": "object"
+    },
+    "LinesData": {
+      "additionalProperties": false,
+      "properties": {
+        "lines": {
+          "items": {
+            "$ref": "#/$defs/LineSummary"
+          },
+          "title": "Lines",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "region": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "tech": {
+          "enum": [
+            "dlr",
+            "reconductor",
+            "any"
+          ],
+          "title": "Tech",
+          "type": "string"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "region",
+        "tech",
+        "lines"
+      ],
+      "title": "LinesData",
+      "type": "object"
+    },
+    "OutagePoint": {
+      "additionalProperties": false,
+      "properties": {
+        "customers_at_risk": {
+          "minimum": 0,
+          "title": "Customers At Risk",
+          "type": "integer"
+        },
+        "p_out": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "P Out",
+          "type": "number"
+        },
+        "ts": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Ts",
+          "type": "string"
+        }
+      },
+      "required": [
+        "ts",
+        "p_out",
+        "customers_at_risk"
+      ],
+      "title": "OutagePoint",
+      "type": "object"
+    },
+    "PredictOutageData": {
+      "additionalProperties": false,
+      "properties": {
+        "county_fips": {
+          "pattern": "^\\d{5}$",
+          "title": "County Fips",
+          "type": "string"
+        },
+        "county_name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "County Name",
+          "type": "string"
+        },
+        "customers_at_risk": {
+          "minimum": 0,
+          "title": "Customers At Risk",
+          "type": "integer"
+        },
+        "driver": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Driver",
+          "type": "string"
+        },
+        "horizon_h": {
+          "maximum": 72,
+          "minimum": 1,
+          "title": "Horizon H",
+          "type": "integer"
+        },
+        "peak_p_out": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Peak P Out",
+          "type": "number"
+        },
+        "peak_ts": {
+          "title": "Peak Ts",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        },
+        "series": {
+          "items": {
+            "$ref": "#/$defs/OutagePoint"
+          },
+          "maxItems": 24,
+          "title": "Series",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "county_fips",
+        "county_name",
+        "scenario_id",
+        "horizon_h",
+        "peak_p_out",
+        "peak_ts",
+        "customers_at_risk",
+        "driver",
+        "series"
+      ],
+      "title": "PredictOutageData",
+      "type": "object"
+    },
+    "PredictOutageInput": {
+      "additionalProperties": false,
+      "properties": {
+        "county_fips": {
+          "pattern": "^\\d{5}$",
+          "title": "County Fips",
+          "type": "string"
+        },
+        "horizon_h": {
+          "default": 72,
+          "maximum": 72,
+          "minimum": 1,
+          "title": "Horizon H",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        }
+      },
+      "required": [
+        "county_fips",
+        "scenario_id"
+      ],
+      "title": "PredictOutageInput",
+      "type": "object"
+    },
+    "RetrievalHit": {
+      "additionalProperties": false,
+      "properties": {
+        "chunk_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Chunk Id",
+          "type": "string"
+        },
+        "doc": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Doc",
+          "type": "string"
+        },
+        "page": {
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "score": {
+          "title": "Score",
+          "type": "number"
+        },
+        "text": {
+          "maxLength": 1200,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "doc",
+        "title",
+        "page",
+        "chunk_id",
+        "score",
+        "text"
+      ],
+      "title": "RetrievalHit",
+      "type": "object"
+    },
+    "RunCascadeInput": {
+      "additionalProperties": false,
+      "properties": {
+        "element_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 25,
+          "minItems": 1,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "hour": {
+          "maximum": 167,
+          "minimum": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        }
+      },
+      "required": [
+        "element_ids",
+        "scenario_id",
+        "hour"
+      ],
+      "title": "RunCascadeInput",
+      "type": "object"
+    },
+    "ScenarioId": {
+      "enum": [
+        "uri_2021",
+        "beryl_2024",
+        "helene_2024",
+        "forecast_72h"
+      ],
+      "type": "string"
+    },
+    "ScoreSiteInput": {
+      "additionalProperties": false,
+      "properties": {
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        },
+        "site_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Site Id",
+          "type": "string"
+        },
+        "unit_mw": {
+          "enum": [
+            300,
+            1000
+          ],
+          "title": "Unit Mw",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "site_id",
+        "unit_mw",
+        "scenario_id"
+      ],
+      "title": "ScoreSiteInput",
+      "type": "object"
+    },
+    "SiteScoreData": {
+      "additionalProperties": false,
+      "properties": {
+        "blackstart_reach_mw": {
+          "minimum": 0,
+          "title": "Blackstart Reach Mw",
+          "type": "number"
+        },
+        "congestion_relief_pct": {
+          "minimum": 0,
+          "title": "Congestion Relief Pct",
+          "type": "number"
+        },
+        "county_fips": {
+          "pattern": "^\\d{5}$",
+          "title": "County Fips",
+          "type": "string"
+        },
+        "critical_loads_protected": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Critical Loads Protected",
+          "type": "array"
+        },
+        "grid_value_score": {
+          "minimum": 0,
+          "title": "Grid Value Score",
+          "type": "number"
+        },
+        "kind": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Kind",
+          "type": "string"
+        },
+        "lol_reduction_mwh": {
+          "minimum": 0,
+          "title": "Lol Reduction Mwh",
+          "type": "number"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "regulatory_path": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Regulatory Path",
+          "type": "string"
+        },
+        "safety_flags": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Safety Flags",
+          "type": "array"
+        },
+        "safety_score": {
+          "minimum": 0,
+          "title": "Safety Score",
+          "type": "number"
+        },
+        "scenario_id": {
+          "$ref": "#/$defs/ScenarioId"
+        },
+        "site_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Site Id",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unit_mw": {
+          "enum": [
+            300,
+            1000
+          ],
+          "title": "Unit Mw",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "site_id",
+        "name",
+        "kind",
+        "county_fips",
+        "scenario_id",
+        "unit_mw",
+        "safety_score",
+        "safety_flags",
+        "grid_value_score",
+        "lol_reduction_mwh",
+        "congestion_relief_pct",
+        "blackstart_reach_mw",
+        "critical_loads_protected",
+        "regulatory_path"
+      ],
+      "title": "SiteScoreData",
+      "type": "object"
+    },
+    "SqlData": {
+      "additionalProperties": false,
+      "properties": {
+        "columns": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Columns",
+          "type": "array"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "row_count": {
+          "maximum": 200,
+          "minimum": 0,
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "rows": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/JsonValue"
+            },
+            "type": "array"
+          },
+          "maxItems": 200,
+          "title": "Rows",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "columns",
+        "rows",
+        "row_count",
+        "truncated"
+      ],
+      "title": "SqlData",
+      "type": "object"
+    },
+    "SqlInput": {
+      "additionalProperties": false,
+      "properties": {
+        "query": {
+          "maxLength": 5000,
+          "minLength": 1,
+          "title": "Query",
+          "type": "string"
+        }
+      },
+      "required": [
+        "query"
+      ],
+      "title": "SqlInput",
+      "type": "object"
+    },
+    "ToolOutput": {
+      "additionalProperties": false,
+      "description": "Evidence metadata placed beside each tool's documented top-level fields.",
+      "properties": {
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "$ref": "#/$defs/ToolStatus"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "ToolOutput",
+      "type": "object"
+    },
+    "ToolStatus": {
+      "enum": [
+        "available",
+        "unavailable"
+      ],
+      "type": "string"
+    },
+    "TopCriticalElementsInput": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "region": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        }
+      },
+      "required": [
+        "region"
+      ],
+      "title": "TopCriticalElementsInput",
+      "type": "object"
+    },
+    "TopLinesInput": {
+      "additionalProperties": false,
+      "properties": {
+        "n": {
+          "default": 10,
+          "maximum": 50,
+          "minimum": 1,
+          "title": "N",
+          "type": "integer"
+        },
+        "region": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Region",
+          "type": "string"
+        },
+        "tech": {
+          "enum": [
+            "dlr",
+            "reconductor",
+            "any"
+          ],
+          "title": "Tech",
+          "type": "string"
+        }
+      },
+      "required": [
+        "region",
+        "tech"
+      ],
+      "title": "TopLinesInput",
+      "type": "object"
+    },
+    "TrippedElement": {
+      "additionalProperties": false,
+      "properties": {
+        "cause": {
+          "enum": [
+            "weather",
+            "overload",
+            "island",
+            "forced"
+          ],
+          "title": "Cause",
+          "type": "string"
+        },
+        "element_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Element Id",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "line",
+            "trafo",
+            "gen",
+            "bus"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "stage": {
+          "minimum": 0,
+          "title": "Stage",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "element_id",
+        "kind",
+        "stage",
+        "cause"
+      ],
+      "title": "TrippedElement",
+      "type": "object"
+    },
+    "Unavailable": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/UnavailableCode"
+        },
+        "reason": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "retryable": {
+          "default": false,
+          "title": "Retryable",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "code",
+        "reason"
+      ],
+      "title": "Unavailable",
+      "type": "object"
+    },
+    "UnavailableCode": {
+      "enum": [
+        "artifact_unavailable",
+        "invalid_prerequisite",
+        "unsupported_request",
+        "insufficient_evidence"
+      ],
+      "type": "string"
+    },
+    "UnavailableOutput": {
+      "additionalProperties": false,
+      "description": "The common result shape for tools that cannot produce their payload.",
+      "properties": {
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "const": "unavailable",
+          "title": "Status",
+          "type": "string"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "UnavailableOutput",
+      "type": "object"
+    }
+  },
+  "$id": "flux://copilot/tools",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Generated from copilot/tools/schemas.py by uv run --extra dev python scripts/ci/export_tool_contracts.py",
+  "title": "Flux Copilot tool contracts",
+  "tools": {
+    "causal_query": {
+      "description": "Read a validated causal artifact or explicit unavailable result.",
+      "input": "#/$defs/CausalQueryInput",
+      "output": [
+        "#/$defs/CausalData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "cite": {
+      "description": "Retrieve citation-preserving corpus chunks.",
+      "input": "#/$defs/CiteInput",
+      "output": [
+        "#/$defs/CiteData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "compare_interventions": {
+      "description": "Compare up to five named interventions.",
+      "input": "#/$defs/CompareInterventionsInput",
+      "output": [
+        "#/$defs/InterventionsData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "predict_outage": {
+      "description": "Read a persisted county outage prediction.",
+      "input": "#/$defs/PredictOutageInput",
+      "output": [
+        "#/$defs/PredictOutageData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "run_cascade": {
+      "description": "Read or run the bounded cascade contract.",
+      "input": "#/$defs/RunCascadeInput",
+      "output": [
+        "#/$defs/CascadeData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "score_site": {
+      "description": "Read a bounded site score.",
+      "input": "#/$defs/ScoreSiteInput",
+      "output": [
+        "#/$defs/SiteScoreData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "sql": {
+      "description": "Execute a bounded read-only analytical query.",
+      "input": "#/$defs/SqlInput",
+      "output": [
+        "#/$defs/SqlData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "top_critical_elements": {
+      "description": "Rank persisted cascade reach by element.",
+      "input": "#/$defs/TopCriticalElementsInput",
+      "output": [
+        "#/$defs/CriticalElementsData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "top_lines": {
+      "description": "Read deterministic source-labeled line rankings.",
+      "input": "#/$defs/TopLinesInput",
+      "output": [
+        "#/$defs/LinesData",
+        "#/$defs/UnavailableOutput"
+      ]
+    }
+  }
+}
