@@ -35,7 +35,12 @@ WINDOW_HOURS = 6
 class Frozen(BaseModel):
     """Immutable, strict base: unknown fields are an error, not a shrug."""
 
-    model_config = ConfigDict(frozen=True, extra="forbid", str_strip_whitespace=True)
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        str_strip_whitespace=True,
+        allow_inf_nan=False,
+    )
 
 
 # --------------------------------------------------------------------------
@@ -182,6 +187,12 @@ class SplitManifest(Frozen):
     input_artifact_sha256: Sha256
     assignments: tuple[SplitAssignment, ...] = Field(min_length=1)
 
+    @model_validator(mode="after")
+    def _assignments_have_unique_keys(self) -> SplitManifest:
+        if len({assignment.key for assignment in self.assignments}) != len(self.assignments):
+            raise ValueError("assignments must not contain duplicate WindowKey values")
+        return self
+
     def counts(self) -> dict[Partition, int]:
         return {p: sum(1 for a in self.assignments if a.partition is p) for p in Partition}
 
@@ -231,7 +242,7 @@ Probability = Annotated[float, Field(ge=0.0, le=1.0)]
 class TrainedModelPrediction(Frozen):
     """Requires its artifact. May only claim evaluation when one exists."""
 
-    model_kind: Literal["trained_model"] = "trained_model"
+    model_kind: Literal["lightgbm"] = "lightgbm"
     p_out: Probability
     customers_at_risk: int = Field(ge=0)
     driver: Driver
@@ -278,7 +289,7 @@ class PredictionRecord(Frozen):
 
     key: WindowKey
     prediction: Prediction
-    contract_version: str = CONTRACT_VERSION
+    contract_version: Literal[CONTRACT_VERSION] = CONTRACT_VERSION
 
     def to_outage_predictions_row(self) -> dict[str, object] | None:
         """The six pinned columns of `outage_predictions`, or None if unavailable.
