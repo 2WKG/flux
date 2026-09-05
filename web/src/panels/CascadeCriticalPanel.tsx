@@ -1,4 +1,7 @@
 import type { ClientState } from "../data/client-state";
-import { ArtifactPanelState, type Provenance } from "./ArtifactPanelState";
-export type CascadeCritical=Readonly<{scenario_id:string; status:"supported"|"unsupported"; critical_elements:readonly string[]; provenance:Provenance}>;
-export function CascadeCriticalPanel({state}:{state:ClientState<CascadeCritical>}) { return <ArtifactPanelState state={state}>{x=><section><h2>Cascade and critical elements</h2><p>Scenario: {x.scenario_id}</p>{x.status==="unsupported"?<p>This scenario has no supported cascade artifact; the static demo remains available.</p>:x.critical_elements.length===0?<p>No critical elements were returned by the server.</p>:<ul>{x.critical_elements.map(id=><li key={id}>{id}</li>)}</ul>}<p>Source: {x.provenance.source_kind} · {x.provenance.artifact_id}</p></section>}</ArtifactPanelState>; }
+import { ArtifactPanelState, ArtifactProvenance } from "./ArtifactPanelState";
+import type { CriticalElementsResult } from "./copilot-contracts";
+
+export function CascadeCriticalPanel({ state }: Readonly<{ state: ClientState<CriticalElementsResult> }>) {
+  return <ArtifactPanelState state={state}>{(result) => result.status === "unavailable" ? <section><h2>Cascade and critical elements</h2><p>{result.unavailable.code}: {result.unavailable.reason}</p><ArtifactProvenance provenance={result.provenance} /></section> : <section><h2>Cascade and critical elements</h2><p>Scenarios: {result.scenario_ids.join(", ")}</p><p>Requested elements: {result.n}{result.partial ? " (partial results)" : ""}</p>{result.elements.length === 0 ? <p>No critical elements were returned by the server.</p> : <ul>{result.elements.map((element) => <li key={element.element_id}>{element.element_id} ({element.kind}): {element.lost_load_mw} MW lost load · {element.runs} runs</li>)}</ul>}<ArtifactProvenance provenance={result.provenance} /></section>}</ArtifactPanelState>;
+}
