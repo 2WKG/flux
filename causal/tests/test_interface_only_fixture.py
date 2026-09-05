@@ -10,6 +10,18 @@ FIXTURE_PATH = (
     / "fixtures"
     / "interface_only_causal_fixture.json"
 )
+MISSING_DEFINITION_FIXTURE_PATHS = {
+    "MISSING_TREATMENT_DEFINITION": (
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "missing_treatment_definition_causal_artifact.json"
+    ),
+    "MISSING_OUTCOME_DEFINITION": (
+        Path(__file__).resolve().parents[1]
+        / "fixtures"
+        / "missing_outcome_definition_causal_artifact.json"
+    ),
+}
 SCHEMA_PATH = (
     Path(__file__).resolve().parents[2]
     / "docs"
@@ -104,3 +116,16 @@ def test_sufficient_study_rejects_nonpassing_diagnostics() -> None:
         study = _sufficient_study()
         study["diagnostics"][0]["status"] = status
         assert not validator.is_valid(study)
+
+
+def test_missing_definition_studies_validate_without_a_fabricated_question() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    validator = Draft202012Validator(schema)
+
+    for unavailable_code, path in MISSING_DEFINITION_FIXTURE_PATHS.items():
+        study = json.loads(path.read_text(encoding="utf-8"))
+
+        assert study["classification"] == "estimable_study"
+        assert "question" not in study
+        assert study["availability"]["unavailable_codes"] == [unavailable_code]
+        validator.validate(study)

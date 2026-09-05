@@ -1,0 +1,40 @@
+{
+  "artifact_version": "1.0.0",
+  "artifact_id": "missing-treatment-definition-causal-artifact",
+  "classification": "estimable_study",
+  "sources": [
+    {
+      "source_id": "source-1",
+      "name": "test source",
+      "version": "1",
+      "locator": "table-1",
+      "coverage": "test period"
+    }
+  ],
+  "sample": {
+    "unit": "county",
+    "n_total": 2,
+    "n_treated": 1,
+    "n_control": 1,
+    "period": "test period"
+  },
+  "covariates": [],
+  "assumptions": ["test assumption"],
+  "diagnostics": [
+    {
+      "name": "test diagnostic",
+      "status": "not_run",
+      "evidence": "test evidence"
+    }
+  ],
+  "citations": [
+    {
+      "source_id": "source-1",
+      "locator": "table-1"
+    }
+  ],
+  "availability": {
+    "status": "unavailable",
+    "unavailable_codes": ["MISSING_TREATMENT_DEFINITION"]
+  }
+}
