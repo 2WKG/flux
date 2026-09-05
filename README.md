@@ -1,39 +1,48 @@
-# Flux demo
+# Flux — a national grid digital twin (hackathon)
 
-An offline, fixture-driven demo that compares two illustrative 300 MW firm-generation additions on a small synthetic grid under a fixed cold-weather stress scenario.
+**Flux** provides outage prediction, cascade simulation, and nuclear/firm-generation
+siting on a synthetic-but-realistic US grid, Texas first. The repository and package
+name are also `flux`. Pitch (v2, two ideas; backup = Speed-to-Power):
+`hackathon-pitches-and-designs.md`,
+mirrored at `docs/pitch/hackathon-pitches-and-designs.md`. Build specs:
+`docs/specs/` (start at `docs/specs/README.md`, then `00-overview.md`).
 
-The model is intentionally synthetic. It is not a Texas-grid reconstruction, outage forecast, interconnection study, or licensing assessment.
+## Layout
 
-## Run locally
-
-1. Generate (or refresh) the deterministic demo bundle:
-
-   ```powershell
-   python model/generate_demo.py
-   ```
-
-2. Install the UI dependencies and start the local demo:
-
-   ```powershell
-   npm --prefix web install
-   npm --prefix web run dev
-   ```
-
-3. Open the local URL printed by Vite. For an offline rehearsal, first run `npm --prefix web run build`, then `npm --prefix web run preview`.
-
-## Five-minute walkthrough
-
-1. Start on **Baseline** and call out the fixed stress assumptions and modeled shedding.
-2. Select **Candidate A** and compare the signed reduction in shed MW/MWh.
-3. Select **Candidate B**, then use the loading view toggle to inspect the synthetic branch loading layer.
-4. Open **Sources & limits**. State that all inputs are synthetic and that the result is illustrative.
-5. Close with the next validation: replace the fixture with a supported synthetic or approved study case before making any real-world claim.
-
-## Verification
-
-```powershell
-python -m unittest discover -s model -p "test_*.py"
-npm --prefix web run build
+```
+data/raw/<source>/   untracked downloads          pipelines/   ingest → DuckDB
+data/duck/grid.duckdb                              twin/        pandapower model + cascade
+data/parquet/                                      models/outage/  LightGBM
+siting/   safety + grid-value scoring              causal/      pgmpy / DoWhy
+copilot/  FastAPI + Claude tool loop               web/         Vite + React + deck.gl + MapLibre
+docs/specs/  one spec per unit                     scripts/data/download.sh
+datasets/    source registry + safe downloader
 ```
 
-`R08` (tunnel/origin discovery) and `D01` (case acquisition) are deliberately not performed. The model uses a checked-in synthetic fixture until those inputs are available.
+## Setup
+
+```
+uv sync --frozen --extra dev
+pnpm --dir web install --frozen-lockfile
+```
+
+The development extras, key imports, a DuckDB query, a tiny LightGBM fit, and
+the real 2,000-bus pandapower DC solve have been verified; see
+`DEPENDENCIES.md` for the exact evidence. No product code exists yet.
+
+## Build workflow
+
+The amended overview is the current authority for the shared technical
+contract. The primary orchestrator coordinates scope and integration; Terra
+workers implement file-disjoint areas, using isolated worktrees for substantive
+changes when helpful. Verify the behavior changed, expanding to browser, HTTP,
+model, or data checks when the change affects those paths. Use health/doctor
+checks only after setup changes or for actual connectivity troubleshooting.
+
+Never present unavailable data, failed solves, missing API access, or
+unverified claims as results. Buckeye material is reference knowledge only:
+do not write Flux material into Buckeye repositories or reuse its credentials.
+Status: specs + dependencies only. No product code yet.
+
+See [`datasets/README.md`](datasets/README.md) for the complete public-data
+catalog, acquisition routes, and commands that keep bulk files out of Git.
