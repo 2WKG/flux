@@ -44,6 +44,28 @@ class ClassifiedCongestion:
             return self.congestion.reason
         return None
 
+    @property
+    def is_unavailable(self) -> bool:
+        """Whether this input was safely withheld from line-level scoring."""
+        return isinstance(self.congestion, UnattributedCongestion)
+
+    @property
+    def required_action(self) -> str | None:
+        """State the next safe data action for an unavailable input.
+
+        This keeps an incomplete declared source distinguishable from a usable
+        simulated or proxy value: it remains unattributed and tells callers
+        how to make a later classification possible.
+        """
+        if self.unavailable_reason is UnavailableReason.UNMAPPED_CONSTRAINT:
+            return "Map the constraint to a line before classifying congestion."
+        if self.unavailable_reason is UnavailableReason.NO_CONGESTION_INPUT:
+            return (
+                "Provide an explicit source and that source's required "
+                "provenance fields."
+            )
+        return None
+
 
 def _unattributed(raw: Mapping[str, Any]) -> UnattributedCongestion:
     """Choose only an explicit unavailable reason; otherwise fail closed."""
