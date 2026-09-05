@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -54,6 +55,32 @@ def test_drake_vendor_anchor_and_directional_monotonicity(drake: Conductor) -> N
     assert reversed_direction == pytest.approx(nominal_direction)
 
 
+def test_ieee738_drake_numeric_pins_include_still_air_natural_convection(
+    drake: Conductor,
+) -> None:
+    still_air = ieee738_ampacity_a(
+        drake,
+        wind_ms=0.0,
+        temp_amb_c=40.0,
+        t_cond_c=100.0,
+        wind_angle_deg=90.0,
+        solar_w_m2=1000.0,
+        elevation_m=0.0,
+    )
+    ieee_worked_example = ieee738_ampacity_a(
+        drake,
+        wind_ms=0.61,
+        temp_amb_c=40.0,
+        t_cond_c=100.0,
+        wind_angle_deg=90.0,
+        solar_w_m2=1000.0,
+        elevation_m=0.0,
+    )
+
+    assert still_air == pytest.approx(767.0, abs=3.0)
+    assert ieee_worked_example == pytest.approx(1020.0, abs=3.0)
+
+
 def test_hourly_ratings_normalise_units_and_reward_crosswind_weather(
     drake: Conductor,
 ) -> None:
@@ -87,12 +114,28 @@ def test_hourly_ratings_normalise_units_and_reward_crosswind_weather(
     assert summary["hours_above_static"] >= 1
 
 
-def test_clear_sky_solar_uses_central_time_for_utc_weather_timestamps() -> None:
+def test_clear_sky_solar_uses_texas_central_time_for_utc_weather_timestamps() -> None:
     texas_noon = pd.Timestamp("2026-06-01T12:00:00-05:00")
     same_instant_utc = pd.Timestamp("2026-06-01T17:00:00Z")
 
     assert _clear_sky_solar_w_m2(texas_noon) == pytest.approx(1000.0)
     assert _clear_sky_solar_w_m2(same_instant_utc) == pytest.approx(1000.0)
+
+
+def test_hourly_ratings_provenance_labels_texas_central_solar_clock(
+    drake: Conductor,
+) -> None:
+    weather = pd.DataFrame(
+        {"ts": ["2026-06-01T17:00:00Z"], "wind_ms": [1.0], "temp_c": [20.0]}
+    )
+
+    ratings = hourly_ratings_mw(
+        "line-1", drake, weather, base_kv=230.0, rate_a_mw=300.0
+    )
+
+    solar_provenance = ratings.attrs["provenance"]["solar"]
+    assert "America/Chicago" in solar_provenance
+    assert "not UTC or site-specific solar time" in solar_provenance
 
 
 @pytest.mark.parametrize(
@@ -140,6 +183,34 @@ def test_invalid_primitive_inputs_do_not_produce_a_rating(drake: Conductor) -> N
     assert ratings.attrs["status"] == "unavailable"
     with pytest.raises(ValueError, match="wind_ms"):
         ieee738_ampacity_a(drake, wind_ms=-1.0, temp_amb_c=25.0, t_cond_c=75.0)
+
+
+def test_numpy_real_scalars_are_accepted_for_conductor_and_line_inputs(
+    drake: Conductor,
+) -> None:
+    numpy_drake = replace(
+        drake,
+        kcmil=np.int64(795),
+        diameter_m=np.float32(drake.diameter_m),
+        r_ac_25c_ohm_m=np.float32(drake.r_ac_25c_ohm_m),
+        r_ac_75c_ohm_m=np.float32(drake.r_ac_75c_ohm_m),
+        t_max_c=np.float32(drake.t_max_c),
+        emissivity=np.float32(drake.emissivity),
+        absorptivity=np.float32(drake.absorptivity),
+    )
+    weather = pd.DataFrame(
+        {"ts": ["2026-01-01T00:00:00Z"], "wind_ms": [1.0], "temp_c": [20.0]}
+    )
+
+    ratings = hourly_ratings_mw(
+        "line-1",
+        numpy_drake,
+        weather,
+        base_kv=np.float32(230.0),
+        rate_a_mw=np.float32(300.0),
+    )
+
+    assert ratings.attrs["status"] == "ok"
 
 
 @pytest.mark.parametrize(

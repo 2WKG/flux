@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from math import cos, isfinite, pi, sin, sqrt
+from numbers import Integral, Real
 from typing import Any
 
 import pandas as pd
@@ -20,7 +21,8 @@ _MAX_SUPPORTED_WIND_MS = 60.0
 _STATIC_WIND_MS = 0.61  # 2 ft/s, the IEEE/vendor static-rating convention.
 _DLR_WIND_MAX_MS = 5.0  # Spec 08 cap; stronger wind must not inflate a rating.
 _WIND_ANGLE_DEG = 45.0  # Explicit planning assumption pending line azimuth data.
-_TEXAS_SOLAR_TIMEZONE = "America/Chicago"
+_TEXAS_CENTRAL_TIMEZONE = "America/Chicago"
+_NATURAL_CONVECTION_SI_COEFFICIENT = 3.645
 
 
 @dataclass(frozen=True)
@@ -51,7 +53,7 @@ def _validate_conductor(cond: Conductor) -> None:
         raise ValueError("conductor name is required")
     if (
         isinstance(cond.kcmil, bool)
-        or not isinstance(cond.kcmil, int)
+        or not isinstance(cond.kcmil, Integral)
         or not 1 <= cond.kcmil <= 10_000
     ):
         raise ValueError("conductor kcmil must be an integer in the supported range")
@@ -66,7 +68,7 @@ def _validate_conductor(cond: Conductor) -> None:
         "absorptivity",
     ):
         value = getattr(cond, field)
-        if isinstance(value, bool) or not isinstance(value, (int, float)):
+        if isinstance(value, bool) or not isinstance(value, Real):
             raise TypeError(f"conductor {field} must be a finite number")
         try:
             numeric[field] = float(value)
@@ -175,7 +177,12 @@ def ieee738_ampacity_a(
     direction = _wind_direction_factor(wind_angle_deg)
     forced_low = direction * conductivity * delta_t * (1.01 + 1.35 * reynolds**0.52)
     forced_high = direction * conductivity * delta_t * (0.754 * reynolds**0.6)
-    natural = 0.0205 * sqrt(density) * cond.diameter_m**0.75 * delta_t**1.25
+    natural = (
+        _NATURAL_CONVECTION_SI_COEFFICIENT
+        * sqrt(density)
+        * cond.diameter_m**0.75
+        * delta_t**1.25
+    )
     convection = max(natural, forced_low, forced_high)
     radiation = (
         17.8
@@ -237,13 +244,14 @@ def _normalise_weather(weather: pd.DataFrame) -> tuple[pd.DataFrame | None, str 
 
 
 def _clear_sky_solar_w_m2(ts: pd.Timestamp) -> float:
-    """Return the fixed clear-sky curve at Texas local solar time.
+    """Return the fixed clear-sky curve using Texas Central civil time.
 
-    Weather timestamps follow the shared UTC contract, but the solar hour must
-    be evaluated in Texas Central time rather than from the UTC clock hour.
+    Weather timestamps follow the shared UTC contract.  The curve is evaluated
+    in ``America/Chicago`` (including daylight saving time), not in UTC and not
+    from site-specific longitude-based solar time.
     """
 
-    local_ts = ts.tz_convert(_TEXAS_SOLAR_TIMEZONE)
+    local_ts = ts.tz_convert(_TEXAS_CENTRAL_TIMEZONE)
     hour = local_ts.hour + local_ts.minute / 60.0
     return max(0.0, sin(pi * (hour - 6.0) / 12.0)) * 1000.0
 
@@ -265,7 +273,9 @@ def hourly_ratings_mw(
     if not isinstance(line_id, str) or not line_id.strip():
         return _unavailable_ratings("line_id is required")
     if not all(
-        isinstance(value, (int, float)) and isfinite(float(value))
+        not isinstance(value, bool)
+        and isinstance(value, Real)
+        and isfinite(float(value))
         for value in (base_kv, rate_a_mw)
     ):
         return _unavailable_ratings("base_kv and rate_a_mw must be finite numbers")
@@ -348,7 +358,11 @@ def hourly_ratings_mw(
                 "calibration": "scaled to the supplied synthetic rate_a_mw",
                 "dlr_wind": "hourly wind clamped to 0.61–5.0 m/s",
                 "wind_angle_deg": _WIND_ANGLE_DEG,
-                "solar": "fixed clear-sky hourly curve; cloud cover is not modeled",
+                "solar": (
+                    "fixed clear-sky hourly curve evaluated in Texas Central civil time "
+                    "(America/Chicago, including daylight saving time), not UTC or "
+                    "site-specific solar time; cloud cover is not modeled"
+                ),
             },
         }
     )
@@ -406,7 +420,8 @@ def dlr_cost_usd(length_km: float) -> float:
     """Return the stated DLR planning cost: $40k/mile plus a $60k floor."""
 
     if (
-        not isinstance(length_km, (int, float))
+        isinstance(length_km, bool)
+        or not isinstance(length_km, Real)
         or not isfinite(float(length_km))
         or float(length_km) < 0.0
     ):
