@@ -14,3 +14,4 @@ graphify-out/.graphify_*
 **/graphify-out/.graphify_*
 graphify-out/graph.json
 graphify-out/graph.html
+.worktrees/
