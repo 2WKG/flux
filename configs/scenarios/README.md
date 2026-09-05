@@ -13,7 +13,9 @@ URL, retrieval time, and scope.
 Use a Draft 2020-12 JSON Schema validator for structural validation, then run
 the Python CLI before adapter use. The CLI is the semantic gate for UTC
 calendar/order checks and for blocking `ready_for_adapter` when any input or
-resource capability is unavailable or unsupported.
+resource capability is unavailable or unsupported. It rejects `NaN`,
+`Infinity`, and `-Infinity` at JSON parse time and any non-finite numeric value
+passed directly to the semantic validator.
 
 Generation records only fuel and an evidenced ramp value. Storage records only
 power (MW), energy (MWh), and state of charge (fraction). Set an unsupported

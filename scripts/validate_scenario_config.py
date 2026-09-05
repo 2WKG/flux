@@ -2,11 +2,27 @@
 from __future__ import annotations
 
 import json
+import math
 import re
 import sys
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
+
+
+def is_finite_number(value: object) -> bool:
+    return not isinstance(value, bool) and isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def reject_non_finite_json_constant(value: str) -> None:
+    raise ValueError(f"JSON non-finite numeric value is not allowed: {value}")
+
+
+def load_config(path: Path) -> dict:
+    return json.loads(
+        path.read_text(encoding="utf-8"),
+        parse_constant=reject_non_finite_json_constant,
+    )
 
 
 def parse_utc(value: str, label: str) -> datetime:
@@ -68,8 +84,8 @@ def validate_reference(value: object, label: str, *, time_series: bool, start: d
             timestamp = parse_utc(sample["ts_utc"], f"{label}.samples[{index}].ts_utc")
             if start is not None and end is not None and not start <= timestamp < end:
                 raise ValueError(f"{label}.samples[{index}] falls outside the scenario window")
-            if isinstance(sample["value"], bool) or not isinstance(sample["value"], (int, float)):
-                raise ValueError(f"{label}.samples[{index}].value must be numeric")
+            if not is_finite_number(sample["value"]):
+                raise ValueError(f"{label}.samples[{index}].value must be a finite number")
     validate_provenance(reference["provenance"], f"{label}.provenance")
 
 
@@ -81,8 +97,8 @@ def validate_quantity(value: object, label: str, unit: str) -> None:
         raise ValueError(f"{label}.status must be supported or unsupported")
     if quantity["status"] == "unsupported" and quantity["value"] is not None:
         raise ValueError(f"{label} must be null when unsupported")
-    if quantity["status"] == "supported" and (isinstance(quantity["value"], bool) or not isinstance(quantity["value"], (int, float))):
-        raise ValueError(f"{label}.value must be numeric when supported")
+    if quantity["status"] == "supported" and not is_finite_number(quantity["value"]):
+        raise ValueError(f"{label}.value must be a finite number when supported")
     if quantity["status"] == "supported" and quantity["value"] < 0:
         raise ValueError(f"{label}.value cannot be negative")
     if unit == "fraction" and quantity["status"] == "supported" and quantity["value"] > 1:
@@ -156,7 +172,7 @@ def main() -> int:
         return 2
     path = Path(sys.argv[1])
     try:
-        config = json.loads(path.read_text(encoding="utf-8"))
+        config = load_config(path)
         validate(config)
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"INVALID: {exc}", file=sys.stderr)
