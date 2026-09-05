@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://flux.local/schemas/causal-evidence-artifact/1.0.0.json",
   "title": "Flux causal evidence artifact",
-  "description": "Versioned, fail-closed record used before Flux exposes a causal effect claim.",
+  "description": "Versioned, fail-closed persisted backing evidence artifact used before Flux exposes a causal effect claim; it is not the causal_query wire response.",
   "type": "object",
   "additionalProperties": false,
   "required": ["artifact_version", "artifact_id", "classification", "availability"],

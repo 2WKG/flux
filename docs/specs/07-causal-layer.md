@@ -151,6 +151,8 @@ diff     = per county per hour: customers_out_factual − customers_out_cf (from
 
 ### Copilot citation contract (`copilot/tools/causal_query.py`)
 
+The persisted evidence artifact and the `causal_query` wire response are separate contracts; see [`docs/causal-evidence-artifact.md`](../causal-evidence-artifact.md) for the artifact sufficiency criteria and field mapping.
+
 `causal_query` is registered as a **seventh** tool in `copilot/tools/registry.py` (alongside the six
 contract tools `predict_outage, run_cascade, score_site, top_lines, sql, cite` from 00-overview §2.4;
 00-overview amendment A5 fixes those six signatures but does not list an additive seventh tool — the

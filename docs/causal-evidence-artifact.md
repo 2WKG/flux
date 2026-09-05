@@ -1,6 +1,6 @@
 # Causal evidence artifact
 
-`causal-evidence-artifact.schema.json` is the versioned contract for every causal response. Its default is fail closed: an effect may be exposed only by the `estimable_study` + `available` branch, which requires a labeled question, source versions and coverage, sample, covariates, assumptions, diagnostics, citations, estimate evidence, interval, and caveats.
+`causal-evidence-artifact.schema.json` is the versioned contract for the persisted backing evidence artifact; it is not the `causal_query` wire response. Its default is fail closed: an effect may be exposed only by the `estimable_study` + `available` branch, which requires a labeled question, source versions and coverage, sample, covariates, assumptions, diagnostics, citations, estimate evidence, interval, and caveats.
 
 `interface_fixture` is deliberately not an estimate. It is a minimal identity/classification/availability record: it must carry `FIXTURE_NOT_ESTIMABLE`, omits study evidence fields, cannot contain `estimate` or claim availability, and may demonstrate response rendering only. No unlabeled treatment, outcome, covariate, or source can satisfy the schema: each has its own definition and provenance fields.
 
@@ -17,3 +17,17 @@
 | All prerequisites are present | `estimable_study` / `available` | `estimate` with estimand, method, effect, interval, confidence level, evidence citations, and caveats | Expose the qualified observational estimate and its caveats. |
 
 An artifact may carry multiple unavailable codes. `available` is invalid when any unavailable code is present; `unavailable` is invalid without at least one code. Validation is necessary, not proof that the underlying causal assumptions are true.
+
+## Artifact-to-response mapping
+
+`causal_query` reads this artifact and emits its separate wire contract. The mapping is intentionally narrow:
+
+| Artifact evidence | `causal_query` response |
+| --- | --- |
+| Estimate effect and method | `answer_numbers` / `method` |
+| Estimate interval | `interval` |
+| Assumptions and caveats | `assumptions` |
+| Evidence-related fields | `evidence_rows` |
+| Citations | `citations` |
+
+The artifact remains the durable, validated source; the response is a transient presentation shape.
