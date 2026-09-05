@@ -102,7 +102,7 @@ class LineUpgradeProvenance(Frozen):
 class LineKey(Frozen):
     """Identity of one line-upgrade artifact within an analysis scenario.
 
-    ``line_id`` identifies the synthetic source-case branch.  It is not by
+    ``line_id`` identifies the source-case branch. It is not by
     itself sufficient identity for a ranking artifact: the same branch can be
     ranked for a historical replay, forecast, or declared aggregate period.
     ``scenario_id`` is therefore required even when the congestion source is
@@ -111,7 +111,7 @@ class LineKey(Frozen):
     """
 
     line_id: int
-    region: str = Field(min_length=1, description='balancing authority, e.g. "ERCOT"')
+    region: str = Field(min_length=1, description="declared analysis region")
     scenario_id: str = Field(
         min_length=1,
         description="stable scenario or declared aggregate-period identifier",
@@ -314,9 +314,7 @@ class ScoredLine(Frozen):
         return {
             "line_id": self.key.line_id,
             "congestion_usd_yr": congestion_usd_yr,
-            "dlr_uplift_mw": dlr.uplift_mw
-            if isinstance(dlr, DlrIntervention)
-            else None,
+            "dlr_uplift_mw": dlr.uplift_mw if isinstance(dlr, DlrIntervention) else None,
             "reconductor_uplift_mw": (
                 reconductor.uplift_mw
                 if isinstance(reconductor, ReconductorIntervention)
