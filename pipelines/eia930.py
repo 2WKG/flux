@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -23,8 +24,17 @@ def _upsert_frame(con, table: str, frame: pd.DataFrame) -> int:
     return len(frame)
 
 
+def _release_for(path: Path) -> str:
+    """Return the registry release slug for one official six-month file."""
+    match = re.fullmatch(r"EIA930_BALANCE_(\d{4})_(Jan_Jun|Jul_Dec)\.csv", path.name)
+    if not match:
+        raise ValueError(f"unrecognized EIA-930 release filename: {path.name}")
+    year, half = match.groups()
+    return f"{year}_{'h1' if half == 'Jan_Jun' else 'h2'}"
+
+
 def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", "EPE", "SWPP", "MISO")) -> int:
-    operations: list[pd.DataFrame] = []
+    operations: list[tuple[Path, pd.DataFrame]] = []
     for filename in csv_paths:
         path = Path(filename)
         raw = pd.read_csv(path, dtype={"Balancing Authority": "string"}, low_memory=False)
@@ -35,7 +45,7 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
         timestamp = pd.to_datetime(rows["UTC Time at End of Hour"], utc=True, errors="coerce")
         if timestamp.isna().any():
             raise ValueError(f"{path.name} has unparseable EIA-930 UTC timestamps")
-        operations.append(pd.DataFrame({
+        operations.append((path, pd.DataFrame({
             "ba_code": rows["Balancing Authority"].astype(str), "ts": timestamp.dt.tz_localize(None),
             "demand_raw_mw": _numeric(rows, "Demand (MW)"),
             "demand_adjusted_mw": _numeric(rows, "Demand (MW) (Adjusted)"),
@@ -44,8 +54,8 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
             "net_generation_mw": _numeric(rows, "Net Generation (MW)"),
             "total_interchange_mw": _numeric(rows, "Total Interchange (MW)"),
             "valid_dibas_mw": _numeric(rows, "Sum(Valid DIBAs) (MW)"),
-        }))
-    combined = pd.concat(operations, ignore_index=True)
+        })))
+    combined = pd.concat([frame for _, frame in operations], ignore_index=True)
     if combined.duplicated(["ba_code", "ts"]).any():
         raise ValueError("EIA-930 source files overlap on BA/hour")
     contracts = combined[["ba_code", "ts"]].copy()
@@ -62,7 +72,7 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
     except Exception:
         con.execute("ROLLBACK")
         raise
-    for filename in csv_paths:
-        log_artifact(con, source="eia930", source_release=Path(filename).stem, path=filename,
-                     rows_loaded=len(combined), schema_fingerprint="BA,UTC end hour,demand,forecast,generation,interchange")
+    for path, frame in operations:
+        log_artifact(con, source="eia930", source_release=_release_for(path), path=path,
+                     rows_loaded=len(frame), schema_fingerprint="BA,UTC end hour,demand,forecast,generation,interchange")
     return len(contracts)
