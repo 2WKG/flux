@@ -8,8 +8,7 @@ import duckdb
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict
 
-from copilot.api import SuccessEnvelope, UnavailableError, success
-from copilot.api.errors import request_id_of
+from copilot.api import UnavailableError
 from copilot.config import Settings
 
 router = APIRouter(tags=["health"])
@@ -51,9 +50,9 @@ def _model_status(settings: Settings) -> ComponentStatus:
     )
 
 
-@router.get("/health", response_model=SuccessEnvelope[HealthData])
-def health(request: Request) -> SuccessEnvelope[HealthData]:
-    """Return local readiness facts or the shared unavailable envelope.
+@router.get("/health", response_model=HealthData)
+def health(request: Request) -> HealthData:
+    """Return local readiness facts or raise the shared unavailable error.
 
     Opening the configured DuckDB file read-only prevents a missing or corrupt
     fixture from being represented as an available source. Provider APIs are
@@ -74,13 +73,10 @@ def health(request: Request) -> SuccessEnvelope[HealthData]:
             },
         ) from exc
 
-    return success(
-        HealthData(
-            database=ComponentStatus(
-                status="available",
-                message="The configured database artifact opened read-only.",
-            ),
-            model=_model_status(settings),
+    return HealthData(
+        database=ComponentStatus(
+            status="available",
+            message="The configured database artifact opened read-only.",
         ),
-        request_id=request_id_of(request),
+        model=_model_status(settings),
     )
