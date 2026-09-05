@@ -56,8 +56,9 @@ class CopilotEventStream:
         """Emit the first lifecycle event for this answer attempt."""
         if self._started:
             raise StreamStateError("a stream can emit lifecycle start only once")
+        event = self._event("lifecycle", {"status": "started"})
         self._started = True
-        return self._event("lifecycle", {"status": "started"})
+        return event
 
     def tool_call(self, call_id: str, tool: str, input: Mapping[str, Any]) -> SseEvent:
         """Emit an observable, validated tool invocation start."""
@@ -68,10 +69,11 @@ class CopilotEventStream:
             raise ValueError("tool must not be empty")
         if call_id in self._pending_calls:
             raise StreamStateError(f"tool call {call_id!r} was already emitted")
-        self._pending_calls[call_id] = tool
-        return self._event(
+        event = self._event(
             "tool_call", {"call_id": call_id, "tool": tool, "input": dict(input)}
         )
+        self._pending_calls[call_id] = tool
+        return event
 
     def tool_result(
         self,
@@ -92,8 +94,7 @@ class CopilotEventStream:
             )
         if elapsed_ms < 0:
             raise ValueError("elapsed_ms must be non-negative")
-        del self._pending_calls[call_id]
-        return self._event(
+        event = self._event(
             "tool_result",
             {
                 "call_id": call_id,
@@ -103,6 +104,8 @@ class CopilotEventStream:
                 "elapsed_ms": elapsed_ms,
             },
         )
+        del self._pending_calls[call_id]
+        return event
 
     def done(
         self,
@@ -140,8 +143,8 @@ class CopilotEventStream:
 
     def _event(self, event: str, data: Mapping[str, Any]) -> SseEvent:
         seq = self._next_seq
-        self._next_seq += 1
         envelope = {"v": SCHEMA_VERSION, "seq": seq, **data}
         # Serialize eagerly so malformed/non-finite values cannot enter a stream.
         json.dumps(envelope, ensure_ascii=False, allow_nan=False)
+        self._next_seq += 1
         return SseEvent(event=event, seq=seq, data=MappingProxyType(envelope))

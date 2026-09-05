@@ -137,3 +137,19 @@ def test_non_finite_values_are_rejected_at_construction(bad: float) -> None:
 
     with pytest.raises(ValueError):
         stream.tool_result("call-1", "score_site", {"score": bad}, elapsed_ms=1)
+
+
+def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError):
+        stream.tool_call("call-1", "score_site", {"score": float("nan")})
+    call = stream.tool_call("call-1", "score_site", {})
+    assert call.seq == 2
+
+    with pytest.raises(ValueError):
+        stream.tool_result("call-1", "score_site", {"score": float("nan")}, elapsed_ms=1)
+    result = stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
+    assert result.seq == 3
+    assert stream.done(verified=True).seq == 4
