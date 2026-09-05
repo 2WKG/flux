@@ -422,6 +422,15 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
     )
     score_row = line.to_score_row(storage)
     detail_row = line.to_detail_row(storage)
+    contract_provenance = line.provenance.model_dump()
+    expected_identity_and_contract = {
+        "scenario_id": SCENARIO_ID,
+        **contract_provenance,
+    }
+    assert expected_identity_and_contract.items() <= score_row.items()
+    assert expected_identity_and_contract.items() <= detail_row.items()
+    assert score_row["simulation_run_id"] is None
+    assert detail_row["simulation_run_id"] is None
     con.execute(
         f"INSERT INTO line_upgrade_scores ({', '.join(score_row)}) VALUES ({', '.join('?' for _ in score_row)})",
         list(score_row.values()),
@@ -431,13 +440,29 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
         list(detail_row.values()),
     )
     assert con.execute(
-        "SELECT congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, mw_per_musd FROM line_upgrade_scores"
-    ).fetchone() == (1_000_000.0, 50.0, 120.0, 50.0)
+        """SELECT scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw,
+                  mw_per_musd, ranking_version, contract_version, simulation_run_id, grid_input_sha256,
+                  weather_input_sha256, cost_params_sha256
+           FROM line_upgrade_scores"""
+    ).fetchone() == (
+        SCENARIO_ID,
+        1_000_000.0,
+        50.0,
+        120.0,
+        50.0,
+        "r1",
+        CONTRACT_VERSION,
+        None,
+        H,
+        H,
+        H,
+    )
     assert con.execute(
-        """SELECT owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw,
+        """SELECT scenario_id, owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw,
                   dlr_p50_mw, dlr_hours_above_static, best_tech, payback_yr, congestion_method, region
            FROM line_upgrade_detail"""
     ).fetchone() == (
+        SCENARIO_ID,
         "Example Transmission",
         "ACSS",
         795.0,
@@ -450,3 +475,9 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
         "fuzzy",
         "ERCOT",
     )
+
+
+def test_simulated_rows_persist_the_twin_run_without_reclassifying_other_sources():
+    line = _scored()
+    assert line.to_score_row(_storage())["simulation_run_id"] == "run-1"
+    assert line.to_detail_row(_storage())["simulation_run_id"] == "run-1"

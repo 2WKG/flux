@@ -4,7 +4,13 @@ from datetime import UTC, datetime
 
 import pandas as pd
 
-from pipelines.db import CONTRACT_TABLES, connect, export_parquet, replace_frame
+from pipelines.db import (
+    CONTRACT_TABLES,
+    SCHEMA_VERSION,
+    connect,
+    export_parquet,
+    replace_frame,
+)
 from pipelines.eaglei import load_eaglei
 from pipelines.storm_events import load_storm_events
 
@@ -84,7 +90,7 @@ def test_legacy_and_minnesota_namespaces_coexist(tmp_path) -> None:
         con.execute("INSERT INTO mn_schema_meta VALUES ('2.0.0-mn')")
         con.close()
         con = connect(tmp_path / "grid.duckdb")
-        assert con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone() == ("1.0.0",)
+        assert con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone() == (SCHEMA_VERSION,)
         assert con.execute("SELECT contract_version FROM mn_schema_meta").fetchone() == ("2.0.0-mn",)
     finally:
         con.close()
