@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import duckdb
 
@@ -34,6 +35,7 @@ class ConsumerResult:
     status: str
     unavailable_code: str | None = None
     reason: str | None = None
+    diagnostic_kind: Literal["artifact_unavailable", "contract_violation"] | None = None
 
     @property
     def available(self) -> bool:
@@ -59,6 +61,19 @@ class ContractReport:
 
 
 ReadPath = Callable[[duckdb.DuckDBPyConnection], None]
+
+
+# These values deliberately stay separate from ``unavailable_code``.  The
+# latter is the stable consumer-envelope code, while this category lets a UI
+# or runbook tell a missing/unreadable hand-off artifact from a fixture that
+# exists but violates the data contract.
+ARTIFACT_UNAVAILABLE = "artifact_unavailable"
+CONTRACT_VIOLATION = "contract_violation"
+
+# The DDL permits the optional source version and retrieval timestamp to be
+# NULL when an upstream record did not publish them.  These identifiers are
+# not optional: without them a fixture row cannot be traced or reproduced.
+REQUIRED_PROVENANCE_FIELDS = ("source_name", "source_ref", "fixture_batch_id")
 
 
 def _read_elements(elements: Sequence[ContractElement]) -> ReadPath:
@@ -116,6 +131,10 @@ def _contract_version_error(con: duckdb.DuckDBPyConnection) -> str | None:
     tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
     if "schema_meta" not in tables:
         return 'missing table "schema_meta" required for contract version'
+    columns = {row[1] for row in con.execute("PRAGMA table_info('schema_meta')").fetchall()}
+    for column in ("key", "value"):
+        if column not in columns:
+            return f'missing field "schema_meta.{column}" required for contract version'
     row = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
     if row is None:
         return 'missing contract element "schema_meta.contract_version"'
@@ -124,13 +143,103 @@ def _contract_version_error(con: duckdb.DuckDBPyConnection) -> str | None:
     return None
 
 
-def _unavailable(consumer: str, reason: str) -> ConsumerResult:
+def _artifact_unavailable(consumer: str, reason: str) -> ConsumerResult:
     return ConsumerResult(
         consumer=consumer,
         status="unavailable",
         unavailable_code="invalid_prerequisite",
         reason=reason,
+        diagnostic_kind=ARTIFACT_UNAVAILABLE,
     )
+
+
+def _contract_violation(consumer: str, reason: str) -> ConsumerResult:
+    return ConsumerResult(
+        consumer=consumer,
+        status="unavailable",
+        unavailable_code="invalid_prerequisite",
+        reason=f"contract violation: {reason}",
+        diagnostic_kind=CONTRACT_VIOLATION,
+    )
+
+
+def _columns_for_table(con: duckdb.DuckDBPyConnection, table: str) -> set[str]:
+    return {row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()}
+
+
+def _require_contract_elements(
+    con: duckdb.DuckDBPyConnection,
+    elements: Sequence[ContractElement],
+) -> str | None:
+    """Return the first missing named element before a consumer read runs."""
+
+    tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    for element in elements:
+        if element.table not in tables:
+            return f'missing table "{element.table}"'
+        columns = _columns_for_table(con, element.table)
+        for column in element.columns:
+            if column not in columns:
+                return f'missing field "{element.table}.{column}"'
+    for element in elements:
+        columns = _columns_for_table(con, element.table)
+        for column in REQUIRED_PROVENANCE_FIELDS:
+            if column not in columns:
+                return f'missing field "{element.table}.{column}"'
+    return None
+
+
+def _coordinate_contract_error(
+    con: duckdb.DuckDBPyConnection,
+    elements: Sequence[ContractElement],
+) -> str | None:
+    """Detect decimal-degree coordinates that cannot be EPSG:4326.
+
+    WKB has no SRID in the shared DDL, so this deliberately validates only the
+    named longitude/latitude fields that a consumer actually reads.  A row
+    outside these bounds is not a missing artifact; it is a contract breach.
+    """
+
+    for element in elements:
+        columns = set(element.columns)
+        if not {"lon", "lat"}.issubset(columns):
+            continue
+        for field, lower, upper, axis in (
+            ("lon", -180, 180, "longitude"),
+            ("lat", -90, 90, "latitude"),
+        ):
+            row = con.execute(
+                f'''SELECT 1 FROM "{element.table}"
+                    WHERE "{field}" IS NULL
+                       OR "{field}" < ?
+                       OR "{field}" > ?
+                    LIMIT 1''',
+                [lower, upper],
+            ).fetchone()
+            if row is not None:
+                return (
+                    f'field "{element.table}.{field}" is not a valid '
+                    f'EPSG:4326 {axis} in [{lower}, {upper}]'
+                )
+    return None
+
+
+def _provenance_contract_error(
+    con: duckdb.DuckDBPyConnection,
+    elements: Sequence[ContractElement],
+) -> str | None:
+    """Ensure populated fixture rows retain the required lineage fields."""
+
+    for element in elements:
+        for field in REQUIRED_PROVENANCE_FIELDS:
+            row = con.execute(
+                f'''SELECT 1 FROM "{element.table}"
+                    WHERE "{field}" IS NULL OR trim("{field}") = ''
+                    LIMIT 1'''
+            ).fetchone()
+            if row is not None:
+                return f'field "{element.table}.{field}" is blank or unavailable'
+    return None
 
 
 def check_consumer_contracts(path: str | Path) -> ContractReport:
@@ -147,7 +256,7 @@ def check_consumer_contracts(path: str | Path) -> ContractReport:
         reason = f'fixture database unavailable: {fixture_path} does not exist'
         return ContractReport(
             fixture_path=fixture_path,
-            results=tuple(_unavailable(consumer, reason) for consumer in CONSUMER_READ_PATHS),
+            results=tuple(_artifact_unavailable(consumer, reason) for consumer in CONSUMER_READ_PATHS),
         )
 
     results: list[ConsumerResult] = []
@@ -156,11 +265,28 @@ def check_consumer_contracts(path: str | Path) -> ContractReport:
             with duckdb.connect(str(fixture_path), read_only=True) as con:
                 version_error = _contract_version_error(con)
                 if version_error is not None:
-                    results.append(_unavailable(consumer, version_error))
+                    results.append(_contract_violation(consumer, version_error))
+                    continue
+                requirements_error = _require_contract_elements(con, CONSUMER_REQUIREMENTS[consumer])
+                if requirements_error is not None:
+                    results.append(_contract_violation(consumer, requirements_error))
+                    continue
+                coordinate_error = _coordinate_contract_error(con, CONSUMER_REQUIREMENTS[consumer])
+                if coordinate_error is not None:
+                    results.append(_contract_violation(consumer, coordinate_error))
+                    continue
+                provenance_error = _provenance_contract_error(con, CONSUMER_REQUIREMENTS[consumer])
+                if provenance_error is not None:
+                    results.append(_contract_violation(consumer, provenance_error))
                     continue
                 read_path(con)
         except duckdb.Error as error:
-            results.append(_unavailable(consumer, f"{consumer} fixture contract read failed: {error}"))
+            results.append(
+                _artifact_unavailable(
+                    consumer,
+                    f"fixture database unavailable while reading {consumer}: {error}",
+                )
+            )
         else:
             results.append(ConsumerResult(consumer=consumer, status="available"))
     return ContractReport(fixture_path=fixture_path, results=tuple(results))
