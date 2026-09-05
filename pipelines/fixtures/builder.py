@@ -280,60 +280,104 @@ def build_artifacts(manifest: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def write_minnesota_fixture(artifacts: list[dict[str, Any]], db_path: Path) -> Path:
-    """Insert valid fixture metadata without replacing the shared DuckDB file."""
+    """Write valid fixture metadata, rejecting a conflicting existing identity."""
     con = duckdb.connect(str(db_path))
     try:
         ensure_minnesota_schema(con)
         con.execute("BEGIN")
         try:
+            already_present: dict[str, bool] = {}
             for artifact in artifacts:
-                con.execute(
-                    """INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT DO NOTHING""",
-                    [
-                        artifact["artifact_id"],
-                        artifact["artifact_kind"],
-                        SCHEMA_VERSION,
-                        artifact["geography_id"],
-                        artifact["availability"],
-                        artifact["model_mode"],
-                        artifact["identity_json"],
-                        artifact["created_at"],
-                        _canonical_json(artifact["assumptions"]),
-                        _canonical_json(artifact["limitations"]),
-                        _canonical_json(artifact["input_artifact_ids"]),
-                    ],
+                manifest_row = (
+                    artifact["artifact_kind"],
+                    SCHEMA_VERSION,
+                    artifact["geography_id"],
+                    artifact["availability"],
+                    artifact["model_mode"],
+                    artifact["identity_json"],
+                    artifact["created_at"],
+                    _canonical_json(artifact["assumptions"]),
+                    _canonical_json(artifact["limitations"]),
+                    _canonical_json(artifact["input_artifact_ids"]),
                 )
-            for artifact in artifacts:
-                for ordinal, provenance in enumerate(artifact["provenance"]):
+                existing_manifest = con.execute(
+                    """SELECT artifact_kind, contract_version, geography_id, availability,
+                    model_mode, identity_json, created_at, assumptions_json,
+                    limitations_json, input_artifact_ids_json
+                    FROM mn_artifact_manifests WHERE artifact_id = ?""",
+                    [artifact["artifact_id"]],
+                ).fetchone()
+                if existing_manifest is None:
                     con.execute(
-                        """INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ON CONFLICT DO NOTHING""",
-                        [
-                            artifact["artifact_id"],
-                            ordinal,
-                            provenance["source_name"],
-                            provenance["source_ref"],
-                            provenance["source_version"],
-                            provenance["retrieved_at"],
-                            provenance["license_or_terms"],
-                            provenance["source_record_id"],
-                            provenance["content_sha256"],
-                            provenance["is_derived"],
-                        ],
+                        "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        [artifact["artifact_id"], *manifest_row],
                     )
+                    already_present[artifact["artifact_id"]] = False
+                elif existing_manifest != manifest_row:
+                    raise FixtureError(
+                        f"existing Minnesota artifact {artifact['artifact_id']!r} conflicts with the manifest"
+                    )
+                else:
+                    already_present[artifact["artifact_id"]] = True
+
             for artifact in artifacts:
-                if artifact["fixture"] is not None:
-                    domain = artifact["fixture"]
+                artifact_id = artifact["artifact_id"]
+                provenance_rows = con.execute(
+                    """SELECT source_name, source_ref, source_version, retrieved_at,
+                    license_or_terms, source_record_id, content_sha256, is_derived
+                    FROM mn_artifact_provenance WHERE artifact_id = ?
+                    ORDER BY provenance_ordinal""",
+                    [artifact_id],
+                ).fetchall()
+                expected_provenance = [
+                    (
+                        provenance["source_name"],
+                        provenance["source_ref"],
+                        provenance["source_version"],
+                        provenance["retrieved_at"],
+                        provenance["license_or_terms"],
+                        provenance["source_record_id"],
+                        provenance["content_sha256"],
+                        provenance["is_derived"],
+                    )
+                    for provenance in artifact["provenance"]
+                ]
+                if (
+                    already_present[artifact_id]
+                    and provenance_rows != expected_provenance
+                ):
+                    raise FixtureError(
+                        f"existing Minnesota provenance for {artifact_id!r} conflicts with the manifest"
+                    )
+                if not already_present[artifact_id]:
+                    for ordinal, provenance in enumerate(artifact["provenance"]):
+                        con.execute(
+                            "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                            [artifact_id, ordinal, *expected_provenance[ordinal]],
+                        )
+                fixture_row = con.execute(
+                    """SELECT source_manifest_id, fixture_label, fallback_label
+                    FROM mn_fixture_artifacts WHERE artifact_id = ?""",
+                    [artifact_id],
+                ).fetchone()
+                domain = artifact["fixture"]
+                expected_fixture = (
+                    None
+                    if domain is None
+                    else (
+                        domain["source_manifest_id"],
+                        domain["fixture_label"],
+                        domain["fallback_label"],
+                    )
+                )
+                if already_present[artifact_id] and fixture_row != expected_fixture:
+                    raise FixtureError(
+                        f"existing Minnesota fixture metadata for {artifact_id!r} conflicts with the manifest"
+                    )
+                if not already_present[artifact_id] and expected_fixture is not None:
                     con.execute(
-                        """INSERT INTO mn_fixture_artifacts VALUES (?, ?, ?, ?)
-                        ON CONFLICT DO NOTHING""",
-                        [
-                            artifact["artifact_id"],
-                            domain["source_manifest_id"],
-                            domain["fixture_label"],
-                            domain["fallback_label"],
-                        ],
+                        "INSERT INTO mn_fixture_artifacts VALUES (?, ?, ?, ?)",
+                        [artifact_id, *expected_fixture],
                     )
             con.execute("COMMIT")
         except Exception:

@@ -197,6 +197,29 @@ def test_repeat_write_replaces_the_fixture_owned_slice_without_duplicate_rows(tm
         con.close()
 
 
+def test_repeat_write_rejects_conflicting_metadata_without_replacing_rows(tmp_path):
+    db = tmp_path / "grid.duckdb"
+    artifacts = build_artifacts(_manifest())
+    write_minnesota_fixture(artifacts, db)
+    changed = deepcopy(artifacts)
+    changed[0]["limitations"] = ["changed but same identity"]
+
+    with pytest.raises(FixtureError, match="conflicts with the manifest"):
+        write_minnesota_fixture(changed, db)
+
+    con = duckdb.connect(str(db), read_only=True)
+    try:
+        assert con.execute(
+            "SELECT limitations_json FROM mn_artifact_manifests WHERE artifact_id = ?",
+            [artifacts[0]["artifact_id"]],
+        ).fetchone() == ('["not a topology or scenario"]',)
+        assert con.execute(
+            "SELECT count(*) FROM mn_artifact_provenance"
+        ).fetchone() == (2,)
+    finally:
+        con.close()
+
+
 def test_cli_requires_an_explicit_source_backed_manifest(tmp_path):
     manifest_path = _write_manifest(tmp_path, _manifest())
     db = tmp_path / "fixture.duckdb"
