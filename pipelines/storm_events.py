@@ -9,6 +9,24 @@ import pandas as pd
 from pipelines.common import fips5, utc_naive
 from pipelines.db import log_artifact, replace_frame
 
+# The Texas-only loader sees two documented NOAA CZ_TIMEZONE labels.  They are
+# POSIX-style labels rather than IANA identifiers; IANA timezones retain DST.
+_TEXAS_CZ_TIMEZONES = {
+    "CST-6": "America/Chicago",
+    "MST-7": "America/Denver",
+}
+
+
+def _cz_timezone(value: object) -> str:
+    """Return the IANA timezone documented by a NOAA CZ_TIMEZONE value."""
+    if value is None or pd.isna(value):
+        raise ValueError("Storm Events row is missing CZ_TIMEZONE")
+    label = str(value).strip().upper()
+    try:
+        return _TEXAS_CZ_TIMEZONES[label]
+    except KeyError as error:
+        raise ValueError(f"unsupported Storm Events CZ_TIMEZONE {label!r}") from error
+
 
 def _zone_crosswalk(path: str | Path) -> dict[str, list[str]]:
     raw = pd.read_csv(path, sep="|", header=None, dtype="string")
@@ -26,13 +44,17 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
     path = Path(detail_gzip)
     raw = pd.read_csv(path, compression="gzip", low_memory=False)
     texas = raw[raw["STATE"].eq("TEXAS")].copy()
-    required = {"EVENT_ID", "BEGIN_DATE_TIME", "END_DATE_TIME", "EVENT_TYPE", "CZ_TYPE", "CZ_FIPS", "STATE_FIPS"}
+    required = {
+        "EVENT_ID", "BEGIN_DATE_TIME", "END_DATE_TIME", "EVENT_TYPE", "CZ_TYPE", "CZ_FIPS",
+        "STATE_FIPS", "CZ_TIMEZONE",
+    }
     if missing := required - set(texas.columns):
         raise ValueError(f"Storm Events file missing {sorted(missing)}")
     zones = _zone_crosswalk(zone_crosswalk)
     records: list[dict[str, object]] = []
     for row in texas.itertuples(index=False):
         event = row._asdict()
+        source_tz = _cz_timezone(event["CZ_TIMEZONE"])
         if event["CZ_TYPE"] == "C":
             targets = [fips5(int(event["STATE_FIPS"]) * 1000 + int(event["CZ_FIPS"]))]
             method = "direct_county"
@@ -44,8 +66,8 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
                 continue
             records.append({
                 "event_id": int(event["EVENT_ID"]),
-                "ts_begin": utc_naive(event["BEGIN_DATE_TIME"], "America/Chicago"),
-                "ts_end": utc_naive(event["END_DATE_TIME"], "America/Chicago"),
+                "ts_begin": utc_naive(event["BEGIN_DATE_TIME"], source_tz),
+                "ts_end": utc_naive(event["END_DATE_TIME"], source_tz),
                 "county_fips": county_fips, "type": event["EVENT_TYPE"],
                 "magnitude": pd.to_numeric(event.get("MAGNITUDE"), errors="coerce"),
                 "assignment_method": method, "episode_id": event.get("EPISODE_ID"),
