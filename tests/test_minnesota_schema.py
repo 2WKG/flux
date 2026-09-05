@@ -57,3 +57,12 @@ def test_malformed_coordinates_and_provenance_are_rejected_by_database():
         con.execute("INSERT INTO mn_geography_artifacts VALUES ('mn:g:1',NULL,1,NULL,'source',NULL)")
     with pytest.raises(duckdb.ConstraintException):
         con.execute("INSERT INTO mn_artifact_provenance VALUES ('mn:g:1',0,'x','y','v',CURRENT_TIMESTAMP,'terms',NULL,'bad',false)")
+
+
+def test_unavailable_domain_row_is_rejected_on_rerun():
+    con = duckdb.connect(":memory:")
+    ensure_minnesota_schema(con)
+    con.execute("INSERT INTO mn_artifact_manifests VALUES ('mn:f:1','fixture',?,'mn','unavailable','not_applicable','{}',CURRENT_TIMESTAMP,'[]','[\"limit\"]','[]')", [SCHEMA_VERSION])
+    con.execute("INSERT INTO mn_fixture_artifacts VALUES ('mn:f:1','mn:f:1','preview',NULL)")
+    with pytest.raises(RuntimeError, match="domain row requires available"):
+        ensure_minnesota_schema(con)
