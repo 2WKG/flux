@@ -1,7 +1,15 @@
-# Dependencies — what is installed, verified, and still gated
+# Flux dependencies and environment evidence
 
-Recorded 2026-09-05 on the laptop (`~/buckeye-swarm/flux`). Nothing here is
-product code; this is the "download dependencies" leg of the spec pass.
+Recorded 2026-09-05 on the laptop
+(`/Users/joshua/buckeye-swarm/flux`). This is setup evidence only; no product
+code exists yet.
+
+## Completed setup
+
+- `uv sync --frozen --extra dev` completed with the existing lockfile unchanged.
+- `pnpm --dir web install --frozen-lockfile` completed with the existing
+  lockfile unchanged.
+- The development extras are installed.
 
 ## Toolchain
 
@@ -13,15 +21,16 @@ product code; this is the "download dependencies" leg of the spec pass.
 | libomp (brew) | installed | required by LightGBM on macOS arm64 |
 | psql | present | only if PostGIS is wanted; DuckDB is the default |
 
-## Python (`pyproject.toml`, 271 packages resolved, `.venv` ≈ 1.4 GB)
+## Python (`pyproject.toml`, development extras installed)
 
-Verified with `uv run python -c "import …"`:
+Key imports pass. A DuckDB query passes, and a tiny LightGBM fit passes.
 
 - storage / geo: duckdb 1.5.5, pyarrow, polars, pandas, geopandas, shapely, pyproj, h3, networkx, xarray, netcdf4, cfgrib, herbie-data, gridstatus
 - physics: pandapower 3.5.3, lightsim2grid, pypsa, scipy, **matpower** (bundles `case_ACTIVSg2000.m`, 10k, 25k, 70k), **matpowercaseframes** (required by pandapower's `.m` importer)
 - ML / causal: lightgbm 4.7.0, scikit-learn, dowhy, econml, pgmpy
 - copilot: fastapi, uvicorn, sse-starlette, anthropic 1.4.0, pydantic, pypdf, rank-bm25, python-dotenv
-- optional extras: `dev` (pytest, ruff, jupyter), `stretch` (grid2op, torch, torch-geometric) — not installed
+- installed extra: `dev` (pytest, ruff, jupyter); `stretch` (grid2op, torch,
+  torch-geometric) remains optional
 
 Proof the twin dependency chain works end to end:
 
@@ -29,7 +38,7 @@ Proof the twin dependency chain works end to end:
 from pandapower.converter.matpower import from_mpc   # NOT pandapower.converter.from_mpc
 net = from_mpc(".venv/.../matpower/data/case_ACTIVSg2000.m", f_hz=60)
 # 2000 buses, 2359 lines, 847 impedance branches (transformers land in net.impedance, not net.trafo),
-# 484 gen + 59 sgen + 1 ext_grid, 1125 loads, 67,109 MW; pp.rundcpp() 0.84 s cold, 9-14 ms warm.
+# 484 gen + 59 sgen + 1 ext_grid, 1125 loads, 67,109.21 MW; pp.rundcpp() passes.
 # lightsim2grid CANNOT load this case ("Unsupported element (Impedance)"): stretch-only.
 ```
 

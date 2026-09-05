@@ -1,4 +1,4 @@
-# GridMind
+# Flux
 
 ## National Grid Digital Twin for Outage Prediction, Cascade Analysis, and Resilient Energy Siting
 
@@ -10,7 +10,7 @@
 
 ## 1. Project Summary
 
-GridMind is an interactive digital twin of the United States electric grid that helps decision-makers answer three connected questions:
+Flux is an interactive digital twin of the United States electric grid that helps decision-makers answer three connected questions:
 
 1. **Where is the grid most likely to fail?**
 2. **How will a failure spread, and which communities or critical facilities will lose power?**
@@ -18,9 +18,9 @@ GridMind is an interactive digital twin of the United States electric grid that 
 
 The platform combines public grid, weather, outage, generation, geographic, and regulatory data with machine learning and power-flow simulation. Users can replay historical storms, explore forecast outage risk, trigger hypothetical equipment failures, watch cascades unfold, and compare proposed resilience investments.
 
-The flagship use case is **nuclear and firm-generation siting**. GridMind evaluates candidate sites not only for safety and buildability, but also for how much they strengthen the surrounding grid. It can estimate whether placing a 300 MW or 1 GW source at a retired coal plant, existing nuclear site, federal energy site, or defense installation would reduce expected unserved energy, relieve congestion, improve black-start capability, or keep critical facilities online during a major disruption.
+The flagship use case is **nuclear and firm-generation siting**. Flux evaluates candidate sites not only for safety and buildability, but also for how much they strengthen the surrounding grid. It can estimate whether placing a 300 MW or 1 GW source at a retired coal plant, existing nuclear site, federal energy site, or defense installation would reduce expected unserved energy, relieve congestion, improve black-start capability, or keep critical facilities online during a major disruption.
 
-GridMind is not merely a map or chatbot. Its recommendations are produced by models and grid simulations; the language interface explains those results and links them to the underlying evidence.
+Flux is not merely a map or chatbot. Its recommendations are produced by models and grid simulations; the language interface explains those results and links them to the underlying evidence.
 
 ---
 
@@ -38,13 +38,13 @@ Existing planning tools tend to separate problems that are fundamentally connect
 
 As a result, planners struggle to compare interventions on a common basis. A technically feasible generation site may add little resilience, while a site with enormous grid value may face unacceptable population, seismic, flood, cooling-water, or regulatory constraints.
 
-GridMind connects these decisions in one operating picture.
+Flux connects these decisions in one operating picture.
 
 ---
 
 ## 3. Core Value Proposition
 
-GridMind turns fragmented public infrastructure data into a **decision engine for grid resilience**.
+Flux turns fragmented public infrastructure data into a **decision engine for grid resilience**.
 
 It enables a user to move from prediction to action:
 
@@ -55,7 +55,7 @@ The system's distinctive output is a paired evaluation of every proposed energy 
 - **Safety and Buildability Score:** Can the facility responsibly and realistically be built here?
 - **Grid-Strength Score:** How much safer and more resilient does the power system become if it is built here?
 
-Most tools address only the first question. GridMind is designed to answer both.
+Most tools address only the first question. Flux is designed to answer both.
 
 ---
 
@@ -98,7 +98,7 @@ A user can:
 
 ### 5.1 National grid digital twin
 
-GridMind uses an open, synthetic-but-realistic electrical network as its computational skeleton. Candidate sources include:
+Flux uses an open, synthetic-but-realistic electrical network as its computational skeleton. Candidate sources include:
 
 - Texas A&M ACTIVSg models
 - Microsoft GridSFM
@@ -143,9 +143,9 @@ The initial implementation uses pandapower, with lightsim2grid as an optional pe
 
 ### 5.4 Critical-load impact analysis
 
-GridMind connects electrical failures to consequences decision-makers understand. Public locations for defense installations, hospitals, emergency services, and water systems are attached to the nearest modeled supply nodes.
+Flux connects electrical failures to consequences decision-makers understand. Public locations for defense installations, hospitals, emergency services, and water systems are attached to the nearest modeled supply nodes.
 
-Instead of reporting only that a bus was disconnected, GridMind can state:
+Instead of reporting only that a bus was disconnected, Flux can state:
 
 - Which counties lost service
 - How many customers were affected
@@ -201,7 +201,7 @@ The interface shows the three strongest reasons for a recommendation and the thr
 
 ### 5.6 Transmission headroom and upgrade recommendations
 
-GridMind can also identify lower-cost interventions when new generation is not the best immediate answer.
+Flux can also identify lower-cost interventions when new generation is not the best immediate answer.
 
 For high-value transmission corridors, the system can compare:
 
@@ -242,7 +242,7 @@ It then explains structured results and retrieves relevant passages from regulat
 
 ## 6. Causal-AI Approach
 
-GridMind's causal layer distinguishes it from a correlation dashboard.
+Flux's causal layer distinguishes it from a correlation dashboard.
 
 The grid simulator acts as a structural causal model. An intervention such as “place a reactor here,” “harden this line,” or “add storage at this bus” changes the system itself. The platform can then rerun the exact same weather and load conditions to estimate what would have happened under that intervention.
 
@@ -250,7 +250,7 @@ In causal language, these are explicit **do-operations** on the grid graph.
 
 ### Counterfactual replay
 
-For a historical storm, GridMind displays:
+For a historical storm, Flux displays:
 
 - The observed outage map
 - The simulated baseline cascade
@@ -335,7 +335,7 @@ The prototype uses public data and synthetic topology. A production version shou
 - Deterministic, versioned simulation runs
 - Human approval before any operational action
 
-GridMind is a planning and analysis platform. The hackathon version does not control live grid equipment.
+Flux is a planning and analysis platform. The hackathon version does not control live grid equipment.
 
 ---
 
@@ -490,7 +490,7 @@ Ask why the selected site is preferred over an alternative. The copilot explains
 
 Zoom back to the national model.
 
-> “GridMind is the planning layer above fragmented infrastructure data: predict the failure, understand the cascade, and invest where the next dollar protects the most people and critical capacity.”
+> “Flux is the planning layer above fragmented infrastructure data: predict the failure, understand the cascade, and invest where the next dollar protects the most people and critical capacity.”
 
 ---
 
@@ -616,7 +616,7 @@ The prototype should prioritize one coherent, trustworthy scenario over incomple
 
 ## 14. Differentiation
 
-GridMind's advantage is not that it contains a map, predicts outages, runs power flow, or uses an LLM. Each of those exists separately.
+Flux's advantage is not that it contains a map, predicts outages, runs power flow, or uses an LLM. Each of those exists separately.
 
 The differentiation is the connection among them:
 
@@ -626,7 +626,7 @@ The differentiation is the connection among them:
 - **From impact to a ranked physical intervention**
 - **From a ranked intervention to a transparent counterfactual explanation**
 
-Workflow and ontology platforms can organize utility information, but GridMind supplies a specialized grid-physics and siting engine. Conventional siting platforms identify where development may be feasible, but GridMind also measures what the development does to system resilience.
+Workflow and ontology platforms can organize utility information, but Flux supplies a specialized grid-physics and siting engine. Conventional siting platforms identify where development may be feasible, but Flux also measures what the development does to system resilience.
 
 ---
 
@@ -660,7 +660,7 @@ The initial commercial wedge could be a narrower site-selection and resilience-a
 
 ### “The grid topology is synthetic.”
 
-Correct. Detailed real topology is restricted and not appropriate to imply otherwise. Synthetic grids are widely used for research and prototyping. GridMind's value in the hackathon is its architecture and decision workflow; a production deployment would substitute authorized utility or operator data.
+Correct. Detailed real topology is restricted and not appropriate to imply otherwise. Synthetic grids are widely used for research and prototyping. Flux's value in the hackathon is its architecture and decision workflow; a production deployment would substitute authorized utility or operator data.
 
 ### “Outage prediction is not the same as predicting line failures.”
 
@@ -668,15 +668,15 @@ Correct. County outage observations are an imperfect label for asset-level failu
 
 ### “A simulated counterfactual is not proof.”
 
-Correct. Its quality depends on topology, component models, protection assumptions, load, and weather. GridMind should expose assumptions, uncertainty, and sensitivity ranges rather than presenting a single result as certainty.
+Correct. Its quality depends on topology, component models, protection assumptions, load, and weather. Flux should expose assumptions, uncertainty, and sensitivity ranges rather than presenting a single result as certainty.
 
 ### “Nuclear projects take years.”
 
-GridMind supports the siting and planning decision that must happen before construction. It can also compare nuclear with nearer-term interventions such as storage, transmission upgrades, or hardening.
+Flux supports the siting and planning decision that must happen before construction. It can also compare nuclear with nearer-term interventions such as storage, transmission upgrades, or hardening.
 
 ### “A large infrastructure platform could add this.”
 
-That validates the need for a specialized engine. GridMind's defensible component is the combination of grid physics, hazard modeling, siting criteria, counterfactual evaluation, and accumulated intervention-performance data.
+That validates the need for a specialized engine. Flux's defensible component is the combination of grid physics, hazard modeling, siting criteria, counterfactual evaluation, and accumulated intervention-performance data.
 
 ### “This creates security concerns.”
 
@@ -732,8 +732,8 @@ The public demo should avoid presenting sensitive operational detail and use syn
 
 ## 19. One-Sentence Pitch
 
-**GridMind predicts where the electric grid will fail, simulates how the failure will cascade, and shows where new generation or grid upgrades would prevent the most damage.**
+**Flux predicts where the electric grid will fail, simulates how the failure will cascade, and shows where new generation or grid upgrades would prevent the most damage.**
 
 ## 20. Short Pitch
 
-GridMind is a national grid digital twin for resilience planning. It combines weather-based outage prediction with power-flow simulation to show where failures begin, how they cascade, and which communities or critical facilities lose power. Decision-makers can then test a new nuclear or firm-generation site, transmission upgrade, storage resource, or hardened line and replay the same event to measure how much risk the intervention removes. Every recommendation includes transparent scores, assumptions, counterfactual results, and supporting evidence.
+Flux is a national grid digital twin for resilience planning. It combines weather-based outage prediction with power-flow simulation to show where failures begin, how they cascade, and which communities or critical facilities lose power. Decision-makers can then test a new nuclear or firm-generation site, transmission upgrade, storage resource, or hardened line and replay the same event to measure how much risk the intervention removes. Every recommendation includes transparent scores, assumptions, counterfactual results, and supporting evidence.
