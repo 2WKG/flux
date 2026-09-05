@@ -20,7 +20,7 @@ async function sourceFiles(directory) {
 }
 
 const violations = [];
-for (const file of await sourceFiles(webRoot)) {
+for (const file of await sourceFiles(path.join(webRoot, "src"))) {
   if (file === thisFile) continue;
   const source = await readFile(file, "utf8");
   const checks = [
