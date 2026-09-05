@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -41,7 +42,7 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     )))
 
 
-def load_activsg(con, aux_path: str, case_path: str) -> dict[str, int]:
+def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: datetime | None = None) -> dict[str, int]:
     """Populate synthetic contract/helper tables from one validated case pair."""
     case = Path(case_path)
     text = case.read_text(encoding="utf-8", errors="replace")
@@ -112,13 +113,17 @@ def load_activsg(con, aux_path: str, case_path: str) -> dict[str, int]:
 
     counts = {
         "buses": replace_frame(con, "buses", bus_frame, source_name="activsg2000", source_ref=case.name,
-                               source_version="current", fixture_batch_id="p0-activsg-current"),
+                               source_version="current", source_retrieved_at=source_retrieved_at,
+                               fixture_batch_id="p0-activsg-current"),
         "lines": replace_frame(con, "lines", lines, source_name="activsg2000", source_ref=case.name,
-                               source_version="current", fixture_batch_id="p0-activsg-current"),
+                               source_version="current", source_retrieved_at=source_retrieved_at,
+                               fixture_batch_id="p0-activsg-current"),
         "gens": replace_frame(con, "gens", gens, source_name="activsg2000", source_ref=case.name,
-                              source_version="current", fixture_batch_id="p0-activsg-current"),
+                              source_version="current", source_retrieved_at=source_retrieved_at,
+                              fixture_batch_id="p0-activsg-current"),
         "loads": replace_frame(con, "loads", loads, source_name="activsg2000", source_ref=case.name,
-                               source_version="current", fixture_batch_id="p0-activsg-current"),
+                               source_version="current", source_retrieved_at=source_retrieved_at,
+                               fixture_batch_id="p0-activsg-current"),
         "synthetic_substations": replace_frame(con, "synthetic_substations", substations),
         "synthetic_bus_electrical": replace_frame(con, "synthetic_bus_electrical", bus_electrical),
         "synthetic_branch_electrical": replace_frame(con, "synthetic_branch_electrical", pd.DataFrame(branch_detail)),

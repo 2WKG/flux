@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
+from datetime import datetime
 from pathlib import Path
 
 from pipelines.activsg import load_activsg
+from pipelines.common import sha256_file
 from pipelines.counties import load_counties
 from pipelines.critical_loads import load_dod
 from pipelines.db import connect, export_parquet
@@ -52,6 +55,23 @@ def _missing_p0_inputs(raw: Path, eaglei_source_tz: str | None) -> list[str]:
     return missing
 
 
+def _verified_activsg_retrieval(aux: Path, case: Path) -> datetime | None:
+    """Use the checked-in receipt only when it matches the exact raw inputs."""
+    receipt = Path("data/sources/activsg2000.json")
+    if not receipt.exists():
+        return None
+    metadata = json.loads(receipt.read_text())
+    files = metadata.get("files", {})
+    if (files.get(aux.name, {}).get("sha256") != sha256_file(aux)
+            or files.get(case.name, {}).get("sha256") != sha256_file(case)):
+        return None
+    value = metadata.get("retrieved_at")
+    if not isinstance(value, str):
+        return None
+    parsed = datetime.fromisoformat(value)
+    return parsed if parsed.tzinfo is not None else None
+
+
 def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
     raw = Path(raw_dir)
     if missing := _missing_p0_inputs(raw, eaglei_source_tz):
@@ -65,7 +85,8 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
         aux = _required(raw, "activsg2000_current", "ACTIVSg2000.aux")
         case = _required(raw, "activsg2000_current", "case_ACTIVSg2000.m")
         if aux and case:
-            counts.update(load_activsg(con, str(aux), str(case)))
+            counts.update(load_activsg(con, str(aux), str(case),
+                                       source_retrieved_at=_verified_activsg_retrieval(aux, case)))
         nri = (_required(raw, "nri", "v1.20", "NRI_Counties_TX.json")
                or _required(raw, "nri", "v1.20", "NRI_Table_Counties.zip")
                or _required(raw, "nri", "NRI_Table_Counties.zip"))
