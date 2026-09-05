@@ -78,7 +78,10 @@ def download_file(url: str, destination: Path, force: bool) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("ids", nargs="*", help="dataset IDs from catalog.json")
-    parser.add_argument("--group", choices=("core", "extended", "all"))
+    parser.add_argument(
+        "--group",
+        choices=("core", "extended", "national", "demo-ny", "demo-tx", "all"),
+    )
     parser.add_argument("--list", action="store_true", help="list catalog entries")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-large", action="store_true")

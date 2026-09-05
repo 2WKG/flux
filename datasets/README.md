@@ -25,6 +25,17 @@ Preview the recommended first acquisition without downloading:
 py datasets/download.py --group core --dry-run
 ```
 
+Preview the two regional demo bundles:
+
+```powershell
+py datasets/download.py --group demo-ny --dry-run
+py datasets/download.py --group demo-tx --dry-run
+```
+
+Acquire `core` and `national` first, then the appropriate regional bundle. The
+regional groups contain state-specific additions rather than duplicating the
+shared sources.
+
 Download the bounded files in the core group:
 
 ```powershell
@@ -61,6 +72,14 @@ given.
 - Do not combine real line geometry with synthetic buses and claim the result is
   a real power-flow network.
 - Restricted FERC, NERC, ERCOT MIS, SCADA, relay, or CEII data is not included.
+
+## Regional demo strategy
+
+The New York and Texas bundles use the same modeling dimensions so results can
+be compared rather than becoming two unrelated demos. See
+`REGIONAL_COVERAGE.md` for the cross-state coverage matrix, recommended joins,
+and the acquisition order. A source tagged `national` is a reusable backbone;
+`demo-ny` and `demo-tx` mark state-specific additions.
 
 ## Catalog statuses
 
