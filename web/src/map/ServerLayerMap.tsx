@@ -8,8 +8,8 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { Feature, Geometry, GeoJsonProperties } from "geojson";
 import {
   featureProperties,
-  toLayerPresentation,
-  type LayerPresentation,
+  toLayerDisplayState,
+  type LayerDisplayState,
 } from "./layerContract";
 import "./serverLayerMap.css";
 
@@ -26,33 +26,40 @@ export function ServerLayerMap({
   endpoint,
   title = "Server map layer",
 }: ServerLayerMapProps) {
-  const [presentation, setPresentation] = useState<LayerPresentation | null>(null);
+  const [displayState, setDisplayState] = useState<LayerDisplayState | "loading">("loading");
   const [selectedFeature, setSelectedFeature] = useState<
     Feature<Geometry, GeoJsonProperties> | undefined
   >();
 
   useEffect(() => {
     const controller = new AbortController();
-    setPresentation(null);
+    setDisplayState("loading");
     setSelectedFeature(undefined);
     void fetch(endpoint, { signal: controller.signal })
-      .then(async (response) => (response.ok ? response.json() : null))
+      .then(async (response) => response.json().catch(() => null))
       .then((payload: unknown) => {
         if (!controller.signal.aborted) {
-          setPresentation(toLayerPresentation(payload));
+          setDisplayState(toLayerDisplayState(payload));
         }
       })
       .catch(() => {
         if (!controller.signal.aborted) {
-          setPresentation(null);
+          setDisplayState(toLayerDisplayState(null));
         }
       });
     return () => controller.abort();
   }, [endpoint]);
 
-  if (!presentation) {
+  if (displayState === "loading") {
     return null;
   }
+  if (displayState.kind === "unavailable") {
+    return <LayerStatePanel title={title} label="Layer unavailable" message={displayState.message} />;
+  }
+  if (displayState.kind === "empty") {
+    return <LayerStatePanel title={title} label={`${displayState.layer} · ${displayState.crs}`} message={displayState.message} />;
+  }
+  const { presentation } = displayState;
 
   const onClick = (event: MapLayerMouseEvent) => {
     const feature = event.features?.[0];
@@ -161,6 +168,21 @@ export function ServerLayerMap({
           )}
         </section>
       </div>
+    </section>
+  );
+}
+
+function LayerStatePanel({
+  title,
+  label,
+  message,
+}: Readonly<{ title: string; label: string; message: string }>) {
+  return (
+    <section className="server-layer-map server-layer-map--state" aria-label={title}>
+      <p className="server-layer-map__kicker">{label}</p>
+      <h2>{title}</h2>
+      <p>{message}</p>
+      <p className="server-layer-map__state-note">No geometry or values are rendered.</p>
     </section>
   );
 }
