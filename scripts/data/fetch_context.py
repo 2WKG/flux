@@ -8,11 +8,16 @@ from datetime import UTC, datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-DOD_URL = (
+from pipelines.state_scope import parse_states
+
+
+def dod_url(state: str) -> str:
+    """Return the server-side NTAD query for one validated state."""
+    return (
     "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/"
-    "NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27tx%27&outFields=*"
+    f"NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27{state.lower()}%27&outFields=*"
     "&returnGeometry=true&outSR=4326&f=geojson"
-)
+    )
 
 
 def save(url: str, path: Path, user_agent: str) -> None:
@@ -25,19 +30,29 @@ def save(url: str, path: Path, user_agent: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw-dir", default="data/raw")
+    parser.add_argument(
+        "--states", nargs="+", metavar="STATE",
+        help="one or more postal abbreviations; commas are accepted (default: TX)",
+    )
     parser.add_argument("--dod", action="store_true")
     parser.add_argument("--nws-user-agent", help="required to fetch NWS alerts; include a real contact")
     args = parser.parse_args()
     root = Path(args.raw_dir)
+    try:
+        states = parse_states(args.states)
+    except ValueError as error:
+        parser.error(str(error))
     if args.dod:
-        path = root / "ntad_military_bases" / "fy2024" / "texas.geojson"
-        save(DOD_URL, path, "flux-data-ingest/1.0")
-        print(path)
+        for state in states:
+            path = root / "ntad_military_bases" / "fy2024" / f"{state}.geojson"
+            save(dod_url(state), path, "flux-data-ingest/1.0")
+            print(path)
     if args.nws_user_agent:
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H0000Z")
-        path = root / "nws" / "alerts" / f"alerts_TX_{stamp}.geojson"
-        save("https://api.weather.gov/alerts/active?area=TX", path, args.nws_user_agent)
-        print(path)
+        for state in states:
+            path = root / "nws" / "alerts" / f"alerts_{state}_{stamp}.geojson"
+            save(f"https://api.weather.gov/alerts/active?area={state}", path, args.nws_user_agent)
+            print(path)
     return 0
 
 
