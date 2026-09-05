@@ -71,26 +71,27 @@ Every number on screen must sit in exactly one column, and the boundary must be 
 
 ## 3. The four work packages
 
-Scoped as child issues 2WKG-289 through 2WKG-292. Sequential; each is independently useful.
+Scoped as child issues 2WKG-279, 2WKG-280, 2WKG-283 and 2WKG-285. Sequential; each is
+independently useful.
 
-**A · Research — energy types and operating conditions** (2WKG-289)
+**A · Research — energy types and operating conditions** (2WKG-279)
 Determine which energy types can be represented honestly in a DC dispatch model (firm thermal,
 nuclear, wind, solar, storage) and what each requires: availability factor, dispatchability,
 whether storage needs state-of-charge the model cannot carry. Output: a table of
 representable / not-representable with reasons. Deciding *not* to model storage is a valid
 result.
 
-**B · Reusable configuration** (2WKG-290)
+**B · Reusable configuration** (2WKG-280)
 One scenario config schema — grid case, operating condition, intervention set — replacing the
 hardcoded constants. The existing bundle becomes the first config, not a special case.
 Keep it a single declarative file. No plugin system, no registry, no abstraction layer.
 
-**C · Selected-scenario execution and comparison** (2WKG-291)
+**C · Selected-scenario execution and comparison** (2WKG-283)
 Run the config path over **two** scenarios: the frozen Texas cold-weather case, and one
 alternative energy type or operating condition from A. Emit both through the same exporter.
 This is the actual demonstration; A and B only make it possible.
 
-**D · Robustness and scalability validation** (2WKG-292)
+**D · Robustness and scalability validation** (2WKG-285)
 Confirm the path holds under inputs it was not tuned for: infeasible solve reports as failure
 rather than zero impact, a tie stays a tie, determinism holds on re-run, and runtime is recorded
 at the larger case size. Names the point at which the approach stops being defensible.
