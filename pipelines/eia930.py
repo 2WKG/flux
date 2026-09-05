@@ -6,11 +6,21 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.db import log_artifact, replace_frame
+from pipelines.db import log_artifact
 
 
 def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_numeric(frame[column], errors="coerce") if column in frame else pd.Series(pd.NA, index=frame.index)
+
+
+def _upsert_frame(con, table: str, frame: pd.DataFrame) -> int:
+    """Apply incoming BA-hours without removing history from other source files."""
+    con.register("_incoming", frame)
+    try:
+        con.execute(f"INSERT OR REPLACE INTO {table} BY NAME SELECT * FROM _incoming")
+    finally:
+        con.unregister("_incoming")
+    return len(frame)
 
 
 def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", "EPE", "SWPP", "MISO")) -> int:
@@ -39,11 +49,19 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
     if combined.duplicated(["ba_code", "ts"]).any():
         raise ValueError("EIA-930 source files overlap on BA/hour")
     contracts = combined[["ba_code", "ts"]].copy()
-    contracts["demand_mw"] = combined.demand_adjusted_mw.combine_first(combined.demand_raw_mw)
+    contracts["demand_mw"] = combined.demand_adjusted_mw.fillna(combined.demand_raw_mw)
     if contracts.demand_mw.isna().any():
         raise ValueError("EIA-930 has demand rows without adjusted or raw demand")
-    replace_frame(con, "ba_load_hourly", contracts, where="ba_code IN ('ERCO', 'EPE', 'SWPP', 'MISO')")
-    replace_frame(con, "ba_operations_hourly", combined, where="ba_code IN ('ERCO', 'EPE', 'SWPP', 'MISO')")
+    # A build may receive one six-month file at a time.  Replacing the whole BA
+    # slice here would silently erase all other periods already curated.
+    con.execute("BEGIN TRANSACTION")
+    try:
+        _upsert_frame(con, "ba_load_hourly", contracts)
+        _upsert_frame(con, "ba_operations_hourly", combined)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
     for filename in csv_paths:
         log_artifact(con, source="eia930", source_release=Path(filename).stem, path=filename,
                      rows_loaded=len(combined), schema_fingerprint="BA,UTC end hour,demand,forecast,generation,interchange")
