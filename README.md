@@ -16,6 +16,7 @@ data/parquet/                                      models/outage/  LightGBM
 siting/   safety + grid-value scoring              causal/      pgmpy / DoWhy
 copilot/  FastAPI + Claude tool loop               web/         Vite + React + deck.gl + MapLibre
 docs/specs/  one spec per unit                     scripts/data/download.sh
+datasets/    source registry + safe downloader
 ```
 
 ## Setup
@@ -27,3 +28,6 @@ cd web && pnpm install        # front end
 ```
 
 Status: specs + dependencies only. No product code yet.
+
+See [`datasets/README.md`](datasets/README.md) for the complete public-data
+catalog, acquisition routes, and commands that keep bulk files out of Git.
