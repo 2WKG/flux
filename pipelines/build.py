@@ -28,6 +28,10 @@ from pipelines.storm_events import load_storm_events
 P0_RAW_INPUTS_CATALOG = Path(__file__).resolve().parents[1] / "datasets" / "catalog.json"
 
 
+class PublicationRecoveryError(RuntimeError):
+    """Publication rollback failed; the recovery directory must be retained."""
+
+
 class IncompleteP0BuildError(RuntimeError):
     """Raised before a partial P0 build can mutate or export the curated release."""
 
@@ -84,13 +88,13 @@ def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, pa
         aux = _required(raw, "activsg2000_current", "ACTIVSg2000.aux")
         case = _required(raw, "activsg2000_current", "case_ACTIVSg2000.m")
         assert aux and case
-        counts.update(load_activsg(con, str(aux), str(case), source_retrieved_at=_verified_activsg_retrieval(aux, case)))
         nri = (_required(raw, "nri", "v1.20", "NRI_Counties_TX.json")
                or _required(raw, "nri", "v1.20", "NRI_Table_Counties.zip")
                or _required(raw, "nri", "NRI_Table_Counties.zip"))
         tiger = _required(raw, "tiger", "2024", "tl_2024_us_county.zip") or _required(raw, "tiger", "tl_2024_us_county.zip")
         assert tiger and nri
         counts["counties"] = load_counties(con, str(tiger), str(nri))
+        counts.update(load_activsg(con, str(aux), str(case), source_retrieved_at=_verified_activsg_retrieval(aux, case)))
         counts["bus_county"] = join_bus_county(con)
         counts["nri"] = load_nri(con, str(nri))
         plants = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_plants.parquet")
@@ -155,13 +159,29 @@ def _promote(stage_db: Path, live_db: Path, stage_parquet: Path, live_parquet: P
         if live_parquet.exists():
             os.replace(live_parquet, old_parquet)
         os.replace(stage_parquet, live_parquet); moved_parquet = True
-    except Exception:
-        if moved_parquet and live_parquet.exists(): shutil.rmtree(live_parquet)
-        if old_parquet.exists(): os.replace(old_parquet, live_parquet)
-        if moved_db and live_db.exists(): live_db.unlink()
-        if old_db.exists(): os.replace(old_db, live_db)
+    except Exception as publish_error:
+        recovery_errors = []
+        # Try both restorations even if one fails. Never discard the only old
+        # copy when filesystem errors prevent completing rollback.
+        for old, live, moved in ((old_parquet, live_parquet, moved_parquet),
+                                 (old_db, live_db, moved_db)):
+            try:
+                if moved and live.exists():
+                    if live.is_dir():
+                        shutil.rmtree(live)
+                    else:
+                        live.unlink()
+                if old.exists():
+                    os.replace(old, live)
+            except OSError as error:
+                recovery_errors.append(f"{live}: {error}")
+        if recovery_errors:
+            raise PublicationRecoveryError(
+                f"publication failed ({publish_error}); rollback incomplete; "
+                f"recovery files retained at {root}: " + "; ".join(recovery_errors)
+            ) from publish_error
         raise
-    finally:
+    else:
         if old_db.exists(): old_db.unlink()
         if old_parquet.exists(): shutil.rmtree(old_parquet)
 
@@ -174,6 +194,7 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
     live_db.parent.mkdir(parents=True, exist_ok=True)
     root = Path(tempfile.mkdtemp(prefix=f".{live_db.stem}-stage-", dir=live_db.parent))
     stage_db, live_parquet, stage_parquet = root / live_db.name, Path("data/parquet"), root / "parquet"
+    retain_recovery = False
     try:
         _copy_database(live_db, stage_db)
         if live_parquet.exists(): shutil.copytree(live_parquet, stage_parquet)
@@ -184,8 +205,12 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
             raise RuntimeError("staged P0 quality checks failed: " + "; ".join(check.name for check in checks if not check.passed))
         _promote(stage_db, live_db, stage_parquet, live_parquet, root)
         return counts
+    except PublicationRecoveryError:
+        retain_recovery = True
+        raise
     finally:
-        shutil.rmtree(root, ignore_errors=True)
+        if not retain_recovery:
+            shutil.rmtree(root, ignore_errors=True)
 
 
 def main() -> int:

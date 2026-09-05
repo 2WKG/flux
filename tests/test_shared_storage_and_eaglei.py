@@ -115,3 +115,30 @@ def test_storm_replay_uses_source_year_not_converted_timestamp_year(tmp_path) ->
         assert con.execute("SELECT count(*) FROM storm_events").fetchone()[0] == 0
     finally:
         con.close()
+
+
+def test_parent_refresh_preserves_foreign_keys_and_removes_absent_unreferenced_rows(tmp_path):
+    con = connect(tmp_path / "grid.duckdb")
+    provenance = {"source_name": "test", "source_ref": "fixture", "fixture_batch_id": "v1"}
+    try:
+        counties = pd.DataFrame([
+            {"county_fips": "48001", "name": "Anderson", "state": "TX", "pop": 1, "geom_wkb": b"fixture"},
+            {"county_fips": "48003", "name": "Andrews", "state": "TX", "pop": 1, "geom_wkb": b"fixture"},
+        ])
+        replace_frame(con, "counties", counties, **provenance)
+        replace_frame(con, "hazard_static", pd.DataFrame([{"county_fips": "48001", "nri_score": 2}]), **provenance)
+        buses = pd.DataFrame([{"bus_id": 1, "name": "bus", "base_kv": 230, "lon": -95,
+                               "lat": 30, "county_fips": "48001", "coord_source": "tamu_aux"}])
+        replace_frame(con, "buses", buses, **provenance)
+        replace_frame(con, "loads", pd.DataFrame([{"load_id": 1, "bus_id": 1, "p_mw_nominal": 5}]), **provenance)
+        counties = counties.iloc[:1].copy()
+        counties["pop"] = 10
+        replace_frame(con, "counties", counties, **{**provenance, "fixture_batch_id": "v2"})
+        buses["name"] = "updated bus"
+        replace_frame(con, "buses", buses, **provenance)
+        assert con.execute("SELECT county_fips, pop, fixture_batch_id FROM counties").fetchall() == [("48001", 10, "v2")]
+        assert con.execute("SELECT name FROM buses").fetchone() == ("updated bus",)
+        assert con.execute("SELECT nri_score FROM hazard_static").fetchone() == (2,)
+        assert con.execute("SELECT p_mw_nominal FROM loads").fetchone() == (5,)
+    finally:
+        con.close()

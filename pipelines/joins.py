@@ -33,7 +33,7 @@ def join_bus_county(con, fallback_km: float = 30.0) -> int:
     result = hit[["bus_id", "_matched_county_fips"]].rename(columns={"_matched_county_fips": "county_fips"})
     con.register("_bus_county", result)
     try:
-        con.execute("UPDATE buses AS b SET county_fips = m.county_fips FROM _bus_county AS m WHERE b.bus_id = m.bus_id")
+        con.execute("UPDATE buses AS b SET county_fips = m.county_fips FROM _bus_county AS m WHERE b.bus_id = m.bus_id AND b.county_fips IS DISTINCT FROM m.county_fips")
     finally:
         con.unregister("_bus_county")
     missing = int(result.county_fips.isna().sum())
