@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.db import log_artifact
+from pipelines.texas_db import log_artifact
 
 
 def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:

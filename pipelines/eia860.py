@@ -9,7 +9,7 @@ import pandas as pd
 from shapely import wkb
 from shapely.geometry import Point
 
-from pipelines.db import log_artifact, replace_frame
+from pipelines.texas_db import log_artifact, replace_frame
 
 
 def _first(frame: pd.DataFrame, *names: str) -> pd.Series:

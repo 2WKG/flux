@@ -8,7 +8,7 @@ from pathlib import Path
 import pandas as pd
 
 from pipelines.common import fips5, utc_naive
-from pipelines.db import log_artifact, replace_frame
+from pipelines.texas_db import log_artifact, replace_frame
 
 # Storm Events timestamps use local *standard* time year-round.  The Texas-only
 # loader maps NOAA's POSIX-style labels to fixed-offset IANA zones (whose signs

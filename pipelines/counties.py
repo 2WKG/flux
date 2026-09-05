@@ -7,7 +7,7 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
-from pipelines.db import log_artifact, replace_frame
+from pipelines.texas_db import log_artifact, replace_frame
 
 
 def load_counties(con, tiger_zip: str, states: tuple[str, ...] = ("48",), vintage: str = "2024") -> int:

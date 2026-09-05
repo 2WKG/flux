@@ -10,7 +10,7 @@ import pandas as pd
 from shapely.geometry import LineString
 
 from pipelines.activsg_aux import read_aux_coords
-from pipelines.db import log_artifact, replace_frame
+from pipelines.texas_db import log_artifact, replace_frame
 
 
 def _numeric_matrix(text: str, name: str) -> np.ndarray:

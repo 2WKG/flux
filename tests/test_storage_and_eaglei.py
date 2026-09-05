@@ -2,8 +2,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from pipelines.db import connect, export_parquet, replace_frame
 from pipelines.eaglei import load_eaglei
+from pipelines.texas_db import (
+    TEXAS_DB_PATH,
+    TEXAS_PARQUET_DIR,
+    connect,
+    export_parquet,
+    replace_frame,
+)
 
 
 def test_empty_replacement_removes_the_selected_slice(tmp_path) -> None:
@@ -15,6 +21,21 @@ def test_empty_replacement_removes_the_selected_slice(tmp_path) -> None:
         assert con.execute("SELECT count(*) FROM counties").fetchone()[0] == 0
     finally:
         con.close()
+
+
+def test_texas_storage_defaults_never_target_the_shared_release(tmp_path, monkeypatch) -> None:
+    monkeypatch.chdir(tmp_path)
+    con = connect()
+    try:
+        written = export_parquet(con)
+    finally:
+        con.close()
+
+    assert TEXAS_DB_PATH == "data/duck/texas.duckdb"
+    assert TEXAS_PARQUET_DIR == "data/parquet/texas"
+    assert tmp_path / TEXAS_DB_PATH != tmp_path / "data/duck/grid.duckdb"
+    assert (tmp_path / TEXAS_DB_PATH).exists()
+    assert written and all((tmp_path / path).is_relative_to(tmp_path / TEXAS_PARQUET_DIR) for path in written)
 
 
 def test_export_parquet_uses_a_copy_target_duckdb_accepts(tmp_path) -> None:

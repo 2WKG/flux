@@ -8,9 +8,9 @@ from shapely.geometry import Polygon
 
 from pipelines.checks import run_checks
 from pipelines.critical_loads import load_dod
-from pipelines.db import connect
 from pipelines.joins import join_critical_loads_to_bus
 from pipelines.storm_events import _cz_timezone, load_storm_events
+from pipelines.texas_db import connect
 
 
 def test_storm_events_uses_each_rows_cz_timezone(tmp_path):
