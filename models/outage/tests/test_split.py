@@ -212,12 +212,10 @@ def test_calibration_fold_is_spatially_blocked_disjoint_and_has_expected_fractio
     frame = pd.DataFrame(
         {
             "county_fips": [row.key.county_fips for row in rows],
-            "scenario_id": [row.key.scenario_id for row in rows],
             "window_start": [row.key.window_start for row in rows],
-            "state": [states[row.key.county_fips] for row in rows],
         }
     )
-    train, calibration_frame, _ = split(frame)
+    train, calibration_frame, _ = split(frame, county_catalog=states)
     assert set(zip(train.county_fips, train.window_start)) == {
         (key.county_fips, key.window_start) for key in membership[Partition.TRAIN]
     }
@@ -243,15 +241,18 @@ def test_fixture_labels_cannot_enter_a_manifest():
         )
 
 
-def test_split_adapter_preserves_input_and_names_only_evaluation_holdouts():
+def test_split_adapter_consumes_spec_feature_columns_and_resolves_counties_catalog():
     start = datetime(2023, 1, 1, tzinfo=UTC)
     frame = pd.DataFrame(
         [
             {
                 "county_fips": "48453",
-                "scenario_id": "historical",
                 "window_start": start + timedelta(hours=6 * n),
-                "state": "TX",
+                "wind_max": float(n),
+                "gust_max": float(n + 1),
+                "y_out": n % 2,
+                "frac_out": n / 100,
+                "total_customers": 1_000,
                 "marker": n,
             }
             for n in range(20)
@@ -259,23 +260,31 @@ def test_split_adapter_preserves_input_and_names_only_evaluation_holdouts():
         + [
             {
                 "county_fips": "48453",
-                "scenario_id": "historical",
                 "window_start": datetime(2021, 2, 15, tzinfo=UTC),
-                "state": "TX",
+                "wind_max": 30.0,
+                "gust_max": 40.0,
+                "y_out": 1,
+                "frac_out": 0.2,
+                "total_customers": 1_000,
                 "marker": 100,
             },
             {
                 "county_fips": "48453",
-                "scenario_id": "historical",
                 "window_start": datetime(2024, 7, 2, tzinfo=UTC),
-                "state": "TX",
+                "wind_max": 30.0,
+                "gust_max": 40.0,
+                "y_out": 1,
+                "frac_out": 0.2,
+                "total_customers": 1_000,
                 "marker": 101,
             },
         ]
     )
     original = frame.copy(deep=True)
 
-    train, calibration, holdouts = split(frame)
+    assert {"scenario_id", "state"}.isdisjoint(frame.columns)
+    counties = pd.DataFrame({"county_fips": ["48453"], "state": ["TX"]})
+    train, calibration, holdouts = split(frame, county_catalog=counties)
 
     pd.testing.assert_frame_equal(frame, original)
     assert set(holdouts) == {
@@ -292,9 +301,7 @@ def test_split_dataframe_path_does_not_construct_pydantic_keys(monkeypatch):
     frame = pd.DataFrame(
         {
             "county_fips": ["48001"] * 1000,
-            "scenario_id": ["historical"] * 1000,
             "window_start": pd.date_range("2023-01-01", periods=1000, freq="6h", tz="UTC"),
-            "state": ["TX"] * 1000,
         }
     )
 
@@ -302,43 +309,39 @@ def test_split_dataframe_path_does_not_construct_pydantic_keys(monkeypatch):
         raise AssertionError("split DataFrame path must remain vectorized")
 
     monkeypatch.setattr("models.outage.split.WindowKey", unexpected_pydantic_path)
-    train, calibration, holdouts = split(frame)
+    train, calibration, holdouts = split(
+        frame, county_catalog={"48001": "TX"}
+    )
 
     assert len(train) + len(calibration) + sum(len(value) for value in holdouts.values()) <= len(frame)
 
 
-def test_split_rejects_ambiguous_or_invalid_input():
+def test_split_rejects_ambiguous_or_unknown_county_input():
     frame = pd.DataFrame(
         [
             {
                 "county_fips": "48453",
-                "scenario_id": "x",
                 "window_start": datetime(2023, 1, 1, tzinfo=UTC),
-                "state": "Texas",
             }
         ]
     )
-    with pytest.raises(SplitError, match="two-letter"):
-        split(frame)
+    with pytest.raises(SplitError, match="no state"):
+        split(frame, county_catalog={})
 
     duplicate = pd.DataFrame(
         [
             {
                 "county_fips": "48453",
-                "scenario_id": "x",
                 "window_start": datetime(2023, 1, 1, tzinfo=UTC),
-                "state": "TX",
             },
             {
                 "county_fips": "48453",
-                "scenario_id": "x",
                 "window_start": datetime(2023, 1, 1, tzinfo=UTC),
-                "state": "TX",
             },
         ]
     )
     with pytest.raises(SplitError, match="duplicate"):
-        split(duplicate)
+        split(duplicate, county_catalog={"48453": "TX"})
 
 
 def test_split_does_not_treat_dataframe_index_as_the_row_identity():
@@ -346,23 +349,19 @@ def test_split_does_not_treat_dataframe_index_as_the_row_identity():
         [
             {
                 "county_fips": "48453",
-                "scenario_id": "historical",
                 "window_start": datetime(2021, 2, 15, tzinfo=UTC),
-                "state": "TX",
                 "marker": "holdout",
             },
             {
                 "county_fips": "48453",
-                "scenario_id": "historical",
                 "window_start": datetime(2023, 1, 1, tzinfo=UTC),
-                "state": "TX",
                 "marker": "eligible",
             },
         ],
         index=[5, 5],
     )
 
-    train, calibration, holdouts = split(frame)
+    train, calibration, holdouts = split(frame, county_catalog={"48453": "TX"})
 
     assert holdouts["uri_2021"].marker.tolist() == ["holdout"]
     assert "holdout" not in set(train.marker) | set(calibration.marker)
