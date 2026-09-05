@@ -7,7 +7,7 @@ from pathlib import Path
 import pandas as pd
 
 from pipelines.common import fips5, utc_now
-from pipelines.db import log_artifact, replace_frame
+from pipelines.texas_db import log_artifact, replace_frame
 
 
 def load_county_customers(con, mcc_csv: str, source_year: int = 2022) -> int:

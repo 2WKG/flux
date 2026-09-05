@@ -9,8 +9,7 @@ from pathlib import Path
 import pandas as pd
 
 from pipelines.common import fips5
-from pipelines.db import log_artifact, replace_frame
-
+from pipelines.texas_db import log_artifact, replace_frame
 
 # v1.20 exposes inland flooding as IFLD (not the older RFLD shorthand).
 HIGH_VALUE_HAZARDS = ("WNTW", "HRCN", "SWND", "ISTM", "WFIR", "IFLD", "CFLD", "HWAV", "TRND", "LTNG")

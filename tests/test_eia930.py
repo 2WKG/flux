@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
-from pipelines.db import connect
 from pipelines.eia930 import load_eia930
+from pipelines.texas_db import connect
 
 
 def _write_eia930(path, timestamp: str, demand: int, adjusted: int | None = None) -> None:

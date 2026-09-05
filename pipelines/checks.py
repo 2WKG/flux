@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import dataclass
 
-from pipelines.db import connect
+from pipelines.texas_db import TEXAS_DB_PATH, connect
 
 
 @dataclass(frozen=True)
@@ -97,7 +97,7 @@ def run_checks(db_path: str) -> list[Check]:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", default="data/duck/grid.duckdb")
+    parser.add_argument("--db", default=TEXAS_DB_PATH)
     args = parser.parse_args()
     checks = run_checks(args.db)
     for check in checks:

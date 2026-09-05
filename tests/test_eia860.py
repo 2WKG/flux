@@ -3,8 +3,8 @@ from __future__ import annotations
 import pandas as pd
 from shapely.geometry import Polygon
 
-from pipelines.db import connect
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
+from pipelines.texas_db import connect
 
 
 def _write_eia_parquet(tmp_path, plants: list[dict], generators: list[dict]) -> tuple[str, str]:

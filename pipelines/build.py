@@ -9,13 +9,13 @@ from pathlib import Path
 from pipelines.activsg import load_activsg
 from pipelines.counties import load_counties
 from pipelines.critical_loads import load_dod
-from pipelines.db import connect, export_parquet
 from pipelines.eaglei import load_county_customers, load_coverage_history, load_eaglei
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
 from pipelines.joins import join_bus_county, join_critical_loads_to_bus
 from pipelines.nri import load_nri
 from pipelines.storm_events import load_storm_events
+from pipelines.texas_db import TEXAS_DB_PATH, TEXAS_PARQUET_DIR, connect, export_parquet
 
 REGISTRY = Path(__file__).resolve().parents[1] / "data" / "sources" / "p0_registry.json"
 
@@ -37,7 +37,12 @@ def _missing_p0_inputs(raw: Path, eaglei_source_tz: str | None) -> list[str]:
     return missing
 
 
-def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
+def build(
+    raw_dir: str = "data/raw",
+    db_path: str = TEXAS_DB_PATH,
+    eaglei_source_tz: str | None = None,
+    parquet_dir: str = TEXAS_PARQUET_DIR,
+) -> dict[str, int]:
     raw = Path(raw_dir)
     if missing := _missing_p0_inputs(raw, eaglei_source_tz):
         raise IncompleteP0BuildError("P0 build was not promoted; missing required inputs:\n  - " + "\n  - ".join(missing))
@@ -62,7 +67,7 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
             counts[f"eaglei_{year}"] = load_eaglei(con, str(artifacts[f"eaglei_{year}"]), year, eaglei_source_tz)
         counts["critical_loads_dod"] = load_dod(con, str(artifacts["ntad_texas_bases"]))
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
-        export_parquet(con)
+        export_parquet(con, parquet_dir)
     finally:
         con.close()
     return counts
@@ -71,10 +76,11 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw-dir", default="data/raw")
-    parser.add_argument("--db", default="data/duck/grid.duckdb")
+    parser.add_argument("--db", default=TEXAS_DB_PATH)
+    parser.add_argument("--parquet-dir", default=TEXAS_PARQUET_DIR)
     parser.add_argument("--eaglei-source-tz", choices=("UTC", "America/Chicago"))
     args = parser.parse_args()
-    counts = build(args.raw_dir, args.db, args.eaglei_source_tz)
+    counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.parquet_dir)
     for name, rows in sorted(counts.items()):
         print(f"{name}: {rows}")
     return 0
