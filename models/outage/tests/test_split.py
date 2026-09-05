@@ -150,43 +150,33 @@ def test_partition_rows_binds_verified_input_hash_and_manifest_integrity():
         partition_rows(rows, tampered, verified_input_artifact_sha256=HASH)
 
 
-def test_calibration_uses_whole_county_months_and_is_stable_under_append():
-    rows_and_states = []
-    for month in range(1, 13):
-        for window in range(4):
-            rows_and_states.append(
-                observed(
-                    "48001",
-                    "TX",
-                    datetime(2023, month, 1, 6 * window, tzinfo=UTC),
-                )
-            )
-    rows = tuple(row for row, _ in rows_and_states)
+def test_calibration_is_texas_2023_and_is_stable_under_backfill():
+    rows = tuple(
+        observed("48001", "TX", at)[0]
+        for at in (
+            datetime(2022, 12, 31, 18, tzinfo=UTC),
+            datetime(2023, 1, 1, tzinfo=UTC),
+            datetime(2023, 6, 1, tzinfo=UTC),
+            datetime(2023, 12, 31, 18, tzinfo=UTC),
+            datetime(2024, 1, 1, tzinfo=UTC),
+        )
+    )
     states = {"48001": "TX"}
     original = build_split_manifest(
         rows, states_by_county=states, input_artifact_sha256=HASH
     )
     assignment = {item.key: item.partition for item in original.assignments}
 
-    for month in range(1, 13):
-        monthly = {
-            assignment[row.key]
-            for row in rows
-            if row.key.window_start.month == month
-        }
-        assert len(monthly) == 1
-    monthly_partition = {
-        month: assignment[next(row.key for row in rows if row.key.window_start.month == month)]
-        for month in range(1, 13)
-    }
-    for month in range(1, 12):
-        if monthly_partition[month] is Partition.CALIBRATION:
-            assert monthly_partition[month + 1] is Partition.EXCLUDED
+    assert [assignment[row.key] for row in rows] == [
+        Partition.TRAIN,
+        Partition.CALIBRATION,
+        Partition.CALIBRATION,
+        Partition.CALIBRATION,
+        Partition.TRAIN,
+    ]
 
-    appended = rows + tuple(
-        observed("48001", "TX", datetime(2024, month, 1, tzinfo=UTC))[0]
-        for month in range(1, 7)
-    )
+    # Backfilling an earlier window must not rewrite any existing assignment.
+    appended = (observed("48001", "TX", datetime(2022, 11, 1, tzinfo=UTC))[0],) + rows
     refreshed = build_split_manifest(
         appended, states_by_county=states, input_artifact_sha256="b" * 64
     )
@@ -194,6 +184,46 @@ def test_calibration_uses_whole_county_months_and_is_stable_under_append():
         item.key: item.partition for item in refreshed.assignments
     }
     assert {key: refreshed_assignment[key] for key in assignment} == assignment
+
+
+def test_calibration_fold_is_spatially_blocked_disjoint_and_has_expected_fraction():
+    rows_and_states = []
+    for county_fips, state in (("48001", "TX"), ("48003", "TX"), ("12001", "FL")):
+        for year in (2022, 2023, 2024):
+            rows_and_states.append(
+                observed(county_fips, state, datetime(year, 6, 1, tzinfo=UTC))
+            )
+    rows = tuple(row for row, _ in rows_and_states)
+    states = {row.key.county_fips: state for row, state in rows_and_states}
+
+    manifest = build_split_manifest(
+        rows, states_by_county=states, input_artifact_sha256=HASH
+    )
+    membership = manifest_membership(manifest)
+    calibration = membership[Partition.CALIBRATION]
+
+    assert {key.county_fips for key in calibration} == {"48001", "48003"}
+    assert {key.window_start.year for key in calibration} == {2023}
+    assert calibration.isdisjoint(membership[Partition.TRAIN])
+    assert len(calibration) / (len(calibration) + len(membership[Partition.TRAIN])) == pytest.approx(
+        2 / 9
+    )
+
+    frame = pd.DataFrame(
+        {
+            "county_fips": [row.key.county_fips for row in rows],
+            "scenario_id": [row.key.scenario_id for row in rows],
+            "window_start": [row.key.window_start for row in rows],
+            "state": [states[row.key.county_fips] for row in rows],
+        }
+    )
+    train, calibration_frame, _ = split(frame)
+    assert set(zip(train.county_fips, train.window_start)) == {
+        (key.county_fips, key.window_start) for key in membership[Partition.TRAIN]
+    }
+    assert set(zip(calibration_frame.county_fips, calibration_frame.window_start)) == {
+        (key.county_fips, key.window_start) for key in calibration
+    }
 
 
 def test_fixture_labels_cannot_enter_a_manifest():
