@@ -46,7 +46,15 @@ def load_dod(con, geojson_path: str, min_area_km2: float = 1.0, release: str = "
         "cl_id": np.arange(1, len(active) + 1), "kind": "dod", "name": active["siteName"].astype(str),
         "lon": centroids.x, "lat": centroids.y, "bus_id": None, "county_fips": county_fips.to_numpy(),
     })
-    rows = replace_frame(con, "critical_loads", frame, where="kind = 'dod'")
+    unassigned = frame[frame.county_fips.isna()]
+    if not unassigned.empty:
+        con.execute("INSERT INTO ingest_warnings VALUES ('ntad_military_bases', 'county_assignment', ?, current_timestamp)",
+                    [f"skipped {len(unassigned)} facilities outside loaded county coverage"])
+        frame = frame[frame.county_fips.notna()].copy()
+        active = active.loc[frame.index]
+    source_id = active.index.astype(str)
+    rows = replace_frame(con, "critical_loads", frame, where="kind = 'dod'", source_name="ntad_military_bases",
+                         source_ref=path.name, source_version=release, fixture_batch_id=f"p0-ntad-{release}")
     con.execute("""CREATE TABLE IF NOT EXISTS critical_load_geometry(cl_id INTEGER PRIMARY KEY, source_id TEXT,
         reporting_component TEXT, operational_status TEXT, is_joint_base BOOLEAN, area_km2 DOUBLE, geom_wkb BLOB)""")
     geometry = pd.DataFrame({

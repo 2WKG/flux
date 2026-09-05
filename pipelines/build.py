@@ -66,14 +66,14 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
         case = _required(raw, "activsg2000_current", "case_ACTIVSg2000.m")
         if aux and case:
             counts.update(load_activsg(con, str(aux), str(case)))
-        tiger = _required(raw, "tiger", "2024", "tl_2024_us_county.zip") or _required(raw, "tiger", "tl_2024_us_county.zip")
-        if tiger:
-            counts["counties"] = load_counties(con, str(tiger))
-            if aux and case:
-                counts["bus_county"] = join_bus_county(con)
         nri = (_required(raw, "nri", "v1.20", "NRI_Counties_TX.json")
                or _required(raw, "nri", "v1.20", "NRI_Table_Counties.zip")
                or _required(raw, "nri", "NRI_Table_Counties.zip"))
+        tiger = _required(raw, "tiger", "2024", "tl_2024_us_county.zip") or _required(raw, "tiger", "tl_2024_us_county.zip")
+        if tiger and nri:
+            counts["counties"] = load_counties(con, str(tiger), str(nri))
+            if aux and case:
+                counts["bus_county"] = join_bus_county(con)
         if nri:
             counts["nri"] = load_nri(con, str(nri))
         plants = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_plants.parquet")

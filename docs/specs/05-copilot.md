@@ -6,7 +6,7 @@ Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.du
 
 A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling Claude copilot behind `POST /ask`.
 
-The copilot is the "answers questions in English with citations" layer of Idea 1 — **GridMind** (pitch §"What it does" item 5, Layer 6; `discription.md` §5.7). The description's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
+The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
 Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the national 82k model is a scale slide, not a copilot target this weekend.
 
@@ -331,7 +331,7 @@ Expected trace:
 
 Guard: if the answer contains a total MWh not present in any tool result, criterion 7 fails (this is the exact failure mode the never-compute rule is for; the eval asserts it).
 
-**Q3 — "Which three substations create the greatest cascade risk for critical facilities?"** (`discription.md` §5.7 example; A8)
+**Q3 — "Which three substations create the greatest cascade risk for critical facilities?"** (prior briefing example; A8)
 Context: `scenario_id=uri_2021`, no selection.
 
 Expected trace:

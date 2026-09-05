@@ -40,7 +40,7 @@ Candidate set = retired and retiring coal plants (EIA-860), existing nuclear sit
 - *Grid-strength value* — put a 300 MW / 1 GW unit at the site in the twin, re-run the stress scenarios, measure the drop in expected loss-of-load, congestion relief, and black-start reach. This is the number nobody else produces.
 
 **Layer 6 — Copilot.**
-A tool-calling LLM agent (the GridMind / Grid-Agent pattern from 2025 papers). The model never does arithmetic; it calls `predict_outage(county, horizon)`, `run_cascade(element_ids, hour)`, `score_site(lat, lon, size)`, `sql(...)`, and retrieves from 10 CFR 100, the DOE coal-to-nuclear report, and the May 2025 nuclear executive orders for citations.
+A tool-calling LLM agent informed by grid-agent patterns described in 2025 papers. The model never does arithmetic; it calls `predict_outage(county, horizon)`, `run_cascade(element_ids, hour)`, `score_site(lat, lon, size)`, `sql(...)`, and retrieves from 10 CFR 100, the DOE coal-to-nuclear report, and the May 2025 nuclear executive orders for citations.
 
 **Interface.** deck.gl + MapLibre map with layers: line loading, county outage-risk choropleth, animated storm polygon, cascade playback (elements trip in sequence), candidate-site pins with score cards, and a critical-load panel. One "Ask" box.
 

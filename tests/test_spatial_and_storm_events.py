@@ -7,7 +7,7 @@ import pytest
 from shapely.geometry import Polygon
 
 from pipelines.critical_loads import load_dod
-from pipelines.db import connect
+from pipelines.db import connect, replace_frame
 from pipelines.joins import join_critical_loads_to_bus
 from pipelines.storm_events import _cz_timezone, load_storm_events
 
@@ -26,6 +26,11 @@ def test_storm_events_uses_each_rows_cz_timezone(tmp_path):
     crosswalk.write_text("TX|001|XXX|Example||Example|48001|CST-6\n")
     con = connect(str(tmp_path / "grid.duckdb"))
     try:
+        replace_frame(con, "counties", pd.DataFrame([{"county_fips": "48001", "name": "Example", "state": "TX",
+                                                        "pop": 1, "geom_wkb": Polygon([(-99, 29), (-95, 29), (-95, 33), (-99, 33)]).wkb},
+                                                       {"county_fips": "48003", "name": "Example 2", "state": "TX",
+                                                        "pop": 1, "geom_wkb": Polygon([(-106, 29), (-94, 29), (-94, 33), (-106, 33)]).wkb}]),
+                      source_name="test", source_ref="storm-fixture", fixture_batch_id="test")
         assert load_storm_events(con, str(details), str(crosswalk), 2021) == 2
         observed = con.execute("SELECT event_id, ts_begin FROM storm_events ORDER BY event_id").fetchall()
     finally:
@@ -54,14 +59,20 @@ def test_dod_county_assignment_prevents_cross_county_bus_matches(tmp_path):
     ]}))
     con = connect(str(tmp_path / "grid.duckdb"))
     try:
-        con.execute("INSERT INTO counties VALUES (?, ?, ?, ?, ?)", ["48001", "Example", "TX", 1, county.wkb])
-        con.execute("INSERT INTO buses VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [1, "same county", 115.0, -97.1, 30.6, "48001", None, None, None, None])
-        assert load_dod(con, str(geojson), min_area_km2=1) == 2
+        replace_frame(con, "counties", pd.DataFrame([{"county_fips": "48001", "name": "Example", "state": "TX", "pop": 1,
+                                                        "geom_wkb": county.wkb}, {"county_fips": "48003", "name": "Other", "state": "TX", "pop": 1,
+                                                                                "geom_wkb": Polygon([(-96, 30), (-94, 30), (-94, 32), (-96, 32)]).wkb}]),
+                      source_name="test", source_ref="spatial-fixture", fixture_batch_id="test")
+        replace_frame(con, "buses", pd.DataFrame([{"bus_id": 1, "name": "same county", "base_kv": 115.0, "lon": -97.1,
+                                                     "lat": 30.6, "county_fips": "48001", "ba_code": None, "coord_source": "test",
+                                                     "zone": None, "area": None}]), source_name="test", source_ref="spatial-fixture", fixture_batch_id="test")
+        assert load_dod(con, str(geojson), min_area_km2=1) == 1
         assert con.execute("SELECT county_fips FROM critical_loads WHERE name = 'Inside'").fetchone() == ("48001",)
-        assert con.execute("SELECT county_fips FROM critical_loads WHERE name = 'Outside'").fetchone() == (None,)
+        assert con.execute("SELECT count(*) FROM critical_loads WHERE name = 'Outside'").fetchone() == (0,)
         # A known county without a qualifying bus must not fall back to a bus in a different county.
-        con.execute("INSERT INTO critical_loads VALUES (3, 'hospital', 'No local bus', -95, 30.5, NULL, '48003')")
+        replace_frame(con, "critical_loads", pd.DataFrame([{"cl_id": 3, "kind": "hospital", "name": "No local bus", "lon": -95,
+                                                              "lat": 30.5, "bus_id": None, "county_fips": "48003"}]),
+                      where="cl_id = 3", source_name="test", source_ref="spatial-fixture", fixture_batch_id="test")
         assert join_critical_loads_to_bus(con) == 1
         assignments = con.execute(
             "SELECT name, bus_id FROM critical_loads ORDER BY cl_id"
@@ -71,6 +82,5 @@ def test_dod_county_assignment_prevents_cross_county_bus_matches(tmp_path):
         ).fetchall()
     finally:
         con.close()
-    assert assignments == [("Inside", 1), ("Outside", None), ("No local bus", None)]
-    assert methods == [(1, 1, "same_county"), (2, None, "unassigned_no_county"),
-                       (3, None, "unassigned_no_eligible_bus")]
+    assert assignments == [("Inside", 1), ("No local bus", None)]
+    assert methods == [(1, 1, "same_county"), (3, None, "unassigned_no_eligible_bus")]

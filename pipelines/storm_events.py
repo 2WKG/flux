@@ -83,7 +83,9 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
         source_year INTEGER, episode_id BIGINT, magnitude_type TEXT, assignment_method TEXT,
         PRIMARY KEY(event_id, county_fips, source_year))""")
     attributes = expanded[["event_id", "county_fips", "source_year", "episode_id", "magnitude_type", "assignment_method"]]
-    replace_frame(con, "storm_events", contract, where=f"EXTRACT(year FROM ts_begin) = {year}")
+    replace_frame(con, "storm_events", contract, where=f"EXTRACT(year FROM ts_begin) = {year}",
+                  source_name="noaa_storm_events", source_ref=path.name, source_version=str(year),
+                  fixture_batch_id=f"p0-storm-events-{year}")
     rows = replace_frame(con, "storm_event_attributes", attributes, where=f"source_year = {year}")
     log_artifact(con, source="noaa_storm_events", source_release=str(year), path=path, rows_loaded=rows,
                  schema_fingerprint="event id,time,type,county/zone,magnitude")

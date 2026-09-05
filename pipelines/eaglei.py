@@ -88,7 +88,8 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None) -> int:
     observation["source_file"] = path.name
     observation["raw_timestamp"] = raw["run_start_time"].astype(str)
     observation["total_customers"] = raw["total_customers"].astype("Int64")
-    replace_frame(con, "eaglei_outages", frame, where=f"EXTRACT(year FROM ts) = {year}")
+    replace_frame(con, "eaglei_outages", frame, where=f"EXTRACT(year FROM ts) = {year}", source_name="eaglei",
+                  source_ref=path.name, source_version=str(year), fixture_batch_id=f"p0-eaglei-{year}")
     rows = replace_frame(con, "eaglei_outage_observations", observation, where=f"source_year = {year}")
     with_denominator = observation[observation.total_customers.notna()][["county_fips", "total_customers"]].drop_duplicates()
     if not with_denominator.empty:

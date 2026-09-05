@@ -6,16 +6,17 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.db import log_artifact
+from pipelines.db import contract_frame, log_artifact
 
 
 def _numeric(frame: pd.DataFrame, column: str) -> pd.Series:
     return pd.to_numeric(frame[column], errors="coerce") if column in frame else pd.Series(pd.NA, index=frame.index)
 
 
-def _upsert_frame(con, table: str, frame: pd.DataFrame) -> int:
+def _upsert_frame(con, table: str, frame: pd.DataFrame, *, source_ref: str) -> int:
     """Apply incoming BA-hours without removing history from other source files."""
-    con.register("_incoming", frame)
+    con.register("_incoming", contract_frame(frame, table, source_name="eia930", source_ref=source_ref,
+                                              source_version="p0", fixture_batch_id="p0-eia930"))
     try:
         con.execute(f"INSERT OR REPLACE INTO {table} BY NAME SELECT * FROM _incoming")
     finally:
@@ -56,8 +57,8 @@ def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] = ("ERCO", 
     # slice here would silently erase all other periods already curated.
     con.execute("BEGIN TRANSACTION")
     try:
-        _upsert_frame(con, "ba_load_hourly", contracts)
-        _upsert_frame(con, "ba_operations_hourly", combined)
+        _upsert_frame(con, "ba_load_hourly", contracts, source_ref=";".join(Path(path).name for path in csv_paths))
+        _upsert_frame(con, "ba_operations_hourly", combined, source_ref=";".join(Path(path).name for path in csv_paths))
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")

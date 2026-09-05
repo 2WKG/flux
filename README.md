@@ -1,29 +1,26 @@
-# flux — GridMind, a national grid digital twin (hackathon)
+# Flux — grid resilience data product
 
-**GridMind**: outage prediction + cascade simulation + nuclear/firm-generation
-siting on a synthetic-but-realistic US grid, Texas first. (Product name is
-GridMind; the repo is `flux`.) Product description: `discription.md`. Pitch
-(v2, two ideas; backup = Speed-to-Power): `hackathon-pitches-and-designs.md`,
-mirrored at `docs/pitch/hackathon-pitches-and-designs.md`. Build specs:
-`docs/specs/` (start at `docs/specs/README.md`, then `00-overview.md`).
+Flux compares resilience scenarios on a synthetic fixture today and is structured for national-grid data ingestion next. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
 
-## Layout
+## Run the desk
 
-```
-data/raw/<source>/   untracked downloads          pipelines/   ingest → DuckDB
-data/duck/grid.duckdb                              twin/        pandapower model + cascade
-data/parquet/                                      models/outage/  LightGBM
-siting/   safety + grid-value scoring              causal/      pgmpy / DoWhy
-copilot/  FastAPI + Claude tool loop               web/         Vite + React + deck.gl + MapLibre
-docs/specs/  one spec per unit                     scripts/data/download.sh
+```powershell
+python model/generate_demo.py
+npm --prefix web install
+npm --prefix web run dev
 ```
 
-## Setup
+Open `http://localhost:4173`. The React client reads `GET /api/demo`; the Node server currently returns `data/demo/bundle.json`. Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
-```
-uv sync                      # Python 3.12 env (see DEPENDENCIES.md)
-brew install libomp          # macOS: LightGBM runtime
-cd web && pnpm install        # front end
+## Repository context
+
+The project is expanding from the current synthetic preview toward source-backed network, scenario, and candidate-site datasets. The wider research plan and data catalog live in `docs/specs/` and `datasets/README.md`. Bulk downloads, parquet outputs, and DuckDB files remain outside Git.
+
+## Verify
+
+```powershell
+python -m unittest discover -s model -p "test_*.py"
+npm --prefix web run build
 ```
 
-Status: specs + dependencies only. No product code yet.
+The current fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.

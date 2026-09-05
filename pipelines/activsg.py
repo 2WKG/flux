@@ -86,7 +86,7 @@ def load_activsg(con, aux_path: str, case_path: str) -> dict[str, int]:
         transformer = bool(not np.isclose(from_record.base_kv, to_record.base_kv) or not np.isclose(tap, 0.0))
         length_km = 0.0 if transformer else 1.15 * _haversine_km(from_record.lat, from_record.lon, to_record.lat, to_record.lon)
         branch_rows.append({
-            "line_id": index, "from_bus": from_bus, "to_bus": to_bus,
+            "line_id": index, "from_bus": from_bus, "to_bus": to_bus, "circuit": str(index),
             "base_kv": max(from_record.base_kv, to_record.base_kv), "r_pu": row[2], "x_pu": row[3],
             "rate_a_mw": row[5] if row[5] > 0 else None, "length_km": length_km,
             "geom_wkb": LineString([(from_record.lon, from_record.lat), (to_record.lon, to_record.lat)]).wkb,
@@ -97,7 +97,8 @@ def load_activsg(con, aux_path: str, case_path: str) -> dict[str, int]:
 
     generator_ids = np.arange(1, len(generators_raw) + 1)
     gens = pd.DataFrame({"gen_id": generator_ids, "bus_id": generators_raw[:, 0].astype(int), "fuel": fuels,
-                         "pmax_mw": generators_raw[:, 8], "eia_plant_id": None})
+                         "pmax_mw": generators_raw[:, 8], "eia_plant_id": None,
+                         "source_unit_id": generator_ids.astype(str)})
     gen_detail = pd.DataFrame({
         "gen_id": generator_ids, "p_mw": generators_raw[:, 1], "q_mvar": generators_raw[:, 2],
         "qmax_mvar": generators_raw[:, 3], "qmin_mvar": generators_raw[:, 4], "pmin_mw": generators_raw[:, 9],
@@ -110,10 +111,14 @@ def load_activsg(con, aux_path: str, case_path: str) -> dict[str, int]:
     })
 
     counts = {
-        "buses": replace_frame(con, "buses", bus_frame),
-        "lines": replace_frame(con, "lines", lines),
-        "gens": replace_frame(con, "gens", gens),
-        "loads": replace_frame(con, "loads", loads),
+        "buses": replace_frame(con, "buses", bus_frame, source_name="activsg2000", source_ref=case.name,
+                               source_version="current", fixture_batch_id="p0-activsg-current"),
+        "lines": replace_frame(con, "lines", lines, source_name="activsg2000", source_ref=case.name,
+                               source_version="current", fixture_batch_id="p0-activsg-current"),
+        "gens": replace_frame(con, "gens", gens, source_name="activsg2000", source_ref=case.name,
+                              source_version="current", fixture_batch_id="p0-activsg-current"),
+        "loads": replace_frame(con, "loads", loads, source_name="activsg2000", source_ref=case.name,
+                               source_version="current", fixture_batch_id="p0-activsg-current"),
         "synthetic_substations": replace_frame(con, "synthetic_substations", substations),
         "synthetic_bus_electrical": replace_frame(con, "synthetic_bus_electrical", bus_electrical),
         "synthetic_branch_electrical": replace_frame(con, "synthetic_branch_electrical", pd.DataFrame(branch_detail)),

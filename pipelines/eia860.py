@@ -6,6 +6,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from shapely import Point, from_wkb
 
 from pipelines.db import log_artifact, replace_frame
 
@@ -33,6 +34,14 @@ def _latest_generator_reports(inventory: pd.DataFrame) -> pd.DataFrame:
         inventory.sort_values(["plant_id_eia", "generator_id", "report_date"], kind="stable")
         .drop_duplicates(["plant_id_eia", "generator_id"], keep="last")
     )
+
+
+def _county_fips_for_points(con, lon: pd.Series, lat: pd.Series) -> list[str | None]:
+    """Assign EIA plant points to the already-loaded canonical county geography."""
+    counties = con.execute("SELECT county_fips, geom_wkb FROM counties").fetchall()
+    shapes = [(county_fips, from_wkb(bytes(geom_wkb))) for county_fips, geom_wkb in counties]
+    return [next((fips for fips, shape in shapes if shape.covers(Point(x, y))), None)
+            for x, y in zip(lon, lat, strict=True)]
 
 
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
@@ -77,7 +86,8 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
     plant_frame = pd.DataFrame({
         "plant_id_eia": curated["plant_id_eia"].astype(int), "plant_name": _first(curated, "plant_name_eia").astype(str),
         "lon": pd.to_numeric(curated["longitude"], errors="coerce"), "lat": pd.to_numeric(curated["latitude"], errors="coerce"),
-        "state": curated["state"], "county_fips": None, "capacity_mw": curated["capacity_mw"],
+        "state": curated["state"], "county_fips": _county_fips_for_points(con, curated["longitude"], curated["latitude"]),
+        "capacity_mw": curated["capacity_mw"],
         "primary_fuel": curated["primary_fuel"], "retirement_year": curated["retirement_year"].astype("Int64"),
         "operational_status": curated["operational_status"], "report_date": pd.to_datetime(curated["report_date"]).dt.date,
     }).dropna(subset=["lon", "lat"])
@@ -126,6 +136,10 @@ def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
     candidates = selected.rename(columns={"plant_name": "name"})[
         ["site_id", "name", "kind", "lon", "lat", "county_fips"]
     ]
+    candidates = candidates.dropna(subset=["county_fips"])
     candidates["bus_id"] = None
     candidates["capacity_slot_mw"] = capacity_slot_mw
-    return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')")
+    candidates["source_site_id"] = candidates["site_id"].astype(str)
+    return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')",
+                         source_name="pudl_eia860", source_ref="eia_plants", source_version="v2026.2.0",
+                         fixture_batch_id="p0-eia860-v2026.2.0")
