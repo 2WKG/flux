@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import duckdb
+import pytest
 from fastapi.testclient import TestClient
 
 from copilot.app import create_app
@@ -15,6 +16,14 @@ def _fixture_database(path: Path) -> None:
     connection = duckdb.connect(str(path))
     connection.execute("CREATE TABLE fixture_marker (id INTEGER)")
     connection.close()
+
+
+def test_settings_leave_the_model_unconfigured_when_copilot_model_is_unset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("COPILOT_MODEL", raising=False)
+
+    assert Settings(_env_file=None).copilot_model is None
 
 
 def test_health_opens_a_fixture_database_without_claiming_model_availability(
@@ -67,7 +76,11 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     database = tmp_path / "fixture.duckdb"
     _fixture_database(database)
     app = create_app(
-        Settings(duckdb_path=database, anthropic_api_key="configured-but-unchecked")
+        Settings(
+            duckdb_path=database,
+            copilot_model="claude-sonnet-5",
+            anthropic_api_key="configured-but-unchecked",
+        )
     )
 
     response = TestClient(app).get("/health")
