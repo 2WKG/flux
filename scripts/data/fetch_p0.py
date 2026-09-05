@@ -1,49 +1,47 @@
 #!/usr/bin/env python3
-"""Fetch small/medium P0 artifacts with checksummed, resumable raw landing zones.
-
-Large EAGLE-I files require --include-large. This safety gate avoids accidental
-multi-gigabyte downloads, while still making the full P0 pull one command.
-"""
+"""Fetch P0 artifacts without promoting incomplete downloads."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import re
 import sys
 from dataclasses import asdict, dataclass
+from http.client import IncompleteRead
 from pathlib import Path
+from urllib.error import URLError
 from urllib.request import Request, urlopen
+
+REGISTRY = Path(__file__).resolve().parents[2] / "data" / "sources" / "p0_registry.json"
+_CONTENT_RANGE = re.compile(r"bytes (\d+)-(\d+)/(\d+)$")
 
 
 @dataclass(frozen=True)
 class Artifact:
+    id: str
     source: str
     release: str
-    name: str
+    path: str
     url: str
     large: bool = False
 
 
-ARTIFACTS = (
-    Artifact("tiger", "2024", "tl_2024_us_county.zip", "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"),
-    # The public bulk ZIP is WAF-blocked in some automated environments.  This
-    # is FEMA's official v1.20 feature service, narrowed to the 254 Texas
-    # county records so we do not land a national dump merely to populate a
-    # Texas-first model.
-    Artifact("nri", "v1.20", "NRI_Counties_TX.json", "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query?where=STATEABBRV%3D%27TX%27&outFields=*&returnGeometry=false&f=json"),
-    Artifact("pudl", "v2026.2.0", "out_eia__yearly_plants.parquet", "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_plants.parquet"),
-    Artifact("pudl", "v2026.2.0", "out_eia__yearly_generators.parquet", "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_generators.parquet"),
-    Artifact("eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv", "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2021_Jan_Jun.csv"),
-    Artifact("eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv", "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jul_Dec.csv"),
-    Artifact("storm_events", "2021", "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"),
-    Artifact("storm_events", "2024", "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"),
-    Artifact("nws_zone_county", "bp16ap26", "bp16ap26.dbx", "https://www.weather.gov/source/gis/Shapefiles/County/bp16ap26.dbx"),
-    Artifact("eaglei", "2021", "eaglei_outages_2021.csv", "https://ndownloader.figshare.com/files/42547891", large=True),
-    Artifact("eaglei", "2024", "eaglei_outages_2024.csv", "https://ndownloader.figshare.com/files/53581661", large=True),
-    Artifact("eaglei", "support", "MCC.csv", "https://ndownloader.figshare.com/files/42547708"),
-    Artifact("eaglei", "support", "coverage_history.csv", "https://ndownloader.figshare.com/files/42547714"),
-)
+class DownloadValidationError(RuntimeError):
+    """A response could not prove that the artifact is complete."""
+
+
+def load_artifacts(registry: Path = REGISTRY) -> tuple[Artifact, ...]:
+    data = json.loads(registry.read_text())
+    return tuple(
+        Artifact(**{key: value for key, value in item.items() if key in Artifact.__dataclass_fields__})
+        for item in data["artifacts"]
+        if item.get("url")
+    )
+
+
+ARTIFACTS = load_artifacts()
 
 
 def digest(path: Path) -> str:
@@ -54,28 +52,63 @@ def digest(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def download(artifact: Artifact, root: Path) -> dict[str, object]:
-    directory = root / artifact.source / artifact.release
-    directory.mkdir(parents=True, exist_ok=True)
-    target, partial = directory / artifact.name, directory / f"{artifact.name}.part"
-    if target.exists():
-        return {**asdict(artifact), "path": str(target), "bytes": target.stat().st_size, "sha256": digest(target), "status": "existing"}
+def _verified_existing(artifact: Artifact, target: Path, known: dict[str, object] | None) -> dict[str, object] | None:
+    if not target.exists() or not known:
+        return None
+    if known.get("url") != artifact.url or known.get("expected_bytes") != target.stat().st_size:
+        return None
+    actual = digest(target)
+    if known.get("sha256") != actual:
+        return None
+    return {**asdict(artifact), "path": str(target), "bytes": target.stat().st_size,
+            "expected_bytes": target.stat().st_size, "sha256": actual, "status": "existing"}
+
+
+def _download_once(artifact: Artifact, target: Path, partial: Path) -> int:
     start = partial.stat().st_size if partial.exists() else 0
     headers = {"User-Agent": "flux-data-ingest/1.0"}
     if start:
         headers["Range"] = f"bytes={start}-"
-    request = Request(artifact.url, headers=headers)
-    with urlopen(request, timeout=60) as response:
-        # Some publisher endpoints ignore Range while returning 200. Appending
-        # that response produces a syntactically plausible but corrupted CSV.
-        # Only append when the server explicitly confirms the requested range.
+    with urlopen(Request(artifact.url, headers=headers), timeout=60) as response:
         content_range = response.headers.get("Content-Range", "")
-        append = start > 0 and response.status == 206 and content_range.startswith(f"bytes {start}-")
+        match = _CONTENT_RANGE.fullmatch(content_range)
+        append = start > 0 and response.status == 206 and match is not None and int(match.group(1)) == start
+        content_length = response.headers.get("Content-Length")
+        if append:
+            expected = int(match.group(3))
+        elif content_length is not None:
+            expected = int(content_length)
+        else:
+            raise DownloadValidationError("response omitted Content-Length and Content-Range")
         with partial.open("ab" if append else "wb") as output:
             while block := response.read(1024 * 1024):
                 output.write(block)
+    actual = partial.stat().st_size
+    if actual != expected:
+        raise DownloadValidationError(f"downloaded {actual} bytes; expected {expected}")
     partial.replace(target)
-    return {**asdict(artifact), "path": str(target), "bytes": target.stat().st_size, "sha256": digest(target), "status": "downloaded"}
+    return expected
+
+
+def download(artifact: Artifact, root: Path, known: dict[str, object] | None = None, attempts: int = 3) -> dict[str, object]:
+    target = root / artifact.path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    if existing := _verified_existing(artifact, target, known):
+        return existing
+    partial = target.with_name(f"{target.name}.part")
+    # An unverified target may be a legacy partial download.  Re-fetch it into
+    # the custody file rather than treating its local hash as source evidence.
+    if target.exists():
+        target.replace(partial)
+    for attempt in range(1, attempts + 1):
+        try:
+            expected = _download_once(artifact, target, partial)
+            return {**asdict(artifact), "path": str(target), "bytes": expected,
+                    "expected_bytes": expected, "sha256": digest(target), "status": "downloaded"}
+        except (DownloadValidationError, IncompleteRead, OSError, URLError):
+            if attempt == attempts:
+                raise
+    raise AssertionError("unreachable")
 
 
 def main() -> int:
@@ -87,9 +120,6 @@ def main() -> int:
     selected = [item for item in ARTIFACTS if (not args.source or item.source in args.source)]
     selected = [item for item in selected if args.include_large or not item.large]
     output = Path(args.raw_dir) / "fetch_manifest_p0.json"
-    # Preserve prior source entries: a targeted rerun must not erase the
-    # evidence record for artifacts fetched earlier in the same raw landing
-    # zone.
     existing: dict[str, dict[str, object]] = {}
     if output.exists():
         try:
@@ -98,8 +128,8 @@ def main() -> int:
             pass
     manifest = existing
     for artifact in selected:
-        print(f"fetching {artifact.source}/{artifact.release}/{artifact.name}", file=sys.stderr)
-        result = download(artifact, Path(args.raw_dir))
+        print(f"fetching {artifact.id}", file=sys.stderr)
+        result = download(artifact, Path(args.raw_dir), manifest.get(str(Path(args.raw_dir) / artifact.path)))
         manifest[str(result["path"])] = result
     output.write_text(json.dumps(sorted(manifest.values(), key=lambda item: str(item["path"])), indent=2) + "\n")
     print(f"wrote {output} ({len(manifest)} artifacts)")
