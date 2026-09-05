@@ -1,32 +1,38 @@
 {
-  "schemaVersion": 1,
-  "generatedFrom": "checked-in synthetic fixture",
-  "fixtureHash": "ab7092ddee11",
-  "solverStatus": "Synthetic preview \u2014 ingestion-ready contract",
-  "stress": {
-    "name": "Illustrative cold-weather stress",
-    "demandMultiplier": 1.17,
-    "generationAvailability": 0.79,
-    "durationHours": 4
-  },
-  "dataStatus": {
-    "mode": "synthetic",
-    "next": "Replace data/demo/bundle.json through the ingestion pipeline."
-  },
-  "limitations": [
-    "Synthetic model; not the Texas grid or a real interconnection study.",
-    "Illustrative snapshot; not an outage forecast or historical reconstruction."
-  ],
-  "sources": [
-    {
-      "label": "Current data",
-      "detail": "Five-bus synthetic fixture"
+  "schemaVersion": 2,
+  "generatedFrom": "flux:synthetic-scenario-input:v1",
+  "fixtureHash": "f5b2c271416b",
+  "execution": {
+    "status": "available",
+    "modelMode": "synthetic_power_balance_preview",
+    "assumptionSetId": "synthetic-cold-stress-v1",
+    "assumptions": {
+      "id": "synthetic-cold-stress-v1",
+      "name": "Illustrative cold-weather stress",
+      "demandMw": 1365,
+      "baselineAvailableGenerationMw": 1177,
+      "durationHours": 4,
+      "demandMultiplier": 1.17,
+      "generationAvailabilityFraction": 0.79,
+      "modelMode": "synthetic_power_balance_preview",
+      "notes": [
+        "Every option uses this same demand, duration, and baseline generation assumption.",
+        "Candidate contribution is an illustrative fixture input, not an interconnection result."
+      ]
     },
-    {
-      "label": "Next data",
-      "detail": "Ingested network, scenario, and site datasets"
-    }
-  ],
+    "provenance": {
+      "sourceId": "flux_checked_in_synthetic_fixture",
+      "sourceRef": "data/demo/synthetic-scenario-input-v1.json",
+      "sourceVersion": "1",
+      "scope": "Checked-in synthetic five-bus input for an offline preview. It is not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model.",
+      "artifactId": "flux:synthetic-scenario-input:v1",
+      "inputHash": "f5b2c271416b"
+    },
+    "limitations": [
+      "Synthetic model; not a grid-flow, outage forecast, historical reconstruction, or real interconnection study.",
+      "A verified Minnesota network/model prerequisite is unavailable, so this fixture must not be relabelled or used for Minnesota conclusions."
+    ]
+  },
   "network": {
     "buses": [
       {
@@ -99,7 +105,7 @@
         "busId": "west",
         "x": 120,
         "y": 270,
-        "addedMw": 300,
+        "capacityMw": 300,
         "description": "Illustrative western addition near the import path."
       },
       {
@@ -108,67 +114,149 @@
         "busId": "east",
         "x": 650,
         "y": 210,
-        "addedMw": 300,
+        "capacityMw": 300,
         "description": "Illustrative eastern addition near demand."
       }
     ]
   },
   "scenarios": {
     "baseline": {
+      "id": "baseline",
       "label": "Baseline",
-      "shedMw": 188,
-      "shedMwh": 752,
-      "availableGenerationMw": 1177,
-      "demandMw": 1365,
-      "improvementMw": 0,
-      "lineLoadings": {
-        "w-n": 82,
-        "w-c": 94,
-        "n-c": 69,
-        "c-e": 96,
-        "c-s": 88,
-        "e-s": 74
+      "status": "available",
+      "modelMode": "synthetic_power_balance_preview",
+      "assumptionSetId": "synthetic-cold-stress-v1",
+      "intervention": null,
+      "metrics": {
+        "shedMw": 188,
+        "shedMwh": 752,
+        "availableGenerationMw": 1177,
+        "demandMw": 1365,
+        "improvementMw": 0,
+        "lineLoadings": {
+          "w-n": 82,
+          "w-c": 94,
+          "n-c": 69,
+          "c-e": 96,
+          "c-s": 88,
+          "e-s": 74
+        }
       },
-      "reasons": []
+      "units": {
+        "shedMw": "MW",
+        "shedMwh": "MWh",
+        "availableGenerationMw": "MW",
+        "demandMw": "MW",
+        "improvementMw": "MW",
+        "lineLoading": "%"
+      },
+      "provenance": {
+        "sourceId": "flux_checked_in_synthetic_fixture",
+        "sourceRef": "data/demo/synthetic-scenario-input-v1.json",
+        "sourceVersion": "1",
+        "scope": "Checked-in synthetic five-bus input for an offline preview. It is not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model.",
+        "artifactId": "flux:synthetic-scenario-input:v1",
+        "inputHash": "f5b2c271416b"
+      },
+      "limitations": [
+        "Synthetic model; not a grid-flow, outage forecast, historical reconstruction, or real interconnection study.",
+        "A verified Minnesota network/model prerequisite is unavailable, so this fixture must not be relabelled or used for Minnesota conclusions."
+      ]
     },
     "a": {
+      "id": "a",
       "label": "Candidate A",
-      "shedMw": 51,
-      "shedMwh": 204,
-      "availableGenerationMw": 1437,
-      "demandMw": 1365,
-      "improvementMw": 137,
-      "lineLoadings": {
-        "w-n": 61,
-        "w-c": 77,
-        "n-c": 59,
-        "c-e": 83,
-        "c-s": 70,
-        "e-s": 62
+      "status": "available",
+      "modelMode": "synthetic_power_balance_preview",
+      "assumptionSetId": "synthetic-cold-stress-v1",
+      "intervention": {
+        "id": "a",
+        "capacityMw": 300,
+        "modeledContributionMw": 137,
+        "description": "Illustrative western addition near the import path."
       },
-      "reasons": [
-        "Uses the same fixed stress and 300 MW capacity assumption.",
-        "The difference is caused by synthetic network placement, not a real interconnection claim."
+      "metrics": {
+        "shedMw": 51,
+        "shedMwh": 204,
+        "availableGenerationMw": 1314,
+        "demandMw": 1365,
+        "improvementMw": 137,
+        "lineLoadings": {
+          "w-n": 61,
+          "w-c": 77,
+          "n-c": 59,
+          "c-e": 83,
+          "c-s": 70,
+          "e-s": 62
+        }
+      },
+      "units": {
+        "shedMw": "MW",
+        "shedMwh": "MWh",
+        "availableGenerationMw": "MW",
+        "demandMw": "MW",
+        "improvementMw": "MW",
+        "lineLoading": "%"
+      },
+      "provenance": {
+        "sourceId": "flux_checked_in_synthetic_fixture",
+        "sourceRef": "data/demo/synthetic-scenario-input-v1.json",
+        "sourceVersion": "1",
+        "scope": "Checked-in synthetic five-bus input for an offline preview. It is not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model.",
+        "artifactId": "flux:synthetic-scenario-input:v1",
+        "inputHash": "f5b2c271416b"
+      },
+      "limitations": [
+        "Synthetic model; not a grid-flow, outage forecast, historical reconstruction, or real interconnection study.",
+        "A verified Minnesota network/model prerequisite is unavailable, so this fixture must not be relabelled or used for Minnesota conclusions."
       ]
     },
     "b": {
+      "id": "b",
       "label": "Candidate B",
-      "shedMw": 82,
-      "shedMwh": 328,
-      "availableGenerationMw": 1437,
-      "demandMw": 1365,
-      "improvementMw": 106,
-      "lineLoadings": {
-        "w-n": 78,
-        "w-c": 89,
-        "n-c": 66,
-        "c-e": 75,
-        "c-s": 81,
-        "e-s": 57
+      "status": "available",
+      "modelMode": "synthetic_power_balance_preview",
+      "assumptionSetId": "synthetic-cold-stress-v1",
+      "intervention": {
+        "id": "b",
+        "capacityMw": 300,
+        "modeledContributionMw": 106,
+        "description": "Illustrative eastern addition near demand."
       },
-      "reasons": [
-        "Uses the same fixed stress and 300 MW capacity assumption.",
-        "The difference is caused by synthetic network placement, not a real interconnection claim."
+      "metrics": {
+        "shedMw": 82,
+        "shedMwh": 328,
+        "availableGenerationMw": 1283,
+        "demandMw": 1365,
+        "improvementMw": 106,
+        "lineLoadings": {
+          "w-n": 78,
+          "w-c": 89,
+          "n-c": 66,
+          "c-e": 75,
+          "c-s": 81,
+          "e-s": 57
+        }
+      },
+      "units": {
+        "shedMw": "MW",
+        "shedMwh": "MWh",
+        "availableGenerationMw": "MW",
+        "demandMw": "MW",
+        "improvementMw": "MW",
+        "lineLoading": "%"
+      },
+      "provenance": {
+        "sourceId": "flux_checked_in_synthetic_fixture",
+        "sourceRef": "data/demo/synthetic-scenario-input-v1.json",
+        "sourceVersion": "1",
+        "scope": "Checked-in synthetic five-bus input for an offline preview. It is not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model.",
+        "artifactId": "flux:synthetic-scenario-input:v1",
+        "inputHash": "f5b2c271416b"
+      },
+      "limitations": [
+        "Synthetic model; not a grid-flow, outage forecast, historical reconstruction, or real interconnection study.",
+        "A verified Minnesota network/model prerequisite is unavailable, so this fixture must not be relabelled or used for Minnesota conclusions."
       ]
     }
   }
