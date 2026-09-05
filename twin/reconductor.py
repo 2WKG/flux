@@ -12,6 +12,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from pipelines.line_upgrade_contracts import InterventionType
+
 
 class Frozen(BaseModel):
     """Strict immutable records keep an artifact reproducible after creation."""
@@ -69,6 +71,10 @@ class ReconductorParameterArtifact(Frozen):
     layers without losing the original conductor assumptions.
     """
 
+    # This discriminator deliberately comes from the shared line-upgrade
+    # contract.  A reconductoring proposal is not a dynamic rating result,
+    # even when both are alternatives for the same line and scenario.
+    intervention: Literal[InterventionType.RECONDUCTOR] = InterventionType.RECONDUCTOR
     line_id: int = Field(ge=0)
     scenario: ScenarioLink
     baseline: ConductorParameters
