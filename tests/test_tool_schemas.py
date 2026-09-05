@@ -4,6 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from copilot.tools.schemas import (
+    TOP_LINES_DEFAULT_SORT,
+    TOP_LINES_MAX_LIMIT,
+    TOP_LINES_MAX_OFFSET,
     TOOL_REGISTRY,
     TOOL_SCHEMAS,
     ArtifactRef,
@@ -69,6 +72,26 @@ def test_intervention_bound_and_prefix_are_enforced() -> None:
                 "intervention_ids": ["unprefixed"],
             },
         )
+
+
+def test_top_lines_schema_has_only_bounded_allowlisted_filters() -> None:
+    request = validate_tool_input(
+        "top_lines",
+        {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT, "offset": 0},
+    )
+
+    assert request.n == TOP_LINES_MAX_LIMIT
+    assert request.offset == 0
+    assert TOP_LINES_DEFAULT_SORT == "mw_per_musd DESC, cost_usd ASC, line_id ASC"
+
+    for payload in (
+        {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT + 1},
+        {"region": "ERCOT", "tech": "dlr", "offset": TOP_LINES_MAX_OFFSET + 1},
+        {"region": "ERCOT", "tech": "dlr", "sort": "line_id DESC"},
+        {"region": "ERCOT", "tech": "dlr", "owner": "any"},
+    ):
+        with pytest.raises(ValidationError):
+            validate_tool_input("top_lines", payload)
 
 
 def test_representative_unavailable_output_keeps_provenance() -> None:
