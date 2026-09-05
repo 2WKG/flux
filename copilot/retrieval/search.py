@@ -8,12 +8,11 @@ Ties are ordered by source identity, then page, chunk index, and chunk id.  That
 ordering is part of the contract: Python container order and equal BM25 scores
 must never change the citations returned to a user.
 
-Only chunks with a strictly positive BM25 score are results.  A chunk that
-shares no token with the query is not evidence, and ``rank_bm25.BM25Okapi``
-floors the idf of a term that appears in most of the corpus at
-``epsilon * average_idf`` (which is ``<= 0`` on tiny or degenerate corpora), so
-a non-positive score is treated as "no discriminative match" rather than
-being presented as a citation.
+A chunk is eligible only when it shares a token with the query.  BM25 orders
+those lexical matches, but ``rank_bm25.BM25Okapi`` can produce zero or negative
+scores when an otherwise valid term appears throughout a tiny or degenerate
+corpus.  Those scores are not evidence of no match, so they remain eligible;
+zero-overlap chunks never become citations.
 
 Two boundaries are exposed.  :func:`search` and :class:`SparseIndex` are the
 ranking primitives: malformed *inputs* (bounds, types, duplicate ids, a corpus
@@ -252,7 +251,7 @@ class SparseIndex:
         limit: int = DEFAULT_RESULT_LIMIT,
         excerpt_characters: int = MAX_EXCERPT_CHARACTERS,
     ) -> list[RetrievalResult]:
-        """Return bounded, positively scored results in deterministic order.
+        """Return bounded lexical matches ranked by BM25 deterministically.
 
         See :func:`search` for the contract; this method does not rebuild the
         index per query.
@@ -272,7 +271,7 @@ class SparseIndex:
                     self._tokens,
                     strict=True,
                 )
-                if float(score) > 0.0
+                if set(query_tokens) & set(chunk_tokens)
             ),
             key=lambda item: (-item[0], _tie_key(item[1])),
         )[:limit]
@@ -306,13 +305,14 @@ def search(
     limit: int = DEFAULT_RESULT_LIMIT,
     excerpt_characters: int = MAX_EXCERPT_CHARACTERS,
 ) -> list[RetrievalResult]:
-    """Return bounded BM25 results with explicit, deterministic tie handling.
+    """Return bounded lexical matches ranked by BM25 with deterministic ties.
 
     Queries must fit within :data:`MAX_QUERY_CHARACTERS`; result count is
-    capped at :data:`MAX_RESULTS`; and every excerpt is hard-capped.  Chunks
-    whose BM25 score is not strictly positive are dropped *before* the limit
-    is applied, so a query with no token overlap returns ``[]`` rather than
-    ``limit`` irrelevant passages.  Equal scores are sorted by ``document_id,
+    capped at :data:`MAX_RESULTS`; and every excerpt is hard-capped.  Only
+    chunks sharing at least one token with the query are eligible, so a query
+    with no token overlap returns ``[]`` rather than ``limit`` irrelevant
+    passages.  Zero and negative BM25 scores remain eligible because they
+    occur for valid all-match or tiny corpora.  Equal scores are sorted by ``document_id,
     version, source_uri, page, chunk_index, chunk_id`` ascending, after the
     score descending.
 
@@ -407,7 +407,7 @@ def retrieve(
        ``artifact_unavailable`` (retryable once ingest populates it).
     3. The query has no searchable token (whitespace/punctuation only):
        ``unsupported_request`` (not retryable as-is).
-    4. No chunk scores positively against the query:
+    4. No chunk shares a searchable token with the query:
        ``insufficient_evidence`` (not retryable as-is).
 
     Malformed *inputs* (bounds, non-index argument) raise as they do for
@@ -442,7 +442,7 @@ def retrieve(
     if not hits:
         return _unavailable(
             "insufficient_evidence",
-            "no corpus chunk scores positively against the query",
+            "no corpus chunk shares a token with the query",
             retryable=False,
         )
     return RetrievalResponse(status="available", hits=tuple(hits))

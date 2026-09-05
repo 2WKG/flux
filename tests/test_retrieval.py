@@ -160,6 +160,29 @@ def test_zero_overlap_chunks_are_dropped_before_the_limit_is_applied() -> None:
     assert all(result.relevance > 0 for result in results)
 
 
+def test_small_corpus_keeps_a_lexical_match_when_bm25_idf_is_negative() -> None:
+    index = SparseIndex([_chunk("only", "capacity planning")])
+
+    response = retrieve("capacity", index)
+
+    assert response.status == "available"
+    assert [hit.chunk_id for hit in response.hits] == ["only"]
+    assert response.hits[0].relevance <= 0
+
+
+def test_all_match_corpus_keeps_only_overlaps_and_uses_bm25_ordering() -> None:
+    chunks = [
+        _chunk("short", "capacity", document_id="a", chunk_index=0),
+        _chunk("long", "capacity capacity planning", document_id="b", chunk_index=1),
+    ]
+
+    results = search("capacity", chunks, limit=3)
+
+    assert [result.chunk_id for result in results] == ["long", "short"]
+    assert all(result.relevance <= 0 for result in results)
+    assert all("capacity" in result.relevance_rationale for result in results)
+
+
 def test_equal_scores_use_documented_source_identity_tie_breaking() -> None:
     first = _chunk("z-chunk", "grid capacity", document_id="z-doc", page=2)
     second = _chunk("a-chunk", "grid capacity", document_id="a-doc", page=9)
@@ -324,7 +347,7 @@ def test_zero_overlap_query_is_insufficient_evidence_not_zero_score_hits() -> No
     assert response.hits == ()
     assert response.unavailable == Unavailable(
         code="insufficient_evidence",
-        reason="no corpus chunk scores positively against the query",
+        reason="no corpus chunk shares a token with the query",
         retryable=False,
     )
 
