@@ -1,20 +1,22 @@
 ---
 title: "Texas + New York — data and scenario feasibility"
-status: open — data gathered, decision deferred
+status: open — 2WKG-137 and 2WKG-140 pending; decision deferred
 issue: 2WKG-138
 sibling: "docs/data/texas-minnesota-feasibility.md (2WKG-186)"
 assessed: 2026-09-05
 assessor: Ghadi Khoury
 scope: "Next wave. Non-blocking for the current Texas demo."
+depends_on: "2WKG-137 (weather/overlays) and 2WKG-140 (demand history) — both still open"
 ---
 
 # Texas + New York — feasibility
 
-**Status: undecided. New York is not cancelled.** This records what was verified so the choice
-of second state can be made on evidence later, alongside
+**Status: undecided. New York is not cancelled.** This records the available evidence and open
+limitations for a later second-state decision, alongside
 `docs/data/texas-minnesota-feasibility.md`.
 
-Everything below was verified by downloading and parsing the actual files.
+**Open prerequisites:** 2WKG-137 must establish weather and overlay inputs; 2WKG-140 must
+establish usable demand history. Both remain open, so this document does not close those risks.
 
 ---
 
@@ -34,11 +36,13 @@ different and still-open question.
 
 ---
 
-## 2. Verified inventory
+## 2. Provisional GridSFM inventory **[UNVERIFIED]**
 
-`microsoft/GridSFM_US_power_grid`, release `2026_05_07`, MIT. Downloaded and parsed 2026-09-05.
+`microsoft/GridSFM_US_power_grid`, release `2026_05_07`, MIT. The values below have no committed
+parsing script, raw output, file manifest, or checksum in this PR. They are **[UNVERIFIED]** and
+must not decide between states until reproduced from the pinned release.
 
-| | **New York** | Minnesota | Texas | ACTIVSg2000 (current) |
+| | **New York** | Minnesota | Texas | ACTIVSg2000 (current synthetic case) |
 |---|---|---|---|---|
 | Buses | **626** | 718 | 3,889 | 2,000 |
 | Branches (lines + transformers) | **1,157** | 1,297 | 6,852 | 3,206 |
@@ -52,14 +56,17 @@ different and still-open question.
 | Load allocation | `census` | `per_ba_census` | `per_ba_census` | — |
 | DC lines / shunts | 0 / 510 | 2 / 666 | — | — |
 
-New York is a clean single-BA model with the highest BA coverage of the three — better than
-Texas's 84 %.
+The table records GridSFM metadata only. It does not interpret the reported BA-coverage field as
+a fraction of demand represented by the model.
 
 ---
 
-## 3. The finding that matters most: New York does not solve cleanly
+## 3. Provisional solver concern **[UNVERIFIED]**
 
-This is the one hard result separating New York from Minnesota.
+These provisional results are a potential difference between New York and Minnesota.
+
+**[UNVERIFIED]** The solve results below require the same pinned-release reproduction artifact as
+the inventory before they can serve as state-selection evidence.
 
 | | AC-OPF `04h` | AC-OPF `16h` |
 |---|---|---|
@@ -67,26 +74,28 @@ This is the one hard result separating New York from Minnesota.
 | Minnesota | LOCALLY_SOLVED at **level 0, "Strict"** — 21 s | LOCALLY_SOLVED at **level 0, "Strict"** — 21 s |
 | Texas | LOCALLY_SOLVED at level 0, "Strict" — 45 s | LOCALLY_SOLVED at level 0, "Strict" — 51 s |
 
-Zero units were decommitted in any case, so this is about constraint relaxation, not unserved
-load.
+The reported unit-commitment values should be reproduced before drawing conclusions about
+constraint relaxation or unserved load.
 
-**New York is one of the six single-state models that fail AC-OPF at the strictest relaxation
-level** — the 42/48 figure in the GridSFM paper. Its peak case needs *full* relaxation to
-converge at all.
+If reproduced, the reported result would place New York among the six single-state models that
+do not solve at the strictest relaxation level in the GridSFM paper's 42/48 summary.
 
-Two consequences:
+Two consequences to validate if the result reproduces:
 
-1. **A relaxed solution is a weaker basis for a siting comparison.** The whole demo rests on
+1. **A relaxed solution would be a weaker basis for a siting comparison.** The whole demo rests on
    "adding 300 MW here versus there changes shed MW by this much." If the New York base case
    only converges with constraints relaxed, the delta is measured against a base that is
    already bending the physics. That is defensible only if stated plainly on screen.
-2. **It is 12–15× slower than Minnesota despite being smaller.** 322 s versus 21 s, at 626
-   buses versus 718. Every scenario re-run pays that cost. Task [S09] exists precisely to
-   protect the runtime budget.
+2. **It may be slower than Minnesota despite being smaller.** The reported runtime values need
+   reproduction before they affect the runtime budget.
 
-**645 generators on 626 buses** is also worth a look before committing — more generating units
-than buses, presumably many small units mapped to shared buses. Not necessarily wrong, but
-unexamined.
+The reported generator and bus counts are **[UNVERIFIED]** and need inspection after the
+reproducibility artifact exists.
+
+**Interconnection boundary caveat:** New York is part of the Eastern Interconnection and has
+substantial interstate flows. Any New York demand or shedding result is sensitive to imports
+across boundaries that this state model would not represent. That limitation remains part of the
+second-state decision.
 
 ---
 
@@ -94,8 +103,8 @@ unexamined.
 
 Recorded honestly, because the decision is still open:
 
-- **Highest BA coverage of the three** — 98.1 %, against Texas's 84 %. Its demand comes from a
-  single balancing authority (NYIS) via EIA-930 at 100 % coverage, rather than a multi-BA blend.
+- **Single-BA structure** — the provisional metadata identifies NYIS as the balancing authority;
+  this is not a claim about the fraction of demand represented.
 - **Genuine structural contrast**: dense urban and underground networks, constrained downstate
   load pockets, hydro and nuclear generation, coastal flooding exposure, and a different ISO
   market design from ERCOT.
@@ -116,8 +125,9 @@ These apply to any second state and are documented once in
 - **All GridSFM models carry `target_datetime = 2024-07-15T16:00`** — the shipped demand is a
   July afternoon, not winter, and `04h`/`16h` is a pair of snapshots, not a time series.
 - **Demand is allocated by census population**, not metered per bus.
-- **Texas BA coverage is 84 %**, so absolute shed MW is not comparable across states without
-  saying so.
+- **Reported BA coverage is metadata, not a demand-truncation fraction.** The cases have
+  different construction, so absolute shed-MW outputs are case-specific rather than a
+  cross-state comparison.
 - **Format**: GridSFM ships PowerModels JSON with MATPOWER structure; pandapower reads MATPOWER
   `.m`. A small converter is needed either way. This cost is identical for New York and
   Minnesota.
@@ -142,13 +152,14 @@ existing `buses.county_fips` spine. The national sources in
 
 ## 7. Open decision
 
-Both New York and Minnesota are available, MIT-licensed, and comparable in size. The trade is:
+Both New York and Minnesota are available under MIT licence. The following comparison contains
+provisional GridSFM values and must not decide between states until reproduced:
 
 | | New York | Minnesota |
 |---|---|---|
-| Solves at strict relaxation | **No** — needs L3/L5 | **Yes** — L0 both hours |
-| Solve time | 253–322 s | 21 s |
-| BA coverage | 98.1 % | 97.4 % |
+| Reported solve at strict relaxation **[UNVERIFIED]** | **No** — needs L3/L5 | **Yes** — L0 both hours |
+| Reported solve time **[UNVERIFIED]** | 253–322 s | 21 s |
+| Reported BA coverage **[UNVERIFIED]** | 98.1 % | 97.4 % |
 | Load scale vs Texas | ~1 : 2.7 | ~1 : 10 |
 | Contrast | Urban density, different ISO, coastal | Same-storm Uri comparison, extreme cold |
 
@@ -156,9 +167,8 @@ Both New York and Minnesota are available, MIT-licensed, and comparable in size.
 `docs/data/texas-minnesota-feasibility.md` §6 remains the safe path either way, and the build
 plan's rule stands: no second state until the complete Texas demo is frozen and rehearsed.
 
-**What would settle it:** whether the demo needs a defensible per-site delta (favours Minnesota,
-because a strict-relaxation base case is easier to defend) or a scale/urban contrast (favours
-New York, where load is within a factor of three of Texas rather than a factor of ten).
+**What would settle it:** a reproducible solver comparison, resolution of 2WKG-137 and
+2WKG-140, and an explicit treatment of New York's interconnection-boundary limitation.
 
 ---
 
