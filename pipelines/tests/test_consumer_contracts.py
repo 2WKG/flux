@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 import duckdb
@@ -13,6 +14,10 @@ def _fixture_db(tmp_path: Path) -> Path:
     with duckdb.connect(str(path)) as con:
         ensure_schema(con)
     return path
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _twin_contract_db(path: Path) -> None:
@@ -38,6 +43,19 @@ def test_each_consumer_reads_a_complete_offline_fixture(tmp_path: Path) -> None:
     assert report.available
     assert [result.consumer for result in report.results] == list(CONSUMER_READ_PATHS)
     assert all(result.status == "available" for result in report.results)
+
+
+def test_full_check_suite_is_read_only_and_preserves_fixture_hash(tmp_path: Path) -> None:
+    path = _fixture_db(tmp_path)
+    before = _sha256(path)
+
+    with duckdb.connect(str(path), read_only=True) as con:
+        assert con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone() == ("1.0.0",)
+
+    report = check_consumer_contracts(path)
+
+    assert report.available
+    assert _sha256(path) == before
 
 
 def test_missing_table_names_the_exact_contract_element(tmp_path: Path) -> None:
