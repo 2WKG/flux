@@ -2,7 +2,7 @@
 title: "Texas + Minnesota — data and scenario feasibility"
 status: complete
 issue: 2WKG-186
-supersedes: 2WKG-138 (Texas + New York) — New York cancelled
+sibling: "docs/data/texas-new-york-feasibility.md (2WKG-138) — New York remains an open candidate"
 assessed: 2026-09-05
 assessor: Ghadi Khoury
 scope: "Next wave. Non-blocking for the current Texas demo."
@@ -10,9 +10,12 @@ scope: "Next wave. Non-blocking for the current Texas demo."
 
 # Texas + Minnesota — feasibility
 
-**Verdict: FEASIBLE.** Minnesota exists, solves, and is a better contrast than New York was.
-Every claim below was verified by downloading and parsing the actual files, not from
-documentation.
+**Verdict: FEASIBLE.** Minnesota exists and solves cleanly. Every claim below was verified by
+downloading and parsing the actual files, not from documentation.
+
+**This does not close out New York.** Both states are live candidates; the choice is deferred
+until more data is in. New York's verified inventory and the head-to-head trade-off are in
+`docs/data/texas-new-york-feasibility.md`.
 
 One finding changes how the scenario must be built — see §3. Read it before committing.
 
@@ -60,10 +63,10 @@ same system, not the same model, so agreement is evidence rather than tautology.
 
 ---
 
-## 2. Why Minnesota beats New York
+## 2. The case for Minnesota
 
-The contrast is no longer "hot state versus cold state." It is **the same storm hitting two
-grids that behaved completely differently.**
+Minnesota's distinctive argument is not "hot state versus cold state." It is **the same storm
+hitting two grids that behaved completely differently.**
 
 Under Winter Storm Uri, February 2021 (FERC/NERC final report):
 
@@ -173,20 +176,21 @@ the build plan's own instruction not to build stretch features before that point
 
 ---
 
-## 7. Correction to 2WKG-138
+## 7. Correction to 2WKG-138, and New York's standing
 
-The New York assessment rejected a second state on the grounds that *no public case existed at a
-resolution comparable to ACTIVSg2000*. **That was wrong.** GridSFM publishes single-state models
-for all 48 contiguous states; New York is `new_york_model.json`, comparable in size to
-Minnesota's. The evaluation there considered only the TAMU ACTIVSg family, Cornell's NYgrid and
-NPCC-140, and did not carry GridSFM across from the Brookhaven assessment where it had been
-found.
+The first version of the New York assessment rejected a second state on the grounds that *no
+public case existed at a resolution comparable to ACTIVSg2000*. **That was wrong.** GridSFM
+publishes single-state models for all 48 contiguous states; New York is `new_york_model.json`,
+comparable in size to Minnesota's. That evaluation considered only the TAMU ACTIVSg family,
+Cornell's NYgrid and NPCC-140, and did not carry GridSFM across from the Brookhaven assessment
+where it had been found.
 
-The conclusion — Texas-only for the hackathon — happened to survive, but on schedule-risk
-grounds, not data availability. `docs/data/texas-new-york-feasibility.md` is removed by this
-change rather than left standing as a contradiction on `master`; its still-valid content
-(scenario inputs, EIA projection boundary, economic-disruption handling) is carried into §3, §4
-and below.
+**New York is not cancelled.** `docs/data/texas-new-york-feasibility.md` has been corrected and
+kept as a sibling to this document, carrying New York's own verified inventory and a head-to-head
+trade-off table. The short version: New York has better BA coverage (98.1 % vs 97.4 %) and a load
+scale within a factor of three of Texas rather than ten, but it is **one of the six state models
+that fail AC-OPF at the strictest relaxation** — its peak case needs full relaxation and takes
+322 s against Minnesota's 21 s. Neither state is chosen here.
 
 **Scenario inputs, carried forward unchanged:**
 
