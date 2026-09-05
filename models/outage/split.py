@@ -8,12 +8,11 @@ later data refresh cannot silently reshuffle an existing model's population.
 
 from __future__ import annotations
 
-from collections import defaultdict
+import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from hashlib import sha256
-from math import floor
 from types import MappingProxyType
 
 import pandas as pd
@@ -54,7 +53,7 @@ TX_BERYL_LEAKAGE_CUTOFF = datetime(2024, 7, 1, tzinfo=UTC)
 """Texas windows on/after this instant cannot train or calibrate Beryl."""
 
 TX_POST_BERYL_GUARD = "tx_post_beryl_guard"
-"""An unevaluated holdout bucket reserved by the Beryl leakage guard."""
+"""A non-evaluation exclusion reserved by the Beryl leakage guard."""
 
 
 class SplitError(ValueError):
@@ -108,14 +107,22 @@ def build_split_manifest(
 
 
 def partition_rows(
-    rows: Iterable[CountyOutageRow], manifest: SplitManifest
+    rows: Iterable[CountyOutageRow],
+    manifest: SplitManifest,
+    *,
+    verified_input_artifact_sha256: str,
 ) -> Mapping[Partition, tuple[CountyOutageRow, ...]]:
     """Materialize manifest assignments without modifying the supplied rows.
 
-    Requiring an exact key set prevents accidentally training a model with a
-    stale manifest after the source artifact changes.
+    ``verified_input_artifact_sha256`` is the digest obtained while verifying
+    the source artifact, not a digest inferred from the rows in memory.
+    Requiring it and an exact key set prevents a stale or tampered manifest
+    from silently being used for a refreshed source artifact.
     """
 
+    _verify_manifest_integrity(manifest)
+    if verified_input_artifact_sha256 != manifest.input_artifact_sha256:
+        raise SplitError("verified input artifact hash does not match the manifest")
     materialized = tuple(rows)
     assignment_by_key = {
         assignment.key: assignment.partition for assignment in manifest.assignments
@@ -219,59 +226,88 @@ def split(
             f"split DataFrame is missing required columns: {sorted(missing)}"
         )
 
-    split_rows: list[_SplitRow] = []
-    keys: list[WindowKey] = []
-    states: list[str] = []
-    for _, row in df.loc[
-        :, ["county_fips", "scenario_id", "window_start", "state"]
-    ].iterrows():
-        key = WindowKey(
-            county_fips=str(row.county_fips),
-            scenario_id=str(row.scenario_id),
-            window_start=_as_utc_datetime(row.window_start),
-        )
-        state = _normalize_state(row.state)
-        split_rows.append(_SplitRow(key=key, state=state))
-        keys.append(key)
-        states.append(state)
+    if not 0.0 <= calibration_fraction < 1.0:
+        raise SplitError("calibration_fraction must be in [0.0, 1.0)")
 
-    assignments = _assign_partitions(tuple(split_rows), seed, calibration_fraction)
-    train = df.iloc[
-        [
-            position
-            for position, key in enumerate(keys)
-            if assignments[key] is Partition.TRAIN
-        ]
-    ].copy(deep=True)
-    calibration = df.iloc[
-        [
-            position
-            for position, key in enumerate(keys)
-            if assignments[key] is Partition.CALIBRATION
-        ]
-    ].copy(deep=True)
+    # This path is used for the 600k-row feature table.  Do the identity and
+    # partition work with vectorized pandas operations rather than creating a
+    # Pydantic WindowKey for every row.
+    county_fips = df["county_fips"].astype("string")
+    scenario_id = df["scenario_id"].astype("string")
+    if county_fips.isna().any() or not county_fips.str.fullmatch(r"\d{5}").all():
+        raise SplitError("county_fips must be a five-digit string")
+    if scenario_id.isna().any() or scenario_id.str.strip().eq("").any():
+        raise SplitError("scenario_id must not be empty")
 
-    holdout_ids = {
-        position: _holdout_id(key, states[position])
-        for position, key in enumerate(keys)
-        if assignments[key] is Partition.HOLDOUT
+    try:
+        window_start = pd.to_datetime(df["window_start"], utc=True, errors="raise")
+    except (TypeError, ValueError) as error:
+        raise SplitError("window_start must be a valid timestamp") from error
+    if (
+        window_start.isna().any()
+        or (window_start.dt.hour % 6 != 0).any()
+        or (window_start.dt.minute != 0).any()
+        or (window_start.dt.second != 0).any()
+        or (window_start.dt.microsecond != 0).any()
+    ):
+        raise SplitError("window_start must be aligned to 6h UTC boundaries")
+
+    states = df["state"].astype("string").str.strip().str.upper()
+    if states.isna().any() or states.str.len().ne(2).any():
+        raise SplitError("state must be a two-letter abbreviation")
+
+    identity = pd.MultiIndex.from_arrays(
+        [county_fips, scenario_id, window_start.astype("int64")]
+    )
+    if identity.duplicated().any():
+        raise SplitError("input rows contain duplicate WindowKey values")
+
+    partitions = pd.Series(Partition.TRAIN.value, index=df.index, dtype="string")
+    evaluation_ids = pd.Series(pd.NA, index=df.index, dtype="string")
+    for scenario, (start, end, eligible_states) in HOLDOUT_WINDOWS.items():
+        matches = states.isin(eligible_states) & window_start.ge(start) & window_start.lt(end)
+        partitions.loc[matches] = Partition.HOLDOUT.value
+        evaluation_ids.loc[matches] = scenario
+    post_beryl_guard = (
+        states.eq("TX")
+        & window_start.ge(TX_BERYL_LEAKAGE_CUTOFF)
+        & partitions.eq(Partition.TRAIN.value)
+    )
+    partitions.loc[post_beryl_guard] = Partition.EXCLUDED.value
+
+    eligible = partitions.eq(Partition.TRAIN.value)
+    block_ids = county_fips + "|" + window_start.dt.strftime("%Y-%m")
+    calibration_blocks = {
+        block
+        for block in block_ids.loc[eligible].unique()
+        if _seeded_fraction(seed, block) < calibration_fraction
     }
-    holdouts: dict[str, pd.DataFrame] = {}
-    for scenario_id in HOLDOUT_WINDOWS:
-        positions = [
-            position
-            for position, holdout_id in holdout_ids.items()
-            if holdout_id == scenario_id
-        ]
-        holdouts[scenario_id] = df.iloc[positions].copy(deep=True)
-    guard_positions = [
-        position
-        for position, holdout_id in holdout_ids.items()
-        if holdout_id == TX_POST_BERYL_GUARD
-    ]
-    if guard_positions:
-        holdouts[TX_POST_BERYL_GUARD] = df.iloc[guard_positions].copy(deep=True)
-    return train, calibration, holdouts
+    calibration = eligible & block_ids.isin(calibration_blocks)
+    partitions.loc[calibration] = Partition.CALIBRATION.value
+
+    # A train month following a calibration month would consume calibration
+    # labels through the 24-hour autoregressive features.  Purge it.  A
+    # calibration month may consume preceding train labels, which is the
+    # chronological information available to a nowcast at prediction time.
+    following_calibration_blocks = {
+        _following_month(block) for block in calibration_blocks
+    }
+    partitions.loc[
+        partitions.eq(Partition.TRAIN.value)
+        & block_ids.isin(following_calibration_blocks)
+    ] = Partition.EXCLUDED.value
+
+    train = df.iloc[_positions(partitions.eq(Partition.TRAIN.value))].copy(deep=True)
+    calibration_frame = df.iloc[_positions(partitions.eq(Partition.CALIBRATION.value))].copy(
+        deep=True
+    )
+    holdouts = {
+        scenario: df.iloc[_positions(evaluation_ids.eq(scenario).fillna(False))].copy(
+            deep=True
+        )
+        for scenario in HOLDOUT_WINDOWS
+    }
+    return train, calibration_frame, holdouts
 
 
 def _assign_partitions(
@@ -287,6 +323,8 @@ def _assign_partitions(
     for row in rows:
         if _holdout_id(row.key, row.state) is not None:
             assignments[row.key] = Partition.HOLDOUT
+        elif _is_post_beryl_guard(row.key, row.state):
+            assignments[row.key] = Partition.EXCLUDED
         else:
             candidates.append(row)
 
@@ -295,54 +333,49 @@ def _assign_partitions(
         assignments[row.key] = (
             Partition.CALIBRATION if row.key in calibration_keys else Partition.TRAIN
         )
+
+    # Never put a training row immediately after a calibration month: its
+    # autoregressive features could contain calibration labels.  This is a
+    # non-evaluation exclusion, just like the post-Beryl guard.
+    calibration_blocks = {_temporal_block(row.key) for row in candidates if row.key in calibration_keys}
+    following_blocks = {_following_month(block) for block in calibration_blocks}
+    for row in candidates:
+        if assignments[row.key] is Partition.TRAIN and _temporal_block(row.key) in following_blocks:
+            assignments[row.key] = Partition.EXCLUDED
     return assignments
 
 
 def _calibration_keys(
     candidates: list[_SplitRow], seed: int, calibration_fraction: float
 ) -> set[WindowKey]:
-    """Select an order-independent, month-stratified calibration population."""
+    """Select whole county-month blocks with append-stable hash membership.
 
-    if len(candidates) < 2 or calibration_fraction == 0:
+    A month is a fixed, contiguous county-time block.  It is deliberately
+    independent of the population being split: adding a later artifact batch
+    can add memberships but cannot reshuffle existing rows.
+    """
+
+    if calibration_fraction == 0:
         return set()
-    target = min(
-        len(candidates) - 1,
-        max(1, floor(len(candidates) * calibration_fraction + 0.5)),
-    )
-    by_month: dict[int, list[_SplitRow]] = defaultdict(list)
-    for row in candidates:
-        by_month[row.key.window_start.month].append(row)
-
-    quotas = {
-        month: floor(len(group) * calibration_fraction)
-        for month, group in by_month.items()
+    calibration_blocks = {
+        _temporal_block(row.key)
+        for row in candidates
+        if _seeded_fraction(seed, _temporal_block(row.key)) < calibration_fraction
     }
-    remaining = target - sum(quotas.values())
-    for month in sorted(
-        by_month,
-        key=lambda value: (
-            -(len(by_month[value]) * calibration_fraction - quotas[value]),
-            value,
-        ),
-    )[:remaining]:
-        quotas[month] += 1
-
-    selected: set[WindowKey] = set()
-    for month, group in by_month.items():
-        chosen = sorted(group, key=lambda row: _seeded_rank(seed, row.key))[
-            : quotas[month]
-        ]
-        selected.update(row.key for row in chosen)
-    return selected
+    return {
+        row.key for row in candidates if _temporal_block(row.key) in calibration_blocks
+    }
 
 
 def _holdout_id(key: WindowKey, state: str) -> str | None:
     for scenario_id, (start, end, states) in HOLDOUT_WINDOWS.items():
         if state in states and start <= key.window_start < end:
             return scenario_id
-    if state == "TX" and key.window_start >= TX_BERYL_LEAKAGE_CUTOFF:
-        return TX_POST_BERYL_GUARD
     return None
+
+
+def _is_post_beryl_guard(key: WindowKey, state: str) -> bool:
+    return state == "TX" and key.window_start >= TX_BERYL_LEAKAGE_CUTOFF
 
 
 def _state_for(county_fips: str, states_by_county: Mapping[str, str]) -> str:
@@ -359,21 +392,56 @@ def _normalize_state(value: object) -> str:
     return state
 
 
-def _as_utc_datetime(value: object) -> datetime:
-    ts = pd.Timestamp(value)
-    if ts.tzinfo is None:
-        ts = ts.tz_localize("UTC")
-    else:
-        ts = ts.tz_convert("UTC")
-    return ts.to_pydatetime()
-
-
 def _identity(key: WindowKey) -> str:
     return f"{key.county_fips}\x00{key.scenario_id}\x00{key.window_start.isoformat()}"
 
 
-def _seeded_rank(seed: int, key: WindowKey) -> bytes:
-    return sha256(f"{seed}\x00{_identity(key)}".encode()).digest()
+def _temporal_block(key: WindowKey) -> str:
+    """Return the fixed county-month block containing ``key``.
+
+    Scenario is intentionally omitted: alternate views of one county-time
+    observation must not end up on opposite sides of the split.
+    """
+
+    return f"{key.county_fips}|{key.window_start:%Y-%m}"
+
+
+def _following_month(block: str) -> str:
+    county_fips, year_month = block.split("|", maxsplit=1)
+    year, month = (int(part) for part in year_month.split("-", maxsplit=1))
+    if month == 12:
+        year, month = year + 1, 1
+    else:
+        month += 1
+    return f"{county_fips}|{year:04d}-{month:02d}"
+
+
+def _seeded_fraction(seed: int, value: str) -> float:
+    """Map one stable key to [0, 1), without population-wide ranking."""
+
+    rank = int.from_bytes(sha256(f"{seed}\x00{value}".encode()).digest()[:8], "big")
+    return rank / 2**64
+
+
+def _positions(mask: pd.Series) -> list[int]:
+    """Return positional indexes, preserving duplicate DataFrame indexes."""
+
+    return mask.to_numpy().nonzero()[0].tolist()
+
+
+def _verify_manifest_integrity(manifest: SplitManifest) -> None:
+    """Reject manifests whose id no longer binds their membership and input."""
+
+    if not re.fullmatch(r"[0-9a-f]{64}", manifest.input_artifact_sha256):
+        raise SplitError("manifest input artifact hash is not a SHA-256 digest")
+    keys = [assignment.key for assignment in manifest.assignments]
+    if len(set(keys)) != len(keys):
+        raise SplitError("manifest contains duplicate WindowKey assignments")
+    expected_split_id = _split_id(
+        manifest.seed, manifest.input_artifact_sha256, manifest.assignments
+    )
+    if manifest.split_id != expected_split_id:
+        raise SplitError("manifest split_id does not match its membership and input hash")
 
 
 def _manifest_encoding(
