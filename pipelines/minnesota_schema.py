@@ -80,16 +80,17 @@ def _validate(con: duckdb.DuckDBPyConnection) -> None:
     missing = set(TABLES) - actual
     if missing:
         raise RuntimeError(f"Minnesota schema missing tables: {sorted(missing)!r}; migrate explicitly.")
-    expected = ("artifact_id", "artifact_kind", "contract_version", "geography_id", "availability", "model_mode", "identity_json", "created_at", "assumptions_json", "limitations_json", "input_artifact_ids_json")
-    actual_columns = tuple(row[1] for row in con.execute("PRAGMA table_info('mn_artifact_manifests')").fetchall())
-    if actual_columns != expected:
+    expected = (("artifact_id", "VARCHAR", True, True), ("artifact_kind", "VARCHAR", True, False), ("contract_version", "VARCHAR", True, False), ("geography_id", "VARCHAR", True, False), ("availability", "VARCHAR", True, False), ("model_mode", "VARCHAR", True, False), ("identity_json", "JSON", True, False), ("created_at", "TIMESTAMP", True, False), ("assumptions_json", "JSON", True, False), ("limitations_json", "JSON", True, False), ("input_artifact_ids_json", "JSON", True, False))
+    actual_columns = tuple((row[1], row[2], bool(row[3]), bool(row[5])) for row in con.execute("PRAGMA table_info('mn_artifact_manifests')").fetchall())
+    constraints = " ".join(str(value) for row in con.execute("SELECT * FROM duckdb_constraints() WHERE table_name='mn_artifact_manifests'").fetchall() for value in row)
+    if actual_columns != expected or "availability IN" not in constraints or "model_mode IN" not in constraints:
         raise RuntimeError("mn_artifact_manifests shape is incompatible; migrate explicitly.")
     bad = con.execute("""SELECT m.artifact_id FROM mn_artifact_manifests m
         WHERE m.availability='available' AND NOT EXISTS (SELECT 1 FROM mn_artifact_provenance p WHERE p.artifact_id=m.artifact_id)""").fetchone()
     if bad:
         raise RuntimeError(f"available artifact {bad[0]!r} has no provenance")
     checks = (
-        ("SELECT d.artifact_id FROM (SELECT artifact_id FROM mn_geography_artifacts UNION ALL SELECT artifact_id FROM mn_fixture_artifacts UNION ALL SELECT artifact_id FROM mn_scenario_artifacts UNION ALL SELECT artifact_id FROM mn_model_results UNION ALL SELECT artifact_id FROM mn_score_results) d JOIN mn_artifact_manifests m USING(artifact_id) WHERE m.availability <> 'available' LIMIT 1", "domain row requires available manifest"),
+        ("SELECT d.artifact_id FROM (SELECT artifact_id FROM mn_geography_artifacts UNION ALL SELECT artifact_id FROM mn_fixture_artifacts UNION ALL SELECT artifact_id FROM mn_scenario_artifacts UNION ALL SELECT artifact_id FROM mn_model_results UNION ALL SELECT artifact_id FROM mn_score_results UNION ALL SELECT corpus_artifact_id AS artifact_id FROM mn_citation_chunks UNION ALL SELECT artifact_id FROM mn_citation_hits) d JOIN mn_artifact_manifests m USING(artifact_id) WHERE m.availability <> 'available' LIMIT 1", "domain row requires available manifest"),
         ("SELECT m.artifact_id FROM mn_artifact_manifests m WHERE m.availability='unavailable' AND EXISTS (SELECT 1 FROM mn_geography_artifacts d WHERE d.artifact_id=m.artifact_id) LIMIT 1", "unavailable artifact has domain row"),
         ("SELECT g.artifact_id FROM mn_geography_artifacts g WHERE g.coordinate_status='unavailable' AND (g.geometry_wkb IS NOT NULL OR g.lon IS NOT NULL) LIMIT 1", "unavailable geometry has values"),
         ("SELECT f.artifact_id FROM mn_artifact_field_provenance f JOIN mn_artifact_provenance p USING(artifact_id,provenance_ordinal) WHERE p.is_derived AND (f.derivation_method IS NULL OR f.derivation_method='') LIMIT 1", "derived provenance lacks method"),
