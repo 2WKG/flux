@@ -336,11 +336,28 @@ def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_termina
     None
 ):
     stream = CopilotEventStream()
-    events = [
-        stream.start(),
+    events = [stream.start()]
+
+    # A result for a call that has not been emitted yet is rejected by the
+    # emitter, not merely absent from the list this test builds.
+    with pytest.raises(StreamStateError, match="no pending tool call"):
+        stream.tool_result("call-lines", "top_lines", {"lines": []}, elapsed_ms=4)
+
+    events += [
         stream.tool_call("call-site", "score_site", {"site_id": "site_tx_0007"}),
         stream.tool_call("call-lines", "top_lines", {"region": "ERCOT"}),
-        stream.tool_result("call-lines", "top_lines", {"lines": []}, elapsed_ms=4),
+    ]
+    # Calls may complete out of order, but each result must name a call that
+    # is still pending; a settled call cannot be reported twice.
+    events.append(
+        stream.tool_result("call-lines", "top_lines", {"lines": []}, elapsed_ms=4)
+    )
+    with pytest.raises(StreamStateError, match="no pending tool call"):
+        stream.tool_result("call-lines", "top_lines", {"lines": []}, elapsed_ms=4)
+    # The stream cannot finish while `call-site` is still pending.
+    with pytest.raises(StreamStateError, match="pending"):
+        stream.done(verified=True)
+    events += [
         stream.tool_result(
             "call-site", "score_site", {"site_id": "site_tx_0007"}, elapsed_ms=8
         ),
@@ -349,6 +366,7 @@ def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_termina
 
     consumed = [_consume(event) for event in events]
 
+    # The rejected attempts consumed no ids: the wire sequence is contiguous.
     assert [record["id"] for record in consumed] == ["1", "2", "3", "4", "5", "6"]
     assert [record["event"] for record in consumed] == [
         "lifecycle",
@@ -359,17 +377,37 @@ def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_termina
         "done",
     ]
     assert [record["data"]["seq"] for record in consumed] == [1, 2, 3, 4, 5, 6]
-    call_positions = {
-        record["data"]["call_id"]: index
-        for index, record in enumerate(consumed)
+    assert [
+        record["data"]["call_id"]
+        for record in consumed
         if record["event"] == "tool_call"
-    }
-    for index, record in enumerate(consumed):
-        if record["event"] == "tool_result":
-            assert call_positions[record["data"]["call_id"]] < index
+    ] == ["call-site", "call-lines"]
+    assert [
+        record["data"]["call_id"]
+        for record in consumed
+        if record["event"] == "tool_result"
+    ] == ["call-lines", "call-site"]
     assert [record for record in consumed if record["event"] in {"done", "error"}] == [
         consumed[-1]
     ]
+    # `done` is the one terminal: no failure terminal may follow it.
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.disconnected()
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.done(verified=True)
+
+
+def test_success_terminal_rejects_a_later_disconnect() -> None:
+    """start(); done(); disconnected() must not produce a second terminal record."""
+    stream = CopilotEventStream()
+    events = [stream.start(), stream.done(verified=True)]
+
+    with pytest.raises(StreamStateError, match="terminal"):
+        events.append(stream.disconnected(RuntimeError("client went away")))
+
+    consumed = [_consume(event) for event in events]
+    assert [record["event"] for record in consumed] == ["lifecycle", "done"]
+    assert [record["id"] for record in consumed] == ["1", "2"]
 
 
 @pytest.mark.parametrize(
@@ -378,29 +416,48 @@ def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_termina
         ("disconnected", "cancelled"),
         ("timed_out", "deadline"),
         ("provider_failed", "upstream_error"),
+        ("refused", "refusal"),
+        ("iteration_limit_reached", "deadline"),
     ],
 )
 def test_failure_streams_have_exactly_one_terminal_error(
     method: str, expected_code: str
 ) -> None:
     stream = CopilotEventStream()
-    events = [stream.start(), getattr(stream, method)()]
-    consumed = [_consume(event) for event in events]
+    events = [
+        stream.start(),
+        stream.tool_call("call-site", "score_site", {"site_id": "site_tx_0007"}),
+        getattr(stream, method)(),
+    ]
 
-    terminal = [record for record in consumed if record["event"] in {"done", "error"}]
-    assert len(terminal) == 1
-    assert terminal[0]["event"] == "error"
-    assert terminal[0]["data"]["error"]["code"] == expected_code
+    # Every further terminal or application event is rejected on the wire.
     with pytest.raises(StreamStateError, match="terminal"):
-        stream.tool_call("call-after-error", "score_site", {})
+        events.append(stream.done(verified=True))
+    with pytest.raises(StreamStateError, match="terminal"):
+        events.append(getattr(stream, method)())
+    with pytest.raises(StreamStateError, match="terminal"):
+        events.append(stream.tool_call("call-after-error", "score_site", {}))
+    with pytest.raises(StreamStateError, match="terminal"):
+        events.append(stream.tool_result("call-site", "score_site", {}, elapsed_ms=1))
+
+    consumed = [_consume(event) for event in events]
+    assert [record["event"] for record in consumed] == [
+        "lifecycle",
+        "tool_call",
+        "error",
+    ]
+    assert [record["id"] for record in consumed] == ["1", "2", "3"]
+    terminal = [record for record in consumed if record["event"] in {"done", "error"}]
+    assert terminal == [consumed[-1]]
+    assert terminal[0]["data"]["error"]["code"] == expected_code
 
 
 def _consume(event: SseEvent) -> dict[str, object]:
     """Parse a complete SSE record as a client would, without framework helpers."""
     encoded = event.encode()
-    lines = encoded.splitlines()
-    assert lines[-1] == ""
-    fields = dict(line.split(": ", 1) for line in lines[:-1])
+    assert encoded.endswith("\n\n")
+    lines = encoded[:-2].split("\n")
+    fields = dict(line.split(": ", 1) for line in lines)
     return {
         "id": fields["id"],
         "event": fields["event"],
