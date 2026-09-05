@@ -12,9 +12,12 @@ from copilot.app import create_app
 from copilot.config import Settings
 
 
-def _fixture_database(path: Path) -> None:
+def _fixture_database(path: Path, *, with_corpus: bool = True) -> None:
     connection = duckdb.connect(str(path))
     connection.execute("CREATE TABLE fixture_marker (id INTEGER)")
+    if with_corpus:
+        connection.execute("CREATE TABLE corpus_chunks (embedding DOUBLE[])")
+        connection.execute("INSERT INTO corpus_chunks VALUES ([0.5])")
     connection.close()
 
 
@@ -38,16 +41,40 @@ def test_health_opens_a_fixture_database_without_claiming_model_availability(
     assert response.status_code == 200
     body = response.json()
     assert body == {
-        "database": {
-            "status": "available",
-            "message": "The configured database artifact opened read-only.",
-        },
+        "ok": True,
+        "duckdb_path": str(database),
+        "tables": ["corpus_chunks", "fixture_marker"],
+        "corpus_chunks": 1,
+        "dense": True,
         "model": {
             "status": "not_configured",
             "message": "No model provider credential is configured.",
         },
     }
     assert response.headers["X-Request-ID"] == "health-1"
+
+
+def test_health_reports_a_sparse_fixture_without_claiming_dense_retrieval(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database, with_corpus=False)
+    app = create_app(Settings(duckdb_path=database))
+
+    response = TestClient(app).get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "duckdb_path": str(database),
+        "tables": ["fixture_marker"],
+        "corpus_chunks": 0,
+        "dense": False,
+        "model": {
+            "status": "not_configured",
+            "message": "No model provider credential is configured.",
+        },
+    }
 
 
 def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
@@ -67,6 +94,7 @@ def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
         "retry_after_s": 30,
         "details": {"artifact": "database", "model": "not_configured"},
     }
+    assert not (tmp_path / "missing.duckdb").exists()
     assert response.headers["X-Request-ID"] == "health-2"
 
 
@@ -86,6 +114,7 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
+    assert response.json()["ok"] is True
     assert response.json()["model"] == {
         "status": "not_verified",
         "message": "Model availability is not verified by this local health check.",

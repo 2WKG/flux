@@ -28,14 +28,33 @@ class HealthData(BaseModel):
 
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    database: ComponentStatus
+    ok: Literal[True]
+    duckdb_path: str
+    tables: tuple[str, ...]
+    corpus_chunks: int
+    dense: bool
     model: ComponentStatus
 
 
-def _open_database(path: str) -> None:
-    """Prove the configured database can be opened without exposing its location."""
+def _database_health(path: str) -> tuple[tuple[str, ...], int, bool]:
+    """Read the database readiness facts without creating or changing it."""
     connection = duckdb.connect(path, read_only=True)
-    connection.close()
+    try:
+        tables = tuple(
+            sorted(row[0] for row in connection.execute("SHOW TABLES").fetchall())
+        )
+        if "corpus_chunks" not in tables:
+            return tables, 0, False
+
+        corpus_chunks = connection.execute(
+            "SELECT COUNT(*) FROM corpus_chunks"
+        ).fetchone()[0]
+        dense = connection.execute(
+            "SELECT EXISTS (SELECT 1 FROM corpus_chunks WHERE embedding IS NOT NULL)"
+        ).fetchone()[0]
+        return tables, corpus_chunks, dense
+    finally:
+        connection.close()
 
 
 def _model_status(settings: Settings) -> ComponentStatus:
@@ -54,14 +73,14 @@ def _model_status(settings: Settings) -> ComponentStatus:
 def health(request: Request) -> HealthData:
     """Return local readiness facts or raise the shared unavailable error.
 
-    Opening the configured DuckDB file read-only prevents a missing or corrupt
-    fixture from being represented as an available source. Provider APIs are
-    intentionally not called: a configured credential is not evidence that a
-    model is reachable.
+    The DuckDB probe is read-only, so a missing or corrupt fixture is never
+    represented as available and the endpoint cannot create an empty database.
+    Provider APIs are intentionally not called: a configured credential is not
+    evidence that a model is reachable.
     """
     settings: Settings = request.app.state.settings
     try:
-        _open_database(str(settings.duckdb_path))
+        tables, corpus_chunks, dense = _database_health(str(settings.duckdb_path))
     except duckdb.Error as exc:
         raise UnavailableError(
             "The configured database artifact is unavailable.",
@@ -74,9 +93,10 @@ def health(request: Request) -> HealthData:
         ) from exc
 
     return HealthData(
-        database=ComponentStatus(
-            status="available",
-            message="The configured database artifact opened read-only.",
-        ),
+        ok=True,
+        duckdb_path=str(settings.duckdb_path),
+        tables=tables,
+        corpus_chunks=corpus_chunks,
+        dense=dense,
         model=_model_status(settings),
     )
