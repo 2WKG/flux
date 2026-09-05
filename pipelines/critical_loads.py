@@ -11,6 +11,28 @@ import pandas as pd
 from pipelines.db import log_artifact, replace_frame
 
 
+def _centroid_counties(con, centroids: gpd.GeoSeries) -> pd.Series:
+    """Assign each centroid to a county, preserving missing assignments.
+
+    A centroid outside the loaded county coverage must remain unassigned rather
+    than being silently associated with an arbitrary synthetic bus downstream.
+    """
+    counties = con.execute("SELECT county_fips, geom_wkb FROM counties").fetchdf()
+    if counties.empty:
+        return pd.Series(pd.NA, index=centroids.index, dtype="string")
+    county_geo = gpd.GeoDataFrame(
+        counties.drop(columns="geom_wkb"),
+        geometry=gpd.GeoSeries.from_wkb(counties.geom_wkb.map(bytes)),
+        crs=4326,
+    )
+    points = gpd.GeoDataFrame(
+        {"source_index": centroids.index}, index=centroids.index, geometry=centroids, crs=4326
+    )
+    assigned = gpd.sjoin(points, county_geo[["county_fips", "geometry"]], how="left", predicate="within")
+    assigned = assigned.drop_duplicates("source_index", keep="first").set_index("source_index")["county_fips"]
+    return assigned.reindex(centroids.index).astype("string")
+
+
 def load_dod(con, geojson_path: str, min_area_km2: float = 1.0, release: str = "fy2024") -> int:
     path = Path(geojson_path)
     bases = gpd.read_file(path).to_crs(3083)
@@ -18,10 +40,11 @@ def load_dod(con, geojson_path: str, min_area_km2: float = 1.0, release: str = "
     active["area_km2"] = active.geometry.area / 1_000_000
     active = active[active.area_km2 >= min_area_km2].copy()
     centroids = active.geometry.centroid.to_crs(4326)
+    county_fips = _centroid_counties(con, centroids)
     source_id = active.index.astype(str)
     frame = pd.DataFrame({
         "cl_id": np.arange(1, len(active) + 1), "kind": "dod", "name": active["siteName"].astype(str),
-        "lon": centroids.x, "lat": centroids.y, "bus_id": None, "county_fips": None,
+        "lon": centroids.x, "lat": centroids.y, "bus_id": None, "county_fips": county_fips.to_numpy(),
     })
     rows = replace_frame(con, "critical_loads", frame, where="kind = 'dod'")
     con.execute("""CREATE TABLE IF NOT EXISTS critical_load_geometry(cl_id INTEGER PRIMARY KEY, source_id TEXT,

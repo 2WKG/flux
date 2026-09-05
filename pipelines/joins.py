@@ -37,24 +37,42 @@ def join_bus_county(con, fallback_km: float = 30.0) -> int:
 def join_critical_loads_to_bus(con, min_kv: float = 115.0) -> int:
     facilities = con.execute("SELECT cl_id, county_fips, lon, lat FROM critical_loads").fetchdf()
     buses = con.execute("SELECT bus_id, county_fips, base_kv, lon, lat FROM buses WHERE base_kv >= ?", [min_kv]).fetchdf()
-    if facilities.empty or buses.empty:
+    if facilities.empty:
+        return 0
+    con.execute("UPDATE critical_loads SET bus_id = NULL")
+    con.execute("""CREATE TABLE IF NOT EXISTS critical_load_bus_dist(cl_id INTEGER PRIMARY KEY, bus_id INTEGER,
+        distance_km DOUBLE, match_method TEXT)""")
+    con.register("_critical_facilities", facilities[["cl_id"]])
+    try:
+        con.execute("DELETE FROM critical_load_bus_dist WHERE cl_id IN (SELECT cl_id FROM _critical_facilities)")
+    finally:
+        con.unregister("_critical_facilities")
+    if buses.empty:
         return 0
     facility_geo = gpd.GeoDataFrame(facilities, geometry=gpd.points_from_xy(facilities.lon, facilities.lat), crs=4326).to_crs(3083)
     bus_geo = gpd.GeoDataFrame(buses, geometry=gpd.points_from_xy(buses.lon, buses.lat), crs=4326).to_crs(3083)
     matches: list[dict[str, object]] = []
     for row in facility_geo.itertuples():
+        if pd.isna(row.county_fips):
+            matches.append({"cl_id": row.cl_id, "bus_id": None, "distance_km": None,
+                            "match_method": "unassigned_no_county"})
+            continue
         same_county = bus_geo[bus_geo.county_fips.eq(row.county_fips)]
-        pool, method = (same_county, "same_county") if not same_county.empty else (bus_geo, "nearest_anywhere")
+        if same_county.empty:
+            matches.append({"cl_id": row.cl_id, "bus_id": None, "distance_km": None,
+                            "match_method": "unassigned_no_eligible_bus"})
+            continue
+        pool, method = same_county, "same_county"
         distances = pool.geometry.distance(row.geometry)
         nearest = pool.loc[distances.idxmin()]
         matches.append({"cl_id": row.cl_id, "bus_id": int(nearest.bus_id), "distance_km": float(distances.loc[distances.idxmin()] / 1000), "match_method": method})
-    result = pd.DataFrame(matches)
-    con.execute("""CREATE TABLE IF NOT EXISTS critical_load_bus_dist(cl_id INTEGER PRIMARY KEY, bus_id INTEGER,
-        distance_km DOUBLE, match_method TEXT)""")
+    result = pd.DataFrame(matches).astype({"cl_id": "int64", "bus_id": "Int64", "distance_km": "float64",
+                                           "match_method": "string"})
     con.register("_critical_bus", result)
     try:
-        con.execute("UPDATE critical_loads AS c SET bus_id = m.bus_id FROM _critical_bus AS m WHERE c.cl_id = m.cl_id")
+        con.execute("""UPDATE critical_loads AS c SET bus_id = m.bus_id
+                       FROM _critical_bus AS m WHERE c.cl_id = m.cl_id AND m.bus_id IS NOT NULL""")
         con.execute("INSERT OR REPLACE INTO critical_load_bus_dist SELECT * FROM _critical_bus")
     finally:
         con.unregister("_critical_bus")
-    return len(result)
+    return int(result.bus_id.notna().sum())
