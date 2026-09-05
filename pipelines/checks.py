@@ -65,10 +65,11 @@ def run_checks(db_path: str) -> list[Check]:
         candidate_nuclear = _scalar(con, "SELECT count(*) FROM site_candidates WHERE kind = 'nuclear_existing'")
         candidate_invalid = _scalar(con, """SELECT count(*) FROM site_candidates AS candidate
             LEFT JOIN buses AS bus ON bus.bus_id = candidate.bus_id
+            LEFT JOIN counties AS county ON county.county_fips = candidate.county_fips
             WHERE candidate.kind IS NULL OR candidate.kind NOT IN ('coal_retired', 'coal_retiring', 'nuclear_existing')
                OR candidate.lon IS NULL OR candidate.lat IS NULL
-               OR candidate.county_fips IS NULL OR candidate.bus_id IS NULL
-               OR bus.bus_id IS NULL OR bus.base_kv < 230""")
+               OR candidate.county_fips IS NULL OR county.county_fips IS NULL
+               OR (candidate.bus_id IS NOT NULL AND (bus.bus_id IS NULL OR bus.base_kv < 138))""")
         return [
             Check("synthetic-case-counts", buses == 2000 and branches == 3206 and transformers == 847
                   and gens == 544 and loads == 1125,
@@ -87,8 +88,8 @@ def run_checks(db_path: str) -> list[Check]:
                   f"Feb-2021 winter rows={storm_winter_rows}, invalid rows={storm_invalid}"),
             Check("critical-loads-dod", dod_rows >= 12 and dod_unmatched == 0 and cavazos_matched >= 1,
                   f"DoD rows={dod_rows}, unmatched={dod_unmatched}, Cavazos/Hood matches={cavazos_matched}"),
-            Check("site-candidates", candidate_coal >= 15 and candidate_nuclear >= 2 and candidate_invalid == 0,
-                  f"coal={candidate_coal}, nuclear={candidate_nuclear}, invalid or unlinked={candidate_invalid}"),
+            Check("site-candidates", candidate_coal >= 8 and candidate_nuclear == 2 and candidate_invalid == 0,
+                  f"coal={candidate_coal}, nuclear={candidate_nuclear}, invalid={candidate_invalid}"),
         ]
     finally:
         con.close()

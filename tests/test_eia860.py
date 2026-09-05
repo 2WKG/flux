@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pandas as pd
+from shapely.geometry import Polygon
 
 from pipelines.db import connect
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
@@ -43,8 +44,8 @@ def test_eia_plants_uses_latest_report_per_generator_and_keeps_inventory_history
 
 def test_site_candidates_exclude_active_coal_and_classify_retired_and_retiring_sites(tmp_path):
     plants = [
-        {"plant_id_eia": plant_id, "report_date": "2025-01-01", "latitude": 30.0 + plant_id,
-         "longitude": -97.0 - plant_id, "state": "TX", "plant_name_eia": name}
+        {"plant_id_eia": plant_id, "report_date": "2025-01-01", "latitude": 30.0 + plant_id / 100,
+         "longitude": -97.0 - plant_id / 100, "state": "TX", "plant_name_eia": name}
         for plant_id, name in ((1, "Active coal"), (2, "Retired coal"), (3, "Retiring coal"), (4, "Nuclear"))
     ]
     generators = [
@@ -64,11 +65,20 @@ def test_site_candidates_exclude_active_coal_and_classify_retired_and_retiring_s
     con = connect(str(tmp_path / "grid.duckdb"))
     try:
         load_eia860_plants(con, plants_path, generators_path)
+        con.execute("INSERT INTO counties VALUES (?, ?, ?, ?, ?)", [
+            "48001", "Example", "TX", 1,
+            Polygon([(-98, 29), (-96, 29), (-96, 31), (-98, 31), (-98, 29)]).wkb,
+        ])
+        con.execute("INSERT INTO buses (bus_id, base_kv, lon, lat) VALUES (1, 161, -97, 30)")
+        con.execute("INSERT INTO buses (bus_id, base_kv, lon, lat) VALUES (2, 115, -97, 30)")
         seed_site_candidates(con)
         assert con.execute("SELECT name, kind FROM site_candidates ORDER BY name").fetchall() == [
             ("Nuclear", "nuclear_existing"),
             ("Retired coal", "coal_retired"),
             ("Retiring coal", "coal_retiring"),
         ]
+        assert con.execute(
+            "SELECT DISTINCT county_fips, bus_id FROM site_candidates"
+        ).fetchall() == [("48001", 1)]
     finally:
         con.close()
