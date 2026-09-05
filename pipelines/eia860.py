@@ -6,6 +6,8 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from shapely import wkb
+from shapely.geometry import Point
 
 from pipelines.db import log_artifact, replace_frame
 
@@ -33,6 +35,44 @@ def _latest_generator_reports(inventory: pd.DataFrame) -> pd.DataFrame:
         inventory.sort_values(["plant_id_eia", "generator_id", "report_date"], kind="stable")
         .drop_duplicates(["plant_id_eia", "generator_id"], keep="last")
     )
+
+
+def _candidate_locations(con, candidates: pd.DataFrame, min_kv: float = 138.0,
+                         max_bus_km: float = 40.0) -> pd.DataFrame:
+    """Assign county containment and the nearest qualifying synthetic bus.
+
+    Candidate coordinates are real EIA plant locations while the bus topology is
+    synthetic, so the assignment stays explicitly geometric.  A location beyond
+    the siting contract's 40 km radius remains unconnected instead of receiving
+    a misleading statewide nearest-bus match.
+    """
+    result = candidates.copy()
+    counties = con.execute("SELECT county_fips, geom_wkb FROM counties").fetchall()
+    county_geometries = [(fips, wkb.loads(bytes(geometry))) for fips, geometry in counties
+                         if geometry is not None]
+    result["county_fips"] = [
+        next((fips for fips, geometry in county_geometries if geometry.covers(Point(lon, lat))), None)
+        for lon, lat in zip(result.lon, result.lat, strict=True)
+    ]
+
+    buses = con.execute("""SELECT bus_id, lon, lat FROM buses
+        WHERE base_kv >= ? AND lon IS NOT NULL AND lat IS NOT NULL""", [min_kv]).fetchdf()
+    assigned: list[int | None] = []
+    if buses.empty:
+        assigned = [None] * len(result)
+    else:
+        bus_lat = np.radians(buses.lat.to_numpy())
+        bus_lon = np.radians(buses.lon.to_numpy())
+        for lon, lat in zip(result.lon, result.lat, strict=True):
+            candidate_lat, candidate_lon = np.radians([lat, lon])
+            haversine = np.sin((bus_lat - candidate_lat) / 2) ** 2
+            haversine += np.cos(candidate_lat) * np.cos(bus_lat) * np.sin((bus_lon - candidate_lon) / 2) ** 2
+            distance_km = 2 * 6371.0088 * np.arcsin(np.sqrt(haversine))
+            nearest_index = int(np.argmin(distance_km))
+            assigned.append(int(buses.iloc[nearest_index].bus_id)
+                            if distance_km[nearest_index] <= max_bus_km else None)
+    result["bus_id"] = pd.array(assigned, dtype="Int64")
+    return result
 
 
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
@@ -126,6 +166,6 @@ def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
     candidates = selected.rename(columns={"plant_name": "name"})[
         ["site_id", "name", "kind", "lon", "lat", "county_fips"]
     ]
-    candidates["bus_id"] = None
+    candidates = _candidate_locations(con, candidates)
     candidates["capacity_slot_mw"] = capacity_slot_mw
     return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')")
