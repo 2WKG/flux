@@ -103,7 +103,7 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `outage_predictions` | `scenario_id, county_fips, ts, p_out, customers_at_risk, driver` | 02 | 03, 05, 06 |
 | `cascade_runs` | `run_id, scenario_id, hour, tripped_element_ids_json, lost_load_mw, counties_dark_json, critical_loads_lost_json` | 03 (and 04 for counterfactual runs) | 04, 05, 06 |
 | `site_scores` | `site_id, scenario_id, unit_mw, safety_score, safety_flags_json, grid_value_score, lol_reduction_mwh, congestion_relief_pct, blackstart_reach_mw` | 04 | 05, 06 |
-| `line_upgrade_scores` | `line_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible` | 08 | 05, 06 |
+| `line_upgrade_scores` | `line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256` — key `(line_id, scenario_id)`, see A10 | 08 | 05, 06 |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
@@ -484,8 +484,24 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
   - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
-
 - **A10 — SSE transport.** `POST /ask` uses the v1 event names, envelopes,
   ordering, terminal behavior, heartbeats, and POST-resume identity defined in
   `docs/research/sse-event-schema.md`. Spec 05 and the web client consume that
   single transport contract; no route or client invents a second event shape.
+
+- **A11 — line-upgrade artifacts are scenario-scoped (2WKG-179/182; `pipelines/db.py` `SCHEMA_VERSION 2.0.0`).**
+  `line_upgrade_scores` and `line_upgrade_detail` are keyed by `(line_id, scenario_id)`, not `line_id`:
+  the same branch is ranked separately for a historical replay, a forecast, or a declared aggregate
+  period, and rows from different scenarios coexist. Both tables gain the typed calculation-contract
+  columns `ranking_version TEXT`, `contract_version TEXT`, `computed_at TIMESTAMP`,
+  `simulation_run_id TEXT` (nullable), `grid_input_sha256`, `weather_input_sha256` (nullable), and
+  `cost_params_sha256` (sha256 hex, CHECK-constrained), ahead of the shared provenance columns.
+  `simulation_run_id` is set only when the congestion input was a Flux twin run; observed and proxy
+  inputs persist `NULL` and must not imply a run. `contract_version` here is the pydantic
+  `pipelines.line_upgrade_contracts.CONTRACT_VERSION` (`1.0.0`), distinct from
+  `schema_meta.contract_version` (the DuckDB `SCHEMA_VERSION`, now `2.0.0`, superseding the `1.0.0`
+  recorded in A9). The index `line_upgrade_scores_scenario_rank (scenario_id, mw_per_musd, line_id)`
+  is a scenario equality-filter aid for `top_lines`, not an ORDER BY accelerator. There is no
+  in-place migration from a `1.0.0` `grid.duckdb`: `ensure_schema` refuses it with a named error
+  before running any DDL; delete `data/duck/grid.duckdb` and re-run the ingest. `top_lines` and any
+  reader of these tables must filter by `scenario_id`.
