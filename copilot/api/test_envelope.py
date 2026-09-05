@@ -4,27 +4,19 @@ from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 from pydantic import BaseModel, ValidationError
 
 from copilot.api import (
     API_VERSION,
-    ArtifactRef,
+    FailureEnvelope,
     InvalidInputError,
     NotFoundError,
-    SuccessEnvelope,
     UnavailableError,
     install_error_handlers,
-    safe_details,
-    success,
 )
 from copilot.api.errors import INTERNAL_ERROR_MESSAGE, REQUEST_ID_HEADER
-
-ARTIFACT = ArtifactRef(
-    artifact_id="cascade_runs",
-    artifact_version="uri_2021-s0-ab12cd34",
-    source_kind="simulated",
-)
 
 
 class Scenario(BaseModel):
@@ -37,47 +29,33 @@ def client() -> TestClient:
     app = install_error_handlers(FastAPI())
 
     @app.get("/ok")
-    def _ok() -> SuccessEnvelope[Scenario]:
-        return success(
-            Scenario(scenario_id="uri_2021", hours=168),
-            request_id="req-ok",
-            artifacts=(ARTIFACT,),
+    def _ok() -> JSONResponse:
+        return JSONResponse(
+            content={"scenario_id": "uri_2021", "hours": 168},
         )
 
     @app.get("/unavailable")
-    def _unavailable() -> SuccessEnvelope[Scenario]:
+    def _unavailable() -> JSONResponse:
         raise UnavailableError(
             "Cascade artifacts for scenario 'uri_2021' have not been built.",
             details={"scenario_id": "uri_2021"},
         )
 
     @app.get("/missing")
-    def _missing() -> SuccessEnvelope[Scenario]:
+    def _missing() -> JSONResponse:
         raise NotFoundError("Unknown scenario 'nope'.")
 
     @app.get("/invalid")
-    def _invalid() -> SuccessEnvelope[Scenario]:
+    def _invalid() -> JSONResponse:
         raise InvalidInputError("hour must be between 0 and 167.")
 
     @app.get("/boom")
-    def _boom() -> SuccessEnvelope[Scenario]:
+    def _boom() -> JSONResponse:
         raise RuntimeError(
             "IO Error: could not open /secrets/grid.duckdb (token=abc123)"
         )
 
     return TestClient(app, raise_server_exceptions=False)
-
-
-def test_success_payload_carries_version_request_id_and_provenance(client: TestClient) -> None:
-    body = client.get("/ok").json()
-
-    assert body["status"] == "ok"
-    assert body["data"] == {"scenario_id": "uri_2021", "hours": 168}
-    assert body["meta"]["api_version"] == API_VERSION
-    assert body["meta"]["request_id"] == "req-ok"
-    assert body["meta"]["artifacts"][0]["artifact_id"] == "cascade_runs"
-    assert body["meta"]["partial"] is False
-    assert body["meta"]["generated_at"].endswith("Z") or "+00:00" in body["meta"]["generated_at"]
 
 
 @pytest.mark.parametrize(
@@ -132,7 +110,7 @@ def test_framework_validation_becomes_invalid_input(client: TestClient) -> None:
     app = install_error_handlers(FastAPI())
 
     @app.get("/layers")
-    def _layers(hour: int) -> SuccessEnvelope[Scenario]:  # pragma: no cover - never reached
+    def _layers(hour: int) -> JSONResponse:  # pragma: no cover - never reached
         raise AssertionError
 
     body = TestClient(app).get("/layers", params={"hour": "not-an-int"}).json()
@@ -141,27 +119,17 @@ def test_framework_validation_becomes_invalid_input(client: TestClient) -> None:
     assert body["error"]["details"] == {"field": "query.hour"}
 
 
-def test_safe_details_drops_sensitive_keys_and_truncates() -> None:
-    details = safe_details(
-        {
-            "field": "hour",
-            "duckdb_path": "/secrets/grid.duckdb",
-            "api_key": "abc123",
-            "sql": "SELECT 1",
-            "reason": "x" * 500,
-        }
-    )
-
-    assert set(details) == {"field", "reason"}
-    assert len(details["reason"]) == 201
-
-
-def test_envelopes_reject_unknown_fields() -> None:
+def test_failure_envelopes_reject_unknown_fields() -> None:
     with pytest.raises(ValidationError):
-        SuccessEnvelope[Scenario].model_validate(
+        FailureEnvelope.model_validate(
             {
-                "status": "ok",
-                "data": {"scenario_id": "uri_2021", "hours": 1},
+                "status": "error",
+                "data": None,
+                "error": {
+                    "code": "invalid_input",
+                    "message": "test",
+                    "retryable": False,
+                },
                 "meta": {
                     "request_id": "r",
                     "generated_at": "2026-09-05T00:00:00Z",
@@ -169,3 +137,19 @@ def test_envelopes_reject_unknown_fields() -> None:
                 },
             }
         )
+
+
+def test_successful_response_carries_request_id_header(client: TestClient) -> None:
+    response = client.get("/ok")
+
+    assert response.status_code == 200
+    assert REQUEST_ID_HEADER in response.headers
+    assert response.headers[REQUEST_ID_HEADER]
+
+
+def test_client_supplied_request_id_is_echoed_back(client: TestClient) -> None:
+    custom_id = "client-req-12345"
+    response = client.get("/ok", headers={REQUEST_ID_HEADER: custom_id})
+
+    assert response.status_code == 200
+    assert response.headers[REQUEST_ID_HEADER] == custom_id

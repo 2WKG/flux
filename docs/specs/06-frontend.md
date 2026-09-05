@@ -1,5 +1,7 @@
 # 06 — Frontend (`web/`)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: draft, weekend build. Owner: web lane. Depends on spec 05 (copilot API) for every byte of data; the map never reads DuckDB directly.
 
 ## Purpose
@@ -107,8 +109,8 @@ Common: `pickable` only on layers with a card (`counties`, `lines`, `sites`, `cr
 ### Ask box (`web/src/ask/`)
 
 - `AskPanel.tsx`: right-side drawer, message list, input, suggested-question chips (the two demo questions + 2 regression ones).
-- `useAsk.ts`: `fetch(`${API}/ask`, {method:"POST", body})` → `response.body.getReader()` → SSE parser (`web/src/ask/sse.ts`: split on `\n\n`, parse `event:`/`data:`/`id:`; ignore every line starting with `:` — sse-starlette's default heartbeat is `: ping - <utc timestamp>`, not the literal `: ping`; spec 05). `EventSource` is not usable for POST.
-- Rendering per event: `text` appends to the current assistant bubble (markdown via `react-markdown`, minimal); `tool_call` renders a collapsed chip "score_site(site_tx_0007, 300, uri_2021)" with spinner; `tool_result` fills the chip (✓/✗ + ms) and is expandable to the JSON; `citation` adds a footnote entry and highlights `[doc p.N]` tokens in the text as links to the footnote; `done` shows the badge: green "verified" or amber "n unverified numbers" (hover lists them); `error` shows an inline red line.
+- `useAsk.ts`: `fetch(`${API}/ask`, {method:"POST", body})` creates an opaque `attempt_id`, verifies the matching `X-Flux-Attempt-Id` response header, then reads `response.body.getReader()`. The parser (`web/src/ask/sse.ts`) splits on `\n\n`, parses `event:`/`data:`/`id:`, validates the v1 `seq`/`id` envelope, and ignores every line starting with `:`. The event contract is `docs/research/sse-event-schema.md`; `EventSource` is not usable for POST.
+- Rendering per event: `lifecycle` opens the attempt; `text` appends to the current assistant bubble (markdown via `react-markdown`, minimal); `tool_call` renders a collapsed chip from `tool`/`input` with spinner; `tool_result` fills the chip (✓/✗ + `elapsed_ms`) and is expandable to the JSON; `citation` adds a footnote entry and highlights `[doc p.N]` tokens in the text as links to the footnote; `done` shows the badge: green "verified" or amber "n unverified numbers" (hover lists them); `error` shows its safe message at `data.error.message` in an inline red line.
 - **Map linkage:** on `tool_call` the UI reacts — `score_site` → selects that site and opens its card; `run_cascade` → sets `hour` and plays the cascade; `predict_outage` → selects the county; `top_lines` → switches to the Upgrades mode and highlights the returned line ids. This is what makes step 5 visual.
 - Context sent with every question: `{scenario_id, hour, selected_site_id, compare_site_id, selected_element_id, unit_mw}` from the store.
 - Abort: an `AbortController` per question; new question cancels the previous stream.
@@ -197,7 +199,7 @@ Target: **60 fps while scrubbing the hour** on the Texas twin on a MacBook (M-se
 
 ## Interfaces
 
-- API: exactly spec 05's routes and shapes; TS types in `src/types/api.ts` are hand-mirrored (no codegen this weekend) with a single `assertShape` dev check per layer on first load.
+- API: exactly spec 05's routes and shapes; TS types in `src/types/api.ts` are hand-mirrored (no codegen this weekend) with a single `assertShape` dev check per layer on first load. SSE types are hand-mirrored only from `docs/research/sse-event-schema.md` v1, never a second local protocol.
 - Env: `VITE_API_URL` (default `http://localhost:8000`), `VITE_BASEMAP_STYLE` (default `https://tiles.openfreemap.org/styles/dark`), `VITE_NATIONAL=1` to show the national toggle even if `/layers/national_hex` 404s (renders an empty layer with a "not built" label — for slide rehearsal only).
 - Scripts: `pnpm dev`, `pnpm build` (`tsc -b && vite build`), `pnpm preview` exist in `web/package.json`; **`pnpm typecheck` and `pnpm lint` do not yet** — add `"typecheck": "tsc -b --noEmit"` and an eslint script (no eslint config is installed either) before criterion 1 can be run.
 - Store actions are the only way to mutate state; panels never call the API for writes (there are none).
