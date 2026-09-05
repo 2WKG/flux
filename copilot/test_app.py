@@ -28,8 +28,7 @@ def test_health_opens_a_fixture_database_without_claiming_model_availability(
 
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "ok"
-    assert body["data"] == {
+    assert body == {
         "database": {
             "status": "available",
             "message": "The configured database artifact opened read-only.",
@@ -39,11 +38,7 @@ def test_health_opens_a_fixture_database_without_claiming_model_availability(
             "message": "No model provider credential is configured.",
         },
     }
-    assert body["meta"]["api_version"] == "v1"
-    assert body["meta"]["request_id"] == "health-1"
-    assert body["meta"]["artifacts"] == []
-    assert body["meta"]["partial"] is False
-    assert body["meta"]["generated_at"]
+    assert response.headers["X-Request-ID"] == "health-1"
 
 
 def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
@@ -78,7 +73,7 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
-    assert response.json()["data"]["model"] == {
+    assert response.json()["model"] == {
         "status": "not_verified",
         "message": "Model availability is not verified by this local health check.",
     }
