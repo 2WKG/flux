@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from pathlib import Path
 
 import pandas as pd
 
 from pipelines.common import fips5, utc_naive
-from pipelines.texas_db import log_artifact, replace_frame
+from pipelines.db import log_artifact, replace_frame
 
 # Storm Events timestamps use local *standard* time year-round.  The Texas-only
 # loader maps NOAA's POSIX-style labels to fixed-offset IANA zones (whose signs
@@ -54,7 +53,7 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
         raise ValueError(f"Storm Events file missing {sorted(missing)}")
     zones = _zone_crosswalk(zone_crosswalk)
     records: list[dict[str, object]] = []
-    unmatched_zones: Counter[str] = Counter()
+    unmatched_zones: dict[str, int] = {}
     for row in texas.itertuples(index=False):
         event = row._asdict()
         source_tz = _cz_timezone(event["CZ_TIMEZONE"])
@@ -62,11 +61,11 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
             targets = [fips5(int(event["STATE_FIPS"]) * 1000 + int(event["CZ_FIPS"]))]
             method = "direct_county"
         else:
-            zone = str(int(event["CZ_FIPS"])).zfill(3)
-            targets = zones.get(zone, [])
+            targets = zones.get(str(int(event["CZ_FIPS"])).zfill(3), [])
             method = "nws_crosswalk"
             if not targets:
-                unmatched_zones[zone] += 1
+                zone = str(int(event["CZ_FIPS"])).zfill(3)
+                unmatched_zones[zone] = unmatched_zones.get(zone, 0) + 1
         for county_fips in targets:
             if county_fips is None:
                 continue
@@ -79,29 +78,52 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
                 "assignment_method": method, "episode_id": event.get("EPISODE_ID"),
                 "magnitude_type": event.get("MAGNITUDE_TYPE"), "source_year": year,
             })
-    expanded = pd.DataFrame(records)
-    if expanded.empty:
-        raise ValueError("Storm Events produced no Texas county records")
+    expanded = pd.DataFrame(records, columns=[
+        "event_id", "ts_begin", "ts_end", "county_fips", "type", "magnitude",
+        "assignment_method", "episode_id", "magnitude_type", "source_year",
+    ])
     contract = expanded[["event_id", "ts_begin", "ts_end", "county_fips", "type", "magnitude"]]
     # Attribute table is intentionally narrow: the compressed raw file retains narratives and all other fields.
     con.execute("""CREATE TABLE IF NOT EXISTS storm_event_attributes(event_id BIGINT, county_fips TEXT,
         source_year INTEGER, episode_id BIGINT, magnitude_type TEXT, assignment_method TEXT,
         PRIMARY KEY(event_id, county_fips, source_year))""")
     attributes = expanded[["event_id", "county_fips", "source_year", "episode_id", "magnitude_type", "assignment_method"]]
-    replace_frame(con, "storm_events", contract, where=f"EXTRACT(year FROM ts_begin) = {year}")
-    rows = replace_frame(con, "storm_event_attributes", attributes, where=f"source_year = {year}")
+    # Source year is authoritative.  UTC conversion can move an event across
+    # a calendar-year boundary, so timestamp predicates are not replay-safe.
+    con.execute("BEGIN TRANSACTION")
+    try:
+        con.execute(
+            """DELETE FROM storm_events AS events
+               WHERE EXISTS (SELECT 1 FROM storm_event_attributes AS attrs
+                             WHERE attrs.source_year = ?
+                               AND attrs.event_id = events.event_id
+                               AND attrs.county_fips = events.county_fips)""",
+            [year],
+        )
+        rows = replace_frame(con, "storm_event_attributes", attributes, where=f"source_year = {year}")
+        incoming = contract.copy()
+        incoming["source_name"] = "noaa_storm_events"
+        incoming["source_ref"] = path.name
+        incoming["source_version"] = str(year)
+        incoming["source_retrieved_at"] = None
+        incoming["fixture_batch_id"] = f"p0-storm-events-{year}"
+        con.register("_storm_events_incoming", incoming)
+        try:
+            con.execute("INSERT INTO storm_events BY NAME SELECT * FROM _storm_events_incoming")
+        finally:
+            con.unregister("_storm_events_incoming")
+        con.execute("DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
+                    ["noaa_storm_events", f"{year}:zone:%"])
+        for zone, count in unmatched_zones.items():
+            con.execute("INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+                        ["noaa_storm_events", f"{year}:zone:{zone}",
+                         f"{count} Texas zone-type Storm Events had no county crosswalk mapping"])
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
     log_artifact(con, source="noaa_storm_events", source_release=str(year), path=path, rows_loaded=rows,
                  schema_fingerprint="event id,time,type,county/zone,magnitude")
     log_artifact(con, source="nws_zone_county", source_release="bp16ap26", path=zone_crosswalk,
                  rows_loaded=len(zones), schema_fingerprint="state,zone,county_fips")
-    # Zone-level events are only usable after the NWS zone-to-county expansion.
-    # Keep their loss explicit in the built database rather than making an
-    # incomplete crosswalk look like an event-free county set.
-    con.execute("DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
-                ["noaa_storm_events", f"{year}:zone:%"])
-    for zone, count in unmatched_zones.items():
-        source_key = f"{year}:zone:{zone}"
-        con.execute("INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
-                    ["noaa_storm_events", source_key,
-                     f"{count} Texas zone-type Storm Events had no county crosswalk mapping"])
     return rows

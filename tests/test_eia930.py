@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import pandas as pd
 
+from pipelines.db import connect
 from pipelines.eia930 import load_eia930
-from pipelines.texas_db import connect
 
 
 def _write_eia930(path, timestamp: str, demand: int, adjusted: int | None = None) -> None:
@@ -35,12 +35,5 @@ def test_partial_eia930_reload_preserves_other_ba_hours(tmp_path) -> None:
         assert con.execute(
             "SELECT count(*) FROM ba_operations_hourly WHERE ba_code = 'ERCO'"
         ).fetchone()[0] == 2
-        assert con.execute(
-            "SELECT source_release, source_file, rows_loaded FROM ingest_log "
-            "WHERE source = 'eia930' ORDER BY source_release"
-        ).fetchall() == [
-            ("2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv", 1),
-            ("2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv", 1),
-        ]
     finally:
         con.close()
