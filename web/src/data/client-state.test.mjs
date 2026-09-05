@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -26,6 +27,7 @@ const {
   createReadApiClient,
   createSseClient,
 } = await import(pathToFileURL(join(outputDirectory, "client-state.js")).href);
+const { fetchWithPolicy } = await import(pathToFileURL(join(outputDirectory, "transport.js")).href);
 
 const isScenarioList = (value) => Array.isArray(value) && value.every((item) =>
   typeof item === "object" && item !== null && typeof item.scenario_id === "string",
@@ -110,24 +112,69 @@ test("read client maps network rejection without pretending that the server is u
   });
 });
 
-test("SSE client exposes a typed ready stream and closes its transport signal", async () => {
-  let requestSignal;
+test("SSE client close() cancels the body through the real fetchWithPolicy path", async () => {
   let bodyCancelled = false;
-  const client = createSseClient(async (_input, init) => {
-    requestSignal = init.signal;
+  const fetchImplementation = async () => {
     return new Response(new ReadableStream({
       cancel() {
         bodyCancelled = true;
       },
     }), { headers: { "content-type": "text/event-stream" } });
-  });
+  };
+  // The mock is the *fetch*, not the transport: the client still goes through fetchWithPolicy.
+  const client = createSseClient((input, options) => fetchWithPolicy(input, { ...options, fetchImplementation }));
   const decoder = (frame) => frame === "event: done" ? { type: "done" } : null;
   const state = await client.connect("/ask", decoder);
 
   assert.equal(state.kind, "ready");
   assert.deepEqual(state.data.decode("event: done"), { type: "done" });
+  const pendingRead = state.data.reader.read();
   state.data.close();
   await new Promise((resolve) => setTimeout(resolve, 0));
-  assert.equal(requestSignal.aborted, true);
   assert.equal(bodyCancelled, true);
+  assert.deepEqual(await pendingRead, { done: true, value: undefined });
+  state.data.close(); // idempotent
+});
+
+test("SSE client close() disconnects a real SSE server through the default transport", async () => {
+  let serverSawClose;
+  const closed = new Promise((resolve) => { serverSawClose = resolve; });
+  let requests = 0;
+  const server = createServer((request, response) => {
+    requests += 1;
+    assert.equal(request.method, "POST");
+    response.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache" });
+    response.write(": ping\n\n");
+    const heartbeat = setInterval(() => response.write(": ping\n\n"), 20);
+    request.on("close", () => { clearInterval(heartbeat); serverSawClose(true); });
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address();
+
+  try {
+    const client = createSseClient();
+    const state = await client.connect(`http://127.0.0.1:${port}/ask`, () => null);
+    assert.equal(state.kind, "ready");
+    const first = await state.data.reader.read();
+    assert.equal(first.done, false);
+    assert.match(new TextDecoder().decode(first.value), /: ping/);
+
+    state.data.close();
+
+    const outcome = await Promise.race([
+      closed,
+      new Promise((resolve) => setTimeout(() => resolve("server never saw the disconnect"), 2_000)),
+    ]);
+    assert.equal(outcome, true);
+    const afterClose = await Promise.race([
+      state.data.reader.read().then((result) => result, (error) => ({ rejected: error?.name })),
+      new Promise((resolve) => setTimeout(() => resolve("read never settled"), 1_000)),
+    ]);
+    assert.ok(afterClose.done === true || afterClose.rejected !== undefined, JSON.stringify(afterClose));
+    assert.equal(requests, 1);
+  } finally {
+    // Drop any socket the client failed to release so a regression fails instead of hanging the runner.
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
 });
