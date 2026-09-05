@@ -1,1 +1,1 @@
-"""Flux copilot components."""
+"""Flux Copilot contracts and service modules."""
