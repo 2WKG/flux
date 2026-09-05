@@ -154,3 +154,42 @@ team is one step further back than the board assumes, and R09 (Joshua) inherits 
 
 The 530 is expected while nothing is being served; it is not evidence the tunnel config is
 broken. Re-check after the connector starts.
+
+## Current state snapshot — captured 2026-09-05 19:45Z
+
+This is a point-in-time handoff. Check the current branch, open PRs, and Linear
+before acting on its status notes. The accompanying Graphify artifacts are a
+pre-rebase snapshot and do not yet index the data-quality or metric-layer files
+that subsequently landed on `master`.
+
+**Scope order: Minnesota first, then Texas, then further states, perfecting each before
+moving on.** `docs/specs/10-minnesota-demo.md` is the current authority. Specs 00–09 are
+Texas and carry a scope banner; their content is the second case, not the current one.
+
+**Storage is settled: DuckDB.** Recorded as contract amendment **A9** in
+`docs/specs/00-overview.md`; the `[DECISION]` in the curation plan is closed. Postgres was
+never adopted and Mongo/NoSQL was never proposed. `pipelines/db.py` is the executable
+authority — **19 contract tables** with FK constraints,
+`county_fips` as a 5-char checked string, and provenance columns on every table. Where a
+document and that module disagree, the module wins. Read
+`pipelines/db.py::SCHEMA_VERSION` for the current contract version.
+
+**The bottleneck is review and merge, not building.** At capture time, around 38 PRs were
+open; query GitHub for live counts. Two collisions have already cost real work: PR #27 rebuilt
+a source registry and downloader that already existed as
+`datasets/catalog.json` + `download.py`, and a duplicate
+set of child issues (2WKG-289–292) was created against 2WKG-276 minutes after 279/280/283/285
+already existed. Before starting an issue, check `git worktree list`, open PRs for a matching
+branch, and `list_issues` filtered by `parentId` — `get_issue` on a parent never returns its
+children.
+
+**Two contradictions the team must resolve; both are documented, neither is decided.**
+`README.md` describes Node/Express with `GET /api/demo` and says it "intentionally does not
+use Vite", while `STACK-LOCK.md` locks React+Vite served statically with no API — the built
+app violates the lock twice. And whether `docs/build/converging-swarm-target.md` and
+`swarm-plan.md` are superseded: this file says they are, but copilot work is actively landing
+against spec 05. Tracked in Linear 2WKG-296.
+
+**Parallel agents.** Ghadi runs Codex in a second terminal on this repo. Both act as the same
+Linear user, so neither can see the other's claims. Split by workstream, and only one agent
+should ever run `/graphify` — `graphify-out/` is a single shared artifact.
