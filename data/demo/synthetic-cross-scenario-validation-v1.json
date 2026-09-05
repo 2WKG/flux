@@ -37,6 +37,18 @@
     }
   ],
   "sensitivity": {
+    "axes": {
+      "drivenFields": [
+        "assumptions.demandMw",
+        "assumptions.baselineAvailableGenerationMw",
+        "interventions[].modeledContributionMw"
+      ],
+      "notConsumed": [
+        "assumptions.demandMultiplier",
+        "assumptions.generationAvailabilityFraction"
+      ],
+      "note": "The grid scales the fields in drivenFields directly. The fixture's displayed demandMultiplier and generationAvailabilityFraction are not read by generate_demo.py and therefore do not enter any metric here."
+    },
     "baseRanking": "a_better",
     "grid": [
       {
@@ -375,7 +387,8 @@
     ],
     "rankReversals": [],
     "tieCount": 2,
-    "finding": "No A/B rank reversal in this grid."
+    "structuralNote": "Structural guarantee, not evidence: the fixture computes shed = max(0, demandMw - (baselineAvailableGenerationMw + modeledContributionMw)) and this grid scales both candidates' modeledContributionMw by the same availability factor, so the candidate with the larger modeledContributionMw is never worse in any cell for any positive scale. An empty rankReversals list is therefore expected by construction; the grid can only produce ties (both candidates at zero unserved MW), never a reversal.",
+    "finding": "No A/B rank reversal in this grid; expected by construction, see structuralNote."
   },
   "unseenScenario": {
     "id": "unseen_fixture_colder_shortfall_v1",
@@ -419,52 +432,17 @@
     "scope": "Unseen deterministic perturbation of the checked-in synthetic fixture; it is not a temporal or geographic holdout."
   },
   "runtimeScaling": {
-    "machine": {
-      "platform": "Windows-11-10.0.26200-SP0",
-      "python": "3.12.10",
-      "processor": "unreported"
-    },
+    "committed": false,
     "method": "Same Python process, one warm-up per size, then perf_counter_ns around result_payload().",
     "caveat": "This measures fixture materialization only. It does not run or estimate a power-flow, OPF, cascade, or real network solver.",
-    "measurements": [
-      {
-        "fixtureCopies": 1,
-        "busCount": 5,
-        "lineCount": 6,
-        "sampleCount": 31,
-        "medianExecutionMs": 0.2048,
-        "minExecutionMs": 0.2039
-      },
-      {
-        "fixtureCopies": 5,
-        "busCount": 25,
-        "lineCount": 30,
-        "sampleCount": 31,
-        "medianExecutionMs": 0.5841,
-        "minExecutionMs": 0.5818
-      },
-      {
-        "fixtureCopies": 10,
-        "busCount": 50,
-        "lineCount": 60,
-        "sampleCount": 31,
-        "medianExecutionMs": 1.0776,
-        "minExecutionMs": 1.0713
-      },
-      {
-        "fixtureCopies": 20,
-        "busCount": 100,
-        "lineCount": 120,
-        "sampleCount": 31,
-        "medianExecutionMs": 2.0763,
-        "minExecutionMs": 2.0535
-      }
-    ]
+    "timingsArtifact": "Not committed: machine identity and wall-clock medians are written to data/demo/synthetic-cross-scenario-timings.local.json by `python -m model.validate_robustness --timings` and are git-ignored."
   },
   "transferBoundary": {
     "temporal": "Not evaluated: the fixture is a four-hour static balance, not a time-indexed holdout.",
     "geographic": "Not evaluated: the fixture is explicitly not Minnesota, New York, Texas, ERCOT, MISO, or an actual interconnection model.",
-    "computational": "Measured only as in-process fixture materialization across replicated five-bus shapes; no solver scale claim.",
+    "computational": "Measured only as in-process fixture materialization across replicated five-bus shapes; no solver scale claim. Timings are not part of this artifact.",
+    "ranking": "Structural guarantee, not evidence: the fixture computes shed = max(0, demandMw - (baselineAvailableGenerationMw + modeledContributionMw)) and this grid scales both candidates' modeledContributionMw by the same availability factor, so the candidate with the larger modeledContributionMw is never worse in any cell for any positive scale. An empty rankReversals list is therefore expected by construction; the grid can only produce ties (both candidates at zero unserved MW), never a reversal.",
+    "assumptionsNotConsumed": "The fixture's displayed demandMultiplier and generationAvailabilityFraction are not consumed by the model, so this grid says nothing about them.",
     "futureFeasible": "A Minnesota or New York case remains future/feasible-only until an actual verified case and execution are completed."
   }
 }
