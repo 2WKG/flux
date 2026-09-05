@@ -1,0 +1,96 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Machine-readable registry for the Texas P0 acquisition lane. Raw artifacts never live beside this registry.",
+  "sources": [
+    {
+      "id": "activsg2000",
+      "tier": "p0",
+      "registry_file": "data/sources/activsg2000.json",
+      "raw_path": "data/raw/activsg2000_current/",
+      "loader": "pipelines.activsg.load_activsg",
+      "curated_tables": ["buses", "lines", "gens", "loads"],
+      "helper_tables": ["synthetic_substations", "synthetic_bus_electrical", "synthetic_branch_electrical", "synthetic_generator_electrical"],
+      "gate": "MATPOWER and AUX bus IDs and nominal kV values must agree exactly."
+    },
+    {
+      "id": "census_tiger_counties",
+      "tier": "p0",
+      "release": "2024",
+      "raw_path": "data/raw/tiger/2024/tl_2024_us_county.zip",
+      "loader": "pipelines.counties.load_counties",
+      "curated_tables": ["counties"],
+      "helper_tables": ["county_geo_meta"],
+      "gate": "Filter STATEFP=48, reproject EPSG:4269 to 4326, require exactly 254 Texas county FIPS values."
+    },
+    {
+      "id": "fema_nri_counties",
+      "tier": "p0",
+      "release": "v1.20 / December 2025",
+      "raw_path": "data/raw/nri/v1.20/NRI_Counties_TX.json",
+      "loader": "pipelines.nri.load_nri",
+      "curated_tables": ["hazard_static"],
+      "helper_tables": ["nri_hazards"],
+      "gate": "Use the official FEMA service response or the official bulk ZIP only; require 254 TX records and a non-null composite risk score."
+    },
+    {
+      "id": "pudl_eia860",
+      "tier": "p0",
+      "release": "v2026.2.0",
+      "raw_path": "data/raw/pudl/v2026.2.0/",
+      "loader": "pipelines.eia860.load_eia860_plants",
+      "curated_tables": ["site_candidates"],
+      "helper_tables": ["eia_plants"],
+      "gate": "Pin both plants and generators Parquet releases together; retain only Texas plants and candidate-relevant fields."
+    },
+    {
+      "id": "eia930_balance",
+      "tier": "p0",
+      "releases": ["2021_h1", "2024_h2"],
+      "raw_path": "data/raw/eia930/<release>/",
+      "loader": "pipelines.eia930.load_eia930",
+      "curated_tables": ["ba_load_hourly"],
+      "helper_tables": ["ba_operations_hourly"],
+      "gate": "Keep ERCO/EPE/SWPP/MISO only; timestamps must parse as UTC and duplicate BA-hour keys are rejected."
+    },
+    {
+      "id": "noaa_storm_events",
+      "tier": "p0",
+      "releases": ["2021", "2024"],
+      "raw_path": "data/raw/storm_events/<year>/",
+      "loader": "pipelines.storm_events.load_storm_events",
+      "curated_tables": ["storm_events"],
+      "helper_tables": ["storm_event_attributes"],
+      "gate": "Direct county records remain direct; zone records require the separately versioned NWS crosswalk and carry assignment_method."
+    },
+    {
+      "id": "eaglei_outages",
+      "tier": "p0",
+      "releases": ["2021", "2024"],
+      "raw_path": "data/raw/eaglei/<year>/",
+      "loader": "pipelines.eaglei.load_eaglei",
+      "curated_tables": ["eaglei_outages"],
+      "helper_tables": ["eaglei_outage_observations", "county_customers", "eaglei_coverage"],
+      "timestamp_timezone": "UTC",
+      "timestamp_evidence": "Brelsford et al., Scientific Data (2024), doi:10.1038/s41597-024-03095-5, documents EAGLE-I run_start_time in UTC.",
+      "gate": "Annual national files are large. Omitted rows mean zero outages or a collection gap and must remain missing rather than being synthesized as zero."
+    },
+    {
+      "id": "ntad_military_bases",
+      "tier": "p0",
+      "release": "fy2024",
+      "raw_path": "data/raw/ntad_military_bases/fy2024/texas.geojson",
+      "loader": "pipelines.critical_loads.load_dod",
+      "curated_tables": ["critical_loads"],
+      "helper_tables": ["critical_load_bus"],
+      "gate": "Texas active installations only; bus assignment is a clearly labeled spatial proxy, never electrical connectivity."
+    },
+    {
+      "id": "noaa_hrrr",
+      "tier": "p0",
+      "raw_path": "data/raw/hrrr/<scenario>/",
+      "planned_loader": "pipelines.hrrr.load_hrrr_window",
+      "curated_tables": ["weather_hourly"],
+      "gate": "Not acquired yet: require f00 for instantaneous weather and f01 for hourly precip/freezing-rain accumulation before promotion."
+    }
+  ]
+}

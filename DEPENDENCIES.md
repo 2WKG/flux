@@ -53,7 +53,7 @@ react 19.2, deck.gl 9.3.11 (+ core, layers, geo-layers, aggregation-layers, mapb
 | Census TIGER counties 2024 | open (200) | `https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip` |
 | Census Gazetteer places (geocode fallback) | open (200) | `https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip` |
 | HIFLD transmission lines / hospitals (archived) | gated: free ICPSR/DataLumos account, browser download (Cloudflare) | DataLumos 240591 (lines), 239108 (hospitals); OSM Texas PBF via Geofabrik is the open fallback |
-| FEMA National Risk Index county table v1.20 | open (200, 25 MB via OpenFEMA; the hazards.fema.gov host is what 403s) | `https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip` |
+| FEMA National Risk Index county table v1.20 | loaded from FEMA official ArcGIS service; bulk OpenFEMA ZIP is WAF-sensitive | state-filtered official service query recorded in `scripts/data/fetch_p0.py` |
 | DoD installation boundaries (NTAD Military Bases) | open (GeoJSON query verified, CC0) | `https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson` |
 | OpenFreeMap tiles (basemap) | open (200) | `https://tiles.openfreemap.org/styles/liberty` |
 | Microsoft GridSFM, PyPSA-USA | repos reachable | stretch only |
