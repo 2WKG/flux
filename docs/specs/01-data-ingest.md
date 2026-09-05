@@ -402,13 +402,14 @@ Slide/interaction 1 of the demo: "This is the grid as public data lets us see it
 
 ## Risks / unknowns
 
-- **Bus coordinates** are solved (xlsx Substations sheet); the residual risk is a bus-number mismatch between the June-2016 xlsx and the pip `.m` case. Mitigation: AC #2 spot-check; if it fails, the gazetteer fallback and the manual CSV `data/raw/activsg2000/bus_coords_manual.csv` (`bus_id,lon,lat`) still work, and the AUX file is a third source.
-- **EAGLE-I file size** (1.1–1.4 GB per year) on hackathon Wi-Fi; DuckDB reads the CSV once with a `state='Texas'` pushdown — do not load into pandas. Keep the raw CSV, do not re-download.
-- **HRRR `FRZR`** field availability in Feb 2021 sfc files `[UNVERIFIED]`; the derived-ice fallback is defined above.
+- **Bus coordinates** are solved by the current-version `ACTIVSg2000.aux` (verified: exact bus-id match with the pip `.m`, 2,000/2,000 coordinates). The June-2016 xlsx is a *different* case version (2,007 buses, disjoint numbering) and must not be joined to the pip case. Residual risk: Google Drive changing its large-file confirm flow (`download.sh` line 3); mitigations in order — the xlsx substation-name join (1,398/2,000 pip names match), the gazetteer fallback, and the manual CSV `data/raw/activsg2000/bus_coords_manual.csv` (`bus_id,lon,lat`).
+- **EAGLE-I file size** (1.1–1.4 GB per year) on hackathon Wi-Fi; DuckDB reads the CSV once with a `state='Texas'` pushdown — do not load into pandas. Keep the raw CSV, do not re-download. The file is time-ordered, so an HTTP `Range` slice around a storm window is a valid emergency shortcut (Uri 02-13..02-18 ≈ 17 MB at byte offsets ~104.7–121.5 M of the 2021 file).
+- **HRRR `FRZR`** is present in the Feb-2021 sfc files (verified); the accumulation lives in `f01`, not `f00` — a loader that reads `f00` only will get all-zero `ice_mm` and `precip_mm`.
+- **Two library gaps in the repo env** (verified): `rasterstats` and the `osmium` CLI are absent (P1 only); `rapidfuzz` is present only transitively.
 - **NCEI Storm Events file suffix** rotates; the directory-grep in `download.sh` handles it.
 - **HIFLD archives are behind Cloudflare/ICPSR**; OSM is the scriptable overlay and is good enough for a map. Nothing in P0 depends on HIFLD.
 - **BA/county boundary** for the non-ERCOT Texas counties is hand-curated `[UNVERIFIED]`; the twin only uses `ERCO` scaling so errors affect labeling, not physics.
-- EIA-930 `Demand (MW) (Adjusted)` during Uri contains imputed values for some hours; we keep the adjusted column and flag rows where `Demand (MW)` is NULL.
+- EIA-930 `Demand (MW) (Adjusted)` can contain imputed values (`Demand (MW) (Imputed)` column); for ERCO in 2021 H1 no hour is imputed or NULL (verified), but keep the adjusted column and flag rows where `Demand (MW)` is NULL for other BAs/years.
 - Synthetic topology ≠ real topology — state it in the demo; `real_lines` is an overlay, never joined.
 
 ## Weekend time-box (hours)
@@ -416,7 +417,7 @@ Slide/interaction 1 of the demo: "This is the grid as public data lets us see it
 | Task | Hours |
 |---|---|
 | `download.sh` P0 + `db.py`/`ensure_schema` | 1.0 |
-| ACTIVSg2000 xlsx load + pandapower pickle + bus-number spot-check | 1.5 |
+| ACTIVSg2000 `.m` + AUX coordinate parser + pandapower pickle + bus-id assert | 1.5 |
 | TIGER + NRI + bus→county + BA map | 1.0 |
 | EAGLE-I 2021/2024 TX + MCC | 1.0 |
 | Storm Events + zone→county | 1.0 |

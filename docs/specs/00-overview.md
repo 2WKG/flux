@@ -161,7 +161,8 @@ societal risk-benefit assessment for higher-density sites) [VERIFIED 2026-09-05]
  ┌───────────────┴──────────────────────────────────────────────────────────┴─────────────────┐
  │                          copilot/  (FastAPI + Anthropic SDK, claude-sonnet-5)              │
  │   Read APIs for the map        │   Tool loop: predict_outage · run_cascade · score_site    │
- │   (thin SELECTs on DuckDB)     │              top_lines · sql · cite                        │
+ │   (thin SELECTs on DuckDB)     │              top_lines · sql · cite · causal_query (07)    │
+ │                                │              compare_interventions · top_critical_elements │
  │                                │   Model narrates + plans. Tools compute. Never the reverse │
  └────┬───────────┬───────────────┬────────────────┬───────────────┬──────────────────────────┘
       │           │               │                │               │
@@ -216,7 +217,7 @@ societal risk-benefit assessment for higher-density sites) [VERIFIED 2026-09-05]
       ├──> 07-causal-layer      reads eaglei_outages, weather_hourly, hazard_static, storm_events
       │         └──writes──> causal/artifacts/*.json  (no shared table; exposed via copilot sql()/API)
       │
-      └──> 05-copilot           reads EVERYTHING; wraps 02/03/04/08 as tools; serves web
+      └──> 05-copilot           reads EVERYTHING; wraps 02/03/04/07/08 as tools (nine, A8); serves web
                 └──> 06-frontend  reads copilot HTTP APIs only. Never opens DuckDB.
 ```
 
