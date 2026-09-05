@@ -34,6 +34,11 @@ export type LayerPresentation = Readonly<{
   featureCollection: FeatureCollection<Geometry, GeoJsonProperties>;
 }>;
 
+export type LayerDisplayState =
+  | Readonly<{ kind: "ready"; presentation: LayerPresentation }>
+  | Readonly<{ kind: "empty"; layer: string; crs: string; message: string }>
+  | Readonly<{ kind: "unavailable"; message: string }>;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -104,6 +109,37 @@ export function toLayerPresentation(payload: unknown): LayerPresentation | null 
     attributes,
     sourceClasses,
     featureCollection: data.feature_collection,
+  };
+}
+
+/**
+ * Classify a response before rendering it. Non-ready states intentionally do
+ * not retain a previous feature collection, so a changed route cannot display
+ * stale geometry or imply a missing layer has values.
+ */
+export function toLayerDisplayState(payload: unknown): LayerDisplayState {
+  const presentation = toLayerPresentation(payload);
+  if (presentation) {
+    if (presentation.featureCollection.features.length === 0) {
+      return {
+        kind: "empty",
+        layer: presentation.layer,
+        crs: presentation.crs,
+        message: "The server returned this layer with no features.",
+      };
+    }
+    return { kind: "ready", presentation };
+  }
+
+  if (isRecord(payload) && payload.status === "unavailable" && isRecord(payload.error)) {
+    const message = payload.error.message;
+    if (typeof message === "string" && message.trim()) {
+      return { kind: "unavailable", message };
+    }
+  }
+  return {
+    kind: "unavailable",
+    message: "The requested map layer is unavailable.",
   };
 }
 
