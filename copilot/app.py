@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from copilot.api import API_VERSION, install_error_handlers
 from copilot.config import Settings
 from copilot.routes.health import router as health_router
+from copilot.routes.layers import router as layers_router
 from copilot.routes.scenarios import router as scenarios_router
 
 
@@ -24,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     install_error_handlers(app)
     app.include_router(health_router)
+    app.include_router(layers_router)
     app.include_router(scenarios_router)
     return app
 
