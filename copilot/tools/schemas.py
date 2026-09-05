@@ -43,10 +43,9 @@ class ArtifactRef(ContractModel):
     source_ref: Annotated[str, Field(min_length=1, max_length=2_048)]
 
 
-class Citation(ContractModel):
-    document: Annotated[str, Field(min_length=1, max_length=256)]
+class EvidenceCitation(ContractModel):
+    source: Annotated[str, Field(min_length=1, max_length=256)]
     locator: Annotated[str, Field(min_length=1, max_length=256)]
-    chunk_id: Annotated[str | None, Field(max_length=256)] = None
 
 
 class Unavailable(ContractModel):
@@ -56,16 +55,11 @@ class Unavailable(ContractModel):
 
 
 class ToolOutput(ContractModel):
-    """Shared result envelope for every tool implementation.
-
-    ``data`` has a tool-specific typed model in each registry definition. The
-    envelope makes provenance and unavailable behavior uniform before a caller
-    reads the payload.
-    """
+    """Evidence metadata placed beside each tool's documented top-level fields."""
 
     status: ToolStatus
     provenance: list[ArtifactRef] = Field(default_factory=list, max_length=50)
-    citations: list[Citation] = Field(default_factory=list, max_length=50)
+    citations: list[EvidenceCitation] = Field(default_factory=list, max_length=50)
     unavailable: Unavailable | None = None
 
     @model_validator(mode="after")
@@ -74,22 +68,8 @@ class ToolOutput(ContractModel):
             raise ValueError("unavailable results require an unavailable reason")
         if self.status == "available" and self.unavailable is not None:
             raise ValueError("available results cannot carry an unavailable reason")
-        return self
-
-
-class ToolResult[PayloadT: ContractModel](ToolOutput):
-    """An evidence-bound tool result with a typed payload on available paths."""
-
-    data: PayloadT | None = None
-
-    @model_validator(mode="after")
-    def payload_matches_status(self) -> ToolResult[PayloadT]:
-        if self.status == "available" and self.data is None:
-            raise ValueError("available results require typed data")
         if self.status == "available" and not self.provenance:
             raise ValueError("available results require artifact or retrieval provenance")
-        if self.status == "unavailable" and self.data is not None:
-            raise ValueError("unavailable results cannot carry data")
         return self
 
 
@@ -154,8 +134,9 @@ class OutagePoint(ContractModel):
     customers_at_risk: Annotated[int, Field(ge=0)]
 
 
-class PredictOutageData(ContractModel):
+class PredictOutageData(ToolOutput):
     county_fips: Annotated[str, Field(pattern=r"^\d{5}$")]
+    county_name: Annotated[str, Field(min_length=1, max_length=256)]
     scenario_id: ScenarioId
     horizon_h: Annotated[int, Field(ge=1, le=72)]
     peak_p_out: Annotated[float, Field(ge=0, le=1)]
@@ -165,58 +146,113 @@ class PredictOutageData(ContractModel):
     series: Annotated[list[OutagePoint], Field(max_length=24)]
 
 
-class CascadeData(ContractModel):
+class CriticalLoadLoss(ContractModel):
+    id: Annotated[str, Field(min_length=1, max_length=128)]
+    name: Annotated[str, Field(min_length=1, max_length=256)]
+    kind: Literal["dod", "hospital", "water"]
+    hour_lost: Annotated[int, Field(ge=0)]
+
+
+class CascadeData(ToolOutput):
     run_id: Annotated[str, Field(min_length=1, max_length=256)]
     scenario_id: ScenarioId
     hour: Annotated[int, Field(ge=0)]
     tripped_element_ids: list[str]
     lost_load_mw: Annotated[float, Field(ge=0)]
     counties_dark: list[Annotated[str, Field(pattern=r"^\d{5}$")]]
+    critical_loads_lost: list[CriticalLoadLoss]
     steps: Annotated[int, Field(ge=0)]
 
 
-class SiteScoreData(ContractModel):
+class SiteScoreData(ToolOutput):
     site_id: Annotated[str, Field(min_length=1, max_length=128)]
+    name: Annotated[str, Field(min_length=1, max_length=256)]
+    kind: Annotated[str, Field(min_length=1, max_length=128)]
+    county_fips: Annotated[str, Field(pattern=r"^\d{5}$")]
     scenario_id: ScenarioId
     unit_mw: Literal[300, 1000]
     safety_score: Annotated[float, Field(ge=0)]
+    safety_flags: list[str]
     grid_value_score: Annotated[float, Field(ge=0)]
     lol_reduction_mwh: Annotated[float, Field(ge=0)]
+    congestion_relief_pct: Annotated[float, Field(ge=0)]
+    blackstart_reach_mw: Annotated[float, Field(ge=0)]
+    critical_loads_protected: list[str]
+    regulatory_path: Annotated[str, Field(min_length=1, max_length=512)]
 
 
-class LinesData(ContractModel):
+class LineSummary(ContractModel):
+    line_id: Annotated[str, Field(min_length=1, max_length=128)]
+    from_bus: Annotated[str, Field(min_length=1, max_length=128)]
+    to_bus: Annotated[str, Field(min_length=1, max_length=128)]
+    kv: Annotated[float, Field(gt=0)]
+    congestion_usd_yr: Annotated[float, Field(ge=0)]
+    uplift_mw: Annotated[float, Field(ge=0)]
+    cost_usd: Annotated[float, Field(ge=0)]
+    mw_per_musd: Annotated[float, Field(ge=0)]
+    ferc_screen_pass: bool
+    spark_eligible: bool
+
+
+class LinesData(ToolOutput):
     region: Annotated[str, Field(min_length=1, max_length=64)]
     tech: Literal["dlr", "reconductor", "any"]
-    lines: list[dict[str, JsonValue]]
+    lines: list[LineSummary]
 
 
-class SqlData(ContractModel):
+class SqlData(ToolOutput):
     columns: list[str]
     rows: Annotated[list[list[JsonValue]], Field(max_length=200)]
     row_count: Annotated[int, Field(ge=0, le=200)]
     truncated: bool
 
 
-class CiteData(ContractModel):
-    hits: list[Citation]
+class RetrievalHit(ContractModel):
+    doc: Annotated[str, Field(min_length=1, max_length=256)]
+    title: Annotated[str, Field(min_length=1, max_length=512)]
+    page: Annotated[int, Field(ge=1)]
+    chunk_id: Annotated[str, Field(min_length=1, max_length=256)]
+    score: float
+    text: Annotated[str, Field(min_length=1, max_length=1_200)]
 
 
-class InterventionsData(ContractModel):
+class CiteData(ToolOutput):
+    hits: list[RetrievalHit]
+
+
+class Intervention(ContractModel):
+    intervention_id: Annotated[str, Field(min_length=1, max_length=256)]
+    kind: Literal["site", "line"]
+    run_id: Annotated[str, Field(min_length=1, max_length=256)]
+    lol_reduction_mwh: Annotated[float, Field(ge=0)]
+    customer_hours_avoided: Annotated[float, Field(ge=0)]
+    critical_loads_protected: list[str]
+
+
+class InterventionsData(ToolOutput):
     scenario_id: ScenarioId
     baseline_run_id: Annotated[str, Field(min_length=1, max_length=256)]
-    interventions: list[dict[str, JsonValue]]
+    interventions: list[Intervention]
     assumptions: list[str]
 
 
-class CriticalElementsData(ContractModel):
+class CriticalElement(ContractModel):
+    element_id: Annotated[str, Field(min_length=1, max_length=128)]
+    kind: Literal["line", "bus", "gen"]
+    lost_load_mw: Annotated[float, Field(ge=0)]
+    critical_loads_lost: list[str]
+    runs: Annotated[int, Field(ge=0)]
+
+
+class CriticalElementsData(ToolOutput):
     region: Annotated[str, Field(min_length=1, max_length=64)]
     n: Annotated[int, Field(ge=1, le=50)]
     scenario_ids: list[ScenarioId]
-    elements: list[dict[str, JsonValue]]
+    elements: list[CriticalElement]
     partial: bool = False
 
 
-class CausalData(ContractModel):
+class CausalData(ToolOutput):
     answer_numbers: dict[str, float | int]
     method: Annotated[str, Field(min_length=1, max_length=256)]
     assumptions: list[str]
@@ -233,15 +269,15 @@ class ToolDefinition:
 
 
 TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
-    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, ToolResult[PredictOutageData]),
-    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, ToolResult[CascadeData]),
-    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, ToolResult[SiteScoreData]),
-    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, ToolResult[LinesData]),
-    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, ToolResult[SqlData]),
-    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, ToolResult[CiteData]),
-    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, ToolResult[InterventionsData]),
-    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, ToolResult[CriticalElementsData]),
-    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, ToolResult[CausalData]),
+    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, PredictOutageData),
+    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, CascadeData),
+    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, SiteScoreData),
+    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, LinesData),
+    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, SqlData),
+    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, CiteData),
+    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, InterventionsData),
+    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, CriticalElementsData),
+    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, CausalData),
 )
 
 _REGISTRY_BY_NAME = {definition.name: definition for definition in TOOL_REGISTRY}
