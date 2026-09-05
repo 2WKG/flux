@@ -99,12 +99,18 @@ def test_missing_buses_table_is_shared_unavailable_response(tmp_path: Path) -> N
     }
 
 
-def test_unknown_layer_is_not_an_empty_success(tmp_path: Path) -> None:
+def test_layer_name_outside_the_allowlist_is_validation_error(tmp_path: Path) -> None:
     database = tmp_path / "fixture.duckdb"
     _fixture_database(database)
 
     response = _client(database).get("/layers/not-a-layer")
 
-    assert response.status_code == 404
+    assert response.status_code == 422
     assert response.json()["status"] == "error"
-    assert response.json()["error"]["code"] == "not_found"
+    assert response.json()["error"] == {
+        "code": "invalid_input",
+        "message": "Request parameters do not match the documented contract.",
+        "retryable": False,
+        "retry_after_s": None,
+        "details": {"field": "path.layer_name"},
+    }

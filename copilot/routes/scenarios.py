@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Annotated, Literal
 
 import duckdb
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel, ConfigDict
 
 from copilot.api import (
@@ -20,6 +20,16 @@ from copilot.api.errors import request_id_of
 from copilot.config import Settings
 
 router = APIRouter(tags=["scenarios"])
+
+ScenarioId = Annotated[
+    str,
+    Path(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9_-]*$",
+        description="Lowercase scenario identifier from the scenario catalog.",
+    ),
+]
 
 type ArtifactSourceKind = Literal[
     "fixture", "observed", "simulated", "heuristic", "retrieval"
@@ -180,7 +190,7 @@ def scenario_catalog(request: Request) -> SuccessEnvelope[ScenarioCatalog]:
 
 @router.get("/scenarios/{scenario_id}", response_model=SuccessEnvelope[ScenarioData])
 def scenario_detail(
-    request: Request, scenario_id: str
+    request: Request, scenario_id: ScenarioId
 ) -> SuccessEnvelope[ScenarioData]:
     """Return one persisted scenario without client-side database access."""
     settings: Settings = request.app.state.settings
