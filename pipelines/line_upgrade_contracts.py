@@ -26,7 +26,9 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-CONTRACT_VERSION = "1.0.0"
+from pipelines.db import SCHEMA_VERSION
+
+CONTRACT_VERSION = SCHEMA_VERSION
 
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 Usd = Annotated[float, Field(ge=0.0, description="US dollars")]
@@ -45,9 +47,9 @@ class Frozen(BaseModel):
 class CongestionSource(StrEnum):
     """How a congestion figure was obtained. Distinct, never interchangeable."""
 
-    OBSERVED = "observed"          # market shadow prices actually published
-    SIMULATED = "simulated"        # produced by our own twin run
-    PROXY = "proxy"                # an assumed $/MWh applied to modelled overload
+    OBSERVED = "observed"  # market shadow prices actually published
+    SIMULATED = "simulated"  # produced by our own twin run
+    PROXY = "proxy"  # an assumed $/MWh applied to modelled overload
     UNATTRIBUTED = "unattributed"  # constraint could not be mapped to a line
 
 
@@ -61,9 +63,9 @@ class InterventionType(StrEnum):
 class UnavailableReason(StrEnum):
     """Every unavailable outcome names why (2WKG-181)."""
 
-    NO_RATING = "no_rating"                    # line has no usable thermal rating
-    NO_WEATHER = "no_weather"                  # DLR needs wind/temperature it lacks
-    NO_CONDUCTOR = "no_conductor"              # reconductor needs a conductor type
+    NO_RATING = "no_rating"  # line has no usable thermal rating
+    NO_WEATHER = "no_weather"  # DLR needs wind/temperature it lacks
+    NO_CONDUCTOR = "no_conductor"  # reconductor needs a conductor type
     NO_CONGESTION_INPUT = "no_congestion_input"
     UNMAPPED_CONSTRAINT = "unmapped_constraint"
     COST_UNKNOWN = "cost_unknown"
@@ -88,16 +90,18 @@ class LineUpgradeProvenance(Frozen):
 
     @model_validator(mode="after")
     def _utc(self) -> LineUpgradeProvenance:
-        if self.computed_at.tzinfo is None or self.computed_at.utcoffset().total_seconds() != 0:
+        if (
+            self.computed_at.tzinfo is None
+            or self.computed_at.utcoffset().total_seconds() != 0
+        ):
             raise ValueError("computed_at must be timezone-aware UTC")
         return self
 
 
 class LineKey(Frozen):
-    """Identity of a scored line within one scenario."""
+    """Identity of a scored line in the configured region."""
 
-    line_id: str = Field(min_length=1)
-    scenario_id: str = Field(min_length=1)
+    line_id: int
     region: str = Field(min_length=1, description='balancing authority, e.g. "ERCOT"')
 
 
@@ -197,6 +201,7 @@ class ScoredLine(Frozen):
     best: Intervention
     alternative: Intervention | None = None
     static_rating_mw: Mw
+    aar_rating_mw: Mw
     mw_per_musd: Annotated[float, Field(ge=0.0)]
     ferc_screen_pass: bool | None = Field(
         default=None,
@@ -208,17 +213,39 @@ class ScoredLine(Frozen):
     @model_validator(mode="after")
     def _consistency(self) -> ScoredLine:
         if self.alternative and self.alternative.intervention == self.best.intervention:
-            raise ValueError("alternative must be a different intervention type than best")
+            raise ValueError(
+                "alternative must be a different intervention type than best"
+            )
         expected = mw_per_musd(self.best.uplift_mw, self.best.cost_usd)
         if expected is None or abs(expected - self.mw_per_musd) > 1e-9:
-            raise ValueError("mw_per_musd must equal round(uplift / cost_musd, 3) of `best`")
-        if isinstance(self.best, DlrIntervention) and self.provenance.weather_input_sha256 is None:
+            raise ValueError(
+                "mw_per_musd must equal round(uplift / cost_musd, 3) of `best`"
+            )
+        if self.alternative is not None:
+            alternative_score = mw_per_musd(
+                self.alternative.uplift_mw, self.alternative.cost_usd
+            )
+            if alternative_score is not None and alternative_score > self.mw_per_musd:
+                raise ValueError("best must be the higher-scoring intervention")
+        if (
+            any(
+                isinstance(intervention, DlrIntervention)
+                for intervention in (self.best, self.alternative)
+                if intervention is not None
+            )
+            and self.provenance.weather_input_sha256 is None
+        ):
             raise ValueError("a DLR figure requires weather_input_sha256 provenance")
-        if self.congestion.source is CongestionSource.UNATTRIBUTED and self.ferc_screen_pass is not None:
-            raise ValueError("ferc_screen_pass must be None when congestion is unattributed")
+        if (
+            self.congestion.source is CongestionSource.UNATTRIBUTED
+            and self.ferc_screen_pass is not None
+        ):
+            raise ValueError(
+                "ferc_screen_pass must be None when congestion is unattributed"
+            )
         return self
 
-    def sort_key(self) -> tuple[float, float, str]:
+    def sort_key(self) -> tuple[float, float, int]:
         """Deterministic ranking: score desc, then cheaper, then line_id asc.
 
         Returned for ascending sort, so the score is negated.
@@ -240,55 +267,3 @@ LineUpgradeRecord = ScoredLine | UnavailableLine
 def rank(lines: list[ScoredLine]) -> list[ScoredLine]:
     """Total order, stable across runs (2WKG-181 tie-breaker)."""
     return sorted(lines, key=ScoredLine.sort_key)
-
-
-# --------------------------------------------------------------------------
-# 2WKG-182 — DuckDB mapping
-# --------------------------------------------------------------------------
-
-# The nine columns pinned by docs/specs/00-overview.md 2.2. Types and units are
-# fixed here; 2WKG-112 writes exactly these and nothing else.
-LINE_UPGRADE_SCORES_DDL = """
-CREATE TABLE IF NOT EXISTS line_upgrade_scores(
-  line_id               TEXT    NOT NULL,
-  congestion_usd_yr     DOUBLE,          -- NULL when unattributed
-  dlr_uplift_mw         DOUBLE,
-  reconductor_uplift_mw DOUBLE,
-  dlr_cost_usd          DOUBLE,
-  reconductor_cost_usd  DOUBLE,
-  mw_per_musd           DOUBLE,          -- rounded to 3 dp; higher is better
-  ferc_screen_pass      BOOLEAN,         -- NULL = undeterminable, not false
-  spark_eligible        BOOLEAN,
-  PRIMARY KEY (line_id)
-);
-"""
-
-# The additive side table from amendment A4, extended with the provenance and
-# classification fields 2WKG-179/180 require.
-LINE_UPGRADE_DETAIL_DDL = """
-CREATE TABLE IF NOT EXISTS line_upgrade_detail(
-  line_id                TEXT    NOT NULL,
-  scenario_id            TEXT    NOT NULL,
-  region                 TEXT    NOT NULL,
-  owner                  TEXT,
-  conductor_material     TEXT,
-  conductor_kcmil        INTEGER,
-  static_rating_mw       DOUBLE,
-  dlr_p50_mw             DOUBLE,
-  dlr_hours_above_static INTEGER,
-  best_tech              TEXT,            -- InterventionType
-  payback_yr             DOUBLE,
-  congestion_source      TEXT NOT NULL,   -- CongestionSource
-  congestion_method      TEXT,            -- exact | fuzzy, observed only
-  unavailable_reason     TEXT,            -- UnavailableReason, else NULL
-  ranking_version        TEXT NOT NULL,
-  contract_version       TEXT NOT NULL,
-  computed_at            TIMESTAMP NOT NULL,
-  grid_input_sha256      TEXT NOT NULL,
-  weather_input_sha256   TEXT,            -- NOT NULL whenever dlr_p50_mw IS NOT NULL
-  cost_params_sha256     TEXT NOT NULL,
-  PRIMARY KEY (line_id, scenario_id)
-);
-"""
-
-DDL = (LINE_UPGRADE_SCORES_DDL, LINE_UPGRADE_DETAIL_DDL)
