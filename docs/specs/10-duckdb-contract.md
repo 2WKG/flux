@@ -194,6 +194,12 @@ JSON; typed families hold coordinates, units/values, model mode, input-artifact 
 score components, and citations. This permits stable cross-surface identity without
 forcing a source record into a legacy numeric `*_id` field.
 
+Additive ingest-provenance helper tables may record a source year together with a
+state scope when a shared DuckDB store loads more than one state. They are not
+Minnesota artifact tables and do not change this contract's identity, availability,
+or common-envelope requirements; their purpose is to make a scoped ingest rerun
+auditable rather than silently discarding its quality record.
+
 2WKG-98 validates deterministic identity generation; preflight-before-mutation;
 idempotent reruns; provenance and field-provenance preservation; paired coordinate
 absence; finite/unit-safe numeric values; topology/aggregate requirements; and
