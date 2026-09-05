@@ -25,10 +25,9 @@ Preview the recommended first acquisition without downloading:
 py datasets/download.py --group core --dry-run
 ```
 
-Preview the two regional demo bundles:
+Preview the Texas demo bundle:
 
 ```powershell
-py datasets/download.py --group demo-ny --dry-run
 py datasets/download.py --group demo-tx --dry-run
 ```
 
@@ -73,13 +72,13 @@ given.
   a real power-flow network.
 - Restricted FERC, NERC, ERCOT MIS, SCADA, relay, or CEII data is not included.
 
-## Regional demo strategy
+## Demo strategy
 
-The New York and Texas bundles use the same modeling dimensions so results can
-be compared rather than becoming two unrelated demos. See
-`REGIONAL_COVERAGE.md` for the cross-state coverage matrix, recommended joins,
-and the acquisition order. A source tagged `national` is a reusable backbone;
-`demo-ny` and `demo-tx` mark state-specific additions.
+The current demo is Texas-only and uses ACTIVSg2000 as its synthetic power-flow
+case. See `TEXAS_COVERAGE.md` for the coverage matrix and acquisition order. A
+source tagged `national` is a reusable backbone; `demo-tx` marks Texas-specific
+additions. National extensibility is an architectural goal, not a demonstrated
+cross-state result.
 
 ## Catalog statuses
 
