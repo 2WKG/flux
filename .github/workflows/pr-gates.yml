@@ -155,9 +155,9 @@ jobs:
           npm ci
           npm run typecheck
           npm run build
-          tests=$(find src -name '*.test.mjs' -type f | sort)
+          tests=$(find src test -name '*.test.mjs' -type f 2>/dev/null | sort)
           if [ -z "$tests" ]; then
-            echo "no web/src/**/*.test.mjs files; nothing to run"
+            echo "no web/src/**/*.test.mjs or web/test/**/*.test.mjs files; nothing to run"
           else
             # shellcheck disable=SC2086  # repo paths contain no whitespace
             node --test $tests
