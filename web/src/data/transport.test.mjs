@@ -13,7 +13,7 @@ execFileSync(
   ["src/data/transport.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
   { cwd: new URL("../..", import.meta.url), stdio: "inherit" },
 );
-const { RequestTimeoutError, fetchWithPolicy } = await import(
+const { RequestTimeoutError, ResponseSizeError, fetchWithPolicy } = await import(
   pathToFileURL(join(outputDirectory, "transport.js")).href,
 );
 
@@ -23,7 +23,7 @@ test("retries a transient GET response up to the bounded retry count", async () 
     retries: 2,
     fetchImplementation: async () => {
       calls += 1;
-      return new Response("", { status: calls < 3 ? 503 : 200 });
+      return new Response(null, { status: calls < 3 ? 503 : 200 });
     },
   });
 
@@ -38,7 +38,7 @@ test("does not retry unsafe methods even after a transient response", async () =
     retries: 2,
     fetchImplementation: async () => {
       calls += 1;
-      return new Response("", { status: 503 });
+      return new Response(null, { status: 503 });
     },
   });
 
@@ -74,4 +74,85 @@ test("propagates caller cancellation without a retry", async () => {
 
   await assert.rejects(request, /aborted/i);
   assert.equal(calls, 1);
+});
+
+test("does not start a fetch when its caller signal was already aborted", async () => {
+  const controller = new AbortController();
+  controller.abort();
+  let calls = 0;
+
+  await assert.rejects(
+    fetchWithPolicy("https://example.test/layers", {
+      signal: controller.signal,
+      fetchImplementation: async () => {
+        calls += 1;
+        return new Response(null, { status: 200 });
+      },
+    }),
+    /aborted/i,
+  );
+  assert.equal(calls, 0);
+});
+
+test("times out a response body that stalls after headers", async () => {
+  const response = await fetchWithPolicy("https://example.test/slow-body", {
+    timeoutMs: 10,
+    retries: 0,
+    fetchImplementation: async () => new Response(new ReadableStream()),
+  });
+
+  await assert.rejects(response.text(), RequestTimeoutError);
+});
+
+test("rejects declared and streamed response bodies over the configured cap", async () => {
+  let declaredBodyCancelled = false;
+  let declaredBodyCalls = 0;
+  await assert.rejects(
+    fetchWithPolicy("https://example.test/too-large", {
+      maxResponseBytes: 3,
+      fetchImplementation: async () => {
+        declaredBodyCalls += 1;
+        return new Response(
+          new ReadableStream({ cancel: () => { declaredBodyCancelled = true; } }),
+          { headers: { "content-length": "4" } },
+        );
+      },
+    }),
+    ResponseSizeError,
+  );
+  assert.equal(declaredBodyCancelled, true);
+  assert.equal(declaredBodyCalls, 1);
+
+  const response = await fetchWithPolicy("https://example.test/chunked", {
+    maxResponseBytes: 3,
+    fetchImplementation: async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2]));
+        controller.enqueue(new Uint8Array([3, 4]));
+      },
+    })),
+  });
+  await assert.rejects(response.arrayBuffer(), ResponseSizeError);
+});
+
+test("cancels discarded retry bodies before trying again", async () => {
+  let calls = 0;
+  let discardedBodyCancelled = false;
+  const response = await fetchWithPolicy("https://example.test/retry", {
+    retries: 1,
+    fetchImplementation: async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(
+          new ReadableStream({ cancel: () => { discardedBodyCancelled = true; } }),
+          { status: 503 },
+        );
+      }
+      return new Response(null, { status: 200 });
+    },
+  });
+
+  assert.equal(response.status, 200);
+  assert.equal(calls, 2);
+  assert.equal(discardedBodyCancelled, true);
 });
