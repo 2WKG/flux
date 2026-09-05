@@ -3,7 +3,7 @@
 Each test pins one clause of the issue's "Done when" list.
 """
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 from pydantic import ValidationError
@@ -44,7 +44,7 @@ def _artifact(split_id: str = "split-1") -> ModelArtifact:
 def test_window_start_must_be_utc_and_aligned():
     with pytest.raises(ValidationError, match="timezone-aware UTC"):
         WindowKey(county_fips="48453", scenario_id="s",
-                  window_start=datetime(2021, 2, 15, 6))
+                  window_start=datetime.fromisoformat("2021-02-15T06:00:00"))
     with pytest.raises(ValidationError, match="aligned"):
         WindowKey(county_fips="48453", scenario_id="s",
                   window_start=datetime(2021, 2, 15, 7, tzinfo=UTC))
@@ -96,6 +96,12 @@ def test_missing_feature_must_not_carry_a_value():
         FeatureValue(status=FeatureStatus.PRESENT, unit="m_s")
 
 
+@pytest.mark.parametrize("non_finite", [float("nan"), float("inf"), float("-inf")])
+def test_frozen_models_reject_non_finite_floats(non_finite: float):
+    with pytest.raises(ValidationError):
+        FeatureValue(value=non_finite, status=FeatureStatus.PRESENT, unit="m_s")
+
+
 def test_feature_row_reports_what_is_missing():
     row = FeatureRow(
         key=KEY, feature_set_version="fs-1", source_input_sha256=H,
@@ -118,6 +124,7 @@ def test_trained_prediction_is_unevaluated_until_an_evaluation_exists():
     p = TrainedModelPrediction(p_out=0.4, customers_at_risk=100,
                                driver=Driver.ICE, artifact=_artifact())
     assert p.is_evaluated is False
+    assert p.model_kind == "lightgbm"
 
 
 def test_evaluation_must_match_the_models_split():
@@ -166,6 +173,15 @@ def test_row_matches_the_six_pinned_columns():
     }
 
 
+def test_prediction_record_rejects_another_contract_version():
+    with pytest.raises(ValidationError):
+        PredictionRecord(
+            key=KEY,
+            prediction=UnavailablePrediction(reason="no model"),
+            contract_version="0.0.0",
+        )
+
+
 # --- split ------------------------------------------------------------------
 
 def test_split_manifest_counts_partitions():
@@ -173,8 +189,41 @@ def test_split_manifest_counts_partitions():
         split_id="split-1", seed=7, input_artifact_sha256=H,
         assignments=(
             SplitAssignment(key=KEY, partition=Partition.TRAIN),
-            SplitAssignment(key=KEY, partition=Partition.HOLDOUT),
+            SplitAssignment(
+                key=WindowKey(
+                    county_fips="48453",
+                    scenario_id="uri_2021",
+                    window_start=KEY.window_start + timedelta(hours=6),
+                ),
+                partition=Partition.HOLDOUT,
+            ),
         ),
     )
     assert m.counts()[Partition.TRAIN] == 1
     assert m.counts()[Partition.CALIBRATION] == 0
+
+
+def test_split_manifest_rejects_duplicate_window_key_assignments():
+    with pytest.raises(ValidationError, match="duplicate WindowKey"):
+        SplitManifest(
+            split_id="split-1",
+            seed=7,
+            input_artifact_sha256=H,
+            assignments=(
+                SplitAssignment(key=KEY, partition=Partition.TRAIN),
+                SplitAssignment(key=KEY, partition=Partition.TRAIN),
+            ),
+        )
+
+
+def test_split_manifest_rejects_a_window_key_across_partitions():
+    with pytest.raises(ValidationError, match="duplicate WindowKey"):
+        SplitManifest(
+            split_id="split-1",
+            seed=7,
+            input_artifact_sha256=H,
+            assignments=(
+                SplitAssignment(key=KEY, partition=Partition.TRAIN),
+                SplitAssignment(key=KEY, partition=Partition.HOLDOUT),
+            ),
+        )
