@@ -5,6 +5,8 @@ from copilot.retrieval.search import (
     MAX_EXCERPT_CHARACTERS,
     MAX_QUERY_CHARACTERS,
     MAX_RESULTS,
+    RetrievalResponse,
+    retrieve,
     search,
 )
 
@@ -82,6 +84,36 @@ def test_no_title_or_page_returns_document_id_and_explicit_locator() -> None:
 def test_empty_query_and_empty_corpus_return_no_results() -> None:
     assert search("   ", [_chunk("id", "capacity planning")]) == []
     assert search("capacity", []) == []
+
+
+@pytest.mark.parametrize(
+    ("corpus", "index_available", "reason"),
+    [
+        (None, True, "corpus_unavailable"),
+        ([], True, "corpus_unavailable"),
+        ([_chunk("id", "capacity planning")], False, "index_unavailable"),
+    ],
+)
+def test_unavailable_corpus_or_index_returns_named_citation_free_response(
+    corpus: list[CorpusChunk] | None,
+    index_available: bool,
+    reason: str,
+) -> None:
+    response = retrieve("capacity", corpus, index_available=index_available)
+
+    assert isinstance(response, RetrievalResponse)
+    assert response.status == "unavailable"
+    assert response.reason == reason
+    assert response.hits == ()
+    assert response.record() == {"hits": [], "reason": reason, "status": "unavailable"}
+
+
+def test_available_response_preserves_real_ranked_citation() -> None:
+    response = retrieve("capacity", [_chunk("id", "capacity planning")])
+
+    assert response.status == "available"
+    assert response.reason is None
+    assert [hit.chunk_id for hit in response.hits] == ["id"]
 
 
 @pytest.mark.parametrize(
