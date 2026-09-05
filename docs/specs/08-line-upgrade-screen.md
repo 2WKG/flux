@@ -1,5 +1,7 @@
 # 08 — Line Upgrade Screen ("which existing wires to upgrade")
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: draft · Scope: ONE screen inside the twin; Texas/ERCOT first, PJM as the clean
 congestion-attribution reference · Owner: lines team
 

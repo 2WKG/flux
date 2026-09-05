@@ -2,15 +2,11 @@
 
 from copilot.api.envelope import (
     API_VERSION,
-    ArtifactRef,
     Failure,
     FailureCode,
     FailureEnvelope,
     ResponseMeta,
     ResponseStatus,
-    SuccessEnvelope,
-    safe_details,
-    success,
 )
 from copilot.api.errors import (
     ApiError,
@@ -20,12 +16,12 @@ from copilot.api.errors import (
     UnavailableError,
     install_error_handlers,
     internal_error_from,
+    request_id_of,
 )
 
 __all__ = [
     "API_VERSION",
     "ApiError",
-    "ArtifactRef",
     "Failure",
     "FailureCode",
     "FailureEnvelope",
@@ -34,10 +30,8 @@ __all__ = [
     "NotFoundError",
     "ResponseMeta",
     "ResponseStatus",
-    "SuccessEnvelope",
     "UnavailableError",
     "install_error_handlers",
     "internal_error_from",
-    "safe_details",
-    "success",
+    "request_id_of",
 ]

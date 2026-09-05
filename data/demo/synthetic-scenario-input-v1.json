@@ -1,0 +1,49 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "flux:synthetic-scenario-input:v1",
+  "provenance": {
+    "sourceId": "flux_checked_in_synthetic_fixture",
+    "sourceRef": "data/demo/synthetic-scenario-input-v1.json",
+    "sourceVersion": "1",
+    "scope": "Checked-in synthetic five-bus input for an offline preview. It is not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model."
+  },
+  "assumptions": {
+    "id": "synthetic-cold-stress-v1",
+    "name": "Illustrative cold-weather stress",
+    "demandMw": 1365,
+    "baselineAvailableGenerationMw": 1177,
+    "durationHours": 4,
+    "demandMultiplier": 1.17,
+    "generationAvailabilityFraction": 0.79,
+    "modelMode": "synthetic_power_balance_preview",
+    "notes": [
+      "Every option uses this same demand, duration, and baseline generation assumption.",
+      "Candidate contribution is an illustrative fixture input, not an interconnection result."
+    ]
+  },
+  "network": {
+    "buses": [
+      {"id": "west", "name": "West Junction", "x": 120, "y": 270},
+      {"id": "north", "name": "North Ridge", "x": 300, "y": 115},
+      {"id": "central", "name": "Central Hub", "x": 405, "y": 275},
+      {"id": "east", "name": "East Plain", "x": 650, "y": 210},
+      {"id": "south", "name": "South Bend", "x": 510, "y": 435}
+    ],
+    "lines": [
+      {"id": "w-n", "from": "west", "to": "north", "baselineLoadingPct": 82},
+      {"id": "w-c", "from": "west", "to": "central", "baselineLoadingPct": 94},
+      {"id": "n-c", "from": "north", "to": "central", "baselineLoadingPct": 69},
+      {"id": "c-e", "from": "central", "to": "east", "baselineLoadingPct": 96},
+      {"id": "c-s", "from": "central", "to": "south", "baselineLoadingPct": 88},
+      {"id": "e-s", "from": "east", "to": "south", "baselineLoadingPct": 74}
+    ]
+  },
+  "interventions": [
+    {"id": "a", "name": "Candidate A", "busId": "west", "x": 120, "y": 270, "capacityMw": 300, "modeledContributionMw": 137, "description": "Illustrative western addition near the import path.", "lineLoadingMultipliers": {"w-n": 0.744, "w-c": 0.819, "n-c": 0.855, "c-e": 0.865, "c-s": 0.795, "e-s": 0.838}},
+    {"id": "b", "name": "Candidate B", "busId": "east", "x": 650, "y": 210, "capacityMw": 300, "modeledContributionMw": 106, "description": "Illustrative eastern addition near demand.", "lineLoadingMultipliers": {"w-n": 0.951, "w-c": 0.947, "n-c": 0.957, "c-e": 0.781, "c-s": 0.92, "e-s": 0.77}}
+  ],
+  "limitations": [
+    "Synthetic model; not a grid-flow, outage forecast, historical reconstruction, or real interconnection study.",
+    "A verified Minnesota network/model prerequisite is unavailable, so this fixture must not be relabelled or used for Minnesota conclusions."
+  ]
+}
