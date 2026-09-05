@@ -48,11 +48,15 @@ is why the fixture DB ships in hour one (§5, step 0).
 
 ---
 
-## 2. Storage `[DECISION]` — and how we stay unblocked either way
+## 2. Storage — **RESOLVED: DuckDB** (was `[DECISION]`)
+
+> **Closed.** DuckDB is the contract store; Postgres/PostGIS is not adopted. Recorded as contract
+> amendment **A9** in `docs/specs/00-overview.md`. `pipelines/db.py` ships DuckDB at
+> `SCHEMA_VERSION 1.0.0`. The Parquet-first design below still stands and is why the switch was
+> cheap — it is retained as rationale, not as an open question.
 
 The specs assume DuckDB (`data/duck/grid.duckdb`, one file, "No PostGIS this weekend"). The
-team is considering Postgres. **Decision needed by kickoff.** Until then, this lane is designed
-so the decision does not block us:
+team was considering Postgres. This lane was designed so the decision did not block us:
 
 **Parquet-first architecture.** Every loader produces a pandas/GeoPandas DataFrame and writes
 `data/parquet/<table>.parquet`. A single thin module, `pipelines/db.py`, is the only code that
@@ -75,7 +79,7 @@ What actually differs, for the record:
 
 **Recommendation (ours, not a decision):** the switch costs the *other* lanes more than us, and
 it forfeits the "one file, air-gappable" line the Second Front judges are pitched on. If
-Postgres is chosen, do it as a formal amendment A8 to `00-overview.md` at kickoff so every lane
+Postgres had been chosen, it would have been a formal amendment to `00-overview.md` at kickoff so every lane
 changes `connect()` once, and keep the Parquet mirrors as the demo-day hand-off regardless.
 
 ---

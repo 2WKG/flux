@@ -33,6 +33,12 @@ It does **not** construct the real ERCOT topology, make a real interconnection d
 | Staging / source-preserving helper | DuckDB helper table and, only when useful, `data/parquet/_helper/` | Retained fields that have analytical value but are not shared contracts | ignored |
 | Curated product contract | `data/duck/grid.duckdb`, `data/parquet/<table>.parquet` | Stable, small tables used by the other lanes | ignored |
 
+> **Executable authority: `pipelines/db.py`.** That module now defines **19** contract tables at
+> `SCHEMA_VERSION 1.0.0`. The 13 listed above are the ingest-owned inputs; the other six are written
+> by downstream lanes — `outage_predictions` (02), `cascade_runs` (03), `site_scores` (04),
+> `line_upgrade_scores` and `line_upgrade_detail` (08), `corpus_chunks` (05, at ingest time per A4).
+> Where this table and `pipelines/db.py` disagree, the module wins.
+
 No source file is copied into `data/sources/`. The directory contains only reproducibility metadata and this design document.
 
 ### 2. Preserve evidence; do not preserve clutter
