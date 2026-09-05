@@ -74,6 +74,33 @@ test("renders unavailable and empty layers without retaining or inventing geomet
   });
 });
 
+test("covers ready, empty, unavailable, and malformed overlay response states", () => {
+  const ready = toLayerDisplayState(payload);
+  assert.equal(ready.kind, "ready");
+  assert.deepEqual(ready.presentation.featureCollection.features[0].geometry.coordinates, [-93.2, 44.9]);
+
+  const emptyPayload = structuredClone(payload);
+  emptyPayload.data.feature_collection.features = [];
+  assert.equal(toLayerDisplayState(emptyPayload).kind, "empty");
+  assert.equal(toLayerDisplayState({ status: "unavailable", error: { message: "Not built." } }).kind, "unavailable");
+  assert.equal(toLayerDisplayState({ status: "ok", data: { layer: "buses" } }).kind, "unavailable");
+});
+
+test("a layer switch cannot retain ready geometry when the next response is unavailable", () => {
+  const ready = toLayerDisplayState(payload);
+  assert.equal(ready.kind, "ready");
+  const nextLayer = toLayerDisplayState({
+    status: "unavailable",
+    error: { message: "The requested layer is unavailable." },
+  });
+
+  assert.deepEqual(nextLayer, {
+    kind: "unavailable",
+    message: "The requested layer is unavailable.",
+  });
+  assert.equal("presentation" in nextLayer, false);
+});
+
 test("toggles only declared layer visibility without altering analytical payloads", () => {
   const layers = [
     { id: "outage-risk", label: "Outage risk", visible: true },
