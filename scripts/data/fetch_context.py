@@ -4,10 +4,9 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from urllib.request import Request, urlopen
-
 
 DOD_URL = (
     "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/"
@@ -35,7 +34,7 @@ def main() -> int:
         save(DOD_URL, path, "flux-data-ingest/1.0")
         print(path)
     if args.nws_user_agent:
-        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H0000Z")
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H0000Z")
         path = root / "nws" / "alerts" / f"alerts_TX_{stamp}.geojson"
         save("https://api.weather.gov/alerts/active?area=TX", path, args.nws_user_agent)
         print(path)

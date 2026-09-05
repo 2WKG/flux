@@ -1,4 +1,4 @@
-"""Dependency-ordered, all-or-nothing P0 builder."""
+"""Dependency-ordered, all-or-nothing builder for the Texas P0 demo."""
 
 from __future__ import annotations
 

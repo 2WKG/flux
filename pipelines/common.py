@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 
@@ -16,8 +16,7 @@ def fips5(value: object) -> str | None:
     text = str(value).strip()
     if not text:
         return None
-    if text.endswith(".0"):
-        text = text[:-2]
+    text = text.removesuffix(".0")
     if not text.isdigit():
         return None
     return text.zfill(5)
@@ -46,4 +45,4 @@ def utc_naive(value: object, source_tz: str | None = None) -> pd.Timestamp:
 
 
 def utc_now() -> datetime:
-    return datetime.now(timezone.utc).replace(tzinfo=None)
+    return datetime.now(UTC).replace(tzinfo=None)

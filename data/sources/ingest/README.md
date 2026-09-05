@@ -6,6 +6,10 @@
 
 ## Purpose and scope
 
+This is the legacy **Texas-only P0** adapter. Its commands write
+`data/duck/texas.duckdb` and `data/parquet/texas/`; they intentionally do not
+populate the shared `pipelines.db` / `grid.duckdb` contract.
+
 This project needs one repeatable data path from public raw material to a small set of stable DuckDB/Parquet contract tables. The input plan covers a much broader universe than the product should load indiscriminately. This document prevents that drift.
 
 The ingest pipeline must support:
