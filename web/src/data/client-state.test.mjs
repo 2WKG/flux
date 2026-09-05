@@ -112,9 +112,14 @@ test("read client maps network rejection without pretending that the server is u
 
 test("SSE client exposes a typed ready stream and closes its transport signal", async () => {
   let requestSignal;
+  let bodyCancelled = false;
   const client = createSseClient(async (_input, init) => {
     requestSignal = init.signal;
-    return new Response("", { headers: { "content-type": "text/event-stream" } });
+    return new Response(new ReadableStream({
+      cancel() {
+        bodyCancelled = true;
+      },
+    }), { headers: { "content-type": "text/event-stream" } });
   });
   const decoder = (frame) => frame === "event: done" ? { type: "done" } : null;
   const state = await client.connect("/ask", decoder);
@@ -122,5 +127,7 @@ test("SSE client exposes a typed ready stream and closes its transport signal", 
   assert.equal(state.kind, "ready");
   assert.deepEqual(state.data.decode("event: done"), { type: "done" });
   state.data.close();
+  await new Promise((resolve) => setTimeout(resolve, 0));
   assert.equal(requestSignal.aborted, true);
+  assert.equal(bodyCancelled, true);
 });
