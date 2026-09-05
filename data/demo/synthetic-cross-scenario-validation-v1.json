@@ -1,0 +1,470 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "flux:synthetic-cross-scenario-validation:v1",
+  "inputArtifactId": "flux:synthetic-scenario-input:v1",
+  "inputHash": "f5b2c271416b",
+  "modelMode": "synthetic_power_balance_preview",
+  "baseMetrics": [
+    {
+      "scenarioId": "baseline",
+      "label": "Baseline",
+      "demandMw": 1365,
+      "unservedMw": 188,
+      "unservedMwhOverHorizon": 752,
+      "horizonHours": 4.0,
+      "fractionDemandUnserved": 0.13772893772893774,
+      "improvementMw": 0
+    },
+    {
+      "scenarioId": "a",
+      "label": "Candidate A",
+      "demandMw": 1365,
+      "unservedMw": 51,
+      "unservedMwhOverHorizon": 204,
+      "horizonHours": 4.0,
+      "fractionDemandUnserved": 0.03736263736263736,
+      "improvementMw": 137
+    },
+    {
+      "scenarioId": "b",
+      "label": "Candidate B",
+      "demandMw": 1365,
+      "unservedMw": 82,
+      "unservedMwhOverHorizon": 328,
+      "horizonHours": 4.0,
+      "fractionDemandUnserved": 0.060073260073260075,
+      "improvementMw": 106
+    }
+  ],
+  "sensitivity": {
+    "baseRanking": "a_better",
+    "grid": [
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 237.45000000000005,
+            "unservedMwhOverHorizon": 949.8000000000002,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.1831116252168884,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 114.15000000000009,
+            "unservedMwhOverHorizon": 456.60000000000036,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.08802776171197231,
+            "improvementMw": 123.29999999999995
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 142.04999999999995,
+            "unservedMwhOverHorizon": 568.1999999999998,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.10954308849045688,
+            "improvementMw": 95.40000000000009
+          }
+        ]
+      },
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 119.75,
+            "unservedMwhOverHorizon": 479.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.09234625024098708,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 119.75
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 13.75,
+            "unservedMwhOverHorizon": 55.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.010603431656063235,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "tie",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 2.0499999999999545,
+            "unservedMwhOverHorizon": 8.199999999999818,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.0015808752650857563,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 2.0499999999999545
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 2.0499999999999545
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 305.70000000000005,
+            "unservedMwhOverHorizon": 1222.8000000000002,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.223956043956044,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 182.4000000000001,
+            "unservedMwhOverHorizon": 729.6000000000004,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.1336263736263737,
+            "improvementMw": 123.29999999999995
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 210.29999999999995,
+            "unservedMwhOverHorizon": 841.1999999999998,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.15406593406593402,
+            "improvementMw": 95.40000000000009
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 188.0,
+            "unservedMwhOverHorizon": 752.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.13772893772893774,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 51.0,
+            "unservedMwhOverHorizon": 204.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.03736263736263736,
+            "improvementMw": 137.0
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 82.0,
+            "unservedMwhOverHorizon": 328.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.060073260073260075,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "tie",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 70.29999999999995,
+            "unservedMwhOverHorizon": 281.1999999999998,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.05150183150183147,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 70.29999999999995
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 70.29999999999995
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 373.95000000000005,
+            "unservedMwhOverHorizon": 1495.8000000000002,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.26091051805337523,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 250.6500000000001,
+            "unservedMwhOverHorizon": 1002.6000000000004,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.17488226059654638,
+            "improvementMw": 123.29999999999995
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 278.54999999999995,
+            "unservedMwhOverHorizon": 1114.1999999999998,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.1943485086342229,
+            "improvementMw": 95.40000000000009
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 256.25,
+            "unservedMwhOverHorizon": 1025.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.17878946450375022,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 119.25,
+            "unservedMwhOverHorizon": 477.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.08320251177394035,
+            "improvementMw": 137.0
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 150.25,
+            "unservedMwhOverHorizon": 601.0,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.10483167626024768,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 138.54999999999995,
+            "unservedMwhOverHorizon": 554.1999999999998,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.0966684109541252,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": null,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 138.54999999999995
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 21.950000000000045,
+            "unservedMwhOverHorizon": 87.80000000000018,
+            "horizonHours": 4.0,
+            "fractionDemandUnserved": 0.01531484388627249,
+            "improvementMw": 116.59999999999991
+          }
+        ]
+      }
+    ],
+    "rankReversals": [],
+    "tieCount": 2,
+    "finding": "No A/B rank reversal in this grid."
+  },
+  "unseenScenario": {
+    "id": "unseen_fixture_colder_shortfall_v1",
+    "perturbation": {
+      "demandScale": 1.08,
+      "generationAvailabilityScale": 0.94
+    },
+    "aVsB": "a_better",
+    "scenarios": [
+      {
+        "scenarioId": "baseline",
+        "label": "Baseline",
+        "demandMw": 1474.2,
+        "unservedMw": 367.82000000000016,
+        "unservedMwhOverHorizon": 1471.2800000000007,
+        "horizonHours": 4.0,
+        "fractionDemandUnserved": 0.24950481617148293,
+        "improvementMw": 0.0
+      },
+      {
+        "scenarioId": "a",
+        "label": "Candidate A",
+        "demandMw": 1474.2,
+        "unservedMw": 239.0400000000002,
+        "unservedMwhOverHorizon": 956.1600000000008,
+        "horizonHours": 4.0,
+        "fractionDemandUnserved": 0.16214896214896227,
+        "improvementMw": 128.77999999999997
+      },
+      {
+        "scenarioId": "b",
+        "label": "Candidate B",
+        "demandMw": 1474.2,
+        "unservedMw": 268.18000000000006,
+        "unservedMwhOverHorizon": 1072.7200000000003,
+        "horizonHours": 4.0,
+        "fractionDemandUnserved": 0.18191561524894861,
+        "improvementMw": 99.6400000000001
+      }
+    ],
+    "scope": "Unseen deterministic perturbation of the checked-in synthetic fixture; it is not a temporal or geographic holdout."
+  },
+  "runtimeScaling": {
+    "machine": {
+      "platform": "Windows-11-10.0.26200-SP0",
+      "python": "3.12.10",
+      "processor": "unreported"
+    },
+    "method": "Same Python process, one warm-up per size, then perf_counter_ns around result_payload().",
+    "caveat": "This measures fixture materialization only. It does not run or estimate a power-flow, OPF, cascade, or real network solver.",
+    "measurements": [
+      {
+        "fixtureCopies": 1,
+        "busCount": 5,
+        "lineCount": 6,
+        "sampleCount": 31,
+        "medianExecutionMs": 0.2048,
+        "minExecutionMs": 0.2039
+      },
+      {
+        "fixtureCopies": 5,
+        "busCount": 25,
+        "lineCount": 30,
+        "sampleCount": 31,
+        "medianExecutionMs": 0.5841,
+        "minExecutionMs": 0.5818
+      },
+      {
+        "fixtureCopies": 10,
+        "busCount": 50,
+        "lineCount": 60,
+        "sampleCount": 31,
+        "medianExecutionMs": 1.0776,
+        "minExecutionMs": 1.0713
+      },
+      {
+        "fixtureCopies": 20,
+        "busCount": 100,
+        "lineCount": 120,
+        "sampleCount": 31,
+        "medianExecutionMs": 2.0763,
+        "minExecutionMs": 2.0535
+      }
+    ]
+  },
+  "transferBoundary": {
+    "temporal": "Not evaluated: the fixture is a four-hour static balance, not a time-indexed holdout.",
+    "geographic": "Not evaluated: the fixture is explicitly not Minnesota, New York, Texas, ERCOT, MISO, or an actual interconnection model.",
+    "computational": "Measured only as in-process fixture materialization across replicated five-bus shapes; no solver scale claim.",
+    "futureFeasible": "A Minnesota or New York case remains future/feasible-only until an actual verified case and execution are completed."
+  }
+}
