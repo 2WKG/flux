@@ -49,7 +49,7 @@ Training coverage: P0 = Texas, 2021 + 2024 EAGLE-I (≈ 254 counties × 2 years 
   - `max_out(c,w)` = max `customers_out` over the 15-min samples in `w` (EAGLE-I reports a level, not events; max is robust to the reporting gaps).
   - `frac_out(c,w) = max_out / total_customers(c)`, clipped to [0, 1]. Counties with `total_customers < 500` or NULL are dropped (tiny co-ops make the fraction noisy).
   - Binary label `y_out(c,w) = frac_out ≥ 0.05` ("material outage", ≥5% of customers). Secondary threshold 0.20 ("severe") is stored for the copilot's phrasing but not trained separately.
-  - Rows where the county has **no EAGLE-I sample at all** in the window are labelled NULL and excluded (coverage gap ≠ zero outage). `coverage_history.csv` state coverage < 60% for the year → whole state-year excluded.
+  - Rows where the county has **no EAGLE-I sample at all** in the window are labelled NULL and excluded (coverage gap ≠ zero outage). `coverage_history.csv` (columns `year,state,total_customers,min_covered,max_covered,min_pct_covered,max_pct_covered`; `state` = USPS code; **covers 2018–2022 only**, verified) `max_pct_covered` < 60% for the year → whole state-year excluded. Use `max_pct_covered`, not `min_pct_covered`: TX 2019 has `min_pct_covered = 0.59` / `max 0.93` and would otherwise be dropped; TX 2020 is 0.61–0.63. For 2023–2025 the file has no row, so the rule cannot fire — state that in `metrics.json.notes`.
 - Horizon: features are built from data **up to the window start** (nowcast, h=0) and, for the forecast path, from HRRR forecast fields valid in the window. Training uses HRRR analysis (`f00`) values in the window itself as a stand-in for "a perfect 6-h forecast"; the honest caveat is stated in `metrics.json.notes` and the demo.
 
 ### Feature table (`models/outage/features.py` → `outage_features`)
@@ -65,8 +65,8 @@ Training coverage: P0 = Texas, 2021 + 2024 EAGLE-I (≈ 254 counties × 2 years 
 | `ice_sum_6h`, `ice_sum_48h` | mm freezing-rain accumulation |
 | `precip_sum_6h`, `precip_sum_72h` | mm |
 | `heat_index_max` | from `temp_c` + assumed RH 50% when RH absent (heat driver) |
-| `storm_event_any`, `storm_event_type_*` | one-hot for `Winter Storm, Ice Storm, Extreme Cold/Wind Chill, High Wind, Thunderstorm Wind, Tornado, Hurricane, Tropical Storm, Flash Flood, Wildfire, Excessive Heat` overlapping the window ± 6 h |
-| `storm_magnitude_max` | knots for wind types, else NULL |
+| `storm_event_any`, `storm_event_type_*` | one-hot for the exact NOAA `EVENT_TYPE` strings (verified in the 2021 file) `Winter Storm, Winter Weather, Ice Storm, Extreme Cold/Wind Chill, High Wind, Thunderstorm Wind, Tornado, Hurricane (Typhoon), Tropical Storm, Flash Flood, Wildfire, Excessive Heat, Heat` overlapping the window ± 6 h (note `Hurricane (Typhoon)`, not `Hurricane`) |
+| `storm_magnitude_max` | `MAGNITUDE` for wind types (`MAGNITUDE_TYPE ∈ {EG, ES, MG, MS}` = estimated/measured gust/sustained, in knots), else NULL |
 | `nri_score, wildfire_hazard, seismic_pga, WFIR_RISKS, ISTM_RISKS, SWND_RISKS, HRCN_RISKS, WNTW_RISKS` | static |
 | `pop_log`, `customers_log`, `cust_density` | log10 pop, log10 customers, customers / county area km² |
 | `coastal` | county polygon touches the Gulf (`ST_DWithin` 5 km of coastline `[derived from TIGER coastal flag]`) |
@@ -80,8 +80,8 @@ Two feature sets are produced from the same table: `FEATURES_NOWCAST` (all) and 
 
 ### Models (`models/outage/train.py`)
 
-- **Head A — `p_out`**: `lightgbm.LGBMClassifier(objective='binary', n_estimators=2000, learning_rate=0.03, num_leaves=63, min_child_samples=100, subsample=0.8, colsample_bytree=0.8, reg_lambda=5, scale_pos_weight=auto, early_stopping_rounds=100)`; categorical `month, ba_code`.
-- **Head B — `frac_out | y_out=1`**: `LGBMRegressor(objective='tweedie', tweedie_variance_power=1.3, …)` trained only on positive rows; prediction `frac_hat = p_out × E[frac | out]`.
+- **Head A — `p_out`**: `lightgbm.LGBMClassifier(objective='binary', n_estimators=2000, learning_rate=0.03, num_leaves=63, min_child_samples=100, subsample=0.8, subsample_freq=1, colsample_bytree=0.8, reg_lambda=5, scale_pos_weight=<n_neg/n_pos computed on the train fold>)` fitted with `.fit(X, y, eval_set=[(X_calib, y_calib)], callbacks=[lightgbm.early_stopping(100)], categorical_feature=['month','ba_code'])`. (Verified on lightgbm 4.7.0: `scale_pos_weight='auto'` raises `LightGBMError: Unknown token auto`; an `early_stopping_rounds` kwarg without an `eval_set` raises `ValueError: For early stopping, at least one dataset and eval metric is required`; `subsample` is inert unless `subsample_freq ≥ 1`. `is_unbalance=True` is the accepted alternative to a numeric `scale_pos_weight`.)
+- **Head B — `frac_out | y_out=1`**: `LGBMRegressor(objective='tweedie', tweedie_variance_power=1.3, …)` (parameters verified accepted on 4.7.0) trained only on positive rows; prediction `frac_hat = p_out × E[frac | out]`.
 - **Calibration**: isotonic regression on the validation fold (2023 Texas if P1; else a random 15% of training windows stratified by month — flagged as weaker in `metrics.json`).
 - Trained twice: `nowcast` and `forecast` feature sets, artifacts suffixed `_nowcast` / `_forecast`. The demo replay and `predict_outage(horizon>0)` use `forecast`; the live "what is happening now" layer uses `nowcast`.
 - Seeds fixed; training on P0 data is < 3 min on a laptop.
@@ -108,13 +108,13 @@ Per hold-out scenario and overall:
 1. Inputs exactly as spec 05 declares: `county_fips: str` (the LLM resolves names via `sql` over `counties` first), `scenario_id ∈ {uri_2021, beryl_2024, helene_2024, forecast_72h}`, `horizon_h: int = 72` (rounded up to a 6-h multiple, max 72).
 2. Windows = every 6-h window in `[scenario.ts_start, ts_start + horizon_h]` for historical scenarios, `[now, now + horizon_h]` for `forecast_72h`.
 3. If `outage_predictions` already has the rows → serve them (cheap, deterministic, citable). Else build the feature rows via `features.build_rows(con, county_fips, window_starts, feature_set)` and score with the `forecast` head.
-4. `driver` = argmax of SHAP contribution at the peak window grouped into {ice: ice_*, hours_below_*, temp_*, ISTM; wind: wind_*, gust_*, SWND, HRCN; heat: heat_index_max; wildfire: wildfire_hazard, WFIR; flood: precip_*; other} using `lightgbm.Booster.predict(pred_contrib=True)`; `storm_event_*` contributions weighted × 0.5.
+4. `driver` = argmax of SHAP contribution at the peak window grouped into {ice: ice_*, hours_below_*, temp_*, ISTM; wind: wind_*, gust_*, SWND, HRCN; heat: heat_index_max; wildfire: wildfire_hazard, WFIR; flood: precip_*; other} using `lightgbm.Booster.predict(data, pred_contrib=True)` (verified signature; returns `n_features + 1` columns, the last is the bias — drop it before grouping); `storm_event_*` contributions weighted × 0.5.
 5. Returns spec 05's shape `{county_fips, county_name, scenario_id, horizon_h, peak_p_out, peak_ts, customers_at_risk, driver, series:[{ts, p_out, customers_at_risk}]}` (series ≤ 24 points) **plus** `top_features:[{name, value, contribution}]` (3), `calibration_note`, `model_version`, `model_kind: 'lightgbm'|'heuristic'`. The LLM narrates; it never computes.
 
 ### `forecast_72h` path (`models/outage/forecast.py`)
 
-1. `pipelines.hrrr.load_hrrr_forecast(run=latest, horizon_h=48)` fills `weather_hourly` for `forecast_72h` with `fxx=1..48` (hours 49–72 copy hour 48 and set a `stale` flag in a helper table `forecast_meta`).
-2. `pipelines.nws.snapshot_alerts("TX")` → `alerts_to_features(ts)` produces per-county flags `ice_flag, wind_flag, fire_flag, heat_flag`; these **replace** the missing `storm_event_*` one-hots in the forecast feature set (mapping: Winter Storm Warning/Ice Storm Warning → `storm_event_type_Winter Storm`; High Wind Warning/Hurricane Warning/Tropical Storm Warning → `High Wind`/`Hurricane`; Red Flag Warning → `Wildfire`; Excessive Heat Warning → `Excessive Heat`). A version of the forecast head is trained with these flags derived from Storm Events (`storm_event_*` mapped to the same four flags) so train/serve features match.
+1. `pipelines.hrrr.load_hrrr_forecast(run=latest, horizon_h=48)` fills `weather_hourly` for `forecast_72h` with `fxx=1..48` from the **latest 00/06/12/18Z cycle** (only those cycles run to `f48`; the others stop at `f18` — verified on the bucket) (hours 49–72 copy hour 48 and set a `stale` flag in a helper table `forecast_meta`).
+2. `pipelines.nws.snapshot_alerts("TX")` → `alerts_to_features(ts)` produces per-county flags `ice_flag, wind_flag, fire_flag, heat_flag`; these **replace** the missing `storm_event_*` one-hots in the forecast feature set (mapping, using the event names in `https://api.weather.gov/alerts/types`, verified: `Winter Storm Warning`/`Ice Storm Warning` → `storm_event_type_Winter Storm`; `High Wind Warning`/`Hurricane Warning`/`Tropical Storm Warning` → `High Wind`/`Hurricane (Typhoon)`; `Red Flag Warning` → `Wildfire`; **`Extreme Heat Warning`** (NWS renamed "Excessive Heat Warning"; the old name no longer exists in the types list) → `Excessive Heat`). A version of the forecast head is trained with these flags derived from Storm Events (`storm_event_*` mapped to the same four flags) so train/serve features match.
 3. `predict_scenario(con, "forecast_72h")` writes 12 windows × 254 counties into `outage_predictions`; the web map reads `p_out` per window; the copilot's "top-N counties at risk in the next 72 h" is `SELECT … ORDER BY customers_at_risk DESC` over that table.
 4. Refreshed by `uv run python -m models.outage.forecast --refresh` (cron-able; ~2 min).
 
@@ -199,7 +199,7 @@ CLI: `uv run python -m models.outage.features --states TX --years 2021 2024`;
 ## Acceptance criteria
 
 1. `outage_features.parquet` for TX 2021+2024 has ≥ 600k rows, ≤ 2% NULL in every weather column inside scenario windows, and no `frac_out > 1`.
-2. Positive rate of `y_out` over TX 2021 is between 0.5% and 5%; during `uri_2021` ≥ 40% of Texas county-windows at 2021-02-15 12Z..18Z are positive (sanity anchor to the real event).
+2. Positive rate of `y_out` over TX 2021 is between 0.5% and 5% `[UNVERIFIED: needs the built label table]`; during `uri_2021` ≥ 40% of Texas county-windows at 2021-02-15 12Z..18Z are positive (sanity anchor to the real event; the raw-file statewide peak is 4,257,873 customers out at 2021-02-16 19:00 with 249 Texas counties reporting, verified — so also assert the **02-16 18Z window** has ≥ 40% positives) `[UNVERIFIED: per-county 5% threshold rate not computed]`.
 3. Leakage check: no `window_start` inside any `HOLDOUT_WINDOWS` range appears in the train or calibration frames (asserted in `split()`; test `models/outage/tests/test_split.py`).
 4. `train(feature_set="forecast")` finishes in < 5 min on P0 data and writes all artifacts + `train_manifest.json` with data hashes.
 5. Uri hold-out (forecast head): `auc ≥ 0.80`, `brier ≤ 0.12`, `ece ≤ 0.06`, `hit_rate_top20 ≥ 10/20`, `peak_statewide_err ≤ 0.40`. If AUC < 0.70 the build flips `model_kind` to `heuristic` and says so in `metrics.json`.
@@ -207,7 +207,7 @@ CLI: `uv run python -m models.outage.features --states TX --years 2021 2024`;
 7. Helene: `not_evaluated` under P0 with an explicit reason; under P1 `auc ≥ 0.75`.
 8. Both heads beat climatology on Brier for every evaluated hold-out; metrics for the heuristic are in the same `metrics.json`.
 9. `outage_predictions` for `uri_2021` has 254 counties × 28 windows (7 days × 4) and `driver='ice'` or `'other'` (cold) for ≥ 70% of positive-predicted county-windows on 2021-02-15/16.
-10. `predict_outage("48453", "uri_2021", 72)` (Travis) returns in < 300 ms from the table, and `predict_outage("48453", "forecast_72h", 24)` in < 2 s including feature build; both return the full spec-05 shape, `series` ≤ 24 points, and `top_features` of length 3.
+10. `predict_outage("48453", "uri_2021", 72)` (Travis = `48453`, Harris = `48201`, both verified in the NRI county table) returns in < 300 ms from the table, and `predict_outage("48453", "forecast_72h", 24)` in < 2 s including feature build; both return the full spec-05 shape (spec 05 §Tool schemas, verified: `county_fips: str`, `scenario_id` enum `uri_2021,beryl_2024,helene_2024,forecast_72h`, `horizon_h: int = 72`; returns `{county_fips, county_name, scenario_id, horizon_h, peak_p_out, peak_ts, customers_at_risk, driver, series}` — the extra `top_features/calibration_note/model_version/model_kind` keys here are additive and spec 05 must allow them since its schemas are `additionalProperties: false` on **inputs**, not outputs), `series` ≤ 24 points, and `top_features` of length 3.
 11. `refresh_forecast` writes 12 windows × 254 counties and the NWS flag mapping is unit-tested against a fixture alert GeoJSON (`models/outage/tests/fixtures/alerts_TX.geojson`).
 12. `outage_eval` for `uri_2021` renders predicted-vs-actual choropleths in `web/` with a per-county residual; the demo screenshot is checked into `docs/specs/assets/uri_pred_vs_actual.png` `[produced during the weekend, not now]`.
 
@@ -217,7 +217,8 @@ Demo step 2: "Load the Winter Storm Uri weather." The map animates `outage_predi
 
 ## Risks / unknowns
 
-- **EAGLE-I coverage gaps** in 2021 Texas (some co-ops not scraped) depress labels; the NULL-not-zero rule and `coverage_history.csv` filter mitigate, but `mae_customers` will be biased low. State it.
+- **EAGLE-I coverage gaps** in 2021 Texas (some co-ops not scraped; `coverage_history.csv` says TX 2021 covered 82–94% of 14.8 M customers, verified) depress labels; the NULL-not-zero rule and `coverage_history.csv` filter mitigate, but `mae_customers` will be biased low. State it. `total_customers` per county exists only in the 2024 file (not 2025 — verified), so 2021 denominators come from `MCC.csv` (2022 modelled counts).
+- **Storm dates (verified, NHC):** Beryl landfall near Matagorda TX 2024-07-08 ~09Z (Cat 1, 80 mph); Helene landfall Big Bend FL 2024-09-27 03:10Z (= 11:10 pm EDT Sep 26, Cat 4). The `beryl_2024` and `helene_2024` scenario windows (07-07..07-11, 09-25..09-30) bracket both.
 - **Uri was a generation-shortfall + load-shed event, not only wires-down**: a weather→wires model under-predicts Austin/Houston rolling blackouts. `temp_min_48h`/`hours_below_m10` act as proxies; the cascade spec's generation-outage scenario is the physically honest layer. The demo should say "the model learns what Uri looked like on the ground, the twin explains why".
 - **HRRR analysis in training vs forecast at serve time** — optimistic skill. Mitigation: report Uri metrics also with HRRR `f06..f12` fields if time permits `[P1]`.
 - **Class imbalance + spatial autocorrelation** inflate AUC; `hit_rate_top20` and `peak_statewide_err` are the honest numbers — lead with them.

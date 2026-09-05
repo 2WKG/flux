@@ -28,7 +28,9 @@ Proof the twin dependency chain works end to end:
 ```
 from pandapower.converter.matpower import from_mpc   # NOT pandapower.converter.from_mpc
 net = from_mpc(".venv/.../matpower/data/case_ACTIVSg2000.m", f_hz=60)
-# 2000 buses, 2359 lines, 544 gens, 1125 loads, 67,109 MW; pp.rundcpp() in 0.84 s
+# 2000 buses, 2359 lines, 847 impedance branches (transformers land in net.impedance, not net.trafo),
+# 484 gen + 59 sgen + 1 ext_grid, 1125 loads, 67,109 MW; pp.rundcpp() 0.84 s cold, 9-14 ms warm.
+# lightsim2grid CANNOT load this case ("Unsupported element (Impedance)"): stretch-only.
 ```
 
 ## Web (`web/package.json`, pnpm installed)
@@ -39,7 +41,8 @@ react 19.2, deck.gl 9.3.11 (+ core, layers, geo-layers, aggregation-layers, mapb
 
 | Source | Status | Location / URL |
 |---|---|---|
-| ACTIVSg2000 (TAMU, Texas synthetic grid) | **downloaded** | `data/raw/activsg2000/…/Texas2000_June2016.{xlsx,AUX,m,RAW,EPC,pwb,pwd}` from the TAMU page's Google Drive link (`https://drive.google.com/uc?export=download&id=1tOIK_RVQaZZDo_oIi75bVdPsAlQ7J1l9`). Bus lat/lon = xlsx `Substations` sheet joined via `Buses.Substation Number`. |
+| ACTIVSg2000 CURRENT version (TAMU) | **downloaded** | `data/raw/activsg2000_current/` from `https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t` (125 MB). Bus lat/lon = `ACTIVSg2000.aux` Substation/Bus blocks; maps all 2,000 pip-case bus ids (fact-check 01-02, 0 kV mismatches). |
+| ACTIVSg2000 June-2016 bundle (PREVIOUS version) | downloaded, **do not use for coordinates** | `data/raw/activsg2000/…/Texas2000_June2016.*` — 2,007 buses / 49,776 MW; only 98 of 2,000 bus numbers match the pip case. Kept for reference only. |
 | ACTIVSg2000 electrical case | **installed** | pip `matpower` package data dir |
 | EAGLE-I outages 2014–2025 | **open, not downloaded** (~1.1–1.4 GB per year) | figshare article 24237376; e.g. 2021 `https://ndownloader.figshare.com/files/42547891`, 2025 `https://ndownloader.figshare.com/files/62164877`, MCC.csv `https://ndownloader.figshare.com/files/42547708`. No Globus needed. |
 | EIA-860 2024 | open (200) | `https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip` |
