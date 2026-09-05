@@ -57,6 +57,34 @@ The Copilot item includes model-default reconciliation and a developer-API
 availability check before any model is declared ready. This plan does not
 choose or rename a model; configuration alignment remains a Copilot work item.
 
+## Meeting-data follow-ups
+
+The meeting follow-ups are Backlog research and collection tasks under existing
+2WKG-7. They are nonblocking: the current demo remains Texas-first while
+Texas-plus-New-York feasibility is assessed with explicit source, license,
+availability, granularity, provenance, and join-feasibility evidence. The
+meeting source is [Flux data and scenario discussion](https://notes.granola.ai/t/5ca14bf7-0f0c-469f-acf3-9bc751ebe99a).
+
+| Linear issue | Owner | Research or collection scope |
+| --- | --- | --- |
+| 2WKG-140 | Mira Krishnaiah | Three-year demand history and county-granularity assessment. |
+| 2WKG-135 | Mira Krishnaiah | Texas A&M and Microsoft GridSFM source compatibility; descriptive overlap with 2WKG-38 only. |
+| 2WKG-137 | Mira Krishnaiah | Weather, seasonal, and geographic overlay candidates. |
+| 2WKG-134 | Mira Krishnaiah | Curated source dictionary and joined-data handoff. |
+| 2WKG-133 | Ghadi Khoury | Brookhaven data access, feasibility, and coverage. |
+| 2WKG-138 | Ghadi Khoury | Texas-plus-New-York data and scenario feasibility. |
+| 2WKG-139 | Ghadi Khoury | Industry, urban-rural, and population-growth inputs. |
+| 2WKG-136 | Ghadi Khoury | Economic-disruption and energy-source-shift scenario inputs; overlaps 2WKG-138 and requires follow-up consolidation. |
+
+## Assignment record
+
+The current Linear ownership count is three Joshua Wangia items, six Mira
+Krishnaiah items, five Ghadi Khoury items, and two William Zhang items across
+the next-wave and meeting-data backlog. The pre-existing richer records under
+2WKG-96 (2WKG-88 through 2WKG-92) were retained; this coordination pass
+created 2WKG-114 through 2WKG-116 and the meeting-data tasks. No existing Todo
+status, core dependency, project membership, or named assignment changed.
+
 ## Handoff rules
 
 Each implementation worker reads `docs/specs/00-overview.md`, its feature spec,
