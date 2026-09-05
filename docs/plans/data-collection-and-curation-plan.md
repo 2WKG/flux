@@ -48,11 +48,15 @@ is why the fixture DB ships in hour one (§5, step 0).
 
 ---
 
-## 2. Storage `[DECISION]` — and how we stay unblocked either way
+## 2. Storage — **RESOLVED: DuckDB** (was `[DECISION]`)
+
+> **Closed.** DuckDB is the contract store; Postgres/PostGIS is not adopted. Recorded as contract
+> amendment **A9** in `docs/specs/00-overview.md`. `pipelines/db.py` ships DuckDB at
+> `SCHEMA_VERSION 1.0.0`. The Parquet-first design below still stands and is why the switch was
+> cheap — it is retained as rationale, not as an open question.
 
 The specs assume DuckDB (`data/duck/grid.duckdb`, one file, "No PostGIS this weekend"). The
-team is considering Postgres. **Decision needed by kickoff.** Until then, this lane is designed
-so the decision does not block us:
+team was considering Postgres. This lane was designed so the decision did not block us:
 
 **Parquet-first architecture.** Every loader produces a pandas/GeoPandas DataFrame and writes
 `data/parquet/<table>.parquet`. A single thin module, `pipelines/db.py`, is the only code that
@@ -75,7 +79,7 @@ What actually differs, for the record:
 
 **Recommendation (ours, not a decision):** the switch costs the *other* lanes more than us, and
 it forfeits the "one file, air-gappable" line the Second Front judges are pitched on. If
-Postgres is chosen, do it as a formal amendment A8 to `00-overview.md` at kickoff so every lane
+Postgres had been chosen, it would have been a formal amendment to `00-overview.md` at kickoff so every lane
 changes `connect()` once, and keep the Parquet mirrors as the demo-day hand-off regardless.
 
 ---
@@ -134,14 +138,18 @@ tagged otherwise. Each entry: what · where · format/size · how to pull · tar
   it become an int anywhere (leading zeros matter nationally even if not for Texas).
 
 **S9 — FEMA National Risk Index v1.20 (county)** → `hazard_static.nri_score`, `counties.pop`, helper `nri_hazards`
-- `https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip`,
-  24,966,535 B. Use this OpenFEMA host; `hazards.fema.gov` 301s away.
+- Bulk source: `https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip`,
+  24,966,535 B. Use this OpenFEMA host; `hazards.fema.gov` 301s away. The
+  production fetcher uses FEMA's official v1.20 ArcGIS county service when the
+  bulk ZIP is WAF-blocked, and retains only the 254 TX records:
+  `https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query`.
 - Columns verified at header positions: `STCOFIPS` 9, `POPULATION` 10, `RISK_SCORE` 15,
   `WFIR_RISKS` 437, `ISTM_RISKS` 245, `SWND_RISKS` 341, `HRCN_RISKS` 223, `WNTW_RISKS` 463,
   `EAL_VALT` 21, plus `STATEABBRV`. 254 TX rows. Anchors: Travis 48453 pop 1,285,769;
   Harris 48201 pop 4,726,200. Spec 07 also wants `RESL_SCORE` `[UNVERIFIED present]`.
-- **Gotcha: send the default curl UA.** A browser-style User-Agent gets 403 from FEMA's WAF;
-  the plain `curl` default returns 200. Read `STCOFIPS` as `dtype=str`.
+- **Gotcha: bulk access is WAF-sensitive.** Do not fabricate a browser identity
+  or treat a 403 as missing data. The loader supports both the official ZIP and
+  the official state-filtered ArcGIS response. Read `STCOFIPS` as `dtype=str`.
 
 **S3 — EIA-860 plants/generators via PUDL** → helper `eia_plants`, `gens.eia_plant_id`, `site_candidates`
 - Anonymous S3, CC-BY-4.0. **`out_eia__yearly_plants.parquet` is REQUIRED, not optional** —
