@@ -96,14 +96,16 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin "$BASE_BRANCH"
-          mapfile -t files < <(git diff --name-only --diff-filter=ACMR "origin/$BASE_BRANCH...HEAD" -- '*.py')
-          if [ "${#files[@]}" -eq 0 ]; then
+          files=$(git diff --name-only --diff-filter=ACMR "origin/$BASE_BRANCH...HEAD" -- '*.py')
+          if [ -z "$files" ]; then
             echo "no Python files changed relative to $BASE_BRANCH"; exit 0
           fi
-          printf 'checking %d file(s):\n' "${#files[@]}"; printf '  %s\n' "${files[@]}"
+          echo "checking:"; printf '%s\n' "$files" | sed 's/^/  /'
           uv sync --frozen --extra dev
-          uv run --extra dev ruff check "${files[@]}"
-          uv run --extra dev ruff format --check "${files[@]}"
+          # shellcheck disable=SC2086  # repo paths contain no whitespace
+          uv run --extra dev ruff check $files
+          # shellcheck disable=SC2086
+          uv run --extra dev ruff format --check $files
 
   pytest:
     name: gate/pytest
@@ -153,11 +155,12 @@ jobs:
           npm ci
           npm run typecheck
           npm run build
-          mapfile -t tests < <(find src -name '*.test.mjs' -type f | sort)
-          if [ "${#tests[@]}" -eq 0 ]; then
+          tests=$(find src -name '*.test.mjs' -type f | sort)
+          if [ -z "$tests" ]; then
             echo "no web/src/**/*.test.mjs files; nothing to run"
           else
-            node --test "${tests[@]}"
+            # shellcheck disable=SC2086  # repo paths contain no whitespace
+            node --test $tests
           fi
 
   contract-drift:
