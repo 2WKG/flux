@@ -155,3 +155,53 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
     result = stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
     assert result.seq == 3
     assert stream.done(verified=True).seq == 4
+
+
+@pytest.mark.parametrize(
+    ("method", "code", "message"),
+    [
+        (
+            "disconnected",
+            "cancelled",
+            "The answer attempt was cancelled before it completed.",
+        ),
+        (
+            "timed_out",
+            "deadline",
+            "The answer could not finish within the request deadline.",
+        ),
+        (
+            "provider_failed",
+            "upstream_error",
+            "The answer provider is unavailable.",
+        ),
+        (
+            "tool_failed",
+            "tool_error",
+            "A requested tool could not complete.",
+        ),
+    ],
+)
+def test_named_failures_emit_one_safe_terminal_error(
+    method: str, code: str, message: str
+) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    secret_failure = RuntimeError("token=abc123 /secrets/grid.duckdb Traceback")
+
+    event = getattr(stream, method)(secret_failure)
+
+    assert event.event == "error"
+    assert event.seq == 2
+    assert event.data == {
+        "v": 1,
+        "seq": 2,
+        "status": "failed",
+        "error": {"code": code, "message": message, "retryable": True},
+    }
+    serialized = event.encode()
+    assert all(
+        value not in serialized for value in ("abc123", "/secrets/", "Traceback")
+    )
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.done(verified=True)

@@ -16,6 +16,29 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 
+_TERMINAL_FAILURES = {
+    "disconnect": (
+        "cancelled",
+        "The answer attempt was cancelled before it completed.",
+        True,
+    ),
+    "timeout": (
+        "deadline",
+        "The answer could not finish within the request deadline.",
+        True,
+    ),
+    "provider": (
+        "upstream_error",
+        "The answer provider is unavailable.",
+        True,
+    ),
+    "tool": (
+        "tool_error",
+        "A requested tool could not complete.",
+        True,
+    ),
+}
+
 
 class StreamStateError(RuntimeError):
     """An event would violate an answer attempt's lifecycle."""
@@ -42,8 +65,9 @@ class CopilotEventStream:
 
     ``start`` must be the first application event.  Tool results bind to an
     earlier call id and use the same tool name.  ``done`` is the only success
-    terminal event and closes the stream permanently.  Failure terminals are
-    intentionally implemented by the failure-path unit.
+    terminal event and closes the stream permanently.  Named failure methods
+    emit only fixed, user-safe terminal errors; callers must not expose their
+    caught provider or tool exception text in stream data.
     """
 
     def __init__(self) -> None:
@@ -133,6 +157,22 @@ class CopilotEventStream:
         self._terminal = True
         return event
 
+    def disconnected(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after a client disconnect without leaking ``cause``."""
+        return self._failure("disconnect", cause)
+
+    def timed_out(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after its deadline without leaking ``cause``."""
+        return self._failure("timeout", cause)
+
+    def provider_failed(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after an upstream failure without leaking ``cause``."""
+        return self._failure("provider", cause)
+
+    def tool_failed(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after a tool failure without leaking ``cause``."""
+        return self._failure("tool", cause)
+
     def _require_active(self) -> None:
         if not self._started:
             raise StreamStateError(
@@ -140,6 +180,25 @@ class CopilotEventStream:
             )
         if self._terminal:
             raise StreamStateError("no application event may follow a terminal event")
+
+    def _failure(self, kind: str, cause: BaseException | None) -> SseEvent:
+        """Emit a fixed terminal error and intentionally discard raw failure detail."""
+        self._require_active()
+        del cause
+        code, message, retryable = _TERMINAL_FAILURES[kind]
+        event = self._event(
+            "error",
+            {
+                "status": "failed",
+                "error": {
+                    "code": code,
+                    "message": message,
+                    "retryable": retryable,
+                },
+            },
+        )
+        self._terminal = True
+        return event
 
     def _event(self, event: str, data: Mapping[str, Any]) -> SseEvent:
         seq = self._next_seq
