@@ -4,11 +4,9 @@ import pytest
 from pydantic import ValidationError
 
 from copilot.tools.schemas import (
-    TOP_LINES_DEFAULT_SORT,
-    TOP_LINES_MAX_LIMIT,
-    TOP_LINES_MAX_OFFSET,
     TOOL_REGISTRY,
     TOOL_SCHEMAS,
+    TOP_LINES_MAX_LIMIT,
     ArtifactRef,
     CascadeData,
     CausalData,
@@ -74,21 +72,31 @@ def test_intervention_bound_and_prefix_are_enforced() -> None:
         )
 
 
-def test_top_lines_schema_has_only_bounded_allowlisted_filters() -> None:
-    request = validate_tool_input(
-        "top_lines",
-        {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT, "offset": 0},
-    )
+def test_top_lines_schema_is_exactly_the_frozen_contract_signature() -> None:
+    schema = next(item for item in TOOL_SCHEMAS if item["name"] == "top_lines")
 
-    assert request.n == TOP_LINES_MAX_LIMIT
-    assert request.offset == 0
-    assert TOP_LINES_DEFAULT_SORT == "mw_per_musd DESC, cost_usd ASC, line_id ASC"
+    # 00 §2.4 / 05 freeze ``top_lines(region, tech, n=10)``; no pagination or
+    # sort parameter is model-facing.
+    assert set(schema["input_schema"]["properties"]) == {"region", "tech", "n"}
 
+    request = validate_tool_input("top_lines", {"region": "ERCOT", "tech": "dlr"})
+    assert request.n == 10
+    assert not hasattr(request, "offset")
+
+    request = validate_tool_input("top_lines", {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT})
+    assert request.n == TOP_LINES_MAX_LIMIT == 50
+
+
+def test_top_lines_rejects_out_of_bound_pages_and_unknown_filters() -> None:
     for payload in (
         {"region": "ERCOT", "tech": "dlr", "n": TOP_LINES_MAX_LIMIT + 1},
-        {"region": "ERCOT", "tech": "dlr", "offset": TOP_LINES_MAX_OFFSET + 1},
+        {"region": "ERCOT", "tech": "dlr", "n": 0},
+        {"region": "ERCOT", "tech": "dlr", "offset": 0},
+        {"region": "ERCOT", "tech": "dlr", "offset": 10},
         {"region": "ERCOT", "tech": "dlr", "sort": "line_id DESC"},
         {"region": "ERCOT", "tech": "dlr", "owner": "any"},
+        {"region": "", "tech": "dlr"},
+        {"region": "ERCOT", "tech": "hvdc"},
     ):
         with pytest.raises(ValidationError):
             validate_tool_input("top_lines", payload)
