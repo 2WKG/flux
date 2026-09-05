@@ -14,4 +14,7 @@
 .server-layer-map__details code { color: #7dd3fc; overflow-wrap: anywhere; }
 .server-layer-map__details > section > p { color: #a9bfce; margin: 0; }
 .server-layer-map__details dl > div { display: grid; gap: 8px; grid-template-columns: minmax(90px, 1fr) 2fr; padding: 4px 0; }
+.server-layer-map--state { padding: 18px; }
+.server-layer-map--state > p { color: #b9ccdb; margin: 8px 0; }
+.server-layer-map--state .server-layer-map__state-note { color: #7dd3fc; font-size: .85rem; }
 @media (max-width: 720px) { .server-layer-map__legend, .server-layer-map__details { display: block; } .server-layer-map__legend dl { margin-top: 14px; } .server-layer-map__details > section + section { margin-top: 20px; } .server-layer-map__details li { grid-template-columns: 1fr; } }

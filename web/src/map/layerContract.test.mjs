@@ -15,7 +15,7 @@ buildSync({
   outfile,
   platform: "node",
 });
-const { featureProperties, toLayerPresentation } = await import(pathToFileURL(outfile).href);
+const { featureProperties, toLayerDisplayState, toLayerPresentation } = await import(pathToFileURL(outfile).href);
 
 test.after(() => rmSync(testDirectory, { force: true, recursive: true }));
 
@@ -47,4 +47,20 @@ test("keeps server geometry, source class, units, and scenario intact", () => {
 test("rejects missing metadata instead of inventing a layer interpretation", () => {
   assert.equal(toLayerPresentation({ status: "ok", data: {} }), null);
   assert.equal(toLayerPresentation({ status: "unavailable", data: null }), null);
+});
+
+test("renders unavailable and empty layers without retaining or inventing geometry", () => {
+  assert.deepEqual(toLayerDisplayState({
+    status: "unavailable",
+    error: { message: "The buses artifact is unavailable." },
+  }), { kind: "unavailable", message: "The buses artifact is unavailable." });
+
+  const emptyPayload = structuredClone(payload);
+  emptyPayload.data.feature_collection.features = [];
+  assert.deepEqual(toLayerDisplayState(emptyPayload), {
+    kind: "empty",
+    layer: "buses",
+    crs: "EPSG:4326",
+    message: "The server returned this layer with no features.",
+  });
 });
