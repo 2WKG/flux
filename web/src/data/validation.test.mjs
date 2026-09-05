@@ -68,6 +68,38 @@ test("accepts the documented failure envelope", async () => {
   assert.equal(result.failure.error.code, "unavailable");
 });
 
+test("tolerates additive fields on a failure envelope (root, error, meta)", async () => {
+  const envelope = failureEnvelope({
+    meta: { ...failureEnvelope().meta, region: "us-east-1" },
+    error: { ...failureEnvelope().error, hint: "rebuild the artifact" },
+    trace: { span_id: "abc" },
+  });
+  const result = await validateJsonResponse(
+    new Response(JSON.stringify(envelope), { status: 503 }),
+    isScenario,
+  );
+
+  assert.equal(result.kind, "failure");
+  assert.equal(result.failure.error.code, "unavailable");
+  assert.equal(result.failure.error.retry_after_s, 30);
+  assert.equal(result.failure.meta.request_id, "request-123");
+});
+
+test("still rejects a failure envelope that omits a required field", async () => {
+  const { retryable: _dropped, ...errorWithoutRetryable } = failureEnvelope().error;
+  const { request_id: _droppedId, ...metaWithoutRequestId } = failureEnvelope().meta;
+  for (const overrides of [
+    { error: errorWithoutRetryable },
+    { meta: metaWithoutRequestId },
+  ]) {
+    const result = await validateJsonResponse(
+      new Response(JSON.stringify(failureEnvelope(overrides)), { status: 503 }),
+      isScenario,
+    );
+    assert.deepEqual(result, { kind: "malformed_response", message: MALFORMED_RESPONSE_MESSAGE });
+  }
+});
+
 test("maps a different envelope version to a dedicated safe state", async () => {
   const envelope = failureEnvelope({ meta: { api_version: "v2" } });
   const result = await validateJsonResponse(

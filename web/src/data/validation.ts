@@ -5,6 +5,13 @@
  * supplies a narrow guard before a successful JSON payload is used. Invalid
  * data and incompatible envelope versions become safe, stable client states;
  * server-provided details are never used as their display messages.
+ *
+ * Failure envelopes are checked strictly on their required fields (presence,
+ * type, range) and tolerantly on additive ones: a server that adds a field to
+ * `error`, `meta`, or the envelope root must not turn every failure into
+ * "invalid response". Because success payloads are unwrapped, `api_version`
+ * (and therefore a version mismatch) is only observable on failure envelopes;
+ * success payloads are validated by their route guards alone.
  */
 export const API_VERSION = "v1";
 
@@ -62,10 +69,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function hasOnlyKeys(value: Record<string, unknown>, allowed: readonly string[]): boolean {
-  return Object.keys(value).every((key) => allowed.includes(key));
-}
-
 function isNonEmptyString(value: unknown, maximumLength: number): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= maximumLength;
 }
@@ -88,11 +91,9 @@ function parseFailureEnvelope(value: unknown): ParsedFailure {
   }
 
   if (
-    !hasOnlyKeys(value, ["status", "data", "error", "meta"]) ||
     (value.status !== "unavailable" && value.status !== "error") ||
     value.data !== null ||
     !isRecord(value.error) ||
-    !hasOnlyKeys(value.error, ["code", "message", "retryable", "retry_after_s", "details"]) ||
     !FAILURE_CODES.has(value.error.code as FailureCode) ||
     !isNonEmptyString(value.error.message, 1_024) ||
     typeof value.error.retryable !== "boolean" ||
@@ -107,7 +108,6 @@ function parseFailureEnvelope(value: unknown): ParsedFailure {
     !Object.entries(value.error.details).every(
       ([key, detail]) => typeof key === "string" && typeof detail === "string",
     ) ||
-    !hasOnlyKeys(value.meta, ["api_version", "request_id", "generated_at"]) ||
     version !== API_VERSION ||
     !isNonEmptyString(value.meta.request_id, 64) ||
     !isUtcTimestamp(value.meta.generated_at)
