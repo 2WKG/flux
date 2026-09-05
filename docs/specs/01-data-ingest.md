@@ -177,7 +177,7 @@ Each entry: URL · format · size · license/gating · loader · target table.
 - Loader: `pipelines/nws.py::snapshot_alerts(area="TX")` → helper table `nws_alerts(alert_id, event, severity, onset, ends, geom_wkb, county_fips_list)`; `pipelines/nws.py::alerts_to_features(ts)` maps `event` to the outage model's hazard flags (Winter Storm/Ice Storm Warning → ice, High Wind/Hurricane/Tropical Storm Warning → wind, Red Flag Warning → wildfire, Extreme Heat Warning → heat).
 
 **S9. FEMA National Risk Index (county)** — P0
-- `https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip` — **verified HTTP 200, 24,966,535 bytes (25.0 MB)** with curl's default User-Agent; **a browser-style `User-Agent` gets a WAF 403**, so `download.sh` must not spoof a browser UA. Zip contents: `NRI_Table_Counties.csv` (24.6 MB), `NRIDataDictionary.csv`, `NRI_HazardInfo.csv`, `NRI_metadata_December2025.pdf` (i.e. v1.20, Dec 2025). (The `hazards.fema.gov/nri/data-resources` page 301s to fema.gov; use the OpenFEMA URL above, not the hazards host.) Shapefile companion: `…/nri/v120/NRI_Shapefile_Counties.zip` (same UA caveat). Public domain (US Government work).
+- Bulk source: `https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip`. It may be WAF-blocked in automated environments. The implemented fallback is FEMA's official v1.20 ArcGIS county query, state-filtered before download: `https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query?where=STATEABBRV%3D%27TX%27&outFields=*&returnGeometry=false&f=json`. It returned 254 TX records with `NRI_VER=December 2025` during implementation. The loader accepts either artifact. Public domain (US Government work).
 - Columns used (all verified present in the CSV header): `STCOFIPS` (col 9), `POPULATION` (10), `RISK_SCORE` (15), `EAL_VALT` (21), `HRCN_RISKS` (223), `ISTM_RISKS` (245), `SWND_RISKS` (341), `WFIR_RISKS` (437), `WNTW_RISKS` (463), `NRI_VER` (465); `STATE`/`COUNTY` are names, `STATEABBRV` = `TX`. 254 rows have `STATEABBRV='TX'`; Travis = `48453`, Harris = `48201`.
 - Loader: `pipelines/nri.py::load_nri()` → `hazard_static.nri_score` (= `RISK_SCORE`) and `counties.pop` (= `POPULATION`); the per-hazard columns go to helper `nri_hazards(county_fips, hazard, risk_score, eal)`.
 
@@ -300,7 +300,7 @@ def read_aux_coords(aux_path: str) -> pd.DataFrame: ...  # bus_id, lon, lat, sub
 def load_counties(con, tiger_zip: str = "data/raw/tiger/tl_2024_us_county.zip", states: tuple[str, ...] | None = None) -> int: ...
 
 # pipelines/nri.py
-def load_nri(con, zip_path: str = "data/raw/nri/NRI_Table_Counties.zip") -> int: ...
+def load_nri(con, source_path: str) -> int: ...  # FEMA bulk ZIP or official ArcGIS JSON
 
 # pipelines/eia860.py
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str) -> int: ...
@@ -354,7 +354,7 @@ def export_parquet(con, out_dir: str = "data/parquet") -> list[str]: ...
 `set -euo pipefail`; `RAW=data/raw`; each block is `mkdir -p` + skip-if-exists; accepts `TIER=p0|p1|p2` (default p0).
 
 1. `curl -L -o $RAW/tiger/tl_2024_us_county.zip https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip`
-2. `curl -L -o $RAW/nri/NRI_Table_Counties.zip https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip`
+2. Fetch the version-pinned, state-filtered FEMA v1.20 ArcGIS response into `$RAW/nri/v1.20/NRI_Counties_TX.json`; keep the bulk ZIP only as an alternate immutable artifact.
 3. `curl -L -o $RAW/activsg2000/ACTIVSg2000.zip 'https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t' && unzip -n -d $RAW/activsg2000 $RAW/activsg2000/ACTIVSg2000.zip ACTIVSg2000.aux case_ACTIVSg2000.m` (current version, 125 MB; verified one-line curl; extract only the two needed members — the zip also holds a 236 MB `.tsb`)
 3a. (fallback, previous version) `curl -L -o $RAW/activsg2000/Texas2000_June2016.zip 'https://drive.google.com/uc?export=download&id=1tOIK_RVQaZZDo_oIi75bVdPsAlQ7J1l9' && unzip -n -d $RAW/activsg2000 $RAW/activsg2000/Texas2000_June2016.zip`
 3b. `curl -L -o $RAW/gazetteer/2024_Gaz_place_national.zip https://www2.census.gov/geo/docs/maps-data/data/gazetteer/2024_Gazetteer/2024_Gaz_place_national.zip` (fallback geocoder only)
