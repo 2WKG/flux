@@ -32,6 +32,16 @@ _TERMINAL_FAILURES = {
         "The answer provider is unavailable.",
         True,
     ),
+    "refusal": (
+        "refusal",
+        "The answer provider declined this request.",
+        False,
+    ),
+    "iteration_limit": (
+        "deadline",
+        "The answer reached its iteration limit.",
+        False,
+    ),
 }
 
 _TOOL_ERROR_CODES = frozenset({"timeout", "invalid_input", "unavailable", "tool_error"})
@@ -65,9 +75,8 @@ class CopilotEventStream:
     earlier call id and use the same tool name; failed tool results are
     non-terminal and allow the stream to continue.  ``done`` is the only
     success terminal event and closes the stream permanently.  Named failure
-    methods (``disconnected``, ``timed_out``, ``provider_failed``) emit only
-    fixed, user-safe terminal errors; callers must not expose their caught
-    provider exception text in stream data.
+    methods emit only fixed, user-safe terminal errors; callers must not
+    expose their caught provider exception text in stream data.
     """
 
     def __init__(self) -> None:
@@ -192,6 +201,14 @@ class CopilotEventStream:
     def provider_failed(self, cause: BaseException | None = None) -> SseEvent:
         """End an active stream after an upstream failure without leaking ``cause``."""
         return self._failure("provider", cause)
+
+    def refused(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after a provider refusal without leaking ``cause``."""
+        return self._failure("refusal", cause)
+
+    def iteration_limit_reached(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after exhausting the fixed model-turn budget."""
+        return self._failure("iteration_limit", cause)
 
     def _validate_tool_call(self, call_id: str, tool: str) -> None:
         """Validate and clear a pending tool call without leaking details."""

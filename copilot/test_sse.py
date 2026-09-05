@@ -81,27 +81,42 @@ def test_done_is_the_single_successful_terminal_event() -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "code", "message"),
+    ("method", "code", "message", "retryable"),
     [
         (
             "disconnected",
             "cancelled",
             "The answer attempt was cancelled before it completed.",
+            True,
         ),
         (
             "timed_out",
             "deadline",
             "The answer could not finish within the request deadline.",
+            True,
         ),
         (
             "provider_failed",
             "upstream_error",
             "The answer provider is unavailable.",
+            True,
+        ),
+        (
+            "refused",
+            "refusal",
+            "The answer provider declined this request.",
+            False,
+        ),
+        (
+            "iteration_limit_reached",
+            "deadline",
+            "The answer reached its iteration limit.",
+            False,
         ),
     ],
 )
 def test_named_failures_emit_one_safe_terminal_error(
-    method: str, code: str, message: str
+    method: str, code: str, message: str, retryable: bool
 ) -> None:
     stream = CopilotEventStream()
     stream.start()
@@ -115,7 +130,7 @@ def test_named_failures_emit_one_safe_terminal_error(
         "v": 1,
         "seq": 2,
         "status": "failed",
-        "error": {"code": code, "message": message, "retryable": True},
+        "error": {"code": code, "message": message, "retryable": retryable},
     }
     serialized = event.encode()
     assert all(
