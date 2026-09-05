@@ -177,16 +177,21 @@ def test_writer_preserves_the_shared_database_and_uses_mn_namespace(tmp_path):
         con.close()
 
 
-def test_failed_repeat_write_rolls_back_without_partial_metadata(tmp_path):
+def test_repeat_write_replaces_the_fixture_owned_slice_without_duplicate_rows(tmp_path):
     db = tmp_path / "grid.duckdb"
     artifacts = build_artifacts(_manifest())
     write_minnesota_fixture(artifacts, db)
-    with pytest.raises(duckdb.ConstraintException):
-        write_minnesota_fixture(deepcopy(artifacts), db)
+    write_minnesota_fixture(deepcopy(artifacts), db)
     con = duckdb.connect(str(db), read_only=True)
     try:
         assert con.execute("SELECT count(*) FROM mn_artifact_manifests").fetchone() == (
             2,
+        )
+        assert con.execute(
+            "SELECT count(*) FROM mn_artifact_provenance"
+        ).fetchone() == (2,)
+        assert con.execute("SELECT count(*) FROM mn_fixture_artifacts").fetchone() == (
+            1,
         )
     finally:
         con.close()

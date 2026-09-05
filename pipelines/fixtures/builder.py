@@ -288,7 +288,8 @@ def write_minnesota_fixture(artifacts: list[dict[str, Any]], db_path: Path) -> P
         try:
             for artifact in artifacts:
                 con.execute(
-                    """INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    """INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT DO NOTHING""",
                     [
                         artifact["artifact_id"],
                         artifact["artifact_kind"],
@@ -306,7 +307,8 @@ def write_minnesota_fixture(artifacts: list[dict[str, Any]], db_path: Path) -> P
             for artifact in artifacts:
                 for ordinal, provenance in enumerate(artifact["provenance"]):
                     con.execute(
-                        "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                        """INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ON CONFLICT DO NOTHING""",
                         [
                             artifact["artifact_id"],
                             ordinal,
@@ -324,7 +326,8 @@ def write_minnesota_fixture(artifacts: list[dict[str, Any]], db_path: Path) -> P
                 if artifact["fixture"] is not None:
                     domain = artifact["fixture"]
                     con.execute(
-                        "INSERT INTO mn_fixture_artifacts VALUES (?, ?, ?, ?)",
+                        """INSERT INTO mn_fixture_artifacts VALUES (?, ?, ?, ?)
+                        ON CONFLICT DO NOTHING""",
                         [
                             artifact["artifact_id"],
                             domain["source_manifest_id"],
