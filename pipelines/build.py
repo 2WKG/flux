@@ -90,24 +90,21 @@ def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, pa
     try:
         aux = _required(raw, "activsg2000_current", "ACTIVSg2000.aux")
         case = _required(raw, "activsg2000_current", "case_ACTIVSg2000.m")
-        if aux and case:
-            counts.update(load_activsg(con, str(aux), str(case),
-                                       source_retrieved_at=_verified_activsg_retrieval(aux, case)))
+        assert aux and case
+        counts.update(load_activsg(con, str(aux), str(case), source_retrieved_at=_verified_activsg_retrieval(aux, case)))
         nri = (_required(raw, "nri", "v1.20", "NRI_Counties_TX.json")
                or _required(raw, "nri", "v1.20", "NRI_Table_Counties.zip")
                or _required(raw, "nri", "NRI_Table_Counties.zip"))
         tiger = _required(raw, "tiger", "2024", "tl_2024_us_county.zip") or _required(raw, "tiger", "tl_2024_us_county.zip")
-        if tiger and nri:
-            counts["counties"] = load_counties(con, str(tiger), str(nri))
-            if aux and case:
-                counts["bus_county"] = join_bus_county(con)
-        if nri:
-            counts["nri"] = load_nri(con, str(nri))
+        assert tiger and nri
+        counts["counties"] = load_counties(con, str(tiger), str(nri))
+        counts["bus_county"] = join_bus_county(con)
+        counts["nri"] = load_nri(con, str(nri))
         plants = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_plants.parquet")
         generators = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_generators.parquet")
-        if plants and generators:
-            counts["eia_plants"] = load_eia860_plants(con, str(plants), str(generators))
-            counts["site_candidates"] = seed_site_candidates(con)
+        assert plants and generators
+        counts["eia_plants"] = load_eia860_plants(con, str(plants), str(generators))
+        counts["site_candidates"] = seed_site_candidates(con)
         eia_files = [path for path in (
             _required(raw, "eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv"),
             _required(raw, "eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv"),
