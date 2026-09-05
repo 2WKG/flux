@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pandas as pd
 import pytest
 
-from twin.dlr import Conductor, dlr_summary, hourly_ratings_mw, ieee738_ampacity_a
+from twin.dlr import (
+    Conductor,
+    _clear_sky_solar_w_m2,
+    dlr_summary,
+    hourly_ratings_mw,
+    ieee738_ampacity_a,
+)
 
 
 @pytest.fixture
@@ -79,6 +87,14 @@ def test_hourly_ratings_normalise_units_and_reward_crosswind_weather(
     assert summary["hours_above_static"] >= 1
 
 
+def test_clear_sky_solar_uses_central_time_for_utc_weather_timestamps() -> None:
+    texas_noon = pd.Timestamp("2026-06-01T12:00:00-05:00")
+    same_instant_utc = pd.Timestamp("2026-06-01T17:00:00Z")
+
+    assert _clear_sky_solar_w_m2(texas_noon) == pytest.approx(1000.0)
+    assert _clear_sky_solar_w_m2(same_instant_utc) == pytest.approx(1000.0)
+
+
 @pytest.mark.parametrize(
     ("weather", "expected_reason"),
     [
@@ -124,3 +140,33 @@ def test_invalid_primitive_inputs_do_not_produce_a_rating(drake: Conductor) -> N
     assert ratings.attrs["status"] == "unavailable"
     with pytest.raises(ValueError, match="wind_ms"):
         ieee738_ampacity_a(drake, wind_ms=-1.0, temp_amb_c=25.0, t_cond_c=75.0)
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("name", None),
+        ("kcmil", "795"),
+        ("diameter_m", 1e308),
+        ("r_ac_25c_ohm_m", None),
+        ("r_ac_75c_ohm_m", 1e308),
+        ("t_max_c", 1e308),
+        ("emissivity", "0.5"),
+        ("absorptivity", 1e308),
+    ],
+)
+def test_malformed_or_extreme_conductor_fields_fail_closed(
+    drake: Conductor, field: str, value: object
+) -> None:
+    malformed = replace(drake, **{field: value})
+    weather = pd.DataFrame(
+        {"ts": ["2026-01-01T00:00:00Z"], "wind_ms": [1.0], "temp_c": [20.0]}
+    )
+
+    ratings = hourly_ratings_mw(
+        "line-1", malformed, weather, base_kv=230.0, rate_a_mw=300.0
+    )
+
+    assert ratings.empty
+    assert ratings.attrs["status"] == "unavailable"
+    assert ratings.attrs["unavailable_reason"].startswith("unsupported conductor:")
