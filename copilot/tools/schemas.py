@@ -14,9 +14,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-type ScenarioId = Literal[
-    "uri_2021", "beryl_2024", "helene_2024", "forecast_72h"
-]
+type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
 type UnavailableCode = Literal[
     "artifact_unavailable",
@@ -63,7 +61,9 @@ class ToolOutput(ContractModel):
         if self.status == "available" and self.unavailable is not None:
             raise ValueError("available results cannot carry an unavailable reason")
         if self.status == "available" and not self.provenance:
-            raise ValueError("available results require artifact or retrieval provenance")
+            raise ValueError(
+                "available results require artifact or retrieval provenance"
+            )
         return self
 
 
@@ -80,7 +80,10 @@ class PredictOutageInput(ContractModel):
 
 
 class RunCascadeInput(ContractModel):
-    element_ids: Annotated[list[Annotated[str, Field(min_length=1, max_length=128)]], Field(min_length=1, max_length=25)]
+    element_ids: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=128)]],
+        Field(min_length=1, max_length=25),
+    ]
     scenario_id: ScenarioId
     hour: Annotated[int, Field(ge=0, le=167)]
 
@@ -137,7 +140,11 @@ class CiteInput(ContractModel):
 class CompareInterventionsInput(ContractModel):
     scenario_id: ScenarioId
     intervention_ids: Annotated[
-        list[Annotated[str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")]],
+        list[
+            Annotated[
+                str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")
+            ]
+        ],
         Field(min_length=1, max_length=5),
     ]
 
@@ -306,15 +313,60 @@ class ToolDefinition:
 
 
 TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
-    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, (PredictOutageData, UnavailableOutput)),
-    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, (CascadeData, UnavailableOutput)),
-    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, (SiteScoreData, UnavailableOutput)),
-    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, (LinesData, UnavailableOutput)),
-    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, (SqlData, UnavailableOutput)),
-    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, (CiteData, UnavailableOutput)),
-    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, (InterventionsData, UnavailableOutput)),
-    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, (CriticalElementsData, UnavailableOutput)),
-    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, (CausalData, UnavailableOutput)),
+    ToolDefinition(
+        "predict_outage",
+        "Read a persisted county outage prediction.",
+        PredictOutageInput,
+        (PredictOutageData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "run_cascade",
+        "Read or run the bounded cascade contract.",
+        RunCascadeInput,
+        (CascadeData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "score_site",
+        "Read a bounded site score.",
+        ScoreSiteInput,
+        (SiteScoreData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "top_lines",
+        "Read deterministic source-labeled line rankings.",
+        TopLinesInput,
+        (LinesData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "sql",
+        "Execute a bounded read-only analytical query.",
+        SqlInput,
+        (SqlData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "cite",
+        "Retrieve citation-preserving corpus chunks.",
+        CiteInput,
+        (CiteData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "compare_interventions",
+        "Compare up to five named interventions.",
+        CompareInterventionsInput,
+        (InterventionsData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "top_critical_elements",
+        "Rank persisted cascade reach by element.",
+        TopCriticalElementsInput,
+        (CriticalElementsData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "causal_query",
+        "Read a validated causal artifact or explicit unavailable result.",
+        CausalQueryInput,
+        (CausalData, UnavailableOutput),
+    ),
 )
 
 _REGISTRY_BY_NAME = {definition.name: definition for definition in TOOL_REGISTRY}
@@ -346,7 +398,9 @@ def tool_schema(definition: ToolDefinition) -> dict[str, Any]:
     }
 
 
-TOOL_SCHEMAS: tuple[dict[str, Any], ...] = tuple(tool_schema(definition) for definition in TOOL_REGISTRY)
+TOOL_SCHEMAS: tuple[dict[str, Any], ...] = tuple(
+    tool_schema(definition) for definition in TOOL_REGISTRY
+)
 
 
 def validate_tool_input(name: str, payload: dict[str, JsonValue]) -> ContractModel:
