@@ -4,14 +4,20 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
+import duckdb
+
 from pipelines.activsg import load_activsg
+from pipelines.checks import run_checks
 from pipelines.common import sha256_file
 from pipelines.counties import load_counties
 from pipelines.critical_loads import load_dod
-from pipelines.db import connect, export_parquet
+from pipelines.db import connect, export_parquet, validate_schema
 from pipelines.eaglei import load_county_customers, load_coverage_history, load_eaglei
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
@@ -72,7 +78,7 @@ def _verified_activsg_retrieval(aux: Path, case: Path) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
+def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, parquet_dir: str) -> dict[str, int]:
     raw = Path(raw_dir)
     if missing := _missing_p0_inputs(raw, eaglei_source_tz):
         formatted = "\n  - ".join(missing)
@@ -135,10 +141,68 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
         if dod:
             counts["critical_loads_dod"] = load_dod(con, str(dod))
             counts["critical_load_bus"] = join_critical_loads_to_bus(con)
-        export_parquet(con)
+        validate_schema(con)
+        export_parquet(con, parquet_dir)
     finally:
         con.close()
     return counts
+
+
+def _copy_database(source: Path, stage: Path) -> None:
+    if not source.exists():
+        connect(stage).close()
+        return
+    con = duckdb.connect()
+    try:
+        quote = lambda path: "'" + str(path).replace("'", "''") + "'"
+        con.execute(f"ATTACH {quote(source)} AS live (READ_ONLY)")
+        con.execute(f"ATTACH {quote(stage)} AS staged")
+        con.execute("COPY FROM DATABASE live TO staged")
+    finally:
+        con.close()
+
+
+def _promote(stage_db: Path, live_db: Path, stage_parquet: Path, live_parquet: Path, root: Path) -> None:
+    old_db, old_parquet = root / "previous.duckdb", root / "previous-parquet"
+    moved_db = moved_parquet = False
+    try:
+        if live_db.exists():
+            os.replace(live_db, old_db)
+        os.replace(stage_db, live_db); moved_db = True
+        if live_parquet.exists():
+            os.replace(live_parquet, old_parquet)
+        os.replace(stage_parquet, live_parquet); moved_parquet = True
+    except Exception:
+        if moved_parquet and live_parquet.exists(): shutil.rmtree(live_parquet)
+        if old_parquet.exists(): os.replace(old_parquet, live_parquet)
+        if moved_db and live_db.exists(): live_db.unlink()
+        if old_db.exists(): os.replace(old_db, live_db)
+        raise
+    finally:
+        if old_db.exists(): old_db.unlink()
+        if old_parquet.exists(): shutil.rmtree(old_parquet)
+
+
+def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
+    raw, live_db = Path(raw_dir), Path(db_path)
+    if missing := _missing_p0_inputs(raw, eaglei_source_tz):
+        formatted = "\n  - ".join(missing)
+        raise IncompleteP0BuildError("P0 build was not promoted; missing required inputs:\n  - " + formatted)
+    live_db.parent.mkdir(parents=True, exist_ok=True)
+    root = Path(tempfile.mkdtemp(prefix=f".{live_db.stem}-stage-", dir=live_db.parent))
+    stage_db, live_parquet, stage_parquet = root / live_db.name, Path("data/parquet"), root / "parquet"
+    try:
+        _copy_database(live_db, stage_db)
+        if live_parquet.exists(): shutil.copytree(live_parquet, stage_parquet)
+        else: stage_parquet.mkdir()
+        counts = _build_mutating(str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
+        checks = run_checks(str(stage_db))
+        if not all(check.passed for check in checks):
+            raise RuntimeError("staged P0 quality checks failed: " + "; ".join(check.name for check in checks if not check.passed))
+        _promote(stage_db, live_db, stage_parquet, live_parquet, root)
+        return counts
+    finally:
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def main() -> int:
