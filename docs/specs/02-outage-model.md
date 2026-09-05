@@ -1,5 +1,7 @@
 # 02 — County outage model (LightGBM on EAGLE-I, Layer 3)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: build spec, weekend scope. Texas first; the model is county-generic so P1 national is
 "add rows", not "add code". Depends on `01-data-ingest.md` tables: `eaglei_outages`,
 `county_customers` (helper), `weather_hourly`, `storm_events`, `hazard_static`, `nri_hazards`
