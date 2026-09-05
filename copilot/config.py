@@ -14,11 +14,15 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     duckdb_path: Path = Field(default=Path("data/duck/grid.duckdb"))
-    copilot_model: str = Field(default="claude-opus-5")
+    copilot_model: str | None = Field(default=None)
     anthropic_api_key: SecretStr | None = Field(default=None, repr=False)
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
 
     @property
     def model_is_configured(self) -> bool:
-        """Whether a provider credential is configured, without contacting it."""
-        return bool(self.anthropic_api_key and self.anthropic_api_key.get_secret_value())
+        """Whether the model and its provider credential are configured locally."""
+        return bool(
+            self.copilot_model
+            and self.anthropic_api_key
+            and self.anthropic_api_key.get_secret_value()
+        )
