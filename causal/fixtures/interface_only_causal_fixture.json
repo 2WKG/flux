@@ -1,0 +1,69 @@
+{
+  "artifact_version": "1.0.0",
+  "artifact_id": "interface-only-causal-fixture",
+  "classification": "interface_fixture",
+  "question": {
+    "treatment": {
+      "name": "Placeholder intervention",
+      "definition": "Interface-only label; no intervention has been operationalized.",
+      "unit_or_category": "not specified",
+      "source_id": "fixture-provenance"
+    },
+    "outcome": {
+      "name": "Placeholder outcome",
+      "definition": "Interface-only label; no outcome has been measured.",
+      "unit_or_category": "not specified",
+      "source_id": "fixture-provenance"
+    },
+    "target_population": {
+      "description": "Placeholder population for interface rendering only.",
+      "geography": "not specified",
+      "time_window": "not specified"
+    }
+  },
+  "sources": [
+    {
+      "source_id": "fixture-provenance",
+      "name": "2WKG-249 interface fixture",
+      "version": "fixture-v1",
+      "locator": "causal/fixtures/interface_only_causal_fixture.json",
+      "coverage": "No observations; rendering fixture only."
+    }
+  ],
+  "sample": {
+    "unit": "No analytic unit; interface fixture only.",
+    "n_total": 0,
+    "n_treated": 0,
+    "n_control": 0,
+    "period": "not specified"
+  },
+  "covariates": [],
+  "assumptions": [
+    "Caveat: this artifact is a rendering fixture and is not an observational or experimental study.",
+    "No treatment, outcome, population, identification strategy, or data coverage has been supplied."
+  ],
+  "diagnostics": [
+    {
+      "name": "Method placeholder",
+      "status": "not_run",
+      "evidence": "No causal method is selected because this fixture has no analytic inputs."
+    },
+    {
+      "name": "Sufficiency check",
+      "status": "not_run",
+      "evidence": "Insufficiency reason: fixture provenance has no observed data or identifying evidence."
+    }
+  ],
+  "citations": [
+    {
+      "source_id": "fixture-provenance",
+      "locator": "causal/fixtures/interface_only_causal_fixture.json"
+    }
+  ],
+  "availability": {
+    "status": "unavailable",
+    "unavailable_codes": [
+      "FIXTURE_NOT_ESTIMABLE"
+    ]
+  }
+}
