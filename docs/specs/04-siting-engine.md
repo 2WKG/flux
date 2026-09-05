@@ -1,5 +1,7 @@
 # 04 — Siting Engine (`siting/`)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: draft · Scope: Texas-first (ERCOT / ACTIVSg2000) · Owner: siting team
 
 ## Purpose
