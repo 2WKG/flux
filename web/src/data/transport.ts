@@ -1,13 +1,21 @@
 /**
  * The shared HTTP policy for Flux's read-only browser client.
  *
- * A timeout applies to each fetch attempt. Callers can cancel the complete
- * request with `signal`; cancellation is never retried. Automatic retries are
- * deliberately limited to safe read-like methods (GET, HEAD, OPTIONS), so a
- * transient network failure cannot repeat a mutation.
+ * A timeout applies to each fetch attempt and returned response body. JSON and
+ * Arrow bodies get a finite deadline and a byte cap; `text/event-stream` bodies
+ * instead get an idle timeout that resets on every chunk and no cap. Callers
+ * can cancel the complete request with `signal` — before headers it aborts the
+ * fetch, after headers it cancels the returned body — and cancellation is never
+ * retried.
+ * Automatic retries are deliberately limited to safe read-like methods (GET,
+ * HEAD, OPTIONS), so a transient network failure cannot repeat a mutation.
  */
 export const DEFAULT_TIMEOUT_MS = 10_000;
 export const DEFAULT_RETRIES = 2;
+/** Default maximum body size for a read response (5 MiB). */
+export const DEFAULT_MAX_RESPONSE_BYTES = 5 * 1024 * 1024;
+/** A healthy SSE connection sends the server heartbeat every 10 seconds. */
+export const DEFAULT_SSE_IDLE_TIMEOUT_MS = 30_000;
 export const SAFE_RETRY_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 export type FetchImplementation = (
@@ -20,6 +28,12 @@ export interface TransportOptions extends RequestInit {
   timeoutMs?: number;
   /** Number of retry attempts after the initial request (0–5). */
   retries?: number;
+  /**
+   * Maximum response-body size in bytes. Set a smaller endpoint-specific cap
+   * for compact JSON endpoints; layer/Arrow callers can opt into their known
+   * larger limit.
+   */
+  maxResponseBytes?: number;
   /** Injected only for deterministic tests; production uses global fetch. */
   fetchImplementation?: FetchImplementation;
 }
@@ -28,6 +42,13 @@ export class RequestTimeoutError extends Error {
   constructor(public readonly timeoutMs: number) {
     super(`Request timed out after ${timeoutMs} ms`);
     this.name = "RequestTimeoutError";
+  }
+}
+
+export class ResponseSizeError extends Error {
+  constructor(public readonly maxResponseBytes: number) {
+    super(`Response body exceeds the ${maxResponseBytes}-byte limit`);
+    this.name = "ResponseSizeError";
   }
 }
 
@@ -50,9 +71,21 @@ function validatedRetries(retries: number | undefined): number {
   return value;
 }
 
+function validatedMaxResponseBytes(maxResponseBytes: number | undefined): number {
+  const value = maxResponseBytes ?? DEFAULT_MAX_RESPONSE_BYTES;
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new RangeError("maxResponseBytes must be a positive, safe integer");
+  }
+  return value;
+}
+
 function retryDelayMs(retryNumber: number): number {
   // 100 ms, 200 ms, then 400 ms; bounded even if the maximum is increased.
   return Math.min(100 * 2 ** (retryNumber - 1), 1_000);
+}
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException("Request aborted", "AbortError");
 }
 
 function isAbortError(error: unknown): boolean {
@@ -120,6 +153,181 @@ async function fetchAttempt(
   }
 }
 
+async function cancelResponseBody(response: Response): Promise<void> {
+  try {
+    await response.body?.cancel();
+  } catch {
+    // Retrying must not be blocked by an already-broken discarded body.
+  }
+}
+
+function responseInit(response: Response): ResponseInit {
+  return {
+    headers: response.headers,
+    status: response.status,
+    statusText: response.statusText,
+  };
+}
+
+async function responseWithBoundedBody(
+  response: Response,
+  timeoutMs: number,
+  maxResponseBytes: number,
+  signal: AbortSignal,
+): Promise<Response> {
+  if (response.body === null) {
+    return response;
+  }
+
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null && Number(contentLength) > maxResponseBytes) {
+    await cancelResponseBody(response);
+    throw new ResponseSizeError(maxResponseBytes);
+  }
+
+  const reader = response.body.getReader();
+  let bytesRead = 0;
+  let terminalError: unknown;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const onCallerAbort = () => fail(abortReason(signal));
+  const finish = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+    signal.removeEventListener("abort", onCallerAbort);
+  };
+  const fail = (error: unknown) => {
+    if (terminalError !== undefined) {
+      return;
+    }
+    terminalError = error;
+    finish();
+    void reader.cancel(error).catch(() => undefined);
+  };
+
+  timer = setTimeout(() => fail(new RequestTimeoutError(timeoutMs)), timeoutMs);
+  signal.addEventListener("abort", onCallerAbort, { once: true });
+
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (terminalError !== undefined) {
+        controller.error(terminalError);
+        return;
+      }
+
+      try {
+        const { done, value } = await reader.read();
+        if (terminalError !== undefined) {
+          controller.error(terminalError);
+          return;
+        }
+        if (done) {
+          finish();
+          controller.close();
+          return;
+        }
+
+        bytesRead += value.byteLength;
+        if (bytesRead > maxResponseBytes) {
+          const error = new ResponseSizeError(maxResponseBytes);
+          fail(error);
+          controller.error(error);
+          return;
+        }
+        controller.enqueue(value);
+      } catch (error) {
+        finish();
+        controller.error(terminalError ?? error);
+      }
+    },
+    async cancel(reason) {
+      finish();
+      await reader.cancel(reason);
+    },
+  });
+
+  return new Response(body, responseInit(response));
+}
+
+async function responseWithSseIdleBody(
+  response: Response,
+  signal: AbortSignal,
+): Promise<Response> {
+  if (response.body === null) {
+    return response;
+  }
+
+  const reader = response.body.getReader();
+  let terminalError: unknown;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+
+  const clearIdleTimer = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+  const fail = (error: unknown) => {
+    if (terminalError !== undefined) {
+      return;
+    }
+    terminalError = error;
+    clearIdleTimer();
+    signal.removeEventListener("abort", onCallerAbort);
+    void reader.cancel(error).catch(() => undefined);
+  };
+  const onCallerAbort = () => fail(abortReason(signal));
+  const failForIdle = () => fail(new RequestTimeoutError(DEFAULT_SSE_IDLE_TIMEOUT_MS));
+  const resetIdleTimer = () => {
+    clearIdleTimer();
+    timer = setTimeout(failForIdle, DEFAULT_SSE_IDLE_TIMEOUT_MS);
+  };
+
+  resetIdleTimer();
+  signal.addEventListener("abort", onCallerAbort, { once: true });
+  const body = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (terminalError !== undefined) {
+        controller.error(terminalError);
+        return;
+      }
+
+      try {
+        const { done, value } = await reader.read();
+        if (terminalError !== undefined) {
+          controller.error(terminalError);
+          return;
+        }
+        if (done) {
+          clearIdleTimer();
+          signal.removeEventListener("abort", onCallerAbort);
+          controller.close();
+          return;
+        }
+        resetIdleTimer();
+        controller.enqueue(value);
+      } catch (error) {
+        clearIdleTimer();
+        signal.removeEventListener("abort", onCallerAbort);
+        controller.error(terminalError ?? error);
+      }
+    },
+    async cancel(reason) {
+      clearIdleTimer();
+      signal.removeEventListener("abort", onCallerAbort);
+      await reader.cancel(reason);
+    },
+  });
+
+  return new Response(body, responseInit(response));
+}
+
+function isSseResponse(response: Response): boolean {
+  return response.headers.get("content-type")?.toLowerCase().startsWith("text/event-stream") ?? false;
+}
+
 /**
  * Fetch with Flux's browser-safe policy. It returns the final Response so
  * response-envelope validation remains owned by the client validation layer.
@@ -131,6 +339,7 @@ export async function fetchWithPolicy(
   const {
     timeoutMs: requestedTimeout,
     retries: requestedRetries,
+    maxResponseBytes: requestedMaxResponseBytes,
     fetchImplementation = fetch,
     signal: callerSignal,
     method: requestedMethod,
@@ -138,8 +347,13 @@ export async function fetchWithPolicy(
   } = options;
   const timeoutMs = validatedTimeout(requestedTimeout);
   const retries = validatedRetries(requestedRetries);
+  const maxResponseBytes = validatedMaxResponseBytes(requestedMaxResponseBytes);
   const method = (requestedMethod ?? "GET").toUpperCase();
   const signal = callerSignal ?? new AbortController().signal;
+
+  if (signal.aborted) {
+    throw signal.reason ?? new DOMException("Request aborted", "AbortError");
+  }
 
   for (let attempt = 0; ; attempt += 1) {
     try {
@@ -151,10 +365,19 @@ export async function fetchWithPolicy(
         fetchImplementation,
       );
       if (!shouldRetryResponse(response) || !canRetry(method, attempt, retries)) {
-        return response;
+        if (isSseResponse(response)) {
+          return responseWithSseIdleBody(response, signal);
+        }
+        return responseWithBoundedBody(response, timeoutMs, maxResponseBytes, signal);
       }
+      await cancelResponseBody(response);
     } catch (error) {
-      if (signal.aborted || isAbortError(error) || !canRetry(method, attempt, retries)) {
+      if (
+        signal.aborted
+        || isAbortError(error)
+        || error instanceof ResponseSizeError
+        || !canRetry(method, attempt, retries)
+      ) {
         throw error;
       }
     }
