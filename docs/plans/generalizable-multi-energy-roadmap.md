@@ -12,7 +12,9 @@ owner: Ghadi Khoury
 This roadmap describes how that demo becomes reusable across energy types and operating
 conditions afterwards, and what evidence would be required to say so honestly.
 
-**Texas is the first and only committed case. New York and Minnesota stay candidates** — both
+**Scope order updated 2026-09-05: Minnesota is the current case, Texas second, further states after.**
+This document was written when Texas was first; its reasoning is unchanged, but read "Texas" as
+"the current case" throughout. **New York remains a candidate** — both
 are verified available (`docs/data/texas-new-york-feasibility.md`), neither is committed scope.
 
 ---

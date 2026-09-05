@@ -1,5 +1,7 @@
 # 03 — Cascade Simulation (`twin/`)
 
+> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+
 Status: draft · Scope: Texas-first (ACTIVSg2000 / ERCOT) · Owner: twin team
 
 ## Purpose
