@@ -6,7 +6,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from shapely.geometry import Point
 
 from pipelines.db import log_artifact, replace_frame
 
@@ -21,6 +20,19 @@ def _first(frame: pd.DataFrame, *names: str) -> pd.Series:
 def _fuel_mode(values: pd.Series) -> object:
     values = values.dropna()
     return values.mode().iat[0] if not values.empty else pd.NA
+
+
+def _latest_generator_reports(inventory: pd.DataFrame) -> pd.DataFrame:
+    """Return the latest report for each EIA plant/generator unit.
+
+    The inventory table deliberately keeps the complete annual history.  Plant
+    summaries, however, describe one point in time and must not add capacity
+    from successive reports of the same unit.
+    """
+    return (
+        inventory.sort_values(["plant_id_eia", "generator_id", "report_date"], kind="stable")
+        .drop_duplicates(["plant_id_eia", "generator_id"], keep="last")
+    )
 
 
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
@@ -54,7 +66,7 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
     plant_dates = plants.copy()
     plant_dates["report_date"] = pd.to_datetime(plant_dates["report_date"], errors="coerce")
     latest = plant_dates.sort_values("report_date").groupby("plant_id_eia", as_index=False).tail(1)
-    latest_gen = inventory.sort_values("report_date").groupby("plant_id_eia")
+    latest_gen = _latest_generator_reports(inventory).groupby("plant_id_eia")
     aggregate = latest_gen.agg(capacity_mw=("capacity_mw", "sum"), primary_fuel=("fuel_type_code_pudl", _fuel_mode),
                                retirement_year=("retirement_date", lambda values: pd.to_datetime(values, errors="coerce").dt.year.min()),
                                planned_retirement_year=("planned_retirement_date", lambda values: pd.to_datetime(values, errors="coerce").dt.year.min()),
@@ -80,9 +92,35 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
 def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
     """Seed only documented coal/nuclear candidate classes from EIA inventory."""
     plants = con.execute("SELECT * FROM eia_plants WHERE state = 'TX'").fetchdf()
-    selected = plants[(plants.primary_fuel.eq("coal")) | (plants.primary_fuel.eq("nuclear"))].copy()
-    selected["kind"] = np.where(selected.primary_fuel.eq("nuclear"), "nuclear_existing",
-                                np.where(selected.retirement_year.notna(), "coal_retiring", "coal_retired"))
+    inventory = con.execute("SELECT * FROM eia_generator_inventory").fetchdf()
+    latest_units = _latest_generator_reports(inventory)
+    latest_units["fuel_type_code_pudl"] = latest_units["fuel_type_code_pudl"].astype("string").str.lower()
+    latest_units["operational_status"] = latest_units["operational_status"].astype("string").str.lower()
+
+    # A coal site is a brownfield candidate only when all coal units are retired
+    # or an operating unit has a documented near-term retirement plan.  The old
+    # plant-level fallback labeled every active coal plant with no date as
+    # ``coal_retired``.
+    coal_units = latest_units[latest_units["fuel_type_code_pudl"].eq("coal")].copy()
+    coal_units["is_retired"] = coal_units["operational_status"].eq("retired")
+    coal_units["has_near_term_plan"] = (
+        pd.to_datetime(coal_units["planned_retirement_date"], errors="coerce").dt.year.le(2032)
+    )
+    coal_summary = coal_units.groupby("plant_id_eia", as_index=False).agg(
+        all_coal_units_retired=("is_retired", "all"),
+        has_near_term_plan=("has_near_term_plan", "any"),
+    )
+    coal_summary["kind"] = np.select(
+        [coal_summary["all_coal_units_retired"], coal_summary["has_near_term_plan"]],
+        ["coal_retired", "coal_retiring"],
+        default=None,
+    )
+    coal_candidates = coal_summary.dropna(subset=["kind"])[["plant_id_eia", "kind"]]
+
+    nuclear_candidates = plants[plants.primary_fuel.eq("nuclear")][["plant_id_eia"]].copy()
+    nuclear_candidates["kind"] = "nuclear_existing"
+    candidate_kinds = pd.concat([coal_candidates, nuclear_candidates], ignore_index=True)
+    selected = plants.merge(candidate_kinds, on="plant_id_eia", how="inner")
     selected = selected.sort_values("plant_id_eia").reset_index(drop=True)
     selected["site_id"] = np.arange(1, len(selected) + 1)
     candidates = selected.rename(columns={"plant_name": "name"})[
