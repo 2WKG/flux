@@ -17,16 +17,26 @@ is never an empty success and never a 500.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Final, Literal
+from typing import Annotated, Final, Literal
 
 import duckdb
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Path, Request
 from pydantic import BaseModel, ConfigDict
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
 
 router = APIRouter(tags=["scenarios"])
+
+ScenarioId = Annotated[
+    str,
+    Path(
+        min_length=1,
+        max_length=64,
+        pattern=r"^[a-z0-9][a-z0-9_-]*$",
+        description="Lowercase scenario identifier from the scenario catalog.",
+    ),
+]
 
 SCENARIO_KINDS: Final = ("historical", "forecast", "synthetic")
 SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"
@@ -241,7 +251,7 @@ def scenario_catalog(request: Request) -> list[ScenarioRow]:
 
 
 @router.get("/scenarios/{scenario_id}", response_model=ScenarioRow)
-def scenario_detail(request: Request, scenario_id: str) -> ScenarioRow:
+def scenario_detail(request: Request, scenario_id: ScenarioId) -> ScenarioRow:
     """Return one persisted scenario row, unwrapped."""
 
     settings: Settings = request.app.state.settings

@@ -258,6 +258,28 @@ def test_detail_reports_not_found_for_an_absent_scenario_row(tmp_path: Path) -> 
     assert response.json()["error"]["details"] == {"scenario_id": "unknown"}
 
 
+@pytest.mark.parametrize(
+    "scenario_id",
+    ["invalid%20identifier", "a" * 65],
+)
+def test_detail_rejects_malformed_or_out_of_bounds_scenario_identifier(
+    tmp_path: Path, scenario_id: str
+) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+
+    response = _client(database).get(f"/scenarios/{scenario_id}")
+
+    assert response.status_code == 422
+    assert response.json()["error"] == {
+        "code": "invalid_input",
+        "message": "Request parameters do not match the documented contract.",
+        "retryable": False,
+        "retry_after_s": None,
+        "details": {"field": "path.scenario_id"},
+    }
+
+
 def test_empty_scenarios_table_is_unavailable_not_an_empty_success(
     tmp_path: Path,
 ) -> None:
