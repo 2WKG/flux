@@ -1,0 +1,9 @@
+# Frozen shared contracts, their specs, generated mirrors, and CI itself.
+# Only enforced when the master ruleset enables "Require review from Code
+# Owners" (docs/runbooks/merge-gates.md).
+/copilot/tools/schemas.py   @Wyzard1004 @joshuawangia
+/copilot/api/               @Wyzard1004 @joshuawangia
+/pipelines/db.py            @Wyzard1004 @joshuawangia
+/docs/specs/                @Wyzard1004 @joshuawangia
+/web/src/contracts/         @Wyzard1004 @joshuawangia
+/.github/                   @Wyzard1004 @joshuawangia
