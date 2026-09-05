@@ -9,8 +9,11 @@ unattributed outcome.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from datetime import datetime
+from hashlib import sha256
 from typing import Any
 
 from pydantic import ValidationError
@@ -32,6 +35,7 @@ class ClassifiedCongestion:
 
     input_index: int
     congestion: Congestion
+    provenance: CongestionInputProvenance
 
     @property
     def source(self) -> CongestionSource:
@@ -67,6 +71,95 @@ class ClassifiedCongestion:
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class CongestionInputProvenance:
+    """Deterministic metadata retained with every classified input.
+
+    ``scenario`` and ``timestamp`` are optional because the line-upgrade
+    contract has no canonical fields for either.  They therefore record only
+    values explicitly supplied by the caller and never imply market or model
+    provenance that the congestion contract does not establish.
+    """
+
+    input_sha256: str
+    source_identifier: str | None
+    scenario: str | None
+    timestamp: str | None
+    assumptions: tuple[tuple[str, str | float], ...]
+
+
+def _canonical_input(value: Any) -> Any:
+    """Return a JSON-safe, stable representation for an input content hash."""
+    if isinstance(value, Mapping):
+        return {
+            str(key): _canonical_input(item)
+            for key, item in sorted(value.items(), key=lambda item: str(item[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_input(item) for item in value]
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if hasattr(value, "model_dump"):
+        return _canonical_input(value.model_dump(mode="json"))
+    return value
+
+
+def _input_sha256(raw: Mapping[str, Any] | Congestion) -> str:
+    """Hash caller input as canonical JSON, independent of mapping order."""
+    serialized = json.dumps(
+        _canonical_input(raw),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    )
+    return sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _optional_raw_text(raw: Mapping[str, Any], field: str) -> str | None:
+    """Preserve only explicit, text-like optional metadata from the raw input."""
+    value = raw.get(field)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    return value if isinstance(value, str) else None
+
+
+def _provenance(
+    raw: Mapping[str, Any] | Congestion, congestion: Congestion
+) -> CongestionInputProvenance:
+    """Persist contract-derived provenance without upgrading incomplete input."""
+    scenario = (
+        _optional_raw_text(raw, "scenario")
+        or _optional_raw_text(raw, "scenario_id")
+        if isinstance(raw, Mapping)
+        else None
+    )
+    timestamp = _optional_raw_text(raw, "timestamp") if isinstance(raw, Mapping) else None
+
+    if isinstance(congestion, ObservedCongestion):
+        source_identifier = congestion.market
+        assumptions: tuple[tuple[str, str | float], ...] = ()
+    elif isinstance(congestion, SimulatedCongestion):
+        source_identifier = congestion.run_id
+        assumptions = ()
+    elif isinstance(congestion, ProxyCongestion):
+        source_identifier = None
+        assumptions = (
+            ("assumed_usd_per_mwh", congestion.assumed_usd_per_mwh),
+            ("assumption_note", congestion.assumption_note),
+        )
+    else:
+        source_identifier = None
+        assumptions = ()
+
+    return CongestionInputProvenance(
+        input_sha256=_input_sha256(raw),
+        source_identifier=source_identifier,
+        scenario=scenario,
+        timestamp=timestamp,
+        assumptions=assumptions,
+    )
+
 def _unattributed(raw: Mapping[str, Any]) -> UnattributedCongestion:
     """Choose only an explicit unavailable reason; otherwise fail closed."""
     if raw.get("mapping_method") == "unmapped":
@@ -95,13 +188,21 @@ def _parse_declared_source(raw: Mapping[str, Any]) -> Congestion:
         return _unattributed(raw)
 
     try:
+        # These transport metadata fields are persisted beside the classified
+        # output by 2WKG-185, but are deliberately outside the frozen
+        # line-upgrade congestion contract.
+        contract_raw = {
+            key: value
+            for key, value in raw.items()
+            if key not in {"scenario", "scenario_id", "timestamp"}
+        }
         if source is CongestionSource.OBSERVED:
-            return ObservedCongestion.model_validate(raw)
+            return ObservedCongestion.model_validate(contract_raw)
         if source is CongestionSource.SIMULATED:
-            return SimulatedCongestion.model_validate(raw)
+            return SimulatedCongestion.model_validate(contract_raw)
         if source is CongestionSource.PROXY:
-            return ProxyCongestion.model_validate(raw)
-        return UnattributedCongestion.model_validate(raw)
+            return ProxyCongestion.model_validate(contract_raw)
+        return UnattributedCongestion.model_validate(contract_raw)
     except ValidationError:
         # Do not repair partial provenance or turn incomplete raw data into a
         # plausible value.  The caller can inspect the explicit reason instead.
@@ -135,6 +236,10 @@ def parse_congestion_inputs(
     repeated parse of the same iterable contents produces the same ordering.
     """
     return tuple(
-        ClassifiedCongestion(index, classify_congestion_input(raw))
+        ClassifiedCongestion(
+            index,
+            congestion := classify_congestion_input(raw),
+            _provenance(raw, congestion),
+        )
         for index, raw in enumerate(inputs)
     )
