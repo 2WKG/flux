@@ -20,6 +20,7 @@ _MAX_SUPPORTED_WIND_MS = 60.0
 _STATIC_WIND_MS = 0.61  # 2 ft/s, the IEEE/vendor static-rating convention.
 _DLR_WIND_MAX_MS = 5.0  # Spec 08 cap; stronger wind must not inflate a rating.
 _WIND_ANGLE_DEG = 45.0  # Explicit planning assumption pending line azimuth data.
+_TEXAS_SOLAR_TIMEZONE = "America/Chicago"
 
 
 @dataclass(frozen=True)
@@ -42,21 +43,51 @@ class Conductor:
 
 
 def _validate_conductor(cond: Conductor) -> None:
-    numeric = {
-        "diameter_m": cond.diameter_m,
-        "r_ac_25c_ohm_m": cond.r_ac_25c_ohm_m,
-        "r_ac_75c_ohm_m": cond.r_ac_75c_ohm_m,
-        "t_max_c": cond.t_max_c,
-        "emissivity": cond.emissivity,
-        "absorptivity": cond.absorptivity,
-    }
-    if not cond.name or cond.kcmil <= 0:
-        raise ValueError("conductor name and kcmil are required")
-    if any(not isfinite(value) for value in numeric.values()):
-        raise ValueError("conductor properties must be finite")
-    if cond.diameter_m <= 0 or cond.r_ac_25c_ohm_m <= 0 or cond.r_ac_75c_ohm_m <= 0:
-        raise ValueError("conductor diameter and resistances must be positive")
-    if not 0.0 < cond.emissivity <= 1.0 or not 0.0 <= cond.absorptivity <= 1.0:
+    """Validate only bounded primitive properties the heat balance can support."""
+
+    if not isinstance(cond, Conductor):
+        raise TypeError("conductor must be a Conductor")
+    if not isinstance(cond.name, str) or not cond.name.strip():
+        raise ValueError("conductor name is required")
+    if (
+        isinstance(cond.kcmil, bool)
+        or not isinstance(cond.kcmil, int)
+        or not 1 <= cond.kcmil <= 10_000
+    ):
+        raise ValueError("conductor kcmil must be an integer in the supported range")
+
+    numeric: dict[str, float] = {}
+    for field in (
+        "diameter_m",
+        "r_ac_25c_ohm_m",
+        "r_ac_75c_ohm_m",
+        "t_max_c",
+        "emissivity",
+        "absorptivity",
+    ):
+        value = getattr(cond, field)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise TypeError(f"conductor {field} must be a finite number")
+        try:
+            numeric[field] = float(value)
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise ValueError(f"conductor {field} must be a finite number") from exc
+        if not isfinite(numeric[field]):
+            raise ValueError(f"conductor {field} must be finite")
+
+    if not 0.001 <= numeric["diameter_m"] <= 0.1:
+        raise ValueError("conductor diameter_m is outside the supported range")
+    if (
+        not 1e-8 <= numeric["r_ac_25c_ohm_m"] <= 1.0
+        or not 1e-8 <= numeric["r_ac_75c_ohm_m"] <= 1.0
+    ):
+        raise ValueError("conductor resistances are outside the supported range")
+    if not 40.0 < numeric["t_max_c"] <= 250.0:
+        raise ValueError("conductor t_max_c is outside the supported range")
+    if (
+        not 0.0 < numeric["emissivity"] <= 1.0
+        or not 0.0 <= numeric["absorptivity"] <= 1.0
+    ):
         raise ValueError("emissivity and absorptivity must be in [0, 1]")
 
 
@@ -206,9 +237,14 @@ def _normalise_weather(weather: pd.DataFrame) -> tuple[pd.DataFrame | None, str 
 
 
 def _clear_sky_solar_w_m2(ts: pd.Timestamp) -> float:
-    """A declared, fixed clear-sky daily curve; no cloud data is inferred."""
+    """Return the fixed clear-sky curve at Texas local solar time.
 
-    hour = ts.hour + ts.minute / 60.0
+    Weather timestamps follow the shared UTC contract, but the solar hour must
+    be evaluated in Texas Central time rather than from the UTC clock hour.
+    """
+
+    local_ts = ts.tz_convert(_TEXAS_SOLAR_TIMEZONE)
+    hour = local_ts.hour + local_ts.minute / 60.0
     return max(0.0, sin(pi * (hour - 6.0) / 12.0)) * 1000.0
 
 
@@ -239,7 +275,7 @@ def hourly_ratings_mw(
         )
     try:
         _validate_conductor(cond)
-    except (AttributeError, ValueError) as exc:
+    except (AttributeError, TypeError, ValueError, OverflowError) as exc:
         return _unavailable_ratings(f"unsupported conductor: {exc}")
     normalised, reason = _normalise_weather(weather)
     if reason:
@@ -255,7 +291,7 @@ def hourly_ratings_mw(
             wind_angle_deg=_WIND_ANGLE_DEG,
             solar_w_m2=1000.0,
         )
-    except ValueError as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         return _unavailable_ratings(
             f"static IEEE 738 calibration is unavailable: {exc}"
         )
@@ -295,7 +331,7 @@ def hourly_ratings_mw(
                     "unavailable_reason": None,
                 }
             )
-    except ValueError as exc:
+    except (TypeError, ValueError, OverflowError) as exc:
         return _unavailable_ratings(
             f"hourly IEEE 738 calculation is unavailable: {exc}"
         )
