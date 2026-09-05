@@ -230,6 +230,7 @@ export interface TopCriticalElementsInput {
 
 export interface TopLinesInput {
   n?: number;
+  offset?: number;
   region: string;
   tech: "dlr" | "reconductor" | "any";
 }

@@ -12,10 +12,24 @@ from pipelines.common import sha256_file, utc_now
 
 SCHEMA_VERSION = "1.0.0"
 CONTRACT_TABLES = (
-    "buses", "lines", "gens", "loads", "counties", "critical_loads",
-    "eaglei_outages", "weather_hourly", "storm_events", "hazard_static",
-    "ba_load_hourly", "site_candidates", "scenarios", "outage_predictions",
-    "cascade_runs", "site_scores", "line_upgrade_scores", "line_upgrade_detail",
+    "buses",
+    "lines",
+    "gens",
+    "loads",
+    "counties",
+    "critical_loads",
+    "eaglei_outages",
+    "weather_hourly",
+    "storm_events",
+    "hazard_static",
+    "ba_load_hourly",
+    "site_candidates",
+    "scenarios",
+    "outage_predictions",
+    "cascade_runs",
+    "site_scores",
+    "line_upgrade_scores",
+    "line_upgrade_detail",
     "corpus_chunks",
 )
 
@@ -128,26 +142,138 @@ SCHEMA_STATEMENTS = (
 )
 
 TABLE_COLUMNS = {
-    "buses": ("bus_id", "name", "base_kv", "lon", "lat", "county_fips", "ba_code", "coord_source", "zone", "area"),
-    "lines": ("line_id", "from_bus", "to_bus", "circuit", "base_kv", "r_pu", "x_pu", "rate_a_mw", "length_km", "geom_wkb", "is_transformer"),
+    "buses": (
+        "bus_id",
+        "name",
+        "base_kv",
+        "lon",
+        "lat",
+        "county_fips",
+        "ba_code",
+        "coord_source",
+        "zone",
+        "area",
+    ),
+    "lines": (
+        "line_id",
+        "from_bus",
+        "to_bus",
+        "circuit",
+        "base_kv",
+        "r_pu",
+        "x_pu",
+        "rate_a_mw",
+        "length_km",
+        "geom_wkb",
+        "is_transformer",
+    ),
     "gens": ("gen_id", "bus_id", "fuel", "pmax_mw", "eia_plant_id", "source_unit_id"),
-    "loads": ("load_id", "bus_id", "p_mw_nominal"), "counties": ("county_fips", "name", "state", "pop", "geom_wkb"),
+    "loads": ("load_id", "bus_id", "p_mw_nominal"),
+    "counties": ("county_fips", "name", "state", "pop", "geom_wkb"),
     "critical_loads": ("cl_id", "kind", "name", "lon", "lat", "bus_id", "county_fips"),
     "eaglei_outages": ("county_fips", "ts", "customers_out"),
-    "weather_hourly": ("county_fips", "ts", "wind_ms", "gust_ms", "temp_c", "ice_mm", "precip_mm"),
-    "storm_events": ("event_id", "county_fips", "ts_begin", "ts_end", "type", "magnitude"),
+    "weather_hourly": (
+        "county_fips",
+        "ts",
+        "wind_ms",
+        "gust_ms",
+        "temp_c",
+        "ice_mm",
+        "precip_mm",
+    ),
+    "storm_events": (
+        "event_id",
+        "county_fips",
+        "ts_begin",
+        "ts_end",
+        "type",
+        "magnitude",
+    ),
     "hazard_static": ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga"),
     "ba_load_hourly": ("ba_code", "ts", "demand_mw"),
-    "site_candidates": ("site_id", "name", "kind", "lon", "lat", "county_fips", "bus_id", "capacity_slot_mw", "source_site_id"),
+    "site_candidates": (
+        "site_id",
+        "name",
+        "kind",
+        "lon",
+        "lat",
+        "county_fips",
+        "bus_id",
+        "capacity_slot_mw",
+        "source_site_id",
+    ),
     "scenarios": ("scenario_id", "name", "kind", "ts_start", "ts_end"),
-    "outage_predictions": ("scenario_id", "county_fips", "ts", "p_out", "customers_at_risk", "driver"),
-    "cascade_runs": ("run_id", "scenario_id", "hour", "tripped_element_ids_json", "lost_load_mw", "counties_dark_json", "critical_loads_lost_json", "counterfactual_site_id"),
-    "site_scores": ("site_id", "scenario_id", "unit_mw", "safety_score", "safety_flags_json", "grid_value_score", "lol_reduction_mwh", "congestion_relief_pct", "blackstart_reach_mw"),
-    "line_upgrade_scores": ("line_id", "congestion_usd_yr", "dlr_uplift_mw", "reconductor_uplift_mw", "dlr_cost_usd", "reconductor_cost_usd", "mw_per_musd", "ferc_screen_pass", "spark_eligible"),
-    "line_upgrade_detail": ("line_id", "owner", "conductor_material", "conductor_kcmil", "static_rating_mw", "aar_rating_mw", "dlr_p50_mw", "dlr_hours_above_static", "best_tech", "payback_yr", "congestion_method", "region"),
-    "corpus_chunks": ("chunk_id", "doc", "title", "page", "chunk_ordinal", "text", "embedding"),
+    "outage_predictions": (
+        "scenario_id",
+        "county_fips",
+        "ts",
+        "p_out",
+        "customers_at_risk",
+        "driver",
+    ),
+    "cascade_runs": (
+        "run_id",
+        "scenario_id",
+        "hour",
+        "tripped_element_ids_json",
+        "lost_load_mw",
+        "counties_dark_json",
+        "critical_loads_lost_json",
+        "counterfactual_site_id",
+    ),
+    "site_scores": (
+        "site_id",
+        "scenario_id",
+        "unit_mw",
+        "safety_score",
+        "safety_flags_json",
+        "grid_value_score",
+        "lol_reduction_mwh",
+        "congestion_relief_pct",
+        "blackstart_reach_mw",
+    ),
+    "line_upgrade_scores": (
+        "line_id",
+        "congestion_usd_yr",
+        "dlr_uplift_mw",
+        "reconductor_uplift_mw",
+        "dlr_cost_usd",
+        "reconductor_cost_usd",
+        "mw_per_musd",
+        "ferc_screen_pass",
+        "spark_eligible",
+    ),
+    "line_upgrade_detail": (
+        "line_id",
+        "owner",
+        "conductor_material",
+        "conductor_kcmil",
+        "static_rating_mw",
+        "aar_rating_mw",
+        "dlr_p50_mw",
+        "dlr_hours_above_static",
+        "best_tech",
+        "payback_yr",
+        "congestion_method",
+        "region",
+    ),
+    "corpus_chunks": (
+        "chunk_id",
+        "doc",
+        "title",
+        "page",
+        "chunk_ordinal",
+        "text",
+        "embedding",
+    ),
 }
-PROVENANCE_COLUMN_NAMES = ("source_name", "source_ref", "source_version", "source_retrieved_at", "fixture_batch_id")
+PROVENANCE_COLUMN_NAMES = (
+    "source_name",
+    "source_ref",
+    "source_version",
+    "source_retrieved_at",
+    "fixture_batch_id",
+)
 
 P0_HELPER_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS ingest_log(source TEXT, source_release TEXT, source_file TEXT,
@@ -185,6 +311,11 @@ P0_HELPER_STATEMENTS = (
     """CREATE TABLE IF NOT EXISTS eaglei_ingest_quality(source_year INTEGER PRIMARY KEY, source_file TEXT,
         source_timezone TEXT, raw_tx_rows BIGINT, valid_rows BIGINT, missing_customers BIGINT,
         negative_customers BIGINT, duplicate_keys BIGINT, source_counties INTEGER, loaded_at TIMESTAMP)""",
+    """CREATE TABLE IF NOT EXISTS eaglei_ingest_quality_by_state(
+        source_year INTEGER, state_fips TEXT, source_file TEXT, source_timezone TEXT,
+        raw_rows BIGINT, valid_rows BIGINT, missing_customers BIGINT,
+        negative_customers BIGINT, duplicate_keys BIGINT, source_counties INTEGER,
+        loaded_at TIMESTAMP, PRIMARY KEY(source_year, state_fips))""",
     """CREATE TABLE IF NOT EXISTS eia_plants(plant_id_eia INTEGER PRIMARY KEY, plant_name TEXT, lon DOUBLE,
         lat DOUBLE, state TEXT, county_fips TEXT, capacity_mw DOUBLE, primary_fuel TEXT,
         retirement_year INTEGER, operational_status TEXT, report_date DATE)""",
@@ -195,7 +326,9 @@ P0_HELPER_STATEMENTS = (
 )
 
 
-def connect(path: str | Path = "data/duck/grid.duckdb", *, read_only: bool = False) -> duckdb.DuckDBPyConnection:
+def connect(
+    path: str | Path = "data/duck/grid.duckdb", *, read_only: bool = False
+) -> duckdb.DuckDBPyConnection:
     output = Path(path)
     if not read_only:
         output.parent.mkdir(parents=True, exist_ok=True)
@@ -211,26 +344,44 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
         con.execute(statement)
     for statement in P0_HELPER_STATEMENTS:
         con.execute(statement)
-    existing = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+    existing = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
     if existing is None:
-        con.execute("INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)", [SCHEMA_VERSION])
+        con.execute(
+            "INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)",
+            [SCHEMA_VERSION],
+        )
     elif existing[0] != SCHEMA_VERSION:
-        raise RuntimeError(f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly.")
+        raise RuntimeError(
+            f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly."
+        )
     validate_schema(con)
 
 
 def validate_schema(con: duckdb.DuckDBPyConnection) -> None:
     """Raise when a pre-existing table cannot satisfy this contract."""
     for table, columns in TABLE_COLUMNS.items():
-        actual = tuple(row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall())
+        actual = tuple(
+            row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()
+        )
         expected = columns + PROVENANCE_COLUMN_NAMES
         if actual != expected:
-            raise RuntimeError(f"{table} columns are {actual!r}, expected {expected!r}; migrate explicitly.")
+            raise RuntimeError(
+                f"{table} columns are {actual!r}, expected {expected!r}; migrate explicitly."
+            )
 
 
-def contract_frame(frame: pd.DataFrame, table: str, *, source_name: str, source_ref: str,
-                   source_version: str | None = None, source_retrieved_at: datetime | None = None,
-                   fixture_batch_id: str) -> pd.DataFrame:
+def contract_frame(
+    frame: pd.DataFrame,
+    table: str,
+    *,
+    source_name: str,
+    source_ref: str,
+    source_version: str | None = None,
+    source_retrieved_at: datetime | None = None,
+    fixture_batch_id: str,
+) -> pd.DataFrame:
     """Attach provenance without manufacturing an unavailable retrieval timestamp."""
     if table not in TABLE_COLUMNS:
         return frame
@@ -240,46 +391,77 @@ def contract_frame(frame: pd.DataFrame, table: str, *, source_name: str, source_
     result["source_name"] = source_name
     result["source_ref"] = source_ref
     result["source_version"] = source_version
-    result["source_retrieved_at"] = source_retrieved_at.astimezone(UTC).replace(tzinfo=None) if source_retrieved_at else None
+    result["source_retrieved_at"] = (
+        source_retrieved_at.astimezone(UTC).replace(tzinfo=None)
+        if source_retrieved_at
+        else None
+    )
     result["fixture_batch_id"] = fixture_batch_id
     return result
 
 
-def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFrame, where: str = "TRUE",
-                  *, source_name: str | None = None, source_ref: str | None = None,
-                  source_version: str | None = None, source_retrieved_at: datetime | None = None,
-                  fixture_batch_id: str | None = None) -> int:
+def replace_frame(
+    con: duckdb.DuckDBPyConnection,
+    table: str,
+    frame: pd.DataFrame,
+    where: str = "TRUE",
+    *,
+    source_name: str | None = None,
+    source_ref: str | None = None,
+    source_version: str | None = None,
+    source_retrieved_at: datetime | None = None,
+    fixture_batch_id: str | None = None,
+) -> int:
     """Replace a logical slice, requiring provenance for canonical contract rows."""
     if table in TABLE_COLUMNS and not all((source_name, source_ref, fixture_batch_id)):
-        raise ValueError(f"{table} requires source_name, source_ref, and fixture_batch_id")
+        raise ValueError(
+            f"{table} requires source_name, source_ref, and fixture_batch_id"
+        )
     # Keep referenced identities in place on a repeated release. Deleting and
     # reinserting an unchanged parent key fails DuckDB's foreign-key checks.
-    parent_key = {"counties": "county_fips", "buses": "bus_id", "lines": "line_id",
-                  "site_candidates": "site_id", "scenarios": "scenario_id"}.get(table)
+    parent_key = {
+        "counties": "county_fips",
+        "buses": "bus_id",
+        "lines": "line_id",
+        "site_candidates": "site_id",
+        "scenarios": "scenario_id",
+    }.get(table)
     if not parent_key or frame.empty:
         con.execute(f"DELETE FROM {table} WHERE {where}")
     if frame.empty:
         return 0
     if table in TABLE_COLUMNS:
-        frame = contract_frame(frame, table, source_name=source_name, source_ref=source_ref,
-                               source_version=source_version, source_retrieved_at=source_retrieved_at,
-                               fixture_batch_id=fixture_batch_id)
+        frame = contract_frame(
+            frame,
+            table,
+            source_name=source_name,
+            source_ref=source_ref,
+            source_version=source_version,
+            source_retrieved_at=source_retrieved_at,
+            fixture_batch_id=fixture_batch_id,
+        )
     con.register("_incoming", frame)
     try:
         if parent_key:
-            con.execute(f"DELETE FROM {table} WHERE ({where}) AND {parent_key} NOT IN "
-                        f"(SELECT {parent_key} FROM _incoming)")
+            con.execute(
+                f"DELETE FROM {table} WHERE ({where}) AND {parent_key} NOT IN "
+                f"(SELECT {parent_key} FROM _incoming)"
+            )
             for column in frame.columns:
                 if column == parent_key:
                     continue
                 # DuckDB rewrites indexed-column updates as delete/insert;
                 # avoid touching unchanged foreign keys on referenced parents.
-                con.execute(f'UPDATE {table} AS existing SET "{column}" = incoming."{column}" '
-                            f'FROM _incoming AS incoming WHERE existing.{parent_key} = incoming.{parent_key} '
-                            f'AND existing."{column}" IS DISTINCT FROM incoming."{column}"')
-            con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming AS incoming "
-                        f"WHERE NOT EXISTS (SELECT 1 FROM {table} AS existing "
-                        f"WHERE existing.{parent_key} = incoming.{parent_key})")
+                con.execute(
+                    f'UPDATE {table} AS existing SET "{column}" = incoming."{column}" '
+                    f"FROM _incoming AS incoming WHERE existing.{parent_key} = incoming.{parent_key} "
+                    f'AND existing."{column}" IS DISTINCT FROM incoming."{column}"'
+                )
+            con.execute(
+                f"INSERT INTO {table} BY NAME SELECT * FROM _incoming AS incoming "
+                f"WHERE NOT EXISTS (SELECT 1 FROM {table} AS existing "
+                f"WHERE existing.{parent_key} = incoming.{parent_key})"
+            )
         else:
             con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming")
     finally:
@@ -287,25 +469,51 @@ def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFram
     return len(frame)
 
 
-def log_artifact(con: duckdb.DuckDBPyConnection, *, source: str, source_release: str,
-                 path: str | Path, rows_loaded: int, schema_fingerprint: str,
-                 loader_version: str = "p0-v1") -> None:
+def log_artifact(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    source: str,
+    source_release: str,
+    path: str | Path,
+    rows_loaded: int,
+    schema_fingerprint: str,
+    loader_version: str = "p0-v1",
+    scope_key: str | None = None,
+) -> None:
     artifact = Path(path)
+    if scope_key is not None:
+        source_release = f"{source_release};scope={scope_key}"
     con.execute(
         """INSERT OR REPLACE INTO ingest_log VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        [source, source_release, artifact.name, sha256_file(artifact), artifact.stat().st_size,
-         rows_loaded, schema_fingerprint, loader_version, utc_now()],
+        [
+            source,
+            source_release,
+            artifact.name,
+            sha256_file(artifact),
+            artifact.stat().st_size,
+            rows_loaded,
+            schema_fingerprint,
+            loader_version,
+            utc_now(),
+        ],
     )
 
 
-def export_parquet(con: duckdb.DuckDBPyConnection, out_dir: str = "data/parquet") -> list[Path]:
+def export_parquet(
+    con: duckdb.DuckDBPyConnection, out_dir: str = "data/parquet"
+) -> list[Path]:
     target = Path(out_dir)
     target.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
     for table in CONTRACT_TABLES:
-        if con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = ?", [table]).fetchone()[0]:
+        if con.execute(
+            "SELECT count(*) FROM information_schema.tables WHERE table_name = ?",
+            [table],
+        ).fetchone()[0]:
             path = target / f"{table}.parquet"
             sql_path = "'" + str(path).replace("'", "''") + "'"
-            con.execute(f"COPY {table} TO {sql_path} (FORMAT PARQUET, COMPRESSION ZSTD)")
+            con.execute(
+                f"COPY {table} TO {sql_path} (FORMAT PARQUET, COMPRESSION ZSTD)"
+            )
             written.append(path)
     return written

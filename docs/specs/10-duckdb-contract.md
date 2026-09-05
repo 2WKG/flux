@@ -194,6 +194,14 @@ JSON; typed families hold coordinates, units/values, model mode, input-artifact 
 score components, and citations. This permits stable cross-surface identity without
 forcing a source record into a legacy numeric `*_id` field.
 
+`eaglei_ingest_quality_by_state` is an additive ingest-provenance helper relation
+for shared-store EAGLE-I loads. Its primary key is `(source_year, state_fips)` and
+it records the source file and timezone plus raw, valid, missing, negative, and
+duplicate row counts, distinct source counties, and the load timestamp. It is not
+a Minnesota artifact table and does not change this contract's identity,
+availability, or common-envelope requirements; it makes a scoped ingest rerun
+auditable rather than silently discarding its quality record.
+
 2WKG-98 validates deterministic identity generation; preflight-before-mutation;
 idempotent reruns; provenance and field-provenance preservation; paired coordinate
 absence; finite/unit-safe numeric values; topology/aggregate requirements; and
