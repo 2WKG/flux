@@ -152,6 +152,8 @@ SCHEMA_STATEMENTS = (
         congestion_method TEXT NOT NULL CHECK (congestion_method IN ('exact', 'fuzzy', 'twin_proxy', 'unmapped')),
         region TEXT NOT NULL, {LINE_UPGRADE_CONTRACT_COLUMNS}, {PROVENANCE_COLUMNS},
         PRIMARY KEY (line_id, scenario_id))""",
+    # Equality-filter aid for `top_lines(scenario_id=...)`. DuckDB does not serve
+    # ORDER BY from an ART index, so this is not a ranking accelerator.
     """CREATE INDEX IF NOT EXISTS line_upgrade_scores_scenario_rank
         ON line_upgrade_scores (scenario_id, mw_per_musd, line_id)""",
     f"""CREATE TABLE IF NOT EXISTS corpus_chunks (
@@ -304,23 +306,40 @@ def connect(
     return con
 
 
+def stored_contract_version(con: duckdb.DuckDBPyConnection) -> str | None:
+    """Return the persisted `schema_meta.contract_version`, or None when no contract exists yet."""
+    has_meta = con.execute(
+        "SELECT count(*) FROM information_schema.tables WHERE table_name = 'schema_meta'"
+    ).fetchone()[0]
+    if not has_meta:
+        return None
+    existing = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+    return None if existing is None else existing[0]
+
+
 def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
-    """Create v1, refusing to silently use a different contract version."""
+    """Create the SCHEMA_VERSION contract, refusing to touch a database on another version.
+
+    The version guard runs before any DDL. On an existing database every
+    `CREATE TABLE IF NOT EXISTS` is a no-op, so a later statement (the scenario
+    index, for example) would otherwise bind against the old table shape and fail
+    with an unnamed duckdb error instead of this migration error. There is no
+    in-place migration: rebuild `data/duck/grid.duckdb` from its sources.
+    """
+    existing = stored_contract_version(con)
+    if existing is not None and existing != SCHEMA_VERSION:
+        raise RuntimeError(
+            f"DuckDB contract version is {existing!r}, expected {SCHEMA_VERSION!r}; migrate explicitly "
+            "(no in-place migration exists: delete the database and re-run the ingest)."
+        )
     for statement in SCHEMA_STATEMENTS:
         con.execute(statement)
     for statement in P0_HELPER_STATEMENTS:
         con.execute(statement)
-    existing = con.execute(
-        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
-    ).fetchone()
     if existing is None:
         con.execute(
             "INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)",
             [SCHEMA_VERSION],
-        )
-    elif existing[0] != SCHEMA_VERSION:
-        raise RuntimeError(
-            f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly."
         )
     validate_schema(con)
 
