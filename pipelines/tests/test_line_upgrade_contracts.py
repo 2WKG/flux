@@ -363,10 +363,8 @@ def test_detail_row_maps_non_market_congestion_to_a_legal_schema_value(
     )
 
 
-def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
-    con = duckdb.connect(":memory:")
-    ensure_schema(con)
-    storage = _storage()
+def _seed_line(con: duckdb.DuckDBPyConnection, storage: StorageProvenance) -> None:
+    """Insert the county, bus, and line parents that `lines.line_id = 1` needs."""
     provenance = storage.model_dump()
     con.execute(
         """INSERT INTO counties (
@@ -402,6 +400,26 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [1, 1, 2, "1", 345.0, 0.1, 0.2, 400.0, 10.0, None, False, *provenance.values()],
     )
+
+
+def _insert_rows(
+    con: duckdb.DuckDBPyConnection, line: ScoredLine, storage: StorageProvenance
+) -> None:
+    for table, row in (
+        ("line_upgrade_scores", line.to_score_row(storage)),
+        ("line_upgrade_detail", line.to_detail_row(storage)),
+    ):
+        con.execute(
+            f"INSERT INTO {table} ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+            list(row.values()),
+        )
+
+
+def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
     line = _scored(
         congestion=ObservedCongestion(
             usd_per_year=1_000_000.0,
@@ -431,14 +449,7 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
     assert expected_identity_and_contract.items() <= detail_row.items()
     assert score_row["simulation_run_id"] is None
     assert detail_row["simulation_run_id"] is None
-    con.execute(
-        f"INSERT INTO line_upgrade_scores ({', '.join(score_row)}) VALUES ({', '.join('?' for _ in score_row)})",
-        list(score_row.values()),
-    )
-    con.execute(
-        f"INSERT INTO line_upgrade_detail ({', '.join(detail_row)}) VALUES ({', '.join('?' for _ in detail_row)})",
-        list(detail_row.values()),
-    )
+    _insert_rows(con, line, storage)
     assert con.execute(
         """SELECT scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw,
                   mw_per_musd, ranking_version, contract_version, simulation_run_id, grid_input_sha256,
@@ -481,3 +492,50 @@ def test_simulated_rows_persist_the_twin_run_without_reclassifying_other_sources
     line = _scored()
     assert line.to_score_row(_storage())["simulation_run_id"] == "run-1"
     assert line.to_detail_row(_storage())["simulation_run_id"] == "run-1"
+
+
+def test_two_scenarios_for_one_line_coexist_and_a_repeated_identity_is_rejected():
+    """The persisted identity is (line_id, scenario_id), not line_id alone (2WKG-179)."""
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
+    simulated = _scored()
+    annual = _scored(
+        key=LineKey(line_id=1, region="ERCOT", scenario_id="annual_2024"),
+        congestion=ProxyCongestion(
+            usd_per_year=5e5, assumed_usd_per_mwh=40.0, assumption_note="assumed"
+        ),
+    )
+    _insert_rows(con, simulated, storage)
+    _insert_rows(con, annual, storage)
+    for table in ("line_upgrade_scores", "line_upgrade_detail"):
+        assert con.execute(
+            f"SELECT line_id, scenario_id, simulation_run_id FROM {table} ORDER BY scenario_id"
+        ).fetchall() == [(1, "annual_2024", None), (1, SCENARIO_ID, "run-1")]
+    with pytest.raises(duckdb.ConstraintException):
+        _insert_rows(con, simulated, storage)
+
+
+@pytest.mark.parametrize(
+    "column", ["grid_input_sha256", "weather_input_sha256", "cost_params_sha256"]
+)
+@pytest.mark.parametrize("table", ["line_upgrade_scores", "line_upgrade_detail"])
+def test_storage_rejects_a_malformed_input_hash(table, column):
+    """The DDL pins sha256 hex even for a row that bypasses the pydantic contract."""
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
+    line = _scored()
+    row = (
+        line.to_score_row(storage)
+        if table == "line_upgrade_scores"
+        else line.to_detail_row(storage)
+    )
+    row[column] = "nothex"
+    with pytest.raises(duckdb.ConstraintException, match=column):
+        con.execute(
+            f"INSERT INTO {table} ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+            list(row.values()),
+        )
