@@ -6,17 +6,19 @@
 
 ## Authority and scope
 
-[10-minnesota-demo.md](10-minnesota-demo.md) supersedes the legacy Texas, ERCOT,
-Uri, and ACTIVSg2000 demo contract. This document makes its required artifact
+This Minnesota contract **coexists with** the Texas-first overview. It does not
+supersede that overview wholesale or derive Minnesota fixture data from Texas
+records. [10-minnesota-demo.md](10-minnesota-demo.md) supersedes the legacy Texas,
+ERCOT, Uri, and ACTIVSg2000 demo contract. This document makes its required artifact
 metadata concrete. It does not authorize a source download, a topology conversion,
 or a result. The existing five-bus preview remains an unlabelled synthetic preview;
 it is not a Minnesota fixture, topology, scenario, or evidence source.
 
 The table names and compatible physical types in [00-overview.md](00-overview.md)
 remain implementation inputs, but they do not authorize legacy Texas records for this
-demo. When this document and a legacy table description differ about geography,
+demo. When this document and a legacy table description differ about Minnesota geography,
 scenario, model mode, or Minnesota evidence, this document and the Minnesota amendment
-win. 2WKG-98 implements the typed schema, constraints, and version preflight from this
+win. Texas-specific fixtures remain subject to the overview and must never be relabeled as Minnesota. 2WKG-98 implements the typed schema, constraints, and version preflight from this
 contract; it must not seed fixture data or add consumer routes.
 
 Every shared artifact is either **available** with the evidence below or
