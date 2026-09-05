@@ -32,11 +32,6 @@ _TERMINAL_FAILURES = {
         "The answer provider is unavailable.",
         True,
     ),
-    "tool": (
-        "tool_error",
-        "A requested tool could not complete.",
-        True,
-    ),
 }
 
 
@@ -61,13 +56,15 @@ class SseEvent:
 
 
 class CopilotEventStream:
-    """Build the lifecycle and successful tool events for one answer attempt.
+    """Build the lifecycle and tool events for one answer attempt.
 
     ``start`` must be the first application event.  Tool results bind to an
-    earlier call id and use the same tool name.  ``done`` is the only success
-    terminal event and closes the stream permanently.  Named failure methods
-    emit only fixed, user-safe terminal errors; callers must not expose their
-    caught provider or tool exception text in stream data.
+    earlier call id and use the same tool name; failed tool results are
+    non-terminal and allow the stream to continue.  ``done`` is the only
+    success terminal event and closes the stream permanently.  Named failure
+    methods (``disconnected``, ``timed_out``, ``provider_failed``) emit only
+    fixed, user-safe terminal errors; callers must not expose their caught
+    provider exception text in stream data.
     """
 
     def __init__(self) -> None:
@@ -108,14 +105,7 @@ class CopilotEventStream:
         elapsed_ms: int,
     ) -> SseEvent:
         """Emit the successful outcome for one previously emitted tool call."""
-        self._require_active()
-        expected_tool = self._pending_calls.get(call_id)
-        if expected_tool is None:
-            raise StreamStateError(f"tool result {call_id!r} has no pending tool call")
-        if tool != expected_tool:
-            raise StreamStateError(
-                f"tool result {call_id!r} names {tool!r}, expected {expected_tool!r}"
-            )
+        self._validate_tool_call(call_id, tool)
         if elapsed_ms < 0:
             raise ValueError("elapsed_ms must be non-negative")
         event = self._event(
@@ -162,6 +152,37 @@ class CopilotEventStream:
         self._pending_calls.clear()
         return event
 
+    def failed_tool_result(
+        self,
+        call_id: str,
+        tool: str,
+        code: str,
+        message: str,
+        *,
+        elapsed_ms: int,
+    ) -> SseEvent:
+        """Emit a failed outcome for one previously emitted tool call.
+
+        The stream remains active and can accept further tool calls or done().
+        Caller must provide fixed, safe error code and message strings;
+        never expose exception tracebacks, paths, or secrets.
+        """
+        self._validate_tool_call(call_id, tool)
+        if elapsed_ms < 0:
+            raise ValueError("elapsed_ms must be non-negative")
+        event = self._event(
+            "tool_result",
+            {
+                "call_id": call_id,
+                "tool": tool,
+                "ok": False,
+                "error": {"code": code, "message": message},
+                "elapsed_ms": elapsed_ms,
+            },
+        )
+        del self._pending_calls[call_id]
+        return event
+
     def done(
         self,
         *,
@@ -200,9 +221,16 @@ class CopilotEventStream:
         """End an active stream after an upstream failure without leaking ``cause``."""
         return self._failure("provider", cause)
 
-    def tool_failed(self, cause: BaseException | None = None) -> SseEvent:
-        """End an active stream after a tool failure without leaking ``cause``."""
-        return self._failure("tool", cause)
+    def _validate_tool_call(self, call_id: str, tool: str) -> None:
+        """Validate a pending tool call without leaking details."""
+        self._require_active()
+        expected_tool = self._pending_calls.get(call_id)
+        if expected_tool is None:
+            raise StreamStateError(f"tool result {call_id!r} has no pending tool call")
+        if tool != expected_tool:
+            raise StreamStateError(
+                f"tool result {call_id!r} names {tool!r}, expected {expected_tool!r}"
+            )
 
     def _require_active(self) -> None:
         if not self._started:
