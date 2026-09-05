@@ -251,7 +251,7 @@ POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...
 GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
 GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
-POST /ask          {messages:[...]}                   → text/event-stream of {type: text|tool_call|tool_result|citation}
+POST /ask          {attempt_id, question, context, history?} → text/event-stream, v1 events per docs/research/sse-event-schema.md (A10; see 05)
 ```
 
 Python entry points (owning spec's CLI wins; this list is the run order):

@@ -81,7 +81,7 @@ output_config={"effort": "medium"},
 
   (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus 5 per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
 - Streaming: `client.messages.stream(...)` on every model turn (long outputs, tool chains). Verified signature (`AsyncMessages.stream`): keyword-only `max_tokens, messages, model, system, tools, tool_choice, thinking, output_config, cache_control, …`; returns an async context manager whose stream yields typed events (`TextEvent{type:"text", text, snapshot}`, `InputJsonEvent`, `ThinkingEvent`, raw `RawContentBlockDeltaEvent`…) and exposes `get_final_message()` / `get_final_text()`. `max_tokens=8000` per turn (answers are short; tool inputs are tiny).
-- Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None`). Emit a terminal `error` using the canonical `refusal` code and a safe user-facing message; do not expose provider category or explanation unless it has been explicitly classified safe. Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
+- Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None`). Emit a terminal `error` using the `refusal` code from the closed v1 code set in [`sse-event-schema.md`](../research/sse-event-schema.md) and a safe user-facing message; never put the provider `category`/`explanation` in the event — record them in the server-side `asks.jsonl` answer record for diagnosis. (Requires an emitter change: `copilot/sse.py` has no refusal terminal yet; tracked in the 2WKG-228 stack.) Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
 - Prompt caching: `system` is a single frozen text block with `cache_control: {"type": "ephemeral"}` (`CacheControlEphemeralParam{type, ttl?: "5m"|"1h"}`); tools list is a module constant in fixed order; volatile UI context goes in the first **user** message, never in `system`. Verify `usage.cache_read_input_tokens > 0` on the second demo question (`Usage` fields verified: `input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, …`).
 
 ### Tool-use loop (`agent/loop.py`)
@@ -97,7 +97,7 @@ for iteration in range(MAX_ITER=8):
         async for event in stream:
             if event.type == "text": yield SSE text(delta=event.text)   # TextEvent; .snapshot is the running text
         msg = await stream.get_final_message()
-    if msg.stop_reason == "refusal": yield terminal SSE error(code="refusal", retryable=false); return
+    if msg.stop_reason == "refusal": yield terminal SSE error(code="refusal", retryable=false); return   # no emitter method yet — see "Emitter status" below
     messages.append({"role":"assistant","content": msg.content})
     tool_uses = [b for b in msg.content if b.type == "tool_use"]
     if not tool_uses:  break                      # end_turn
@@ -105,7 +105,7 @@ for iteration in range(MAX_ITER=8):
     for tu, res in zip(tool_uses, results): yield SSE tool_call / tool_result
     messages.append({"role":"user","content":[tool_result blocks, ALL in one message]})
 else:
-    yield terminal SSE error(code="deadline", message="The answer reached its iteration limit.", retryable=false)
+    yield terminal SSE error(code="deadline", message="The answer reached its iteration limit.", retryable=false)   # no emitter path yet — see "Emitter status" below
 verify(final_text, tool_results, citations) -> yield SSE done{verified:…}
 ```
 
@@ -117,6 +117,7 @@ Rules:
 - Result size cap: each `tool_result` content is JSON-serialized and truncated to **8 KB** (`sql` rows capped at 200 before serialization; `cite` chunks capped at 1,200 chars each). Truncation appends `{"truncated": true, "omitted_rows": n}`.
 - Parallel tool calls are executed concurrently and returned in a single user message (splitting them degrades parallel calling).
 - Whole `/ask` wall-clock budget 90 s; exceeded → terminal `error` using the canonical `deadline` code.
+- **Emitter status (not current behavior).** The emitter in the 2WKG-228 stack (`copilot/sse.py`) provides exactly three terminal failures: `disconnected()` → `cancelled`, `timed_out()` → `deadline` (fixed message "The answer could not finish within the request deadline.", `retryable: true`), `provider_failed()` → `upstream_error`. The `refusal` terminal above and the iteration-limit terminal in the loop pseudo-code have no emitter method or message path yet; both require an emitter change tracked in the 2WKG-228 stack. The wall-clock `deadline` terminal is the only one of the three that the emitter produces today. `refusal` is in the schema's closed v1 code set; an iteration-limit code is not, so folding it into `deadline` (and its `retryable` value) is a pending contract decision, not an implemented mapping.
 - `json.loads` on `tool_use.input` is not needed (SDK gives a dict) but every input is re-validated with the pydantic model for the tool before execution.
 
 ### Tool schemas (`tools/schemas.py`)
@@ -304,7 +305,7 @@ Run: `uv run uvicorn copilot.app:app --port 8000 --reload`.
     - (b) replace the `sql` denylist with an accept-all → criterion 5 must fail on `COPY (SELECT 1) TO 'x.csv'` (this is the case `read_only=True` does **not** stop — verified on duckdb 1.5.5), and the DB-hash check must catch a file write if the probe targets the DB path.
     - (c) delete the regulatory-claim guard in `verify.py` → a fixture answer that mentions "10 CFR 100" with no `cite` call must flip from `verified=false` to `verified=true`, failing the unit test that pins `reason="regulatory_claim_without_cite"`.
     - (d) drop `cache_control` from the `system` block → criterion 12 must fail (`cache_read_input_tokens == 0` on the second `/ask`).
-    - (e) set `ping=0` on `EventSourceResponse` → a 12 s idle-stream test asserting at least one `:`-comment line must fail.
+    - (e) set `ping=0` on `EventSourceResponse` → a 20 s idle-stream test (heartbeat interval is 15 s per the SSE schema) asserting at least one `:`-comment line must fail.
     If any probe stays green, the corresponding criterion is an assertion that cannot fail and must be rewritten before it counts.
 
 ## Demo hook
