@@ -44,6 +44,35 @@ def _county_fips_for_points(con, lon: pd.Series, lat: pd.Series) -> list[str | N
             for x, y in zip(lon, lat, strict=True)]
 
 
+def _candidate_bus_ids(con, candidates: pd.DataFrame, min_kv: float = 230.0) -> pd.Series:
+    """Attach candidates only to high-voltage buses in the same canonical county.
+
+    The topology is synthetic, so an EIA point is never associated by a
+    cross-region nearest-neighbour fallback.  A missing same-county bus remains
+    explicitly unconnected for downstream scoring.
+    """
+    buses = con.execute(
+        "SELECT bus_id, county_fips, base_kv, lon, lat FROM buses "
+        "WHERE base_kv >= ? AND county_fips IS NOT NULL AND lon IS NOT NULL AND lat IS NOT NULL",
+        [min_kv],
+    ).fetchdf()
+    assignments: list[int | None] = []
+    for row in candidates.itertuples():
+        if pd.isna(row.county_fips):
+            assignments.append(None)
+            continue
+        pool = buses[buses.county_fips.eq(row.county_fips)].copy()
+        if pool.empty:
+            assignments.append(None)
+            continue
+        # Exact county equality is the topology-region guard.  Sorting makes
+        # coincident/equidistant bus points deterministic across input order.
+        distance_sq = (pool.lon - row.lon) ** 2 + (pool.lat - row.lat) ** 2
+        pool = pool.assign(_distance_sq=distance_sq).sort_values(["_distance_sq", "bus_id"], kind="stable")
+        assignments.append(int(pool.iloc[0].bus_id))
+    return pd.Series(assignments, index=candidates.index, dtype="Int64")
+
+
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
     plants_path, generators_path = Path(plants_parquet), Path(generators_parquet)
     plants = pd.read_parquet(plants_path)
@@ -99,7 +128,7 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
     return rows
 
 
-def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
+def seed_site_candidates(con) -> int:
     """Seed only documented coal/nuclear candidate classes from EIA inventory."""
     plants = con.execute("SELECT * FROM eia_plants WHERE state = 'TX'").fetchdf()
     inventory = con.execute("SELECT * FROM eia_generator_inventory").fetchdf()
@@ -131,15 +160,18 @@ def seed_site_candidates(con, capacity_slot_mw: float = 300.0) -> int:
     nuclear_candidates["kind"] = "nuclear_existing"
     candidate_kinds = pd.concat([coal_candidates, nuclear_candidates], ignore_index=True)
     selected = plants.merge(candidate_kinds, on="plant_id_eia", how="inner")
-    selected = selected.sort_values("plant_id_eia").reset_index(drop=True)
-    selected["site_id"] = np.arange(1, len(selected) + 1)
+    selected = selected.dropna(subset=["county_fips", "capacity_mw"])
+    selected = selected[selected["capacity_mw"] > 0].copy()
+    selected = selected.sort_values("plant_id_eia", kind="stable").drop_duplicates("plant_id_eia", keep="first")
+    # EIA plant IDs are immutable source identities; using them avoids release-
+    # order renumbering while source_site_id retains the namespace explicitly.
+    selected["site_id"] = selected["plant_id_eia"].astype("int64")
     candidates = selected.rename(columns={"plant_name": "name"})[
         ["site_id", "name", "kind", "lon", "lat", "county_fips"]
     ]
-    candidates = candidates.dropna(subset=["county_fips"])
-    candidates["bus_id"] = None
-    candidates["capacity_slot_mw"] = capacity_slot_mw
-    candidates["source_site_id"] = candidates["site_id"].astype(str)
+    candidates["bus_id"] = _candidate_bus_ids(con, candidates)
+    candidates["capacity_slot_mw"] = selected["capacity_mw"].to_numpy()
+    candidates["source_site_id"] = "eia_plant:" + selected["plant_id_eia"].astype(str).to_numpy()
     return replace_frame(con, "site_candidates", candidates, where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')",
                          source_name="pudl_eia860", source_ref="eia_plants", source_version="v2026.2.0",
                          fixture_batch_id="p0-eia860-v2026.2.0")
