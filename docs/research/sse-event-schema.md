@@ -2,7 +2,7 @@
 
 ## Status and bounded scope
 
-This is a proposed transport contract for a future `POST /ask` copilot stream.
+This is the v1 transport contract for a future `POST /ask` copilot stream.
 It defines event envelopes and delivery rules only. It adds no endpoint, server,
 client, event store, replay system, or authorization mechanism; it must not be
 read as evidence that any streaming behavior exists at runtime.
@@ -38,6 +38,16 @@ this one sequence. A `tool_call` precedes its matching `tool_result`;
 unrelated calls and results may interleave.
 
 ## Event types
+
+### `lifecycle`
+
+The first application event for an accepted attempt. Required: `v`, `seq`, and
+`status: "started"`. It lets a client distinguish an accepted stream from a
+connection that failed before the application protocol began.
+
+```json
+{"v":1,"seq":1,"status":"started"}
+```
 
 ### `text`
 
@@ -113,7 +123,7 @@ and `error`, which has a stable `code`, safe user-facing `message`, and boolean
 {"v":1,"seq":11,"status":"failed","error":{"code":"deadline","message":"The answer could not finish within the request deadline.","retryable":true}}
 ```
 
-Suggested v1 codes: `invalid_request`, `unavailable`, `deadline`,
+The closed v1 code set is: `invalid_request`, `unavailable`, `deadline`,
 `upstream_error`, `tool_error`, `refusal`, `cancelled`, and `protocol_error`.
 Unavailable dependencies and failures are reported as such: never silently
 replace an answer, tool value, citation, or success state.
@@ -137,10 +147,21 @@ Heartbeats carry no id, do not advance `seq`, are not replayed, and are ignored
 by clients.
 
 Because `/ask` uses `POST`, a client cannot rely on `EventSource` automatic
-reconnect. It may reconnect with the same attempt identifier and
-`Last-Event-ID` equal to the last fully processed `id`. If replay is supported,
+reconnect. For every initial request, the client creates an opaque
+`attempt_id` (16--128 URL-safe ASCII characters) and sends it as the required
+top-level `attempt_id` field in the JSON request body. Before starting the
+stream, the server echoes that exact value in the `X-Flux-Attempt-Id` response
+header. The header is the acknowledgement that binds this response to that
+attempt; application event ids remain sequence numbers, not attempt ids.
+
+To resume, the client sends the same body `attempt_id` and a
+`Last-Event-ID` header equal to the last fully processed event id. A server
+must reject malformed identifiers, a missing/invalid `Last-Event-ID` on a
+known attempt, or an id that belongs to a different/expired attempt as
+`invalid_request` (or an HTTP 4xx before streaming). If replay is supported,
 the server sends events with strictly greater `seq`, in order, then continues
-live delivery. It never duplicates an event.
+live delivery. It never duplicates an event. A fresh `attempt_id` starts at
+sequence 1 and must not be used to resume another attempt.
 
 Replay is optional infrastructure, not an implied implementation promise.
 Until it exists, a resume request is rejected with `unavailable` (or an HTTP
