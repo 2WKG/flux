@@ -9,7 +9,6 @@ import pandas as pd
 
 from pipelines.common import sha256_file, utc_now
 
-
 CONTRACT_TABLES = (
     "buses", "lines", "gens", "loads", "counties", "critical_loads",
     "eaglei_outages", "weather_hourly", "storm_events", "hazard_static",
@@ -106,9 +105,9 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
 
 def replace_frame(con: duckdb.DuckDBPyConnection, table: str, frame: pd.DataFrame, where: str = "TRUE") -> int:
     """Replace the selected logical slice using registered dataframe insertion."""
+    con.execute(f"DELETE FROM {table} WHERE {where}")
     if frame.empty:
         return 0
-    con.execute(f"DELETE FROM {table} WHERE {where}")
     con.register("_incoming", frame)
     try:
         con.execute(f"INSERT INTO {table} BY NAME SELECT * FROM _incoming")
@@ -136,6 +135,9 @@ def export_parquet(con: duckdb.DuckDBPyConnection, out_dir: str = "data/parquet"
     for table in CONTRACT_TABLES:
         if con.execute("SELECT count(*) FROM information_schema.tables WHERE table_name = ?", [table]).fetchone()[0]:
             path = target / f"{table}.parquet"
-            con.execute(f"COPY {table} TO ? (FORMAT PARQUET, COMPRESSION ZSTD)", [str(path)])
+            # COPY accepts a SQL string literal for its target, not a prepared
+            # parameter. Escape the path rather than interpolating it raw.
+            sql_path = "'" + str(path).replace("'", "''") + "'"
+            con.execute(f"COPY {table} TO {sql_path} (FORMAT PARQUET, COMPRESSION ZSTD)")
             written.append(path)
     return written
