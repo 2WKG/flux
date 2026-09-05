@@ -1,8 +1,8 @@
-# 00 — Overview: GridMind — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
+# 00 — Overview: Flux — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
 
-Status: frozen for the weekend build. Product name: **GridMind** (amendment A8; the repo stays `flux`).
+Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
 Source pitch: `hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas"; identical copy at
-`docs/pitch/hackathon-pitches-and-designs.md`). Product description: `discription.md` (repo root).
+`docs/pitch/hackathon-pitches-and-designs.md`).
 Every other spec in this directory conforms to the shared contract restated here. If a downstream
 spec disagrees with this file on a table name, column name, tool signature, or scenario ID, this
 file wins and the downstream spec is wrong.
@@ -22,7 +22,7 @@ ranking, spec 08) and a Claude tool-calling copilot that narrates, plans, and ci
 
 ### The decision (already made — do not relitigate)
 
-The pitch is **two ideas** (pitch v2). Idea 1 (GridMind) is the headline. The line-upgrade screen
+The pitch is **two ideas** (pitch v2). Idea 1 (Flux) is the headline. The line-upgrade screen
 (spec 08) stays inside Idea 1 — it is not a separate idea. The backup is **Speed-to-Power: large-load
 verification + grid headroom ranking** (spec 09); its "wire half" REUSES spec 08's
 `line_upgrade_scores` + `line_upgrade_detail` tables and the `top_lines` tool, so no line-scoring code
@@ -30,7 +30,7 @@ is duplicated whichever pitch leads.
 
 | Item | Decision |
 |---|---|
-| Headline | Idea 1 — **GridMind**: grid digital twin + outage prediction + nuclear siting |
+| Headline | Idea 1 — **Flux**: grid digital twin + outage prediction + nuclear siting |
 | Embedded screen | Line-upgrade ranking, one screen inside the twin (`08-line-upgrade-screen.md`); also the wire half of the backup |
 | Backup pitch | Idea 2 — Speed-to-Power: large-load verification (load half, `dc_*` tables) + grid headroom ranking (wire half = spec 08), separate deck (`09-backup-idea2-datacenter-load.md`) |
 | Geographic scope | **Texas first.** ACTIVSg2000 synthetic grid, ERCOT balancing authority, 254 Texas counties. |
@@ -432,11 +432,11 @@ These are decisions, not proposals. Every spec is read as if these were in its c
 - **A5 — additive copilot surface accepted:** routes `POST /predict`, `GET /health`; layer names `eaglei`, `storm`, `national_hex`; `score_site` return adds `critical_loads_protected` and `regulatory_path`. The six tool signatures in the contract are unchanged.
 - **A6 — `tripped_element_ids_json` entries are objects** `{element_id, stage, cause}`, not bare strings (spec 03); every consumer (05, 06) parses them as objects.
 - **A7 — cascade solver default (rewritten after the 03/04 fact-check, `docs/specs/verification/03-04.md`):** pandapower `rundcpp` is the default and the only solver in scope, run hourly with **no stride** (spec 03). Measured: warm `pp.rundcpp` is 9–14 ms per solve, so a 168-hour `uri_2021` replay is ~6–12 s with plain pandapower. Budgets unchanged: 120 s per scenario, 10 s per copilot `run_cascade` call. lightsim2grid is **stretch-only and currently incompatible**: `init_from_pandapower` raises "Unsupported element (Impedance)" on this case (847 branches import as `net.impedance`); `solver="lightsim"` raises `NotImplementedError` until that is fixed.
-- **A8 — product name GridMind, tool-name mapping, and two new contract tools (from `discription.md`).**
-  - **Name.** The product is **GridMind**. Use it in titles, decks, the copilot identity line, and prose wherever the project is named. The repository, package paths, and DuckDB file stay `flux` / as in §2.1.
+- **A8 — product name Flux, tool-name mapping, and two new contract tools (from the prior product briefing).**
+  - **Name.** The product is **Flux**. Use it in titles, decks, the copilot identity line, and prose wherever the project is named. The repository, package paths, and DuckDB file stay `flux` / as in §2.1.
   - **Tool-name mapping.** The description's copilot tool list uses different names and argument shapes from this contract. The contract names below are the ones implemented; the description names are aliases in prose only, never in code.
 
-    | `discription.md` tool | Contract tool (this file) | Note |
+    | Prior briefing tool | Contract tool (this file) | Note |
     |---|---|---|
     | `predict_outage(county, horizon)` | `predict_outage(county_fips, scenario_id, horizon_h)` | county is a FIPS string; scenario is explicit |
     | `run_cascade(element_ids, scenario)` | `run_cascade(element_ids, scenario_id, hour)` | hour is explicit |
@@ -471,4 +471,3 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
   - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
-

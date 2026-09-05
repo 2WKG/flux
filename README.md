@@ -1,9 +1,9 @@
-# flux — GridMind, a national grid digital twin (hackathon)
+# Flux — a national grid digital twin (hackathon)
 
-**GridMind**: outage prediction + cascade simulation + nuclear/firm-generation
-siting on a synthetic-but-realistic US grid, Texas first. (Product name is
-GridMind; the repo is `flux`.) Product description: `discription.md`. Pitch
-(v2, two ideas; backup = Speed-to-Power): `hackathon-pitches-and-designs.md`,
+**Flux** provides outage prediction, cascade simulation, and nuclear/firm-generation
+siting on a synthetic-but-realistic US grid, Texas first. The repository and package
+name are also `flux`. Pitch (v2, two ideas; backup = Speed-to-Power):
+`hackathon-pitches-and-designs.md`,
 mirrored at `docs/pitch/hackathon-pitches-and-designs.md`. Build specs:
 `docs/specs/` (start at `docs/specs/README.md`, then `00-overview.md`).
 
@@ -21,9 +21,23 @@ docs/specs/  one spec per unit                     scripts/data/download.sh
 ## Setup
 
 ```
-uv sync                      # Python 3.12 env (see DEPENDENCIES.md)
-brew install libomp          # macOS: LightGBM runtime
-cd web && pnpm install        # front end
+uv sync --frozen --extra dev
+pnpm install --frozen-lockfile
 ```
 
-Status: specs + dependencies only. No product code yet.
+The development extras, key imports, a DuckDB query, a tiny LightGBM fit, and
+the real 2,000-bus pandapower DC solve have been verified; see
+`DEPENDENCIES.md` for the exact evidence. No product code exists yet.
+
+## Build workflow
+
+The amended overview is the current authority for the shared technical
+contract. The primary orchestrator coordinates scope and integration; Terra
+workers implement file-disjoint areas, using isolated worktrees for substantive
+changes when helpful. Verify the behavior changed, expanding to browser, HTTP,
+model, or data checks when the change affects those paths. Use health/doctor
+checks only after setup changes or for actual connectivity troubleshooting.
+
+Never present unavailable data, failed solves, missing API access, or
+unverified claims as results. Buckeye material is reference knowledge only:
+do not write Flux material into Buckeye repositories or reuse its credentials.
