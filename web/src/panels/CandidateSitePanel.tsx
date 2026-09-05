@@ -1,6 +1,7 @@
 import type { ClientState } from "../data/client-state";
-import { ArtifactPanelState, type Provenance } from "./ArtifactPanelState";
-export type CandidateSite = Readonly<{ site_id: string; name: string; scenario_id: string; status: string; safety_score: number | null; grid_value_score: number | null; provenance: Provenance }>;
-export function CandidateSitePanel({ state }: Readonly<{ state: ClientState<CandidateSite> }>) {
-  return <ArtifactPanelState state={state}>{(site) => <section aria-label="Candidate site"><h2>{site.name}</h2><p>Scenario: {site.scenario_id}</p><p>Status: {site.status}</p><p>Safety score: {site.safety_score ?? "unavailable"}</p><p>Grid value score: {site.grid_value_score ?? "unavailable"}</p><p>Source: {site.provenance.source_kind} · {site.provenance.artifact_id} · {site.provenance.artifact_version}</p></section>}</ArtifactPanelState>;
+import { ArtifactPanelState, ArtifactProvenance } from "./ArtifactPanelState";
+import type { SiteScoreResult } from "./copilot-contracts";
+
+export function CandidateSitePanel({ state }: Readonly<{ state: ClientState<SiteScoreResult> }>) {
+  return <ArtifactPanelState state={state}>{(site) => site.status === "unavailable" ? <section aria-label="Candidate site unavailable"><h2>Candidate site</h2><p>{site.unavailable.code}: {site.unavailable.reason}</p><ArtifactProvenance provenance={site.provenance} /></section> : <section aria-label="Candidate site"><h2>{site.name}</h2><p>Scenario: {site.scenario_id}</p><p>Unit: {site.unit_mw} MW</p><p>Safety score: {site.safety_score}</p><p>Grid value score: {site.grid_value_score}</p><p>Loss-of-load reduction: {site.lol_reduction_mwh} MWh</p><p>Protected critical loads: {site.critical_loads_protected.length}</p><ArtifactProvenance provenance={site.provenance} /></section>}</ArtifactPanelState>;
 }
