@@ -12,6 +12,7 @@ from shapely.geometry import LineString
 
 from pipelines.activsg_aux import read_aux_coords
 from pipelines.db import log_artifact, replace_frame
+from pipelines.joins import join_bus_county
 
 
 def _numeric_matrix(text: str, name: str) -> np.ndarray:
@@ -68,7 +69,7 @@ def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: dat
 
     bus_frame = pd.DataFrame({
         "bus_id": bus_ids, "name": bus_names, "base_kv": buses_raw[:, 9],
-        "lon": coords.lon, "lat": coords.lat, "county_fips": None, "ba_code": None,
+        "lon": coords.lon, "lat": coords.lat,
         "coord_source": "tamu_aux", "zone": buses_raw[:, 10].astype(int), "area": buses_raw[:, 6].astype(int),
     })
     bus_electrical = pd.DataFrame({
@@ -115,6 +116,12 @@ def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: dat
         "buses": replace_frame(con, "buses", bus_frame, source_name="activsg2000", source_ref=case.name,
                                source_version="current", source_retrieved_at=source_retrieved_at,
                                fixture_batch_id="p0-activsg-current"),
+    }
+    # Assign the indexed county foreign key before lines/gens/loads reference
+    # buses; DuckDB cannot rewrite a referenced parent for that update later.
+    if con.execute("SELECT count(*) FROM counties").fetchone()[0]:
+        join_bus_county(con)
+    counts.update({
         "lines": replace_frame(con, "lines", lines, source_name="activsg2000", source_ref=case.name,
                                source_version="current", source_retrieved_at=source_retrieved_at,
                                fixture_batch_id="p0-activsg-current"),
@@ -128,7 +135,7 @@ def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: dat
         "synthetic_bus_electrical": replace_frame(con, "synthetic_bus_electrical", bus_electrical),
         "synthetic_branch_electrical": replace_frame(con, "synthetic_branch_electrical", pd.DataFrame(branch_detail)),
         "synthetic_generator_electrical": replace_frame(con, "synthetic_generator_electrical", gen_detail),
-    }
+    })
     log_artifact(con, source="activsg2000", source_release="current", path=case, rows_loaded=counts["buses"], schema_fingerprint="matpower-v2")
     log_artifact(con, source="activsg2000", source_release="current", path=aux_path, rows_loaded=counts["synthetic_substations"], schema_fingerprint="powerworld-aux")
     return counts
