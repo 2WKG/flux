@@ -25,6 +25,8 @@ from pipelines.joins import join_bus_county, join_critical_loads_to_bus
 from pipelines.nri import load_nri
 from pipelines.storm_events import load_storm_events
 
+P0_RAW_INPUTS_CATALOG = Path(__file__).resolve().parents[1] / "datasets" / "catalog.json"
+
 
 class IncompleteP0BuildError(RuntimeError):
     """Raised before a partial P0 build can mutate or export the curated release."""
@@ -35,27 +37,18 @@ def _required(root: Path, *parts: str) -> Path | None:
     return path if path.exists() else None
 
 
+def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
+    """Read the P0 raw-file contract from the shared dataset catalog."""
+    try:
+        inputs = json.loads(P0_RAW_INPUTS_CATALOG.read_text())["p0_raw_inputs"]
+        return tuple((item["label"], tuple(tuple(path) for path in item["paths"])) for item in inputs)
+    except (KeyError, OSError, TypeError, json.JSONDecodeError) as error:
+        raise RuntimeError(f"invalid P0 raw-input catalog: {P0_RAW_INPUTS_CATALOG}") from error
+
+
 def _missing_p0_inputs(raw: Path, eaglei_source_tz: str | None) -> list[str]:
     """Return P0 inputs handled by this builder that are absent or not promotable."""
-    required: tuple[tuple[str, tuple[tuple[str, ...], ...]], ...] = (
-        ("activsg2000_current/ACTIVSg2000.aux", (("activsg2000_current", "ACTIVSg2000.aux"),)),
-        ("activsg2000_current/case_ACTIVSg2000.m", (("activsg2000_current", "case_ACTIVSg2000.m"),)),
-        ("tiger/2024/tl_2024_us_county.zip", (("tiger", "2024", "tl_2024_us_county.zip"), ("tiger", "tl_2024_us_county.zip"))),
-        ("NRI v1.20 county data", (("nri", "v1.20", "NRI_Counties_TX.json"), ("nri", "v1.20", "NRI_Table_Counties.zip"), ("nri", "NRI_Table_Counties.zip"))),
-        ("pudl/v2026.2.0/out_eia__yearly_plants.parquet", (("pudl", "v2026.2.0", "out_eia__yearly_plants.parquet"),)),
-        ("pudl/v2026.2.0/out_eia__yearly_generators.parquet", (("pudl", "v2026.2.0", "out_eia__yearly_generators.parquet"),)),
-        ("eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv", (("eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv"),)),
-        ("eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv", (("eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv"),)),
-        ("nws_zone_county/bp16ap26/bp16ap26.dbx", (("nws_zone_county", "bp16ap26", "bp16ap26.dbx"),)),
-        ("storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", (("storm_events", "2021", "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"),)),
-        ("storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", (("storm_events", "2024", "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"),)),
-        ("eaglei/support/MCC.csv", (("eaglei", "support", "MCC.csv"),)),
-        ("eaglei/support/coverage_history.csv", (("eaglei", "support", "coverage_history.csv"),)),
-        ("eaglei/2021/eaglei_outages_2021.csv", (("eaglei", "2021", "eaglei_outages_2021.csv"),)),
-        ("eaglei/2024/eaglei_outages_2024.csv", (("eaglei", "2024", "eaglei_outages_2024.csv"),)),
-        ("ntad_military_bases/fy2024/texas.geojson", (("ntad_military_bases", "fy2024", "texas.geojson"),)),
-    )
-    missing = [label for label, alternatives in required if not any(raw.joinpath(*parts).exists() for parts in alternatives)]
+    missing = [label for label, alternatives in _p0_raw_inputs() if not any(raw.joinpath(*parts).exists() for parts in alternatives)]
     if not eaglei_source_tz:
         missing.append("--eaglei-source-tz (required to promote EAGLE-I)")
     return missing
