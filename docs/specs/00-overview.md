@@ -1,6 +1,12 @@
 # 00 — Overview: Flux — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **Scope decision (2WKG-295):** The Minnesota fixture contract coexists with this
+> Texas-first overview; it neither supersedes this overview wholesale nor derives
+> Minnesota fixture data from it. [`10-minnesota-demo.md`](10-minnesota-demo.md)
+> is authoritative for Minnesota-specific geography, model, scenario, and demo
+> claims. [`10-duckdb-contract.md`](10-duckdb-contract.md) is the geography-neutral
+> storage contract shared by both cases and contains no geographic fixture records.
+> Texas references below describe the Texas case, not the Minnesota demo.
 
 Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
 Source pitch: `docs/pitch/hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas").

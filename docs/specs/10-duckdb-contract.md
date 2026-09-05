@@ -11,6 +11,15 @@ and EPSG:4326 geometry rule. `pipelines.db.SCHEMA_STATEMENTS` is the normative
 DDL; this document defines its meanings. Any change to a table, key, type,
 unit, or semantic requires a new contract version and explicit migration.
 
+## Scope relationship
+
+This contract **coexists with** the Texas-first overview; it does not supersede
+that overview wholesale and does not derive Minnesota fixture data from Texas
+records. It defines geography-neutral identities, units, coordinates, and
+provenance for any accepted fixture. Minnesota-specific scope is owned by
+[`10-minnesota-demo.md`](10-minnesota-demo.md); Texas-specific fixtures remain
+subject to the overview and must never be relabeled as Minnesota.
+
 ## Global rules
 
 - `TIMESTAMP` values are UTC, timezone-naive DuckDB values with microsecond
