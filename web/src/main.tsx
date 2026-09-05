@@ -33,7 +33,7 @@ function Network({ data, selected, select }: { data: Bundle; selected: Id; selec
 function App() {
   const [selected, setSelected] = useState<Id>("baseline");
   const [detail, setDetail] = useState(false);
-  const data: Bundle = fixture;
+  const data: Bundle = fixture as unknown as Bundle;
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find(item => item.id === selected);
   const sameAssumptions = Object.values(data.scenarios).every(item => item.assumptionSetId === data.execution.assumptionSetId);
