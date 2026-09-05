@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.common import fips5, utc_naive, utc_now
-from pipelines.db import contract_frame, log_artifact, replace_frame
+from pipelines.common import fips5, utc_now
+from pipelines.db import log_artifact, replace_frame
 from pipelines.state_scope import StateScope, scope, sql_in
 
 
 def _fips_where(selected: StateScope, column: str = "county_fips") -> str:
-    return " OR ".join(f"{column} LIKE '{item}%'" for item in selected.fips)
+    return selected.county_where(column)
 
 
 def load_county_customers(con, mcc_csv: str, source_year: int = 2022, states=None) -> int:
@@ -66,85 +66,109 @@ def load_eaglei(con, csv_path: str, year: int, source_tz: str | None, states=Non
         raise ValueError("EAGLE-I source_tz must be explicitly set after validation")
     path = Path(csv_path)
     selected_scope = states if isinstance(states, StateScope) else scope(states)
-    # DuckDB projection/filter streams the national file and limits Python work to Texas rows.
-    schema = con.execute("DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]).fetchdf()
-    total_customers = "TRY_CAST(total_customers AS BIGINT)" if "total_customers" in set(schema.column_name) else "NULL::BIGINT"
-    state_placeholders = ", ".join("?" for _ in selected_scope.names)
-    query = f"""
-        SELECT fips_code, county, state, customers_out, run_start_time,
-               {total_customers} AS total_customers
-        FROM read_csv_auto(?)
-        WHERE state IN ({state_placeholders})
-    """
-    raw = con.execute(query, [str(path), *selected_scope.source_values("eaglei")]).fetchdf()
+    scope_where = selected_scope.county_where()
+    predicate, state_parameters = sql_in("state", selected_scope.names)
+    # DuckDB filters and converts the annual national CSV in-process.  Do not
+    # materialize Texas' multi-million-row slice in pandas.
+    schema = con.execute("DESCRIBE SELECT * FROM read_csv_auto(?)", [str(path)]).fetchall()
+    columns = {row[0] for row in schema}
     expected = {"fips_code", "county", "state", "customers_out", "run_start_time"}
-    if missing := expected - set(raw.columns):
+    if missing := expected - columns:
         raise ValueError(f"{path.name} missing EAGLE-I columns: {sorted(missing)}")
-    raw_rows = len(raw)
-    customers_out = pd.to_numeric(raw["customers_out"], errors="coerce")
-    missing_customers = int(customers_out.isna().sum())
-    negative_customers = int((customers_out < 0).sum())
+    total_customers = "TRY_CAST(total_customers AS BIGINT)" if "total_customers" in columns else "NULL::BIGINT"
+    con.execute("DROP TABLE IF EXISTS _eaglei_tx")
+    con.execute(
+        f"""
+        CREATE TEMP TABLE _eaglei_tx AS
+        SELECT
+            LPAD(CAST(TRY_CAST(fips_code AS BIGINT) AS VARCHAR), 5, '0') AS county_fips,
+            timezone('UTC', timezone(?, try_strptime(CAST(run_start_time AS VARCHAR), '%Y-%m-%d %H:%M:%S'))) AS ts,
+            TRY_CAST(customers_out AS BIGINT) AS customers_out,
+            CAST(run_start_time AS VARCHAR) AS raw_timestamp,
+            {total_customers} AS total_customers
+        FROM read_csv_auto(?)
+        WHERE {predicate}
+        """,
+        [source_tz, str(path), *state_parameters],
+    )
+    raw_rows, missing_customers, negative_customers, invalid_timestamps, invalid_fips = con.execute(
+        """SELECT count(*), count(*) FILTER (WHERE customers_out IS NULL),
+                  count(*) FILTER (WHERE customers_out < 0), count(*) FILTER (WHERE ts IS NULL),
+                  count(*) FILTER (WHERE county_fips IS NULL)
+           FROM _eaglei_tx"""
+    ).fetchone()
+    if invalid_timestamps:
+        raise ValueError("EAGLE-I has unparseable run_start_time values")
+    if invalid_fips:
+        raise ValueError("EAGLE-I has unparseable county FIPS values")
     if negative_customers:
         raise ValueError("EAGLE-I has negative customers_out values")
-    # A blank target cannot be interpreted as either no outage or a zero count.
-    # Exclude it from the curated target and retain the exact loss count below.
-    raw = raw.loc[customers_out.notna()].copy()
-    customers_out = customers_out.loc[customers_out.notna()].astype("Int64")
-    timestamps = raw["run_start_time"].map(lambda value: utc_naive(value, source_tz))
-    frame = pd.DataFrame({
-        "county_fips": raw["fips_code"].map(fips5), "ts": timestamps,
-        "customers_out": customers_out,
-    })
-    duplicate_keys = int(frame.duplicated(["county_fips", "ts"]).sum())
+    # A blank target is unknown, never zero, and is excluded from the curated
+    # target while its loss is recorded in the quality relation.
+    duplicate_keys = con.execute(
+        """SELECT COALESCE(sum(rows_at_key - 1), 0)
+           FROM (SELECT count(*) AS rows_at_key FROM _eaglei_tx
+                 WHERE customers_out IS NOT NULL GROUP BY county_fips, ts)"""
+    ).fetchone()[0]
     if duplicate_keys:
         raise ValueError("EAGLE-I has duplicate county/timestamp observations")
-    observation = frame.copy()
-    observation["source_year"] = year
-    observation["source_file"] = path.name
-    observation["raw_timestamp"] = raw["run_start_time"].astype(str)
-    observation["total_customers"] = raw["total_customers"].astype("Int64")
-    quality = pd.DataFrame([{
-        "source_year": year, "source_file": path.name, "source_timezone": source_tz,
-        "raw_tx_rows": raw_rows, "valid_rows": len(frame),
-        "missing_customers": missing_customers, "negative_customers": negative_customers,
-        "duplicate_keys": duplicate_keys, "source_counties": frame.county_fips.nunique(),
-        "loaded_at": utc_now(),
-    }])
+    valid_rows, source_counties = con.execute(
+        "SELECT count(*), count(DISTINCT county_fips) FROM _eaglei_tx WHERE customers_out IS NOT NULL"
+    ).fetchone()
     # The source release, rather than the converted UTC timestamp, defines a
     # replaceable slice.  Uri rows can cross a UTC calendar-year boundary.
     con.execute("BEGIN TRANSACTION")
     try:
         con.execute(
-            """DELETE FROM eaglei_outages AS outages
-               WHERE EXISTS (SELECT 1 FROM eaglei_outage_observations AS observations
+            f"""DELETE FROM eaglei_outages AS outages
+               WHERE ({selected_scope.county_where("outages.county_fips")}) AND EXISTS (SELECT 1 FROM eaglei_outage_observations AS observations
                              WHERE observations.source_year = ?
                                AND observations.county_fips = outages.county_fips
                                AND observations.ts = outages.ts)""",
             [year],
         )
-        scope_where = _fips_where(selected_scope)
-        replace_frame(con, "eaglei_outage_observations", observation, where=f"source_year = {year} AND ({scope_where})")
-        incoming = contract_frame(frame, "eaglei_outages", source_name="eaglei", source_ref=path.name,
-                                  source_version=str(year), fixture_batch_id=f"p0-eaglei-{year}-{selected_scope.slug}")
-        con.register("_eaglei_incoming", incoming)
-        try:
-            con.execute("INSERT INTO eaglei_outages BY NAME SELECT * FROM _eaglei_incoming")
-        finally:
-            con.unregister("_eaglei_incoming")
-        with_denominator = observation[observation.total_customers.notna()][["county_fips", "total_customers"]].drop_duplicates()
-        if not with_denominator.empty:
-            denominator = with_denominator.rename(columns={"total_customers": "customers"})
-            denominator["source_year"] = year
-            denominator["source"] = "eaglei_file"
-            replace_frame(con, "county_customers", denominator,
-                          where=f"source = 'eaglei_file' AND source_year = {year} AND ({scope_where})")
-        if selected_scope.is_texas_only:
-            replace_frame(con, "eaglei_ingest_quality", quality, where=f"source_year = {year}")
+        con.execute(f"DELETE FROM eaglei_outage_observations WHERE source_year = ? AND ({scope_where})", [year])
+        con.execute(
+            """INSERT INTO eaglei_outage_observations
+               (county_fips, ts, customers_out, source_year, source_file, raw_timestamp, total_customers)
+               SELECT county_fips, ts, customers_out, ?, ?, raw_timestamp, total_customers
+               FROM _eaglei_tx WHERE customers_out IS NOT NULL""",
+            [year, path.name],
+        )
+        con.execute(
+            """INSERT INTO eaglei_outages
+               (county_fips, ts, customers_out, source_name, source_ref, source_version,
+                source_retrieved_at, fixture_batch_id)
+               SELECT county_fips, ts, customers_out, 'eaglei', ?, ?, NULL, ?
+               FROM _eaglei_tx WHERE customers_out IS NOT NULL""",
+            [path.name, str(year), f"p0-eaglei-{year}-{selected_scope.slug}"],
+        )
+        con.execute(f"DELETE FROM county_customers WHERE source = 'eaglei_file' AND source_year = ? AND ({scope_where})", [year])
+        # Select the denominator from the latest actual source timestamp for
+        # each county. Duplicate county/timestamp observations were rejected
+        # above, so this is a stable one-row county/year/source replacement.
+        con.execute(
+            """INSERT INTO county_customers (county_fips, source_year, customers, source)
+               SELECT county_fips, ?, total_customers, 'eaglei_file'
+               FROM (
+                   SELECT county_fips, total_customers,
+                          row_number() OVER (PARTITION BY county_fips ORDER BY ts DESC, raw_timestamp DESC) AS ordinal
+                   FROM _eaglei_tx
+                   WHERE customers_out IS NOT NULL AND total_customers IS NOT NULL
+               ) WHERE ordinal = 1""",
+            [year],
+        )
+        con.execute("DELETE FROM eaglei_ingest_quality WHERE source_year = ?", [year])
+        con.execute(
+            """INSERT INTO eaglei_ingest_quality VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            [year, path.name, source_tz, raw_rows, valid_rows, missing_customers,
+             negative_customers, duplicate_keys, source_counties, utc_now()],
+        )
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
         raise
-    rows = len(frame)
+    rows = int(valid_rows)
     log_artifact(con, source="eaglei", source_release=str(year), path=path, rows_loaded=rows,
                  schema_fingerprint="fips_code,county,state,customers_out,run_start_time[,total_customers]; null targets excluded and counted")
     return rows

@@ -35,11 +35,12 @@ def save(url: str, path: Path, user_agent: str) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--raw-dir", default="data/raw")
-    parser.add_argument(
+    state_args = parser.add_mutually_exclusive_group()
+    state_args.add_argument(
         "--states", nargs="+", metavar="STATE",
         help="one or more postal abbreviations; commas are accepted (default: TX)",
     )
-    parser.add_argument("--state", action="append", help="USPS, full name, or two-digit FIPS; repeat or comma-separate")
+    state_args.add_argument("--state", action="append", help="USPS, full name, or two-digit FIPS; repeat or comma-separate")
     parser.add_argument("--dod", action="store_true")
     parser.add_argument("--nws-user-agent", help="required to fetch NWS alerts; include a real contact")
     args = parser.parse_args()

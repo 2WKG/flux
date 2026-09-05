@@ -50,14 +50,18 @@ def load_nri(con, source_path: str, release: str = "v1.20", states=None, *, stat
     source = _county_records(path)
     selected = source[source["STATEABBRV"].isin(selected_scope.source_values("fema_nri"))].copy()
     selected["county_fips"] = selected["STCOFIPS"].map(fips5)
-    selected = selected[selected.county_fips.notna()]
+    if selected.county_fips.isna().any() or not selected.county_fips.str[:2].isin(selected_scope.fips).all():
+        raise ValueError("NRI has invalid or inconsistent county FIPS")
+    population_values = _number(selected, "POPULATION")
+    if population_values.isna().any() or (population_values < 0).any():
+        raise ValueError("NRI population is required and must be nonnegative")
     hazard = pd.DataFrame({
         "county_fips": selected.county_fips,
         "nri_score": _number(selected, "RISK_SCORE"),
         "wildfire_hazard": pd.NA,
         "seismic_pga": pd.NA,
     })
-    state_where = " OR ".join(f"county_fips LIKE '{value}%'" for value in selected_scope.fips)
+    state_where = selected_scope.county_where()
     replace_frame(con, "hazard_static", hazard, where=state_where, source_name="fema_nri",
                   source_ref=path.name, source_version=release, fixture_batch_id=f"p0-nri-{release}-{selected_scope.slug}")
     # Population belongs in the canonical county table, while the source remains in NRI provenance.
@@ -78,8 +82,9 @@ def load_nri(con, source_path: str, release: str = "v1.20", states=None, *, stat
             "risk_score": _number(selected, score), "risk_rating": selected.get(rating),
             "eal_value": _number(selected, eal), "source_release": release,
         }))
-    if records:
-        replace_frame(con, "nri_hazards", pd.concat(records, ignore_index=True), where=f"source_release = '{release}' AND ({state_where})")
+    helper = pd.concat(records, ignore_index=True) if records else pd.DataFrame()
+    escaped_release = release.replace("'", "''")
+    replace_frame(con, "nri_hazards", helper, where=f"source_release = '{escaped_release}' AND ({state_where})")
     log_artifact(con, source="fema_nri", source_release=release, path=path, rows_loaded=len(hazard),
                  schema_fingerprint="STCOFIPS,POPULATION,RISK_SCORE,hazard risk/eal columns")
     return len(hazard)

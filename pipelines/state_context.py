@@ -1,4 +1,4 @@
-"""Isolated public-context stores using the shared provenance-aware schema."""
+"""Public context uses the canonical shared database."""
 
 from __future__ import annotations
 
@@ -9,13 +9,12 @@ from pipelines.state_scope import StateScope, scope
 
 
 def context_db_path(states=None, db_root: str | Path = "data/duck") -> Path:
-    selected = states if isinstance(states, StateScope) else scope(states)
-    root = Path(db_root)
-    return root / "grid.duckdb" if selected.is_texas_only else root / "context" / f"{selected.slug}.duckdb"
+    scope(states) if not isinstance(states, StateScope) else states
+    return Path(db_root) / "grid.duckdb"
 
 
 def connect_context(states=None, db_root: str | Path = "data/duck"):
-    """Open a separate non-Texas shared-contract store with no topology rows."""
+    """Open the shared store for non-Texas context acquisition."""
     selected = states if isinstance(states, StateScope) else scope(states)
     if selected.is_texas_only:
         raise ValueError("Texas P0 uses pipelines.build; context stores are non-Texas only")

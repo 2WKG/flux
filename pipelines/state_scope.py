@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
 
 
 _DATA = """01|AL|Alabama
@@ -96,7 +95,10 @@ def _flatten(values) -> tuple:
     if isinstance(values, (str, int, State)): values = (values,)
     result = []
     for value in values:
-        result.extend(part.strip() for part in value.split(",") if part.strip()) if isinstance(value, str) else result.append(value)
+        if isinstance(value, str):
+            result.extend(part.strip() for part in value.split(",") if part.strip())
+        else:
+            result.append(value)
     return tuple(result)
 
 @dataclass(frozen=True)
@@ -121,6 +123,11 @@ class StateScope:
         try: encoding = SOURCE_ENCODINGS[source_id]
         except KeyError as error: raise StateScopeError(f"source {source_id!r} has no declared state encoding") from error
         return tuple(item.source_value(encoding) for item in self.states)
+    def county_where(self, column: str = "county_fips") -> str:
+        if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_]*)?", column):
+            raise StateScopeError("unsafe county column")
+        return " OR ".join(f"{column} LIKE '{item}%'" for item in self.fips)
+
     def raw_dir(self, root: str | Path, source: str, release: str, *, shared_national_artifact=False) -> Path:
         return Path(root) / source / release / ("national" if shared_national_artifact else f"scope={self.slug}")
 
