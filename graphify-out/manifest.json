@@ -1,0 +1,74 @@
+{
+  "pitch/hackathon-pitches-and-designs.md": {
+    "mtime": 1788612698.400915,
+    "seen": 1788614213.9187741,
+    "ast_hash": "e3e2147833319b7df6e397619785adac",
+    "semantic_hash": "e3e2147833319b7df6e397619785adac"
+  },
+  "specs/00-overview.md": {
+    "mtime": 1788613339.605225,
+    "seen": 1788614213.918777,
+    "ast_hash": "180987e958ddda4cb7b8a96a8da6b8be",
+    "semantic_hash": "180987e958ddda4cb7b8a96a8da6b8be"
+  },
+  "specs/01-data-ingest.md": {
+    "mtime": 1788612897.1441526,
+    "seen": 1788614213.918779,
+    "ast_hash": "8d62d1d9343b63740ee12c1438157189",
+    "semantic_hash": "8d62d1d9343b63740ee12c1438157189"
+  },
+  "specs/02-outage-model.md": {
+    "mtime": 1788613217.597254,
+    "seen": 1788614213.9187799,
+    "ast_hash": "dbc94fc306e3ad360e6ecfd899fd4995",
+    "semantic_hash": "dbc94fc306e3ad360e6ecfd899fd4995"
+  },
+  "specs/03-cascade-sim.md": {
+    "mtime": 1788612787.871296,
+    "seen": 1788614213.9187799,
+    "ast_hash": "6a1ad012eacdad8687eea84926637770",
+    "semantic_hash": "6a1ad012eacdad8687eea84926637770"
+  },
+  "specs/04-siting-engine.md": {
+    "mtime": 1788613339.6055362,
+    "seen": 1788614213.918781,
+    "ast_hash": "476d40ea675bb70a2f15744c47248c54",
+    "semantic_hash": "476d40ea675bb70a2f15744c47248c54"
+  },
+  "specs/05-copilot.md": {
+    "mtime": 1788613339.6049864,
+    "seen": 1788614213.918781,
+    "ast_hash": "7db566a445ba7a70f17ef0c8bbbd8779",
+    "semantic_hash": "7db566a445ba7a70f17ef0c8bbbd8779"
+  },
+  "specs/06-frontend.md": {
+    "mtime": 1788612723.3614678,
+    "seen": 1788614213.918782,
+    "ast_hash": "3dd791cc270679dd16ad58cb8357f3ef",
+    "semantic_hash": "3dd791cc270679dd16ad58cb8357f3ef"
+  },
+  "specs/07-causal-layer.md": {
+    "mtime": 1788613193.070799,
+    "seen": 1788614213.918782,
+    "ast_hash": "dd89cd14d402240d78d05275a6594f8f",
+    "semantic_hash": "dd89cd14d402240d78d05275a6594f8f"
+  },
+  "specs/08-line-upgrade-screen.md": {
+    "mtime": 1788612721.5092897,
+    "seen": 1788614213.918783,
+    "ast_hash": "0902f2687dd3090b2a0ef66140a323a7",
+    "semantic_hash": "0902f2687dd3090b2a0ef66140a323a7"
+  },
+  "specs/09-backup-idea2-datacenter-load.md": {
+    "mtime": 1788612704.976188,
+    "seen": 1788614213.918783,
+    "ast_hash": "c24e656ee759b4acafb9dc8bef01604e",
+    "semantic_hash": "c24e656ee759b4acafb9dc8bef01604e"
+  },
+  "specs/README.md": {
+    "mtime": 1788612700.0171072,
+    "seen": 1788614213.918784,
+    "ast_hash": "4ff334b806c2af54bd74de0b1382b295",
+    "semantic_hash": "4ff334b806c2af54bd74de0b1382b295"
+  }
+}

@@ -1,8 +1,8 @@
-# Flux resilience desk
+# Flux — grid resilience data product
 
-Flux is a Node-served React application for comparing power-system resilience scenarios. It currently ships a clearly labeled synthetic fixture; its data boundary is designed for upcoming network, scenario, and candidate-site ingestion.
+Flux compares resilience scenarios on a synthetic fixture today and is structured for national-grid data ingestion next. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
 
-## Run
+## Run the desk
 
 ```powershell
 python model/generate_demo.py
@@ -10,11 +10,11 @@ npm --prefix web install
 npm --prefix web run dev
 ```
 
-Open `http://localhost:4173`. `npm --prefix web run build` creates the browser bundle; `npm --prefix web start` serves an already-built bundle.
+Open `http://localhost:4173`. The React client reads `GET /api/demo`; the Node server currently returns `data/demo/bundle.json`. Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
-## Data contract
+## Repository context
 
-The React client loads `GET /api/demo`. The Node server reads `data/demo/bundle.json`; today it is produced by the deterministic synthetic generator. Future ingestion jobs should validate and publish the same versioned contract to that location (or replace the API implementation) without requiring a client rewrite.
+The project is expanding from the current synthetic preview toward source-backed network, scenario, and candidate-site datasets. The wider research plan and data catalog live in `docs/specs/` and `datasets/README.md`. Bulk downloads, parquet outputs, and DuckDB files remain outside Git.
 
 ## Verify
 
@@ -23,4 +23,4 @@ python -m unittest discover -s model -p "test_*.py"
 npm --prefix web run build
 ```
 
-The synthetic fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.
+The current fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.
