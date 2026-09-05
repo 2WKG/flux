@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 
 from models.outage.contracts import Partition, SplitAssignment, SplitManifest, WindowKey
+from models.outage.split import manifest_sha256
 from models.outage.transforms import (
     TRANSFORM_VERSION,
     TransformError,
@@ -21,8 +22,8 @@ def _key(at: datetime) -> WindowKey:
 
 
 def _manifest() -> SplitManifest:
-    return SplitManifest(
-        split_id="split-test",
+    manifest = SplitManifest(
+        split_id="split-pending",
         seed=7,
         input_artifact_sha256=HASH,
         assignments=(
@@ -32,6 +33,9 @@ def _manifest() -> SplitManifest:
             SplitAssignment(key=_key(datetime(2024, 1, 1, tzinfo=UTC)), partition=Partition.TRAIN),
             SplitAssignment(key=_key(datetime(2024, 7, 10, tzinfo=UTC)), partition=Partition.EXCLUDED),
         ),
+    )
+    return manifest.model_copy(
+        update={"split_id": f"split-{manifest_sha256(manifest)[:16]}"}
     )
 
 
@@ -114,7 +118,7 @@ def test_feature_output_carries_versioned_input_and_transform_provenance():
     assert result.provenance == {
         "transform_sha256": artifact.artifact_sha256,
         "transform_version": TRANSFORM_VERSION,
-        "split_id": "split-test",
+        "split_id": _manifest().split_id,
         "source_input_sha256": HASH,
         "feature_set_version": "outage-features-v1",
     }
@@ -125,6 +129,24 @@ def test_fit_rejects_a_partial_or_mismatched_source_artifact():
         fit_feature_transforms(
             _frame().iloc[[1, 3]],
             _manifest(),
+            feature_columns=["gust_max"],
+            verified_input_artifact_sha256=HASH,
+            feature_set_version="outage-features-v1",
+        )
+
+
+def test_fit_rejects_a_manifest_whose_assignments_no_longer_match_its_split_id():
+    manifest = _manifest()
+    tampered_assignments = (
+        SplitAssignment(key=manifest.assignments[0].key, partition=Partition.TRAIN),
+        *manifest.assignments[1:],
+    )
+    tampered = manifest.model_copy(update={"assignments": tampered_assignments})
+
+    with pytest.raises(TransformError, match="split_id"):
+        fit_feature_transforms(
+            _frame(),
+            tampered,
             feature_columns=["gust_max"],
             verified_input_artifact_sha256=HASH,
             feature_set_version="outage-features-v1",

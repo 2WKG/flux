@@ -121,7 +121,7 @@ def partition_rows(
     from silently being used for a refreshed source artifact.
     """
 
-    _verify_manifest_integrity(manifest)
+    verify_manifest_integrity(manifest)
     if verified_input_artifact_sha256 != manifest.input_artifact_sha256:
         raise SplitError("verified input artifact hash does not match the manifest")
     materialized = tuple(rows)
@@ -384,7 +384,7 @@ def _positions(mask: pd.Series) -> list[int]:
     return mask.to_numpy().nonzero()[0].tolist()
 
 
-def _verify_manifest_integrity(manifest: SplitManifest) -> None:
+def verify_manifest_integrity(manifest: SplitManifest) -> None:
     """Reject manifests whose id no longer binds their membership and input."""
 
     if not re.fullmatch(r"[0-9a-f]{64}", manifest.input_artifact_sha256):
