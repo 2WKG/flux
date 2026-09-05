@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections import Counter
 from pathlib import Path
 
 import pandas as pd
@@ -53,6 +54,7 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
         raise ValueError(f"Storm Events file missing {sorted(missing)}")
     zones = _zone_crosswalk(zone_crosswalk)
     records: list[dict[str, object]] = []
+    unmatched_zones: Counter[str] = Counter()
     for row in texas.itertuples(index=False):
         event = row._asdict()
         source_tz = _cz_timezone(event["CZ_TIMEZONE"])
@@ -60,8 +62,11 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
             targets = [fips5(int(event["STATE_FIPS"]) * 1000 + int(event["CZ_FIPS"]))]
             method = "direct_county"
         else:
-            targets = zones.get(str(int(event["CZ_FIPS"])).zfill(3), [])
+            zone = str(int(event["CZ_FIPS"])).zfill(3)
+            targets = zones.get(zone, [])
             method = "nws_crosswalk"
+            if not targets:
+                unmatched_zones[zone] += 1
         for county_fips in targets:
             if county_fips is None:
                 continue
@@ -89,4 +94,14 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
                  schema_fingerprint="event id,time,type,county/zone,magnitude")
     log_artifact(con, source="nws_zone_county", source_release="bp16ap26", path=zone_crosswalk,
                  rows_loaded=len(zones), schema_fingerprint="state,zone,county_fips")
+    # Zone-level events are only usable after the NWS zone-to-county expansion.
+    # Keep their loss explicit in the built database rather than making an
+    # incomplete crosswalk look like an event-free county set.
+    con.execute("DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
+                ["noaa_storm_events", f"{year}:zone:%"])
+    for zone, count in unmatched_zones.items():
+        source_key = f"{year}:zone:{zone}"
+        con.execute("INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+                    ["noaa_storm_events", source_key,
+                     f"{count} Texas zone-type Storm Events had no county crosswalk mapping"])
     return rows
