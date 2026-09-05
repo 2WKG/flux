@@ -1,115 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import "./styles.css";
-
-type ScenarioId = "baseline" | "a" | "b";
-type Bus = { id: string; name: string; x: number; y: number };
-type Line = { id: string; from: string; to: string; capacityMw: number };
-type Scenario = {
-  label: string;
-  shedMw: number;
-  shedMwh: number;
-  availableGenerationMw: number;
-  demandMw: number;
-  improvementMw: number;
-  improvementMwh: number;
-  lineLoadings: Record<string, number>;
-  reasons: string[];
-};
-type Bundle = {
-  fixtureHash: string;
-  solverStatus: string;
-  stress: { name: string; demandMultiplier: number; generationAvailability: number; durationHours: number };
-  limitations: string[];
-  sources: { label: string; detail: string }[];
-  network: { buses: Bus[]; lines: Line[]; candidates: { id: "a" | "b"; name: string; busId: string; x: number; y: number; addedMw: number; description: string }[] };
-  scenarios: Record<ScenarioId, Scenario>;
-};
-
-function loadingColor(value: number) {
-  if (value >= 90) return "#f16b52";
-  if (value >= 75) return "#f4bd4f";
-  return "#42c7a5";
+type Id = "baseline" | "a" | "b";
+type Bundle = any;
+const color = (n: number) => n >= 90 ? "#ff7d68" : n >= 75 ? "#ffcc66" : "#46d7b0";
+function Network({ data, selected, select }: { data: Bundle; selected: Id; select: (x: Id) => void }) {
+  const buses = Object.fromEntries(data.network.buses.map((b: any) => [b.id, b])); const loads = data.scenarios[selected].lineLoadings;
+  return <svg viewBox="0 0 760 540" className="network" aria-label="Synthetic network comparison">{data.network.lines.map((l: any) => { const a = buses[l.from], b = buses[l.to], v = loads[l.id]; return <g key={l.id}><line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={color(v)} /><text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 12}>{v}%</text></g>; })}{data.network.buses.map((b: any) => <g key={b.id}><circle cx={b.x} cy={b.y} r="12"/><text x={b.x} y={b.y + 32}>{b.name}</text></g>)}{data.network.candidates.map((c: any) => <g key={c.id} className="pin" onClick={() => select(c.id)} role="button" tabIndex={0}><circle cx={c.x} cy={c.y - 38} r="18" className={selected === c.id ? "chosen" : ""}/><text x={c.x} y={c.y - 32}>{c.id.toUpperCase()}</text></g>)}</svg>;
 }
-
-function Network({ bundle, selected, onSelect }: { bundle: Bundle; selected: ScenarioId; onSelect: (id: ScenarioId) => void }) {
-  const buses = Object.fromEntries(bundle.network.buses.map((bus) => [bus.id, bus]));
-  const loading = bundle.scenarios[selected].lineLoadings;
-  return <svg className="network" viewBox="0 0 760 520" role="img" aria-label="Synthetic grid network">
-    <rect x="0" y="0" width="760" height="520" rx="20" fill="#0d2138" />
-    <g className="grid-lines">
-      {bundle.network.lines.map((line) => {
-        const from = buses[line.from]; const to = buses[line.to]; const percent = loading[line.id];
-        return <g key={line.id}>
-          <line x1={from.x} y1={from.y} x2={to.x} y2={to.y} stroke={loadingColor(percent)} strokeWidth="8" strokeLinecap="round" />
-          <text x={(from.x + to.x) / 2} y={(from.y + to.y) / 2 - 10} textAnchor="middle" className="line-label">{percent}%</text>
-        </g>;
-      })}
-    </g>
-    {bundle.network.buses.map((bus) => <g key={bus.id}>
-      <circle cx={bus.x} cy={bus.y} r="13" fill="#dcecff" stroke="#07121f" strokeWidth="5" />
-      <text x={bus.x} y={bus.y + 32} textAnchor="middle" className="bus-label">{bus.name}</text>
-    </g>)}
-    {bundle.network.candidates.map((candidate) => <g key={candidate.id} className="candidate" onClick={() => onSelect(candidate.id)} tabIndex={0} role="button" aria-label={`Select ${candidate.name}`} onKeyDown={(event) => event.key === "Enter" && onSelect(candidate.id)}>
-      <circle cx={candidate.x} cy={candidate.y - 34} r="17" fill={selected === candidate.id ? "#f4bd4f" : "#2f8cff"} stroke="#fff" strokeWidth="3" />
-      <text x={candidate.x} y={candidate.y - 28} textAnchor="middle" className="pin-label">{candidate.id.toUpperCase()}</text>
-    </g>)}
-  </svg>;
-}
-
 function App() {
-  const [bundle, setBundle] = useState<Bundle | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<ScenarioId>("baseline");
-  const [showInfo, setShowInfo] = useState(false);
-
-  const loadBundle = () => {
-    setError(null);
-    fetch("/demo/bundle.json", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : Promise.reject(new Error(`Bundle load failed (${response.status})`)))
-      .then((payload: Bundle) => setBundle(payload))
-      .catch((reason: Error) => setError(`${reason.message}. Run python model/generate_demo.py, then retry.`));
-  };
-
-  useEffect(loadBundle, []);
-  const scenario = bundle?.scenarios[selected];
-  const selectedCandidate = useMemo(() => bundle?.network.candidates.find((candidate) => candidate.id === selected), [bundle, selected]);
-
-  if (error) return <main className="error-card"><h1>Flux demo data is unavailable</h1><p>{error}</p><button onClick={loadBundle}>Retry</button></main>;
-  if (!bundle || !scenario) return <main className="loading">Loading the offline demo bundle…</main>;
-
-  return <main>
-    <header className="hero">
-      <div><p className="eyebrow">Flux · illustrative grid resilience</p><h1>Where does a 300 MW addition reduce modeled shedding most?</h1></div>
-      <button className="secondary" onClick={() => setShowInfo(true)}>Sources & limits</button>
-    </header>
-
-    <section className="notice"><strong>Synthetic fixture:</strong> this offline five-bus model is a placeholder until D01 data is available. It is not a Texas-grid study or outage forecast.</section>
-
-    <section className="scenario-tabs" aria-label="Scenario selection">
-      {(["baseline", "a", "b"] as ScenarioId[]).map((id) => <button key={id} className={selected === id ? "active" : ""} onClick={() => setSelected(id)}>{bundle.scenarios[id].label}</button>)}
-      <button className="reset" onClick={() => setSelected("baseline")}>Reset to baseline</button>
-    </section>
-
-    <section className="dashboard">
-      <div className="map-card"><div className="card-title"><span>Synthetic branch loading</span><span className="legend"><i className="low" /> below 75% <i className="mid" /> 75–89% <i className="high" /> 90%+</span></div><Network bundle={bundle} selected={selected} onSelect={setSelected} /></div>
-      <aside className="results-card">
-        <p className="eyebrow">{scenario.label}</p>
-        <div className="metric major"><span>Modeled shedding</span><strong>{scenario.shedMw} <small>MW</small></strong><em>{scenario.shedMwh} MWh over {bundle.stress.durationHours} hours</em></div>
-        <div className="metric-grid">
-          <div className="metric"><span>Change vs baseline</span><strong>{selected === "baseline" ? "—" : `−${scenario.improvementMw} MW`}</strong></div>
-          <div className="metric"><span>Available generation</span><strong>{scenario.availableGenerationMw} MW</strong></div>
-          <div className="metric"><span>Modeled demand</span><strong>{scenario.demandMw} MW</strong></div>
-          <div className="metric"><span>Fixture hash</span><strong>{bundle.fixtureHash}</strong></div>
-        </div>
-        {selectedCandidate && <div className="candidate-copy"><h2>{selectedCandidate.name}</h2><p>{selectedCandidate.description}</p><ul>{scenario.reasons.map((reason) => <li key={reason}>{reason}</li>)}</ul></div>}
-      </aside>
-    </section>
-
-    <section className="assumptions"><h2>Fixed stress assumptions</h2><dl><div><dt>Demand</dt><dd>{bundle.stress.demandMultiplier}× baseline</dd></div><div><dt>Generation availability</dt><dd>{Math.round(bundle.stress.generationAvailability * 100)}%</dd></div><div><dt>Snapshot duration</dt><dd>{bundle.stress.durationHours} hours</dd></div><div><dt>Calculation status</dt><dd>{bundle.solverStatus}</dd></div></dl></section>
-
-    {showInfo && <div className="modal-backdrop" role="presentation" onMouseDown={() => setShowInfo(false)}><section className="modal" role="dialog" aria-modal="true" aria-label="Sources and limitations" onMouseDown={(event) => event.stopPropagation()}><button className="close" onClick={() => setShowInfo(false)} aria-label="Close">×</button><h2>Sources & limits</h2><ul>{bundle.sources.map((source) => <li key={source.label}><strong>{source.label}:</strong> {source.detail}</li>)}</ul><h3>What this does not establish</h3><ul>{bundle.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul></section></div>}
-  </main>;
+  const [data, setData] = useState<Bundle>(); const [selected, setSelected] = useState<Id>("baseline"); const [detail, setDetail] = useState(false);
+  useEffect(() => { fetch("/api/demo").then(r => r.ok ? r.json() : Promise.reject()).then(setData).catch(() => setData(null)); }, []);
+  const scenario = data?.scenarios[selected]; const candidate = useMemo(() => data?.network.candidates.find((c: any) => c.id === selected), [data, selected]);
+  if (data === undefined) return <main className="loading">Loading Flux data layer…</main>;
+  if (!data) return <main className="loading">The demo data is unavailable. Run <code>python model/generate_demo.py</code>.</main>;
+  return <main><nav><div className="brand"><b>FLUX</b><span>Resilience desk</span></div><div className="live"><i/> {data.dataStatus.mode} data · API connected</div><button onClick={() => setDetail(true)}>Data & limits</button></nav><header><p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p><h1>Choose where added capacity makes the largest modeled difference.</h1><p>Compare a fixed stress condition across a baseline and two candidate additions. The client reads a stable Node API contract, ready for the ingestion pipeline.</p></header><section className="bar"><div><span>Scenario</span><strong>{scenario.label}</strong></div><div><span>Stress</span><strong>{data.stress.demandMultiplier}× demand · {Math.round(data.stress.generationAvailability * 100)}% available</strong></div><div><span>Window</span><strong>{data.stress.durationHours}-hour snapshot</strong></div><div><span>Payload</span><strong>v{data.schemaVersion} · {data.fixtureHash}</strong></div></section><section className="switcher">{(["baseline", "a", "b"] as Id[]).map(id => <button className={id === selected ? "selected" : ""} onClick={() => setSelected(id)} key={id}><small>{id === "baseline" ? "00" : id.toUpperCase()}</small>{data.scenarios[id].label}</button>)}<button className="reset" onClick={() => setSelected("baseline")}>Reset view</button></section><section className="workspace"><article className="map"><div className="section-title"><span>NETWORK STATE</span><p>Branch utilization <i className="low"/> normal <i className="mid"/> elevated <i className="high"/> constrained</p></div><Network data={data} selected={selected} select={setSelected}/><div className="map-footer">SYNTHETIC FIVE-BUS NETWORK <b>•</b> Values are saved scenario outputs</div></article><aside><div className="outcome"><p className="eyebrow">MODELED UNMET DEMAND</p><strong>{scenario.shedMw}<small> MW</small></strong><p>{scenario.shedMwh} MWh across the fixed window</p><div className="delta">{selected === "baseline" ? "Baseline reference" : `−${scenario.improvementMw} MW vs baseline`}</div></div><div className="stats"><div><span>Demand</span><b>{scenario.demandMw} MW</b></div><div><span>Available supply</span><b>{scenario.availableGenerationMw} MW</b></div></div>{candidate && <div className="insight"><p className="eyebrow">{candidate.name} / +{candidate.addedMw} MW</p><h2>{candidate.description}</h2>{scenario.reasons.map((r: string) => <p key={r}>↳ {r}</p>)}</div>}</aside></section><section className="pipeline"><div><p className="eyebrow">INGESTION-READY DATA LAYER</p><h2>Synthetic data today. Higher-fidelity evidence tomorrow.</h2></div><p>The UI consumes <code>GET /api/demo</code>. Replace the bundle writer with source-specific ingestion and validation jobs without changing scenario controls, map rendering, or comparison math.</p></section>{detail && <div className="overlay" onMouseDown={() => setDetail(false)}><section className="modal" onMouseDown={e => e.stopPropagation()}><button onClick={() => setDetail(false)}>×</button><p className="eyebrow">DATA DISCLOSURE</p><h2>What this view can—and cannot—say</h2><ul>{data.sources.map((s: any) => <li key={s.label}><b>{s.label}</b> — {s.detail}</li>)}</ul><ul>{data.limitations.map((x: string) => <li key={x}>{x}</li>)}</ul></section></div>}</main>;
 }
-
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(<App/>);
