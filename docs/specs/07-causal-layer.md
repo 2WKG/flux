@@ -76,7 +76,7 @@ Edges: `weather_severity→line_failures`, `weather_type→line_failures`, `expo
 `line_failures→customers_out`, `investment→customers_out`, `weather_severity→customers_out`
 (direct edge for generation-shortfall events like Uri, which is not a wires story).
 
-Fitting: `pgmpy.models.BayesianNetwork` + `BayesianEstimator(prior_type='BDeu', equivalent_sample_size=10)`
+Fitting: `pgmpy.models.DiscreteBayesianNetwork` (installed pgmpy 1.1.2: importing `pgmpy.models.BayesianNetwork` raises `ImportError: BayesianNetwork is deprecated`) + `model.fit(data, estimator=BayesianEstimator, prior_type='BDeu', equivalent_sample_size=10)`
 on every `outage_features` row with a non-NULL label (TX 2021 + 2024 ≈ 600k rows; downsample
 negatives 10:1 with weights). Latent `line_failures` (windows with no cascade run) uses
 `pgmpy.estimators.ExpectationMaximization` `[UNVERIFIED: EM runtime on 60k rows — cap at 20 iterations, else fit only on windows with a cascade run]`.
@@ -90,7 +90,7 @@ Attribution query (per county, per scenario peak window), via `VariableEliminati
 - `share_investment = (p_factual − p_weather_only) / p_factual`, clipped [0,1];
   `share_weather = 1 − share_investment`. Written to `causal_attribution`.
 - `do()` here is implemented as evidence on a graph with the incoming edges to the intervened
-  node removed (`BayesianNetwork.do(node)`), which is exact for this DAG.
+  node removed (`DiscreteBayesianNetwork.do(node)`; `pgmpy.inference.CausalInference` is the alternative), which is exact for this DAG.
 
 Honesty ledger for C1: the graph is **hand-specified, not discovered**; `investment` is a proxy
 (SAIDI trend, which is partly an *outcome* of weather — the confounder is imperfect and the
@@ -137,19 +137,24 @@ diff     = per county per hour: customers_out_factual − customers_out_cf (from
   so the element-failure draws are identical and the only difference is the added generator (a
   proper counterfactual under the twin's structural model: abduction = reuse the draws,
   action = `create_gen`, prediction = re-run). The cf rows are written to `cascade_runs` with
-  `run_id = f"uri_2021-s{seed}-cf:{site_id}:{capacity_mw}"` so the front end's playback layer can show both.
+  `run_id = f"uri_2021-s{seed}-cf-{site_id}-{int(capacity_mw)}"` and `counterfactual_site_id = site_id`
+  (00-overview amendment A1 convention `<scenario_id>-s<seed>-cf-<site_id>-<unit_mw>`; spec 04 writes the #1
+  site's 1000 MW row under the same convention, so `precompute` must reuse rather than duplicate it) so the
+  front end's playback layer can show both.
 - `critical_loads_kept` = entries of the factual `critical_loads_lost_json` absent from the cf run, with `hour_lost`.
 - Runs for the top-5 `site_scores` sites (`scenario_id='all'` ranking) at 300 MW and 1,000 MW;
   results cached in `counterfactual_runs` so the demo never waits on pandapower.
 - `replay_with_hardening(line_ids, failure_multiplier)` builds `net_cf` by scaling those lines'
-  fragility (spec 03 `FragilityParams` per-element override `[UNVERIFIED: spec 03 exposes a per-line
-  multiplier; if not, emulate by raising `rate_a_mw` ×1.5 and removing the lines from the weather-failure
-  candidate set]`) — this is what makes Idea 3's screen (spec 08) causal rather than a ranking.
+  fragility (spec 03 `FragilityParams` per-element override `[UNVERIFIED: a grep of spec 03 on 2026-09-05
+  shows `FragilityParams` with no per-element multiplier field, so plan on the emulation path — raise
+  `rate_a_mw` ×1.5 and remove the lines from the weather-failure candidate set — unless spec 03 adds one]`) — this is what makes Idea 3's screen (spec 08) causal rather than a ranking.
 
 ### Copilot citation contract (`copilot/tools/causal_query.py`)
 
-`causal_query` is registered as a sixth tool in `copilot/tools/registry.py` (alongside spec 05's
-`predict_outage, run_cascade, score_site, top_lines, sql, cite`) with a 30 s timeout. It returns
+`causal_query` is registered as a **seventh** tool in `copilot/tools/registry.py` (alongside the six
+contract tools `predict_outage, run_cascade, score_site, top_lines, sql, cite` from 00-overview §2.4;
+00-overview amendment A5 fixes those six signatures but does not list an additive seventh tool — the
+overview owner must ratify this addition) with a 30 s timeout. It returns
 `{answer_numbers: dict, method: str, assumptions: list[str], interval: [lo, hi] | None,
 evidence_rows: list[dict], citations: list[{"source": str, "locator": str}]}`.
 Spec 05's number-trace verifier already checks every numeral in the final text against tool
@@ -168,8 +173,8 @@ distinguishable from zero".
 NODES: list[str]; EDGES: list[tuple[str, str]]
 def discretise(features: pd.DataFrame, cuts: dict | None = None) -> tuple[pd.DataFrame, dict]: ...
 def fit_bn(discrete: pd.DataFrame, latent: tuple[str, ...] = ("line_failures",),
-           out_dir: str = "causal/artifacts") -> "pgmpy.models.BayesianNetwork": ...
-def load_bn(path: str = "causal/artifacts/outage_bn.bif") -> "pgmpy.models.BayesianNetwork": ...
+           out_dir: str = "causal/artifacts") -> "pgmpy.models.DiscreteBayesianNetwork": ...
+def load_bn(path: str = "causal/artifacts/outage_bn.bif") -> "pgmpy.models.DiscreteBayesianNetwork": ...
 def attribute(bn, county_fips: str, scenario_id: str, con) -> dict: ...
 # → {p_factual, p_out_weather_only, p_out_invest_only, share_weather, share_investment, evidence: dict}
 def attribute_scenario(con, bn, scenario_id: str, states: tuple[str, ...] = ("TX",)) -> int: ...  # rows → causal_attribution
@@ -225,7 +230,7 @@ CLI: `uv run python -m causal.bn --fit --states TX`; `uv run python -m causal.bn
 
 ## Demo hook
 
-Closing slide (demo step 4/5): the Uri factual outage map next to `counterfactual_runs` for site #1 at 1 GW — "same storm, this site online: Fort Cavazos stays green, X M customer-hours avoided" — with the copilot answering "how much of Bell County's risk was weather vs under-investment?" from `causal_attribution` and quoting the hardening DiD only with its interval. The judges' policy question ("is this weather or neglect?") is answered by C1; the investment question ("does firm generation actually help?") by C3 first (twin, exact) and C2 second (history, noisy).
+Closing slide (demo step 4/5): the Uri factual outage map next to `counterfactual_runs` for site #1 at 1 GW — "same storm, this site online: Fort Hood stays green, X M customer-hours avoided" (the installation reverted from Fort Cavazos to Fort Hood on 11 June 2025; 00-overview uses "Fort Hood (Fort Cavazos)") — with the copilot answering "how much of Bell County's risk was weather vs under-investment?" from `causal_attribution` and quoting the hardening DiD only with its interval. The judges' policy question ("is this weather or neglect?") is answered by C1; the investment question ("does firm generation actually help?") by C3 first (twin, exact) and C2 second (history, noisy).
 
 ## Risks / unknowns — honest ledger
 
@@ -237,7 +242,7 @@ Closing slide (demo step 4/5): the Uri factual outage map next to `counterfactua
 | C2 DiD / synthetic control | **Estimate with a wide interval at best.** With P0 data (2 years, TX) it is *slideware with a number attached*; needs EIA-861 (P1) and 2018–2025 EAGLE-I to be a defensible claim. Treatment proxies (SAIDI improvement, capacity additions) are confounded by the very storms we study; refuters are reported, not hidden. Do not put a point estimate on a slide without the CI. |
 | "Historically, adding firm generation near X reduced restoration time by Y" | Only quotable if AC 6–7 pass; otherwise the sentence is replaced by the C3 twin number, which is what we actually control. |
 | Grid2Op operator agent | Out of scope for this spec (stretch in spec 03). |
-| pgmpy / dowhy / econml install weight | econml pulls heavy deps; pin `econml==0.15.*`, `dowhy==0.12.*`, `pgmpy==0.1.26` `[UNVERIFIED versions]`; if econml fails to build, the `statsmodels` TWFE path is the deliverable and `method="twfe_only"`. |
+| pgmpy / dowhy / econml install weight | Already resolved in `uv.lock` (introspected 2026-09-05): `dowhy 0.14`, `econml 0.17.0`, `pgmpy 1.1.2`, `gridstatus 0.36.0`. `CausalModel.estimate_effect(method_name="backdoor.econml.dml.LinearDML")`, `refute_estimate(method_name="placebo_treatment_refuter" / "random_common_cause" / "data_subset_refuter")`, `pgmpy.estimators.{BayesianEstimator, ExpectationMaximization}`, `pgmpy.inference.VariableElimination`, `pgmpy.readwrite.BIFWriter` all exist. If econml fails at runtime, the `statsmodels` TWFE path is the deliverable and `method="twfe_only"`. |
 
 ## Weekend time-box (hours)
 

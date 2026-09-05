@@ -1,9 +1,11 @@
-# flux — national grid digital twin (hackathon)
+# flux — GridMind, a national grid digital twin (hackathon)
 
-Outage prediction + cascade simulation + nuclear/firm-generation siting on a
-synthetic-but-realistic US grid, Texas first. Pitch source:
-`docs/pitch/hackathon-pitches-and-designs.md`. Build specs: `docs/specs/`
-(start at `docs/specs/README.md`, then `00-overview.md`).
+**GridMind**: outage prediction + cascade simulation + nuclear/firm-generation
+siting on a synthetic-but-realistic US grid, Texas first. (Product name is
+GridMind; the repo is `flux`.) Product description: `discription.md`. Pitch
+(v2, two ideas; backup = Speed-to-Power): `hackathon-pitches-and-designs.md`,
+mirrored at `docs/pitch/hackathon-pitches-and-designs.md`. Build specs:
+`docs/specs/` (start at `docs/specs/README.md`, then `00-overview.md`).
 
 ## Layout
 

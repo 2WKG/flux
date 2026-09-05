@@ -22,13 +22,13 @@ Modules: `pipelines/congestion.py`, `twin/dlr.py` (IEEE 738), `twin/reconductor.
 |---|---|---|
 | `lines(line_id, from_bus, to_bus, base_kv, r_pu, x_pu, rate_a_mw, length_km, geom_wkb)` | DuckDB (spec 01) | Synthetic ACTIVSg2000 lines. |
 | HIFLD transmission lines (archived) | `data/raw/hifld/Electric_Power_Transmission_Lines.*` (DataLumos / Data Rescue archive), Texas clip | Columns used: `VOLTAGE`, `OWNER`, `TYPE` (AC/DC), geometry. Joined to synthetic `lines` by nearest-geometry + kV class (Hausdorff ≤ 5 km, same kV class) to attach `owner` and a real-line "twin of record". Match rate is reported; unmatched lines keep `owner = NULL`. |
-| FERC Form 1 conductor data | PUDL `core_ferc1__yearly_transmission_lines_sched422` (**[UNVERIFIED exact table name]** — Form 1 schedule 422 "Transmission Line Statistics": conductor size/material, length, voltage, per utility) | Joined by `(owner, kV, length ± 20 %)` to attach `conductor_material`, `conductor_kcmil`. Fallback when no match: assume ACSR sized by kV class (`138→477 kcmil Hawk`, `230→795 Drake`, `345→2×954 Rail` **[UNVERIFIED — typical Texas practice]**). |
-| Congestion (ERCOT) | gridstatus `Ercot`/`ErcotAPI`: verified endpoints `SHADOW_PRICES_DAM_ENDPOINT='/np4-191-cd/dam_shadow_prices'` and `SHADOW_PRICES_SCED_ENDPOINT='/np6-86-cd/shdw_prices_bnd_trns_const'` (SCED binding transmission constraint shadow prices); `get_shadow_prices_dam()` exists; `get_lmp_by_settlement_point()` exists. ERCOT publishes no LMP congestion component — gridstatus notes congestion ≈ LMP − hub/bus average. | 2024 calendar year, `data/raw/gridstatus/ercot_*`. |
+| FERC Form 1 conductor data | PUDL `core_ferc1__yearly_transmission_lines_sched422` (verified: PUDL release notes / data viewer list this table, ~27k rows/yr through 2024 — Form 1 schedule 422 "Transmission Line Statistics": conductor size/material, length, voltage, per utility) | Joined by `(owner, kV, length ± 20 %)` to attach `conductor_material`, `conductor_kcmil`. Fallback when no match: assume ACSR sized by kV class (`138→477 kcmil Hawk`, `230→795 Drake`, `345→2×954 Rail` **[UNVERIFIED — typical Texas practice]**). |
+| Congestion (ERCOT) | gridstatus 0.36.0 (introspected 2026-09-05): `from gridstatus.ercot_api.ercot_api import ErcotAPI` (NOT exported from the top-level `gridstatus` package); endpoints `SHADOW_PRICES_DAM_ENDPOINT='/np4-191-cd/dam_shadow_prices'`, `SHADOW_PRICES_SCED_ENDPOINT='/np6-86-cd/shdw_prices_bnd_trns_const'`; methods `ErcotAPI.get_shadow_prices_sced(date, end=None)`, `ErcotAPI.get_shadow_prices_dam()`, `ErcotAPI.get_lmp_by_settlement_point()`, `ErcotAPI.get_lmp_by_bus()`. `gridstatus.Ercot` (no-key scraper) has `get_shadow_prices_dam()` only — no `get_lmp_by_settlement_point`, no SCED shadow prices. ERCOT publishes no LMP congestion component — gridstatus notes congestion ≈ LMP − hub/bus average. | 2024 calendar year, `data/raw/gridstatus/ercot_*`. |
 | Congestion (PJM, reference) | gridstatus `PJM.get_transmission_constraints_day_ahead_hourly()` (verified method) + LMP fields `congestion_price_rt`, `total_lmp_rt`, `marginal_loss_price_rt` (verified) | PJM monitored-facility names are the tractable ones; used to VALIDATE the constraint→line mapper on one known case (PPL DLR corridor) — not part of the Texas ranking. |
 | Weather climatology | `weather_hourly(county_fips, ts, wind_ms, gust_ms, temp_c, …)` for a full year (`data/parquet/weather_hourly_2024/`), plus NREL WIND Toolkit as stretch | Per-line: hourly wind/temp from the counties of the two end buses (line centroid county if available via `geom_wkb`). |
-| Costs | LBNL REFA v2 documentation (`refa.lbl.gov`, `REFA_v2_documentation.pdf` — verified exists; per-mile numbers **[UNVERIFIED until read]**); GridLab 2024 "Reconductoring with Advanced Conductors" technical report (verified: reconductoring < half the per-mile cost of new build; industry range $1–8 M/mile depending on voltage) | Stored in `data/raw/costs/refa_costs.yaml` with a `source_page` field per number. |
+| Costs | LBNL REFA: the v2 documentation URL now redirects to `refa.lbl.gov` (not fetched); the Nov 2024 REFA v1 documentation (`eta-publications.lbl.gov/.../2024.11_refa_documentation.pdf`, read 2026-09-05) is **parametric** — conductor acquisition/installation/accessory costs are `$/km` user inputs (Table 3, p.16), it publishes **no default per-mile cost table by voltage class**. Per-mile placeholders must therefore come from another source **[UNVERIFIED — candidate: GridLab 2024 technical report cost tables or MISO/CAISO per-unit cost guides]**. GridLab 2024 "Reconductoring with Advanced Conductors" (verified: reconductoring is less than half the per-mile cost of new build; advanced conductors can up to double capacity). The "industry range $1–8 M/mile" figure is **[UNVERIFIED]** — no primary source found. | Stored in `data/raw/costs/refa_costs.yaml` with a `source_page` field per number. |
 | DLR cost anchor | PPL: ~$1 M for 18 sensors on ~31 miles of three 230 kV segments (verified from FERC/TD World coverage) → ~$32 k/mile; we use **$40 k/mile** installed + $5 k/mile/yr O&M. | |
-| Policy | FERC DLR ANOPR RM24-6 (June 27 2024; verified: wind-forecast ratings required only on lines that are BOTH heavily congested AND in windy areas; the "$500 k/yr" figure is the pitch's reading **[UNVERIFIED]**); DOE SPARK NOFO (March 12 2026, $1.9 B, IIJA; awards $10–250 M; ≥ 50 % non-federal cost share, 25 % for small utilities; priorities: transfer capability, reliability, large-load growth — verified) | |
+| Policy | FERC DLR ANOPR RM24-6 (issued 27 June 2024, 89 FR 57690 on 15 July 2024; verified from the FR text: wind-based ratings would be required only on lines that are BOTH heavily congested AND in windy areas; the ANOPR **proposes no dollar threshold and no wind-speed threshold** — ¶125 "seeks comment on what threshold for congestion costs should be adopted", ¶120 "seeks comment on whether a wind speed threshold should be adopted". The pitch's "$500 k/yr" is NOT in the ANOPR; it is our own operationalization. Comments closed Nov 2024; no final rule as of Sept 2026. Same ANOPR cites IEEE 738-2023 and the PPL result); DOE SPARK NOFO (12 March 2026, up to $1.9 B, IIJA/GRIP round 3; awards $10–250 M; ≥ 50 % non-federal cost share, 25 % for eligible small utilities; priorities: transfer capability, reliability/resource adequacy, large-load growth — verified; concept papers 2 Apr, applications 20 May, selections anticipated Aug 2026, awards Oct 2026–Jan 2027) | |
 
 ## Outputs
 
@@ -51,15 +51,17 @@ carry their BA.
 
 **ERCOT (approximate, stated as such):**
 1. Pull 2024 SCED binding-constraint shadow prices (`/np6-86-cd/shdw_prices_bnd_trns_const`):
-   columns include constraint name, contingency, shadow price ($/MW), limit, and the
-   from/to station names **[UNVERIFIED column set — inspect the first pull]**.
+   columns include `Constraint Name`, `Contingency Name`, `Shadow Price`, `Constraint Limit`,
+   `Constraint Value`, `Violated MW`, and `From Station`/`To Station` (+ kV) (verified from gridstatus 0.36.0's
+   `_shadow_prices_column_name_mapper`; a `Limiting Facility` column `FROM_kV_TO_kV` is synthesized for
+   non-BASE-CASE rows).
 2. Constraint → line: parse the constraint name for the two station names + kV; fuzzy-match
    station names to HIFLD substation names (`data/raw/hifld/substations`), get the real line,
    then map to the synthetic `line_id` matched in step 1. Confidence tiers: `exact`,
    `fuzzy≥0.85`, `unmapped`. `congestion_method` records the tier.
 3. `congestion_usd_yr(line) = Σ_intervals shadow_price × constraint_limit_mw × (5/60)`
-   (shadow price × binding flow × interval hours — the standard "congestion rent" approximation
-   **[UNVERIFIED that ERCOT's file gives the binding flow; else use `limit`]**).
+   (shadow price × binding flow × interval hours — the standard "congestion rent" approximation;
+   ERCOT's file gives both `Constraint Value` (flow) and `Constraint Limit` — use `Constraint Value`, fall back to `Constraint Limit`).
 4. Unmapped constraint dollars are NOT spread across lines; they are reported as
    `unattributed_usd_yr` in the run summary so the demo can say what fraction was mapped.
 5. Where ERCOT constraints do not map at all, fall back to a **twin-derived congestion proxy**:
@@ -80,11 +82,15 @@ Heat balance (verified form): `q_c + q_r = I²·R(T_c) + q_s` → `I = sqrt((q_c
   with a fixed clear-sky mid-day `Q_se` by season (we do not model cloud cover; the FERC ANOPR
   asks for solar-position + cloud forecasts, so we state this simplification).
 - Conductor library `twin/conductors.yaml`: `{name, kcmil, diameter_m, R_ac_25C, R_ac_75C, T_max_C}` for
-  Hawk, Drake, Rail (ACSR), and ACCC/ACSS equivalents. Anchor: Drake 795 ACSR ≈ 900 A at 75 °C
-  under the classic rating assumptions (0.61 m/s wind, 40 °C ambient — verified vendor spec).
+  Hawk, Drake, Rail (ACSR), and ACCC/ACSS equivalents. Anchor: Drake 795 kcmil 26/7 ACSR = 907 A at 75 °C
+  conductor temperature under the classic vendor rating assumptions — **25 °C ambient** (not 40 °C), 2 ft/s
+  (0.61 m/s) wind, full sun, emissivity 0.5, solar absorptivity 0.5, sea level (verified: American Wire Group
+  ACSR table; OD 1.108 in, DC R 0.021 Ω/1000 ft at 20 °C). The `Conductor` dataclass defaults of
+  emissivity/absorptivity 0.8 must be overridden to 0.5 for this calibration check.
 - Ratings per line:
   - `static_rating_mw` = `rate_a_mw` from the case (the twin's own rating).
-  - `static_738_a` = ampacity at 0.61 m/s, 40 °C, full sun, `T_max` (calibration point;
+  - `static_738_a` = ampacity at 0.61 m/s, 40 °C, full sun, `T_max` (calibration point — note this is a
+    hotter-ambient, hence lower, number than the 25 °C vendor rating;
     `calib = rate_a_mw / (√3·kV·static_738_a)` scales the 738 model to the case's rating so
     synthetic ratings and physics agree).
   - `aar_rating_mw(h)` = ambient-adjusted: 738 at 0.61 m/s and hourly `temp_c`.
@@ -92,7 +98,9 @@ Heat balance (verified form): `q_c + q_r = I²·R(T_c) + q_s` → `I = sqrt((q_c
     assumed 45° → `K_angle` mid value), hourly `temp_c`, solar by hour-of-day.
   - `dlr_uplift_mw` = P50 over the year of `max(0, dlr_rating_mw(h) − static_rating_mw)`;
     `dlr_hours_above_static` = count of hours with uplift > 5 % (both stored; the card shows the
-    distribution). Expected range 10–40 % uplift; a P50 > 60 % triggers a warning (fails acceptance 5).
+    distribution). Expected range 10–40 % uplift (evidence: PPL measured ~17 % normal-rating gain above
+    AAR; WATT cites ≥ 10 % for 90 % of hours and 30–50 % averages with favourable climate; the pitch's
+    "15–30 %" is one common summary, not a standard); a P50 > 60 % triggers a warning (fails acceptance 5).
 - `dlr_cost_usd` = `length_mi × $40 k + $60 k` (sensor + integration floor); `dlr_opex_usd_yr = length_mi × $5 k`.
 
 ### 4. Reconductoring uplift (`twin/reconductor.py`)
@@ -114,9 +122,9 @@ Heat balance (verified form): `q_c + q_r = I²·R(T_c) + q_s` → `I = sqrt((q_c
 - `mw_per_musd = max(dlr_uplift_mw/(dlr_cost/1e6), reconductor_uplift_mw/(reconductor_cost/1e6))`;
   `best_tech = argmax`. Sorted descending within `region`.
 - `ferc_screen_pass = (congestion_usd_yr ≥ 500_000) AND (mean annual wind_ms at line ≥ 3.0)`
-  — the ANOPR's "heavily congested AND windy" test (verified concept); both numbers are our
-  operationalization **[UNVERIFIED thresholds — the ANOPR asked for comment on them]** and live in
-  `params.yaml` with a note.
+  — the ANOPR's "heavily congested AND windy" test (verified concept); both numbers are OUR
+  operationalization — the ANOPR itself proposes no dollar or wind-speed threshold (it seeks comment,
+  ¶120/¶125; verified from the FR text) — and live in `params.yaml` with a note saying exactly that.
 - `spark_eligible = (best_tech in {dlr, reconductor}) AND (reconductor_cost_usd or dlr_cost_usd
   ≥ $10 M when aggregated by owner-corridor) AND region is a US BA` — SPARK awards are $10–250 M
   projects with ≥ 50 % cost share (verified), so single short lines are eligible only as part of
@@ -177,15 +185,19 @@ CLI: `uv run python -m pipelines.congestion --iso ercot --year 2024`, `uv run py
 
 1. `build_inventory()` covers every `lines` row; HIFLD owner match rate for ≥ 230 kV lines is
    reported and ≥ 50 % (synthetic vs real geometry — a lower rate is allowed but printed, never hidden).
-2. `ieee738_ampacity_a(Drake, 0.61, 40, 75)` returns 900 A ± 5 % (classic Drake anchor); ampacity
+2. `ieee738_ampacity_a(Drake, 0.61, 25, 75, emissivity=0.5, absorptivity=0.5)` returns 907 A ± 5 % (vendor
+   Drake anchor at 25 °C ambient — the earlier "900 A at 40 °C" pairing was wrong: 900 A is the 25 °C rating);
+   `ieee738_ampacity_a(Drake, 0.61, 40, 75, …)` must be strictly lower; ampacity
    is monotone increasing in wind speed and decreasing in ambient temperature over a 0.5–5 m/s,
    −10–45 °C sweep.
 3. For every line, `aar_mw` and `dlr_mw` ≥ `static_mw` at the calibration conditions, and
    `dlr_uplift_mw` P50 is within 5–50 % of `static_rating_mw` for ≥ 90 % of lines (values outside
    are listed, not silently clipped).
-4. PJM reference: the PPL 230 kV corridor where DLR cut congestion from ~$66 M to ~$1.6 M
-   **[UNVERIFIED corridor name — pitch figure]** appears in `top_lines("PJM","dlr",10)` on 2023
-   data (i.e., the year before its DLR went live) OR the test documents why the mapper missed it.
+4. PJM reference: PPL's **Juniata–Cumberland 230 kV line**, where DLR cut congestion from ~$66 M (winter
+   2021–22) to ~$1.6 M (winter 2022–23) (verified: FERC DLR ANOPR ¶57, 89 FR 57690; PPL also reports the two
+   Susquehanna–Harwood 230 kV lines' $12 M/yr summer-2022 congestion eliminated; DLR live in PJM markets
+   from 6 Oct 2022), appears in `top_lines("PJM","dlr",10)` on 2021–22
+   data (i.e., the winter before its DLR went live; the pitch's "2023" was after go-live) OR the test documents why the mapper missed it.
    This is the "our model would have flagged it" demo line; if it cannot be reproduced the demo
    line is cut, not faked.
 5. ERCOT congestion attribution: ≥ 40 % of 2024 SCED shadow-price dollars map to a `line_id` at
@@ -209,8 +221,9 @@ CLI: `uv run python -m pipelines.congestion --iso ercot --year 2024`, `uv run py
 Inside the twin, after the cascade beat: "the twin also tells you which existing wires to
 upgrade." Toggle the line-upgrade layer over Texas; lines re-color by MW per $M; top-10 table for
 ERCOT; click #1 → card with DLR vs reconductor; flip the FERC screen ("the rule is stalled, nobody
-has run it — we did") and the SPARK flag ("$1.9 B, selections were due August 2026 — this is the
-lead list"). Copilot: `top_lines("ERCOT","any",10)` → "the ten cheapest MW of capacity in ERCOT
+has run it — we did") and the SPARK flag ("$1.9 B, selections were anticipated August 2026, awards
+Oct 2026–Jan 2027 — this is the lead list" **[UNVERIFIED whether DOE has publicly announced SPARK selections as of
+5 Sept 2026 — no announcement found; do not say "awarded"]**). Copilot: `top_lines("ERCOT","any",10)` → "the ten cheapest MW of capacity in ERCOT
 and which technology gets them", citing the ANOPR and SPARK NOFO. National map colored by
 `mw_per_musd` is the scale slide only if the national inventory exists by Day 2 evening.
 
@@ -218,12 +231,17 @@ and which technology gets them", citing the ANOPR and SPARK NOFO. National map c
 
 - Constraint→line mapping is the known hard part (pitch says so). ERCOT is approximate by
   design; the `congestion_method` tier and the unattributed fraction are shown, never hidden.
-- gridstatus ERCOT API needs an ERCOT public API key (`ERCOT_API_USERNAME/PASSWORD`
-  **[UNVERIFIED env names — check gridstatus `ErcotAPI` docs]**); pull on Day 1 and cache raw.
+- gridstatus `ErcotAPI` needs ERCOT public API credentials: env `ERCOT_API_USERNAME`, `ERCOT_API_PASSWORD`
+  and `ERCOT_PUBLIC_API_SUBSCRIPTION_KEY` (verified in gridstatus 0.36.0 `ercot_api.py`); pull on Day 1 and cache raw.
+  SCED shadow-price columns (verified from the handler): `Interval Start/End, SCED Timestamp, Constraint ID,
+  Constraint Name, Contingency Name, Limiting Facility, From Station, From Station kV, To Station, To Station kV,
+  Shadow Price, Max Shadow Price, Constraint Limit, Constraint Value, Violated MW, Violation Amount, CCT Status` —
+  so the from/to station names are present and `Constraint Value`/`Constraint Limit` give the binding flow/limit.
 - Synthetic lines vs real HIFLD geometry: the owner/conductor join is heuristic; the card labels
   the twin line and its "real twin of record" separately.
-- REFA per-mile costs and the ANOPR's exact thresholds are placeholders until the documents are
-  read (both < 30 min tasks, listed in the time-box).
+- Per-mile reconductoring costs are placeholders: REFA's documentation is parametric (no default
+  per-mile table — verified), so the numbers must come from GridLab 2024 or a per-unit cost guide and
+  each carry a `source_page`. The ANOPR has no exact thresholds to read (verified): ours are declared as ours.
 - IEEE 738 simplifications (fixed solar, 45° wind angle, no cloud cover) bias DLR uplift upward
   at night/overcast; P50 over a year and the 60 % sanity cap bound the damage.
 - Form 1 schedule 422 coverage is IOU-only; Texas munis/co-ops (Austin Energy, CPS, LCRA) fall

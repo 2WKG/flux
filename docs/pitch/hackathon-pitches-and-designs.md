@@ -1,6 +1,6 @@
 # David Project Hackathon — Pitches and Design Outlines
 
-*3 Sept 2026. Three ideas, ranked for this judge panel (defense / national-security / tech-policy heavy). Each has: the spoken pitch, what it does in plain terms, a design outline, the causal-AI layer, the data, the recommendations it outputs, a demo script, judge hooks, and a weekend build plan. A shared technical stack is at the end so all three can be built on the same base.*
+*3 Sept 2026. Two ideas, ranked for this judge panel (defense / national-security / tech-policy heavy). Each has: the spoken pitch, what it does in plain terms, a design outline, the causal-AI layer, the data, the recommendations it outputs, a demo script, judge hooks, and a weekend build plan. A shared technical stack is at the end so both can be built on the same base.*
 
 ---
 
@@ -89,158 +89,88 @@ Day 1 morning: PUDL + EAGLE-I + HIFLD + ACTIVSg2000 loaded into DuckDB/PostGIS; 
 
 ---
 
-# Idea 2 (Rank #2) — Data Center Load Verification and Grid Impact Scoring
+# Idea 2 (Rank #2) — Speed-to-Power: Large-Load Verification and Grid Headroom Ranking
 
 ## The pitch (90 seconds, spoken)
 
-Utilities are planning to build for 90 gigawatts of data-center load by 2030. Independent analysts think about 65 will show up. Camus Energy sees five to ten times more requests than builds. The same project shows up in three utilities' queues at once. Every gigawatt of phantom load that gets built for is billions of ratepayer dollars and years of interconnection delay for the loads that are real — including the defense and manufacturing loads the country actually needs.
+Utilities are planning to build for 90 gigawatts of data-center load by 2030. Independent analysts think about 65 will show up. The same project appears in three utilities' queues at once, and every gigawatt of phantom load that gets built for is billions of ratepayer dollars and years of delay for the loads that are real — including the defense and manufacturing loads the country actually needs. Meanwhile congestion on existing transmission cost $12 billion in 2024, new corridors take a decade, and the existing wires could carry 15–30% more with dynamic ratings and roughly double with reconductoring. DOE just put $1.9 billion behind that, and FERC just ordered all six grid operators to fix their large-load rules.
 
-Three months ago FERC ordered all six grid operators to fix their large-load rules, and the responses just came in. But nobody — not FERC, not the states, not the utilities — has a tool that reconciles what's announced, what's in the queue, and what's being forecast, or that scores whether a proposed data center helps or hurts the grid.
-
-We built it. For every utility in America, it shows the gap between announced, queued, forecast, and real load. And for any proposed data center, it produces a grid-impact score: how flexible it is, whether it brings its own power, what headroom exists at that location, and what it will cost everyone else if it's built for and never shows up.
+Nobody connects the two halves of that problem. Nobody has a tool that says which load requests are real, and nobody has a public answer to which wires to upgrade first so the real ones get power. We built both, in one place. For every utility, it shows the gap between announced, queued, forecast, and operating load. For every high-voltage line, it ranks the cheapest megawatts of new capacity. And for any proposed data center, it produces a Grid Impact Score plus the specific line upgrade or flexibility commitment that gets it energized eighteen months sooner.
 
 ## What it does, in simple terms
 
 1. A map of every utility showing four numbers: data-center load announced, in the queue, in the utility's forecast, and actually operating. The gap is the phantom ratio.
-2. A duplicate detector: the same project or developer appearing in multiple queues.
-3. A cost estimate: what building for the phantom load would cost ratepayers.
-4. A Grid Impact Score for any proposed data center (0–100) with a plain-English explanation and a "what would make this a 90" recommendation.
-5. A copilot for regulators: "Which three PJM projects should Virginia review most skeptically?"
+2. A duplicate detector: the same project or developer appearing in multiple queues, and the ratepayer cost of building for phantom load.
+3. A national map of transmission lines colored by "megawatts unlocked per dollar," with dynamic line rating vs. reconductoring economics for each.
+4. A Grid Impact Score for any proposed data center (0–100) that combines the load's own flexibility with the headroom on the lines that would serve it, and a "what would make this a 90" recommendation that can include a specific line upgrade.
+5. A copilot for regulators and RTOs: "Which three PJM projects should Virginia review most skeptically, and which two line upgrades would unblock the real ones?"
 
 ## Design outline
 
-**Layer 1 — Project registry.** Pull announced projects from Cleanview's free tier and EEI's large-customer list; queue data from ERCOT's monthly Large Load Interconnection Status reports and Batch Zero list, PJM's load-forecast large-load adjustments by transmission owner, SPP's HILLGA; utility forecasts from FERC Form 714 and IRP filings; operating load from EIA-860/861 and Cleanview. Normalize to a common schema (developer, site, MW, stage, utility, ISO, date).
+**Layer 1 — Project registry and entity resolution.** Pull announced projects from Cleanview's free tier and EEI's large-customer list; queue data from ERCOT's Large Load Interconnection Status reports and Batch Zero list, PJM's large-load adjustments, SPP's HILLGA; utility forecasts from FERC Form 714 and IRPs; operating load from EIA-860/861. Normalize to one schema, then fuzzy-match across sources by developer, county, MW, and filing dates to flag duplicates and "shopping."
 
-**Layer 2 — Entity resolution.** Match projects across sources by developer name, county, MW, and filing dates (fuzzy matching + geographic proximity). Flag likely duplicates and "shopping" (same developer, same MW, three utilities).
+**Layer 2 — Reality model.** Estimate the probability each project reaches operation and its likely load factor from stage, developer track record, tariff terms (minimum-demand, collateral), and co-located generation, with LBNL Queued Up conversion history as a prior. Aggregate to utility level: expected real MW vs. forecast MW, and stranded-cost exposure (phantom MW × cost-to-serve from FERC Form 1 / IRPs).
 
-**Layer 3 — Reality model.** Estimate the probability each project reaches operation and its likely load factor, using historical conversion rates (LBNL Queued Up history for generation as a prior; ERCOT and PJM stage transitions for load), stage, developer track record, tariff terms (minimum-demand commitments, collateral), and whether generation is co-located. Aggregate to utility level: expected real MW vs. forecast MW.
+**Layer 3 — Line inventory and congestion attribution.** Archived HIFLD transmission lines (69–765 kV) cleaned with OSM, joined to FERC Form 1 schedule 422 (via PUDL) for conductor type and size. Pull binding constraints and LMP congestion components via gridstatus; map constraint names to physical lines (PJM cleanly, ERCOT and MISO approximated). Annual congestion dollars per line.
 
-**Layer 4 — Grid Impact Score.** For a proposed site: flexibility commitment (curtailable share and response time, per EPRI DCFlex categories), bring-your-own generation/storage, load factor, local headroom (Duke's per-balancing-authority curtailment-headroom tables + EIA-930 hourly load), local congestion (gridstatus LMP spreads), transmission service type (firm vs. the new non-firm/interim services FERC ordered PJM to create), and tariff terms. Weighted to a 0–100 score; each component explained.
+**Layer 4 — Headroom uplift.** For each line: dynamic-rating uplift from HRRR / NREL WIND Toolkit climatology pushed through IEEE 738 ampacity; reconductoring uplift (1.5–2x) and cost per mile from GridLab/Berkeley and LBNL REFA assumptions. Rank by MW per dollar; apply the FERC DLR ANOPR screen; flag DOE SPARK eligibility.
 
-**Layer 5 — Cost model.** Phantom MW × cost-to-serve (transmission and generation capacity cost per MW from FERC Form 1 / IRP figures) = stranded-cost exposure per utility, and the delay imposed on real loads behind them in the queue.
+**Layer 5 — Grid Impact Score.** For a proposed site: flexibility commitment (EPRI DCFlex categories), bring-your-own generation/storage, load factor, local headroom (Duke curtailment-headroom tables + EIA-930), congestion on the serving lines from Layer 3, cheapest upgrade available from Layer 4, transmission service type, tariff terms. Weighted to 0–100; each component explained; the "make it a 90" recommender chooses among curtailment, storage, or a named line upgrade.
 
-**Layer 6 — Copilot.** Tools: `phantom_ratio(utility)`, `duplicates(developer)`, `score_site(lat, lon, params)`, `cost_exposure(utility)`, plus retrieval over the six RTO show-cause responses, PJM's CIFP decision, ERCOT SB6 rules, and the FERC RM26-4 docket.
+**Layer 6 — Copilot.** Tools: `phantom_ratio(utility)`, `duplicates(developer)`, `score_site(lat, lon, params)`, `cost_exposure(utility)`, `top_lines(region, tech, n)`, `line_profile(id)`, plus retrieval over the six RTO show-cause responses, the FERC RM26-4 docket, the DLR ANOPR (RM24-6), Order 881, state GETs statutes, and the SPARK funding notice.
 
-**Interface.** US map by utility colored by phantom ratio; utility drill-down with four bars (announced/queued/forecast/operating); duplicate-project table; site-scoring form that returns the score card and "what would make this a 90"; copilot box.
+**Interface.** US map with two toggleable layers: utilities colored by phantom ratio, and lines colored by MW-per-dollar. Utility drill-down with four bars; duplicate-project table; regional top-10 line table with line cards; site-scoring form returning the score card and "what would make this a 90"; copilot box.
 
 ## Causal-AI layer (fits well here)
 
-- **Conversion causal model.** The core question — "what makes a data-center request actually get built?" — is causal. Build a DAG: developer type, tariff terms (minimum demand, collateral), co-located generation, ISO rules, local headroom → probability of operation and time-to-energize. Estimate effects with DoWhy/EconML on ERCOT and PJM stage histories. This turns the reality model from a guess into an evidence-based estimate and lets the tool say "minimum-demand tariffs raise conversion probability by X points."
-- **Policy counterfactuals.** "If Virginia adopted AEP Ohio's 85% minimum-demand tariff, expected phantom load falls by Y GW." That is the exact question the FAI judges and state commissions ask.
-- **Duplicate detection as causal structure.** Multiple filings by one developer are correlated draws from one underlying project; model it as a latent variable so the aggregate doesn't triple-count.
+- **Conversion causal model.** "What makes a data-center request actually get built?" is causal. Build a DAG: developer type, tariff terms, co-located generation, ISO rules, local headroom → probability of operation and time-to-energize. Estimate effects with DoWhy/EconML on ERCOT and PJM stage histories, so the tool can say "minimum-demand tariffs raise conversion probability by X points."
+- **Policy counterfactuals.** "If Virginia adopted AEP Ohio's 85% minimum-demand tariff, expected phantom load falls by Y GW." The question FAI judges and state commissions ask.
+- **Effect of DLR on congestion.** Synthetic control on the PPL/PJM deployment (congestion fell from $66M to $1.6M on one line) and the AES, Great River, and NV Energy pilots to estimate a causal uplift factor rather than quoting vendor claims — then apply it to the ranking.
+- **Duplicate detection as latent structure.** Multiple filings by one developer are correlated draws from one project; model it as a latent variable so aggregates don't triple-count.
 
 ## Data checklist
 
-Cleanview US data-center map (free tier); EEI list of large-customer projects and tariffs (Aug 2026); ERCOT Large Load Interconnection Status monthly reports and Batch Zero lists; PJM load forecast reports and queue; SPP HILLGA; MISO/NYISO/ISO-NE/CAISO show-cause responses (FERC eLibrary, docket RM26-4 and the six Section 206 dockets); FERC Form 714 and Form 1 via PUDL; EIA-860/861/930; Duke Nicholas Institute "Rethinking Load Growth" tables; gridstatus LMPs; LBNL Large Load Literature Review data-source catalog (May 2026) and Queued Up 2026; Grid Strategies load-growth reports; Halcyon large-load tariff tracker; Cleanview behind-the-meter report (59 BTM data centers); OpenG2G if a physics layer is wanted.
+Load side: Cleanview US data-center map; EEI large-customer list and tariffs (Aug 2026); ERCOT Large Load Interconnection Status and Batch Zero; PJM load forecast and queue; SPP HILLGA; MISO/NYISO/ISO-NE/CAISO show-cause responses (FERC eLibrary, RM26-4); FERC Form 714 and Form 1 via PUDL; EIA-860/861/930; Duke Nicholas Institute "Rethinking Load Growth" tables; LBNL Large Load Literature Review and Queued Up 2026; Halcyon tariff tracker; Cleanview behind-the-meter report. Wire side: archived HIFLD lines (DataLumos / HIFLD Next); OSM power tags; FERC Form 1 schedule 422; gridstatus (7 ISOs' LMPs with congestion components; binding-constraint feeds); market-monitor state-of-market reports; Grid Strategies 2024 congestion report; NOAA HRRR; NREL WIND Toolkit; IEEE 738; LBNL REFA; GridLab/Berkeley reconductoring study (PNAS 2024); FERC DLR ANOPR (RM24-6); Order 881; state GETs laws (WATT tracker); DOE SPARK notice; WATT/AMP Speed-to-Power RFI response (Nov 2025).
 
 ## Recommendations the tool outputs
 
 - Per utility: phantom ratio, expected real MW, stranded-cost exposure, and the top duplicate/shopping flags.
-- Per proposed site: Grid Impact Score, the three components dragging it down, and specific fixes ("commit to 200 hours/yr curtailment → unlocks interconnection 18 months sooner; add 100 MW storage → score 78→91").
-- Per state: which tariff or interconnection rule change most reduces phantom load, with estimated effect.
-- Per ISO: which projects in the queue are most likely real, so real loads (including defense and manufacturing) can be prioritized.
+- Per region: top-10 cheapest MW of new capacity with technology, cost, payback, and SPARK eligibility.
+- Per proposed site: Grid Impact Score, the three components dragging it down, and specific fixes ("commit to 200 hours/yr curtailment + DLR on the two serving 230 kV lines → score 54→91, energized 18 months sooner").
+- Per state: which tariff rule most reduces phantom load, and which lines satisfy the state GETs-consideration statute.
+- Per ISO: which queued projects are most likely real, so defense and manufacturing loads can be prioritized behind them.
 
 ## Demo script (5 minutes)
 
-1. National map: utilities colored by phantom ratio. Zoom to a hotspot (Dominion / Virginia, or ERCOT).
-2. Drill in: four bars. "This utility is forecasting 3x what's likely to be built. Here's the ratepayer exposure."
-3. Duplicate table: one developer, same 500 MW, three queues.
-4. Score a real proposed site: 54/100. Click "what makes this 90": curtailment commitment + storage. Re-score: 91. "That's 18 months faster to power."
-5. Copilot: "Which PJM projects should Virginia's commission review most skeptically?" — answer with citations to filings.
-6. Close: "FERC ordered the fix in June. This is the fix."
+1. National map: utilities colored by phantom ratio. Zoom to Dominion / Virginia. Four bars: "forecasting 3x what's likely to be built; here's the ratepayer exposure."
+2. Duplicate table: one developer, same 500 MW, three queues.
+3. Toggle to the line layer: "The cheapest capacity in America is already built; it's just under-rated." Click the PPL corridor: "DLR cut congestion 97% here. Our model would have flagged it."
+4. Score a real proposed site: 54/100. "What makes this 90": curtailment commitment plus DLR on two named lines. Re-score: 91. "That's 18 months faster to power."
+5. Copilot: "Which PJM projects should Virginia review most skeptically, and which upgrades unblock the real ones?" — answer with citations to filings.
+6. Close: "FERC ordered the load fix in June and DOE is awarding $1.9B for the wire fix this fall. This is the list for both."
 
 ## Judge hooks
 
-White House anti-fraud (McCarthy): phantom load is misrepresentation in regulated filings with public cost; entity resolution and duplicate detection are anti-fraud tooling. FAI (Levine, Dauber): this is the AI-power-buildout policy fight; the tool produces policy counterfactuals. Craft Ventures (Murray): buyers are state PUCs, RTOs, utilities, and the hyperscalers who need to prove they're real; Emerald ($150M last week) and GridCARE ($64M) validate the market. Defense judges: real defense and manufacturing loads are stuck behind phantom ones; verification is what gets them to the front. OPM (Hennecken): government-operations efficiency framing — regulators doing in minutes what takes staff months.
+White House anti-fraud (McCarthy): phantom load is misrepresentation in regulated filings with public cost; entity resolution is anti-fraud tooling. FAI (Levine, Dauber): the AI-power-buildout policy fight plus the permitting-reform story (REWIRE Act categorical exclusion for reconductoring); the tool produces policy counterfactuals. Craft Ventures (Murray): buyers are state PUCs, RTOs, utilities, hyperscalers who need to prove they're real, and GETs vendors (LineVision, Heimdall, TS Conductor, Smart Wires) who need lead lists; Emerald ($150M) and GridCARE ($64M) validate the market. Defense judges: real defense loads are stuck behind phantom ones, and capacity without new corridors means hardening supply to installations without decade-long NEPA fights. OPM (Hennecken): regulators doing in minutes what takes staff months. Dirac/Forterra/KAIROS: honest engineering product with physics under the wire half.
 
 ## Risks and honest answers
 
 "Cleanview already tracks projects." — It tracks announcements; it doesn't reconcile them against queues and forecasts or score sites.
 "Utilities have this data internally." — Each has its own slice; none sees other utilities' queues, which is where duplicates hide.
-"Your conversion estimates are uncertain." — Yes, and we show intervals; the point is that today's number is a guess with no interval at all.
-
-## Weekend build plan
-
-Day 1: scrape/load the registries into one schema; entity resolution; utility-level four-bar chart on a map. Day 2 morning: conversion model (start with stage-based priors; add the causal estimate if time); cost exposure. Day 2 afternoon: Grid Impact Score form; copilot with retrieval over the FERC docket; rehearse. Stretch: DoWhy tariff-effect estimate; OpenG2G physics for one site.
-
----
-
-# Idea 3 (Rank #3) — Transmission Line Upgrade Prioritization
-
-## The pitch (90 seconds, spoken)
-
-Congestion on America's transmission lines cost $12 billion in 2024. New transmission corridors take a decade and DOE just cancelled every national corridor it had proposed. But existing lines can carry far more than they do today: dynamic line ratings raise capacity 15–30% with sensors and software, and reconductoring with advanced conductors roughly doubles it on the same towers. DOE just put $1.9 billion behind exactly this, and sixteen states now require utilities to consider it.
-
-The missing piece is simple: nobody has a public answer to "which lines first?" The industry told DOE in writing last November that the blocker is line-level data. We built the ranker. For every high-voltage line in the country, it estimates the congestion it causes, the capacity a dynamic rating would add given local wind, the capacity reconductoring would add given what the wire is made of, and the cost — and outputs the cheapest megawatts of new capacity in each region.
-
-## What it does, in simple terms
-
-1. A national map of transmission lines colored by "megawatts unlocked per dollar."
-2. For each line: how congested it is, how much dynamic rating would help, how much reconductoring would help, and which is cheaper.
-3. A regional top-10: the cheapest capacity in MISO, PJM, ERCOT, etc.
-4. A screen matching FERC's proposed rule (congestion above $500k/yr plus wind) and a flag for DOE SPARK eligibility.
-5. A copilot: "What are the ten cheapest MW of capacity in MISO and which technology gets them?"
-
-## Design outline
-
-**Layer 1 — Line inventory.** Archived HIFLD transmission lines (69–765 kV) with voltage and owner, cleaned with OSM where HIFLD is blank. FERC Form 1 schedule 422 (via PUDL) gives conductor type, size, length, and voltage for investor-owned utilities' lines — join by owner + voltage + length to attach "what the wire is made of."
-
-**Layer 2 — Congestion attribution.** Pull binding constraints and shadow prices from RTO feeds and LMP congestion components via gridstatus. Map constraint names to physical lines (PJM's monitored-facility names are the most tractable; ERCOT and MISO next). Compute annual congestion dollars per line.
-
-**Layer 3 — Dynamic-rating uplift.** For each line, wind-speed and temperature climatology from NOAA HRRR / NREL WIND Toolkit, pushed through the public IEEE 738 ampacity equation to estimate hours-per-year and MW of additional capacity over static and ambient-adjusted ratings.
-
-**Layer 4 — Reconductoring uplift.** From conductor type/size and voltage, estimate capacity gain from advanced conductors (ACCC/ACSS-class roughly 1.5–2x) using GridLab/Berkeley and LBNL REFA assumptions; cost per mile from REFA.
-
-**Layer 5 — Ranking and recommendation.** For each line: MW unlocked and cost for DLR, reconductoring, and topology/power-flow control; congestion relieved; payback. Rank by MW per dollar; apply the FERC ANOPR screen; flag SPARK-eligible.
-
-**Layer 6 — Copilot.** Tools: `line_profile(id)`, `top_lines(region, tech, n)`, `screen(ferc_anopr=True)`, retrieval over the FERC ANOPR, Order 881, state GETs statutes, and the WATT/AMP RFI response.
-
-**Interface.** National line map with color by MW-per-dollar; filters by ISO/state/utility/technology; line card with the three options and payback; regional top-10 table; copilot.
-
-## Causal-AI layer (partially applicable)
-
-The core is physics (ampacity) and economics, so causal ML is secondary. Where it earns its place:
-- **Effect of DLR on congestion.** Use synthetic control on the PPL/PJM deployment (congestion fell from $66M to $1.6M on one line) and the AES, Great River, and NV Energy pilots to estimate a causal uplift factor rather than quoting vendor claims — then apply it to the ranking.
-- **Congestion causal decomposition.** Congestion dollars on a line are caused by load growth, generation additions behind it, and outages of parallel lines; a simple structural model attributes the share, which tells you whether an upgrade would actually clear it or just move it.
-
-## Data checklist
-
-Archived HIFLD lines (DataLumos / Data Rescue Project / HIFLD Next); OSM power tags; FERC Form 1 schedule 422 via PUDL; gridstatus (7 ISOs' LMPs with congestion components; RTO binding-constraint feeds); market-monitor state-of-market reports; Grid Strategies 2024 congestion report; NOAA HRRR; NREL WIND Toolkit; IEEE 738; LBNL REFA cost assumptions; GridLab/Berkeley reconductoring study (PNAS 2024); OASIS ATC/TTC postings; FERC DLR ANOPR (RM24-6), Order 881 compliance dates; state GETs laws (WATT tracker); DOE SPARK funding notice; WATT/AMP Speed-to-Power RFI response (Nov 2025).
-
-## Recommendations the tool outputs
-
-- Per region: top-10 cheapest MW of new capacity with technology, cost, and payback.
-- Per line: DLR vs. reconductor vs. topology recommendation with the reasoning.
-- Per state: lines that satisfy the new state GETs-consideration statutes.
-- SPARK-eligible shortlist for DOE reviewers and utilities.
-
-## Demo script (5 minutes)
-
-1. National map colored by MW-per-dollar. "The cheapest capacity in America is already built; it's just under-rated."
-2. Zoom to PJM; click the PPL corridor: "Here's the line where DLR cut congestion 97%. Our model would have flagged it."
-3. Regional top-10 for MISO; one line card showing DLR vs. reconductor economics.
-4. Toggle the FERC screen: "These are the lines FERC's own proposed rule would target — the rule is stalled, so nobody has run it. We did."
-5. Copilot question; close on SPARK: "$1.9B is being awarded this fall; this is the lead list."
-
-## Judge hooks
-
-Craft Ventures: vendors (LineVision, Heimdall, TS Conductor, Smart Wires) need lead lists; RTOs and state commissions need to implement new laws. Defense judges: capacity without new corridors means hardening supply to installations without decade-long NEPA fights; corridor criticality doubles as a restoration-planning view. FAI: the permitting-reform story (REWIRE Act would give reconductoring a categorical exclusion). Dirac/Forterra/KAIROS: it's an honest engineering product.
-
-## Risks and honest answers
-
+"Your conversion estimates are uncertain." — Yes, and we show intervals; today's number is a guess with no interval at all.
 "Constraint-to-line mapping is hard." — Yes; we do PJM cleanly and approximate elsewhere, and say so.
-"No one on the panel is a transmission engineer." — Correct, which is why this ranks third here; it's a feature inside Idea 1 rather than a standalone entry for this room.
+"Two products in one." — They're one question: where does real load connect fastest? The load half says which requests are real; the wire half says where the headroom is; the score joins them.
 
 ## Weekend build plan
 
-Day 1: HIFLD + Form 1 join; gridstatus congestion pull for PJM; constraint mapping for PJM only. Day 2 morning: IEEE 738 uplift from HRRR climatology; reconductor uplift and REFA costs; ranking. Day 2 afternoon: map + line cards + copilot; rehearse. Stretch: synthetic-control DLR effect; MISO/ERCOT mapping.
+Day 1 morning: load the registries into one schema; entity resolution; utility four-bar map. Day 1 afternoon: HIFLD + Form 1 join; gridstatus congestion pull and constraint mapping for PJM only. Day 1 evening: stage-based conversion priors and cost exposure. Day 2 morning: IEEE 738 uplift from HRRR climatology; reconductor uplift and REFA costs; line ranking. Day 2 afternoon: Grid Impact Score form wired to both halves; copilot with retrieval over the FERC dockets; rehearse. Stretch: DoWhy tariff-effect estimate; synthetic-control DLR effect; MISO/ERCOT constraint mapping.
 
 ---
 
-# Shared technical stack (build once, use for all three)
+# Shared technical stack (build once, use for both)
 
 Storage: DuckDB + Parquet for time series, PostGIS for geometry, networkx (or Neo4j) for the grid graph. Ingest: PUDL (EIA/FERC), gridstatus (ISO data), Globus (EAGLE-I), archived HIFLD, NOAA/HRRR on AWS. Physics: pandapower (+ lightsim2grid), PyPSA-USA for expansion runs, IEEE 738 for ampacity. ML: LightGBM, PyTorch Geometric for graph models, DoWhy / EconML / pgmpy for the causal layer. Front end: deck.gl + MapLibre with free tiles (OpenFreeMap / Protomaps), H3 for national aggregation. Copilot: a tool-calling LLM with typed functions and retrieval over regulatory PDFs; the model narrates and plans, never computes.
 
 # Final recommendation
 
-Enter Idea 1 as the headline, with Idea 3's line-upgrade ranking as one screen inside it ("the twin also tells you which existing wires to upgrade") and the defense-critical-load / black-start chapter as the second hero screen. Keep Idea 2 as a fully separate backup pitch — it is the strongest standalone if the format allows two entries or if the judges signal they want something narrower and nearer-term. All three run on the same stack, so the shared data work on Day 1 is not wasted whichever you lead with.
+Enter Idea 1 as the headline, with the defense-critical-load / black-start chapter as the second hero screen. Keep Idea 2 as a fully separate backup pitch — it is the strongest standalone if the format allows two entries or if the judges signal they want something narrower and nearer-term, and its line-ranking half can also appear as one screen inside Idea 1 ("the twin also tells you which existing wires to upgrade"). Both run on the same stack, so the shared data work on Day 1 is not wasted whichever you lead with.

@@ -1,15 +1,28 @@
-# 09 — Backup pitch: Data-Center Load Verification and Grid Impact Scoring (Idea 2)
+# 09 — Backup: Speed-to-Power (large-load verification + grid headroom ranking)
 
-Status: **backup**. Not on the weekend critical path. Built only if (a) the judges signal they want
-something narrower/nearer-term, (b) the format allows two entries, or (c) the Idea 1 critical path
-is green by Day 2 noon and a pair is free. The deck for this pitch (≥ 6 slides) IS built regardless
-(00-overview §10). This spec is written so one pair can build a demoable slice in ~10 hours on the
-shared stack without touching the Idea 1 tables.
+Status: **backup** (pitch v2 "Idea 2"). Not on the weekend critical path. Built only if (a) the judges
+signal they want something narrower/nearer-term, (b) the format allows two entries, or (c) the Idea 1
+(GridMind) critical path is green by Day 2 noon and a pair is free. The deck for this pitch (≥ 6 slides)
+IS built regardless (00-overview §10). This spec is written so one pair can build a demoable slice in
+~10 hours on the shared stack without touching the Idea 1 tables.
+
+Pitch v2 folded the former Idea 2 (data-center load verification) and Idea 3 (line-upgrade ranking)
+into ONE backup: "Speed-to-Power". It has two halves that meet in the Grid Impact Score:
+
+- **Load half** — which large-load requests are real (registry, entity resolution, reality model,
+  phantom ratio, stranded cost). Owned by this spec; tables `dc_*`; tools §4.6.
+- **Wire half** — which existing wires to upgrade first (IEEE 738 DLR uplift, reconductoring, MW per
+  dollar, FERC RM24-6 screen, SPARK flag). **Owned by spec 08** and REUSED here unchanged: tables
+  `line_upgrade_scores` + `line_upgrade_detail`, tool `top_lines(region, tech, n)`, the `/lines/top`
+  route and the `line_upgrades` map layer. This spec adds only a per-line card tool `line_profile(line_id)`
+  (§4.6) that reads `line_upgrade_detail`. Nothing about line scoring is re-specified here; if 08 and
+  this file disagree on a line column, 08 wins.
 
 Conforms to 00-overview §2 (repo layout, Python/Node conventions, DuckDB file, Claude tool-loop).
-All Idea 2 tables are namespaced `dc_*` so they coexist in `data/duck/grid.duckdb` with the Idea 1
-tables. The Idea 1 tool `score_site(site_id, unit_mw, scenario_id)` is NOT reused; Idea 2's site
-scorer is `score_dc_site(lat, lon, params)` to avoid the name collision.
+All load-half tables are namespaced `dc_*` so they coexist in `data/duck/grid.duckdb` with the Idea 1
+tables. The Idea 1 tool `score_site(site_id, unit_mw, scenario_id)` is NOT reused; the load-half site
+scorer is `score_dc_site(lat, lon, params)` to avoid the name collision (the pitch text's
+`score_site(lat, lon, params)` means this tool).
 
 ---
 
@@ -22,8 +35,17 @@ load. Score any proposed data-center site 0–100 on grid impact with a plain-En
 this a 90". Give regulators a copilot that answers "which three projects should Virginia review most
 skeptically?" with citations to the filings.
 
+And the wire half (by reference to spec 08): for every high-voltage line in the region, rank the
+cheapest megawatts of new capacity (DLR vs. reconductor, MW per $M, FERC screen, SPARK eligibility) so
+the Grid Impact Score's "what would make this a 90" can name a **specific line upgrade** — not only a
+curtailment or storage commitment — and the copilot can answer the second clause of "which three
+projects should Virginia review most skeptically, **and which two line upgrades would unblock the real
+ones**?" The one-question framing (pitch v2 honest answer): where does real load connect fastest? The
+load half says which requests are real; the wire half says where the headroom is; the score joins them.
+
 Geographic scope if built this weekend: **ERCOT first** (the Large Load Interconnection Status report
-is a single public spreadsheet), PJM second (public load-forecast large-load adjustments), national
+is a single public spreadsheet; spec 08's `line_upgrade_scores` is ERCOT-first too, so the two halves
+overlap on the same region), PJM second (public load-forecast large-load adjustments), national
 map only from Cleanview announced projects as a scale layer.
 
 ---
@@ -34,8 +56,8 @@ map only from Cleanview announced projects as a scale layer.
 
 | Source | What | Where | Confidence |
 |---|---|---|---|
-| ERCOT Large Load Interconnection Status report (monthly) | queued MW by project, county, stage, requested energization date | `https://www.ercot.com/gridinfo/load/large_load` [UNVERIFIED exact URL; page exists as of 2025] → `data/raw/ercot_ll/` | High that data exists; medium on URL |
-| ERCOT "Batch Zero" list (SB6 / 2026) | projects admitted under the new large-load batch process | ERCOT large-load page [UNVERIFIED] → `data/raw/ercot_ll/` | Medium |
+| ERCOT Large Load Interconnection Status report (monthly, NPRR 1267 approved by PUCT 31 July 2025; ≥ 75 MW projects; aggregated by load zone / TSP / load type) | queued MW by project, county, stage, requested energization date [UNVERIFIED that the public report is per-project rather than aggregated — NPRR 1267 describes "aggregated visibility"] | `https://www.ercot.com/services/rq/large-load-integration` (verified page; the earlier `/gridinfo/load/large_load` URL was wrong) → `data/raw/ercot_ll/` | High that data exists; medium on per-project granularity |
+| ERCOT "Batch Zero" list (Texas SB 6, signed 20 June 2025; Batch Zero protocol revisions approved by ERCOT Board 2 June 2026 and PUCT 18 June 2026; ≥ 75 MW; submissions closed 10 July 2026; classification notices 7 Aug 2026; allocations Spring 2027 — verified) | projects admitted under the new large-load batch process | ERCOT large-load page [UNVERIFIED that a public project-level Batch Zero list is posted] → `data/raw/ercot_ll/` | Medium |
 | PJM Load Forecast Report 2026 — large-load adjustments by transmission owner | forecast MW attributed to data centers per TO | `https://www.pjm.com/planning/resource-adequacy-planning/load-forecast-dev-process` [UNVERIFIED exact file] → `data/raw/pjm_lf/` | High data exists |
 | SPP HILLGA (High-Impact Large Load) | queued MW | SPP website [UNVERIFIED] → `data/raw/spp_hillga/` | Low; skip unless trivially available |
 | Cleanview US data-center map (free tier) | announced projects: developer, site, MW, status | `https://cleanview.co` [UNVERIFIED free-tier export format] → `data/raw/cleanview/` | Medium; may require manual CSV export |
@@ -46,11 +68,20 @@ map only from Cleanview announced projects as a scale layer.
 | Duke Nicholas Institute "Rethinking Load Growth" (Feb 2025) | per-BA curtailment-headroom tables (MW headroom at 0.25/0.5/1.0 % curtailment) | PDF appendix tables → `data/raw/duke_headroom/headroom.csv` (hand-transcribed if needed) | High |
 | gridstatus (pip) | LMP with congestion component, per ISO | `gridstatus` Python library → `data/raw/gridstatus/` | High |
 | LBNL Queued Up 2026 | historical queue→COD conversion rates by stage (generation prior) | LBNL site → `data/raw/lbnl_queued_up/` | High |
-| FERC docket RM26-4 + six Section 206 show-cause responses; PJM CIFP decision; ERCOT SB6 rules | regulatory corpus for `cite` | FERC eLibrary PDFs → `data/raw/regs_dc/` | Medium |
+| FERC docket RM26-4 (DOE §403 ANOPR, 23 Oct 2025) + the six §206 show-cause orders of 18 June 2026 (EL26-67 … EL26-72; responses due 17 Aug 2026 — verified) and the RTO responses; PJM Board CIFP decisional letter (16 Jan 2026 — verified); ERCOT SB6 / Batch Zero rules | regulatory corpus for `cite` | FERC eLibrary PDFs → `data/raw/regs_dc/` | Medium |
 
 ### 2.2 Shared tables read from Idea 1 (spec 01)
 
 `counties`, `buses`, `lines`, `ba_load_hourly`, `hazard_static` (not needed but available).
+
+### 2.3 Wire-half tables read from spec 08 (not written here)
+
+`line_upgrade_scores(line_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd,
+reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible)` (00-overview §2.2) and
+`line_upgrade_detail(line_id, owner, conductor_material, conductor_kcmil, static_rating_mw,
+aar_rating_mw, dlr_p50_mw, dlr_hours_above_static, best_tech, payback_yr, congestion_method, region)`
+(00 amendment A4; spec 08 §Design). Both must be populated by `pipelines.line_upgrade --region ERCOT`
+before this pitch's beats 3–4 work; spec 08's Day 1 17:00–19:00 slot already produces them for Idea 1.
 
 ---
 
@@ -139,10 +170,14 @@ dc_site_scores(
   params_json     TEXT,               -- the ScoreParams used
   score           DOUBLE,             -- 0..100
   components_json TEXT,               -- {flexibility, byog, load_factor, headroom, congestion, service_type, tariff} each 0..1 + weight
-  fixes_json      TEXT,               -- ordered list of {change, new_score, delta, months_faster}
+  fixes_json      TEXT,               -- ordered list of {change, new_score, delta, months_faster, line_id?}  (line_id set for wire-half fixes)
+  serving_line_ids_json TEXT,         -- wire half: the ≤ 2 nearest ≥ 138 kV lines (from `lines` geometry) whose line_upgrade_scores rows feed `congestion` and the line-upgrade fix
   created_at      TIMESTAMP
 )
 ```
+
+Wire-half outputs (`line_upgrade_scores`, `line_upgrade_detail`, the `line_upgrades` layer, the
+regional top-10 table) are spec 08's outputs and are not re-declared here.
 
 ### 3.2 Files
 
@@ -157,7 +192,11 @@ GET  /dc/utility/{utility}               → ledger row + top entities + duplica
 GET  /dc/duplicates?developer=&iso=      → [dc_entities where flag != 'none']
 POST /dc/score  {lat, lon, params}       → score_dc_site(...) result
 GET  /dc/projects?iso=&stage=&bbox=      → GeoJSON of dc_projects
+GET  /dc/line/{line_id}                  → line_profile(...) result (per-line card; reads line_upgrade_detail ⋈ line_upgrade_scores)
 POST /ask                                    → same SSE endpoint as Idea 1 (spec 05); tools selected by corpus tag
+# wire half, reused from spec 05/08 unchanged:
+GET  /lines/top?region=&tech=any&n=10    → top_lines(...)            (spec 05 route, spec 08 tool)
+GET  /layers/line_upgrades?tech=         → line_upgrade_scores ⋈ lines GeoJSON  (spec 05 layer)
 ```
 
 ---
@@ -215,8 +254,10 @@ replaced by ERCOT stage-history counts on Day 1):
 | energized | 1.00 | — | — | 0 |
 | withdrawn | 0.00 | — | — | — |
 
-These are informed by LBNL Queued Up generation conversion (~20 % of queued generation reaches COD)
-[DOCUMENTED-EXTERNAL, order of magnitude only] and are deliberately shown with intervals in the UI.
+These are informed by LBNL Queued Up 2026 generation conversion — of all capacity requesting
+interconnection 2000–2020, only **13 %** had reached commercial operation by end-2025 and 75 % was withdrawn
+(the earlier "~20 %" was the older project-count statistic) [DOCUMENTED-EXTERNAL, order of magnitude only]
+and are deliberately shown with intervals in the UI.
 
 `load_factor` default 0.75 for hyperscale, 0.60 for colocation, 0.85 if `min_demand_share` stated
 (use the stated share). `expected_real_mw = Σ p_operate × mw_est × load_factor`. Intervals by
@@ -232,7 +273,7 @@ file]; others from FERC 714 delta vs 2022 baseline attributed to data centers (c
 class ScoreParams(TypedDict, total=False):
     mw: float                    # required
     curtailable_share: float     # 0..1, share of load that can be shed on request
-    curtail_response_min: float  # minutes to respond (EPRI DCFlex: <15 fast, 15–60 medium, >60 slow)
+    curtail_response_min: float  # minutes to respond (<15 fast, 15–60 medium, >60 slow — OUR bins; [UNVERIFIED that EPRI DCFlex / Flex MOSAIC (23 Mar 2026) uses these cut-points — its public page names magnitude/timing/duration/frequency dimensions but the numeric tiers are only in the technical brief, not read])
     curtail_hours_yr: float      # committed curtailment hours per year
     byog_mw: float               # co-located generation
     storage_mw: float
@@ -247,12 +288,12 @@ Seven components, each mapped to [0, 1], combined with fixed weights summing to 
 
 | Component | Weight | Mapping |
 |---|---|---|
-| `flexibility` | 0.25 | `curtailable_share × r(response)` where `r = 1.0 (<15 min), 0.7 (15–60), 0.4 (>60)`; then `× min(1, curtail_hours_yr / 200)`. Rationale: Duke shows ~100 GW of headroom at 0.5 % curtailment (~44 h/yr) [DOCUMENTED-EXTERNAL]. |
+| `flexibility` | 0.25 | `curtailable_share × r(response)` where `r = 1.0 (<15 min), 0.7 (15–60), 0.4 (>60)`; then `× min(1, curtail_hours_yr / 200)`. Rationale: Duke "Rethinking Load Growth" (11 Feb 2025) shows 76–126 GW of headroom across the 22 largest BAs at 0.25–1.0 % curtailment (~22–88 h/yr), ~100 GW at 0.5 %; ERCOT 10 GW and PJM 18 GW at 0.5 % [DOCUMENTED-EXTERNAL, verified from Utility Dive / RTO Insider coverage of the report]. |
 | `byog` | 0.15 | `min(1, (byog_mw + 0.5·storage_mw·min(1, storage_hours/4)) / mw)` |
 | `load_factor` | 0.10 | `1 − |load_factor − 0.85| / 0.85` (flat, predictable load scores best; very low LF is a phantom signal) |
 | `headroom` | 0.20 | `min(1, headroom_mw(ba, curtail_pct*) / mw)` where `curtail_pct*` is the smallest Duke tier the site's `curtail_hours_yr` supports (0.25 % ≈ 22 h, 0.5 % ≈ 44 h, 1.0 % ≈ 88 h); 0 tier if no curtailment → use 0.25 % table × 0.25 |
-| `congestion` | 0.10 | `1 − clip(local_lmp_congestion_spread_usd_mwh / 20, 0, 1)` using gridstatus 2025 mean absolute congestion component at the nearest pricing node [UNVERIFIED node mapping; fallback: ISO-zone mean] |
-| `service_type` | 0.10 | firm 0.4 · interim 0.7 · non_firm 1.0 (non-firm relieves the system; FERC ordered PJM to create these) |
+| `congestion` | 0.10 | `1 − clip(local_lmp_congestion_spread_usd_mwh / 20, 0, 1)` using gridstatus 2025 mean absolute congestion component at the nearest pricing node [UNVERIFIED node mapping; fallback: ISO-zone mean]. Wire-half fold: if the site's `serving_line_ids` have `line_upgrade_scores` rows, use `max(congestion_usd_yr)` over them normalised by the region's 90th-percentile `congestion_usd_yr` as the spread proxy instead (labelled `congestion_method = "twin-loading proxy (spec 08)"`, same caveat as 00 honest answer 8). |
+| `service_type` | 0.10 | firm 0.4 · interim 0.7 · non_firm 1.0 (non-firm relieves the system; FERC ordered PJM to create an interim, curtailable NITS product for co-located load — compliance filing due 17 Feb 2026 — verified) |
 | `tariff` | 0.10 | `0.6·min(1, min_demand_share/0.85) + 0.4·min(1, collateral_usd_per_mw / 100_000)` |
 
 `score = 100 × Σ weight_i × component_i`, rounded to integer.
@@ -268,12 +309,18 @@ menu = [
   ("accept non-firm / interim service",      service_type="non_firm"),
   ("sign 85% minimum-demand tariff",         min_demand_share=0.85),
   ("post collateral $100k/MW",               collateral_usd_per_mw=100_000),
+  # wire half (spec 08 data): one entry per serving line with a line_upgrade_scores row, best_tech from line_upgrade_detail
+  (f"{best_tech} on {line_id}",              congestion component recomputed with that line's congestion_usd_yr
+                                             reduced by uplift_mw / static_rating_mw (clipped 0..1); fix carries line_id),
 ]
 ```
 
 `months_faster` per fix: `flexibility`/`service_type` fixes → 18 months (interim service avoids
 full transmission study queue; assumption, labelled); storage/BYOG → 12; tariff → 0 (affects
-phantom, not speed). These are demo assumptions, stated as such on the card.
+phantom, not speed); named line upgrade → 18 if `best_tech = dlr` (months-scale deployment, FERC
+RM24-6 framing), 12 if `reconductor` (assumption; REWIRE-style categorical exclusion not assumed).
+These are demo assumptions, stated as such on the card. The demo card's fix set is "commit 200 h/yr
+curtailment + DLR on the two serving lines → 54 → 91, 18 months sooner" (pitch v2 beat 4).
 
 ### 4.5 Layer 5 — Cost model (`models/dc/cost.py`)
 
@@ -308,13 +355,30 @@ def score_dc_site(lat: float, lon: float, params: dict) -> dict
 def cost_exposure(utility: str) -> dict
     # → {utility, phantom_mw, stranded_cost_usd, delay_months_real_loads, params_used: {...}}
 
+# wire half — new here, reads spec 08's side table only:
+def line_profile(line_id: str) -> dict
+    # → {line_id, from_bus, to_bus, kv, owner, conductor_material, conductor_kcmil,
+    #    static_rating_mw, aar_rating_mw, dlr_p50_mw, dlr_hours_above_static,
+    #    congestion_usd_yr, congestion_method, dlr_uplift_mw, reconductor_uplift_mw,
+    #    dlr_cost_usd, reconductor_cost_usd, mw_per_musd, best_tech, payback_yr,
+    #    ferc_screen_pass, spark_eligible, region, sources: [...]}
+    # line_upgrade_detail ⋈ line_upgrade_scores ⋈ lines on line_id; 404-shaped error if 08 has not scored it
+
+# wire half — reused unchanged from spec 08 / 00-overview §2.4: top_lines(region, tech, n)
 # shared from Idea 1 (00-overview §2.4): sql(query), cite(query, k) — cite() here uses corpus tag "dc"
 ```
+
+Tool set when this pitch is active: `phantom_ratio`, `duplicates`, `score_dc_site`, `cost_exposure`,
+`line_profile`, `top_lines`, `sql`, `cite` (matches pitch v2 Layer 6, with `score_site(lat, lon, params)`
+read as `score_dc_site`). The `cite` corpus for the wire half adds FERC RM24-6, Order 881, and the DOE
+SPARK notice [UNVERIFIED that the SPARK notice PDF is posted] under corpus tag `dc`.
 
 System prompt addendum: "You are a regulatory analyst's assistant. Every MW, dollar, probability,
 and score you state must come from a tool result in this conversation. Conversion probabilities are
 estimates with intervals; always state the interval. When asked which projects to scrutinise, rank
-by `flag == 'shopping'`, then low `resolution_score`, then low `p_operate`, and cite the filing."
+by `flag == 'shopping'`, then low `resolution_score`, then low `p_operate`, and cite the filing.
+When asked which upgrades would unblock real loads, call `top_lines` for the region and `line_profile`
+for each line you name; state `mw_per_musd` and `best_tech` from the tool, never a payback you computed."
 
 ### 4.7 Causal layer (stretch, `causal/dc_conversion.py`)
 
@@ -351,7 +415,11 @@ def grid_impact_score(lat: float, lon: float, params: ScoreParams, con) -> Score
 def suggest_fixes(lat, lon, params, con, target: int = 90) -> list[Fix]
 # models/dc/cost.py
 def cost_exposure_for(utility: str, con) -> CostExposure
-# copilot/tools/dc.py  — the four tools in §4.6
+# models/dc/impact.py — wire-half join
+def serving_lines(lat: float, lon: float, con, k: int = 2, min_kv: float = 138.0) -> list[str]   # nearest line_ids by geometry
+# copilot/tools/dc.py  — the four load-half tools in §4.6 + line_profile
+def line_profile(line_id: str) -> dict
+# wire half reused, not re-implemented: pipelines.line_upgrade.score_lines, copilot.tools_lines.top_lines (spec 08)
 ```
 
 CLI:
@@ -361,6 +429,7 @@ uv run python -m pipelines.dc.run_all            # ingest all sources present in
 uv run python -m pipelines.dc.resolve
 uv run python -m models.dc.ledger --as-of 2026-09-01
 uv run python -m models.dc.score --lat 30.27 --lon -97.74 --mw 500 --curtailable 0.3 ...
+uv run python -m pipelines.line_upgrade --region ERCOT     # wire half — spec 08's CLI, run as-is before beats 3–4
 ```
 
 Routes: §3.3.
@@ -379,29 +448,42 @@ Routes: §3.3.
 8. Copilot answer to "Which three projects should <state>'s commission review most skeptically?" shows ≥ 2 tool calls (`duplicates`, `phantom_ratio` or `sql`) and ≥ 1 `cite` with a docket reference.
 9. Every number displayed carries a `source` or `assumption` label in the UI (no unlabeled constants).
 10. The Idea 1 tables and tools are untouched: `pytest tests/test_idea1_contract.py` (schema snapshot of the 00-overview tables) still passes after Idea 2 code is added.
+11. Wire half: `line_profile(line_id)` for every line in `top_lines("ERCOT","any",10)` returns a dict whose `mw_per_musd`, `best_tech`, `ferc_screen_pass`, `spark_eligible` equal the `line_upgrade_scores`/`line_upgrade_detail` rows byte-for-byte (pass-through, tested by equality; no re-scoring in this spec).
+12. `suggest_fixes` on the demo site returns at least one fix with a non-null `line_id`, and that `line_id` is one of the site's `serving_line_ids`.
 
 ---
 
-## 7. Demo hook (Idea 2 backup demo script, 5 minutes)
+## 7. Demo hook (Speed-to-Power backup demo script, 5 minutes — pitch v2 merged beats)
 
 | # | Beat | On screen | Tool / table |
 |---|---|---|---|
-| 1 | National map of utilities coloured by phantom ratio; zoom to ERCOT (or Dominion/Virginia if PJM ingest landed). | `/dc/utilities` choropleth by utility territory (use EIA-861 territory polygons [UNVERIFIED availability]; fallback: county-level with utility majority). | `dc_utility_ledger` |
-| 2 | Drill in: four bars. "This utility is forecasting 3× what's likely to be built. Here's the ratepayer exposure." | Utility card: announced / queued / forecast / operating bars; expected-real band; stranded-cost number with source label. | `phantom_ratio`, `cost_exposure` |
-| 3 | Duplicate table: one developer, same 500 MW, three queues. | `dc_entities` filtered `flag='shopping'`, expanded members. | `duplicates` |
-| 4 | Score a real proposed site: 54/100. Click "what makes this 90": curtailment + storage. Re-score: 91. "18 months faster." | Score form → card → fixes list → re-scored card. | `score_dc_site` |
-| 5 | Copilot: "Which PJM projects should Virginia's commission review most skeptically?" | SSE answer with visible tool calls and a citation to RM26-4 / the PJM show-cause response. | `duplicates`, `sql`, `cite` |
-| 6 | Close: "FERC ordered the fix in June. This is the fix." | Slide. | — |
+| 1 | National map of utilities coloured by phantom ratio; zoom to Dominion / Virginia (or ERCOT if PJM ingest did not land). Four bars: "forecasting 3× what's likely to be built; here's the ratepayer exposure." | `/dc/utilities` choropleth by utility territory (use EIA-861 territory polygons [UNVERIFIED availability]; fallback: county-level with utility majority) → utility card: announced / queued / forecast / operating bars; expected-real band; stranded-cost number with source label. | `dc_utility_ledger`, `phantom_ratio`, `cost_exposure` |
+| 2 | Duplicate table: one developer, same 500 MW, three queues. | `dc_entities` filtered `flag='shopping'`, expanded members. | `duplicates` |
+| 3 | Toggle to the line layer: "The cheapest capacity in America is already built; it's just under-rated." Click a corridor card: "DLR cut congestion 97 % on the PPL line. Our model would have flagged it." | Spec 08 screen reused: `line_upgrades` layer coloured by `mw_per_musd`; regional top-10 table; line card from `line_profile`. The PPL figure is a slide claim ($66 M → $1.6 M on one line, PPL/PJM) [UNVERIFIED exact figures — cite the PPL/LineVision press source on the slide, do not put it in a tool result]; ERCOT lines are what the live table shows. | `top_lines`, `line_profile`, `line_upgrade_scores`, `line_upgrade_detail` |
+| 4 | Score a real proposed site: 54/100. Click "what makes this 90": curtailment commitment + DLR on two named serving lines. Re-score: 91. "That's 18 months faster to power." | Score form → card (components incl. `congestion` from the serving lines) → fixes list with `line_id`s → re-scored card. | `score_dc_site` (+ `serving_lines`, `line_upgrade_scores`) |
+| 5 | Copilot: "Which PJM projects should Virginia review most skeptically, and which upgrades unblock the real ones?" | SSE answer with visible tool calls; citation to RM26-4 / the PJM show-cause response for the load half and RM24-6 for the wire half. | `duplicates`, `sql`, `top_lines`, `line_profile`, `cite` |
+| 6 | Close: "FERC ordered the load fix in June and DOE is awarding $1.9 B for the wire fix this fall. This is the list for both." (18 June 2026 show-cause orders to all six RTOs/ISOs; responses filed by 17 Aug 2026 — verified. DOE $1.9 B / SPARK award timing [UNVERIFIED — from pitch v2; confirm the notice before the slide]) | Slide. | — |
 
-Judge hooks: White House anti-fraud (McCarthy) — misrepresentation in regulated filings with public
-cost; entity resolution is anti-fraud tooling. FAI — policy counterfactual (§4.7). Craft — PUCs, RTOs,
-utilities, hyperscalers as buyers; Emerald $150M, GridCARE $64M. Defense — real defense/manufacturing
-loads stuck behind phantom ones. OPM — regulators doing in minutes what takes staff months.
+Judge hooks (combined, pitch v2): White House anti-fraud (McCarthy) — phantom load is
+misrepresentation in regulated filings with public cost; entity resolution is anti-fraud tooling.
+FAI (Levine, Dauber) — the AI-power-buildout policy fight plus the permitting-reform story (REWIRE Act
+categorical exclusion for reconductoring [UNVERIFIED bill status]); the tool produces policy
+counterfactuals (§4.7). Craft Ventures (Murray) — buyers are state PUCs, RTOs, utilities, hyperscalers
+who need to prove they're real, and GETs vendors (LineVision, Heimdall, TS Conductor, Smart Wires) who
+need lead lists; Emerald AI $150 M Series A at $1.05 B (25 Aug 2026 — verified), GridCARE $64 M Series A
+(14 May 2026 — verified). Defense judges — real defense/manufacturing loads stuck behind phantom ones,
+and capacity without new corridors means hardening supply to installations without decade-long NEPA
+fights. OPM (Hennecken) — regulators doing in minutes what takes staff months. Dirac / Forterra /
+KAIROS — honest engineering product with physics (IEEE 738, twin loading) under the wire half.
 
 Honest answers: "Cleanview already tracks projects" — it tracks announcements, not reconciliation
 against queues/forecasts, and doesn't score sites. "Utilities have this internally" — each sees its
 own slice; duplicates hide across utilities. "Your conversion estimates are uncertain" — yes, and we
-show the interval; today's number has none.
+show the interval; today's number has none. "Constraint-to-line mapping is hard" — yes; spec 08 uses
+a twin-loading congestion proxy this weekend (00 honest answer 8) and says so; PJM constraint mapping
+is the post-weekend path. "Two products in one" — they're one question: where does real load connect
+fastest? The load half says which requests are real; the wire half says where the headroom is; the
+score joins them.
 
 ---
 
@@ -416,6 +498,8 @@ show the interval; today's number has none.
 | Utility service-territory polygons unavailable | County choropleth with majority utility from EIA-861 sales; label the approximation. |
 | The Idea 1 `score_site` and Idea 2 `score_site` names collide in the pitch text | Resolved: Idea 2's tool is `score_dc_site`. The deck text should say "score a site" not the function name. |
 | Duke headroom tables are per-BA; ERCOT is one BA | Fine for ERCOT; for PJM use the PJM BA row. |
+| Wire half depends on spec 08 finishing `line_upgrade_scores` + `line_upgrade_detail` | 08 is on Idea 1's Day 1 plan regardless; if it slips, beats 3–4 drop the line layer and the line fix, and the deck's wire slides use spec 08's unit-test lines. No line scoring is re-implemented here. |
+| Demo site is in Virginia (PJM) but `line_upgrade_scores` is ERCOT-only this weekend | Score a Texas site for beat 4 (serving lines exist), or run beat 4 in ERCOT and beats 1–2 in PJM; say which region each screen is on. |
 
 ---
 
@@ -429,6 +513,7 @@ show the interval; today's number has none.
 | Grid Impact Score + fixes + unit tests | 2 |
 | Cost model | 0.5 |
 | Four copilot tools + `cite` corpus tag `dc` (RM26-4 PDFs) | 1.5 |
-| Web: utility map + four-bar card + duplicate table + score form (reuse Idea 1 shell) | 3 |
+| Wire half: `serving_lines` join, `line_profile` tool, line fix in the menu, RM24-6/Order 881 into corpus `dc` (line scoring itself is spec 08's time, not counted here) | 1 |
+| Web: utility map + four-bar card + duplicate table + score form (reuse Idea 1 shell and the spec 08 line screen) | 3 |
 | Deck (built regardless) | 1 |
-| **Total** | **~14 (≈ 10 with two people in parallel)** |
+| **Total** | **~15 (≈ 10–11 with two people in parallel)** |
