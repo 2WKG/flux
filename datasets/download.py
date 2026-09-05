@@ -80,7 +80,7 @@ def main() -> int:
     parser.add_argument("ids", nargs="*", help="dataset IDs from catalog.json")
     parser.add_argument(
         "--group",
-        choices=("core", "extended", "national", "demo-ny", "demo-tx", "all"),
+        choices=("core", "extended", "national", "demo-tx", "all"),
     )
     parser.add_argument("--list", action="store_true", help="list catalog entries")
     parser.add_argument("--dry-run", action="store_true")
