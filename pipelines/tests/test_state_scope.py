@@ -11,6 +11,18 @@ def test_normalizes_full_name_fips_and_repeated_comma_state_inputs():
     assert parse_states(["NY,MN", "TX"]) == ("NY", "MN", "TX")
 
 
+@pytest.mark.parametrize(
+    "value", ["1.0", "4 8", "48.0", 1.0, 27.0, float("nan"), float("inf")]
+)
+def test_rejects_malformed_numeric_state_values(value):
+    with pytest.raises(ValueError, match="expected USPS|floating-point"):
+        scope(value)
+
+
+def test_accepts_district_name_with_comma_without_splitting_the_scope():
+    assert scope("Washington, DC").usps == ("DC",)
+
+
 def test_context_uses_shared_store_and_rejects_texas_topology_build(tmp_path):
     assert context_db_path("MN", tmp_path) == tmp_path / "grid.duckdb"
     assert context_db_path("WI", tmp_path) == context_db_path("MN", tmp_path)

@@ -194,10 +194,12 @@ JSON; typed families hold coordinates, units/values, model mode, input-artifact 
 score components, and citations. This permits stable cross-surface identity without
 forcing a source record into a legacy numeric `*_id` field.
 
-Additive ingest-provenance helper tables may record a source year together with a
-state scope when a shared DuckDB store loads more than one state. They are not
-Minnesota artifact tables and do not change this contract's identity, availability,
-or common-envelope requirements; their purpose is to make a scoped ingest rerun
+`eaglei_ingest_quality_by_state` is an additive ingest-provenance helper relation
+for shared-store EAGLE-I loads. Its primary key is `(source_year, state_fips)` and
+it records the source file and timezone plus raw, valid, missing, negative, and
+duplicate row counts, distinct source counties, and the load timestamp. It is not
+a Minnesota artifact table and does not change this contract's identity,
+availability, or common-envelope requirements; it makes a scoped ingest rerun
 auditable rather than silently discarding its quality record.
 
 2WKG-98 validates deterministic identity generation; preflight-before-mutation;

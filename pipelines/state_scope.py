@@ -98,11 +98,17 @@ def normalize_state(value: str | int | State) -> State:
         return value
     if isinstance(value, bool):
         raise StateScopeError("boolean is not a state")
+    if isinstance(value, float):
+        raise StateScopeError("floating-point values are not state identifiers")
     text = str(value).strip()
     if text.isdigit():
         if len(text) > 2:
             raise StateScopeError(f"expected state FIPS, not {value!r}")
         text = text.zfill(2)
+    elif any(character.isdigit() for character in text):
+        raise StateScopeError(
+            f"expected USPS, full state name, or one/two-digit FIPS, not {value!r}"
+        )
     try:
         return _BY_KEY[_key(text)]
     except KeyError as error:
@@ -114,12 +120,18 @@ def normalize_state(value: str | int | State) -> State:
 def _flatten(values) -> tuple:
     if values is None:
         return ("TX",)
-    if isinstance(values, (str, int, State)):
+    if isinstance(values, (str, int, float, State)):
         values = (values,)
     result = []
     for value in values:
         if isinstance(value, str):
-            result.extend(part.strip() for part in value.split(",") if part.strip())
+            text = value.strip()
+            try:
+                normalize_state(text)
+            except StateScopeError:
+                result.extend(part.strip() for part in text.split(",") if part.strip())
+            else:
+                result.append(text)
         else:
             result.append(value)
     return tuple(result)
