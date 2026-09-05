@@ -1,5 +1,14 @@
 # Flux hackathon build specs
 
+> **Current authority — Minnesota demo.** [10-minnesota-demo.md](10-minnesota-demo.md)
+> supersedes the legacy Texas/NY geography, ERCOT/Uri scenarios, ACTIVSg2000 reuse,
+> provider defaults, and acceptance claims below. The checked-in five-bus synthetic preview
+> must never be presented as a Minnesota network or interconnection study.
+
+> **Shared fixture contract.** [10-duckdb-contract.md](10-duckdb-contract.md) coexists with
+> both scopes as a geography-neutral identity, unit, coordinate, and provenance contract. It
+> contains no geographic fixture records and does not derive Minnesota data from the Texas case.
+
 Product name: **Flux** (the repository and package stay `flux`; see `00-overview.md` amendment A8 and the retained pitch document).
 Headline: **grid digital twin + outage prediction + nuclear siting, Texas first** (ACTIVSg2000 / ERCOT),
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the

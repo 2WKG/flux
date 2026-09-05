@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://flux.local/schemas/causal-evidence-artifact/1.0.0.json",
+  "title": "Flux causal evidence artifact",
+  "description": "Versioned, fail-closed persisted backing evidence artifact used before Flux exposes a causal effect claim; it is not the causal_query wire response.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifact_version", "artifact_id", "classification", "availability"],
+  "properties": {
+    "artifact_version": { "const": "1.0.0" },
+    "artifact_id": { "type": "string", "minLength": 1 },
+    "classification": { "enum": ["interface_fixture", "estimable_study"] },
+    "question": { "$ref": "#/$defs/question" },
+    "sources": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/source" } },
+    "sample": { "oneOf": [{ "$ref": "#/$defs/sample" }, { "$ref": "#/$defs/unavailable_sample" }] },
+    "covariates": { "type": "array", "items": { "$ref": "#/$defs/labeled_variable" } },
+    "assumptions": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+    "diagnostics": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/diagnostic" } },
+    "citations": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/citation" } },
+    "availability": { "$ref": "#/$defs/availability" },
+    "estimate": { "$ref": "#/$defs/estimate" }
+  },
+  "oneOf": [
+    { "title": "Interface fixture", "properties": { "classification": { "const": "interface_fixture" }, "availability": { "allOf": [{ "$ref": "#/$defs/availability" }, { "properties": { "status": { "const": "unavailable" }, "unavailable_codes": { "contains": { "const": "FIXTURE_NOT_ESTIMABLE" } } } }] } }, "required": ["classification", "availability"], "not": { "anyOf": [{ "required": ["question"] }, { "required": ["sources"] }, { "required": ["sample"] }, { "required": ["covariates"] }, { "required": ["assumptions"] }, { "required": ["diagnostics"] }, { "required": ["citations"] }, { "required": ["estimate"] }] } },
+    { "title": "Insufficient study", "properties": { "classification": { "const": "estimable_study" }, "availability": { "allOf": [{ "$ref": "#/$defs/availability" }, { "properties": { "status": { "const": "unavailable" } } }] } }, "required": ["artifact_version", "artifact_id", "classification", "sources", "sample", "covariates", "assumptions", "diagnostics", "citations", "availability"], "anyOf": [{ "required": ["question"] }, { "properties": { "availability": { "properties": { "unavailable_codes": { "contains": { "const": "MISSING_TREATMENT_DEFINITION" } } } } } }, { "properties": { "availability": { "properties": { "unavailable_codes": { "contains": { "const": "MISSING_OUTCOME_DEFINITION" } } } } } }], "not": { "required": ["estimate"] } },
+    { "title": "Sufficient study", "properties": { "classification": { "const": "estimable_study" }, "availability": { "allOf": [{ "$ref": "#/$defs/availability" }, { "properties": { "status": { "const": "available" } } }] }, "sample": { "$ref": "#/$defs/sample" }, "estimate": { "$ref": "#/$defs/estimate" }, "diagnostics": { "type": "array", "minItems": 1, "items": { "allOf": [{ "$ref": "#/$defs/diagnostic" }, { "properties": { "status": { "const": "pass" } } }] } } }, "required": ["artifact_version", "artifact_id", "classification", "question", "sources", "sample", "covariates", "assumptions", "diagnostics", "citations", "availability", "estimate"] }
+  ],
+  "$defs": {
+    "labeled_variable": { "type": "object", "additionalProperties": false, "required": ["name", "definition", "unit_or_category", "source_id"], "properties": { "name": { "type": "string", "minLength": 1 }, "definition": { "type": "string", "minLength": 1 }, "unit_or_category": { "type": "string", "minLength": 1 }, "source_id": { "type": "string", "minLength": 1 } } },
+    "question": { "type": "object", "additionalProperties": false, "required": ["treatment", "outcome", "target_population"], "properties": { "treatment": { "$ref": "#/$defs/labeled_variable" }, "outcome": { "$ref": "#/$defs/labeled_variable" }, "target_population": { "type": "object", "additionalProperties": false, "required": ["description", "geography", "time_window"], "properties": { "description": { "type": "string", "minLength": 1 }, "geography": { "type": "string", "minLength": 1 }, "time_window": { "type": "string", "minLength": 1 } } } } },
+    "source": { "type": "object", "additionalProperties": false, "required": ["source_id", "name", "version", "locator", "coverage"], "properties": { "source_id": { "type": "string", "minLength": 1 }, "name": { "type": "string", "minLength": 1 }, "version": { "type": "string", "minLength": 1 }, "locator": { "type": "string", "minLength": 1 }, "coverage": { "type": "string", "minLength": 1 } } },
+    "sample": { "type": "object", "additionalProperties": false, "required": ["unit", "n_total", "n_treated", "n_control", "period"], "properties": { "unit": { "type": "string", "minLength": 1 }, "n_total": { "type": "integer", "minimum": 0 }, "n_treated": { "type": "integer", "minimum": 0 }, "n_control": { "type": "integer", "minimum": 0 }, "period": { "type": "string", "minLength": 1 } } },
+    "unavailable_sample": { "type": "object", "additionalProperties": false, "required": ["unit", "n_total", "period"], "properties": { "unit": { "type": "string", "minLength": 1 }, "n_total": { "type": "integer", "minimum": 0 }, "period": { "type": "string", "minLength": 1 } } },
+    "diagnostic": { "type": "object", "additionalProperties": false, "required": ["name", "status", "evidence"], "properties": { "name": { "type": "string", "minLength": 1 }, "status": { "enum": ["pass", "fail", "not_run"] }, "evidence": { "type": "string", "minLength": 1 } } },
+    "citation": { "type": "object", "additionalProperties": false, "required": ["source_id", "locator"], "properties": { "source_id": { "type": "string", "minLength": 1 }, "locator": { "type": "string", "minLength": 1 } } },
+    "availability": { "type": "object", "additionalProperties": false, "required": ["status"], "properties": { "status": { "enum": ["available", "unavailable"] }, "unavailable_codes": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "enum": ["FIXTURE_NOT_ESTIMABLE", "MISSING_IDENTIFICATION", "MISSING_TREATMENT_DEFINITION", "MISSING_OUTCOME_DEFINITION", "MISSING_DATA_COVERAGE", "MISSING_DIAGNOSTICS"] } } }, "allOf": [{ "if": { "properties": { "status": { "const": "available" } }, "required": ["status"] }, "then": { "not": { "required": ["unavailable_codes"] } }, "else": { "required": ["unavailable_codes"] } }] },
+    "estimate": { "type": "object", "additionalProperties": false, "required": ["estimand", "method", "effect", "interval", "confidence_level", "evidence", "caveats"], "properties": { "estimand": { "type": "string", "minLength": 1 }, "method": { "type": "string", "minLength": 1 }, "effect": { "type": "number" }, "interval": { "type": "object", "additionalProperties": false, "required": ["lower", "upper"], "properties": { "lower": { "type": "number" }, "upper": { "type": "number" } } }, "confidence_level": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 }, "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/citation" } }, "caveats": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } } } }
+  }
+}
