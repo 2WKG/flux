@@ -34,6 +34,9 @@ _TERMINAL_FAILURES = {
     ),
 }
 
+_TOOL_ERROR_CODES = frozenset({"timeout", "invalid_input", "unavailable", "tool_error"})
+_MAX_TOOL_ERROR_MESSAGE_CHARS = 1024
+
 
 class StreamStateError(RuntimeError):
     """An event would violate an answer attempt's lifecycle."""
@@ -129,10 +132,16 @@ class CopilotEventStream:
         """Emit a failed outcome for one previously emitted tool call.
 
         The stream remains active and can accept further tool calls or done().
-        Caller must provide fixed, safe error code and message strings;
-        never expose exception tracebacks, paths, or secrets.
+        Codes are a small fixed vocabulary and messages are bounded so callers
+        cannot turn a tool error into an unbounded exception transport.
         """
         self._validate_tool_call(call_id, tool)
+        if code not in _TOOL_ERROR_CODES:
+            raise ValueError(f"unsupported tool error code: {code!r}")
+        if not message or len(message) > _MAX_TOOL_ERROR_MESSAGE_CHARS:
+            raise ValueError(
+                f"tool error message must be 1..{_MAX_TOOL_ERROR_MESSAGE_CHARS} characters"
+            )
         if elapsed_ms < 0:
             raise ValueError("elapsed_ms must be non-negative")
         return self._event(
