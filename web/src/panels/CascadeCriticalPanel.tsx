@@ -1,0 +1,4 @@
+import type { ClientState } from "../data/client-state";
+import { ArtifactPanelState, type Provenance } from "./ArtifactPanelState";
+export type CascadeCritical=Readonly<{scenario_id:string; status:"supported"|"unsupported"; critical_elements:readonly string[]; provenance:Provenance}>;
+export function CascadeCriticalPanel({state}:{state:ClientState<CascadeCritical>}) { return <ArtifactPanelState state={state}>{x=><section><h2>Cascade and critical elements</h2><p>Scenario: {x.scenario_id}</p>{x.status==="unsupported"?<p>This scenario has no supported cascade artifact; the static demo remains available.</p>:x.critical_elements.length===0?<p>No critical elements were returned by the server.</p>:<ul>{x.critical_elements.map(id=><li key={id}>{id}</li>)}</ul>}<p>Source: {x.provenance.source_kind} · {x.provenance.artifact_id}</p></section>}</ArtifactPanelState>; }
