@@ -155,7 +155,10 @@ def build_rows(con, county_fips: str, window_starts: list[datetime],
 
 # models/outage/split.py
 HOLDOUT_WINDOWS: dict[str, tuple[datetime, datetime, tuple[str, ...]]]  # scenario_id -> (start, end, states)
-def split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...  # train, calib, holdouts
+def split(df: pd.DataFrame, *, county_catalog: pd.DataFrame | Mapping[str, str]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...
+# `df` is `outage_features` (keyed only by county_fips/window_start); county_catalog is the
+# shared `counties` lookup with county_fips/state, resolved separately to keep display metadata
+# out of the feature transport.  # train, calib, holdouts
 
 # models/outage/train.py
 @dataclass
