@@ -36,10 +36,10 @@
     "semantic_hash": "ec3f7c40a0e40c2a2760e48d68cafb50"
   },
   "pyproject.toml": {
-    "mtime": 1788619188.9994848,
-    "seen": 1788626594.365857,
-    "ast_hash": "378ad268de9dad6ad05fb6207c7b88a7",
-    "semantic_hash": "378ad268de9dad6ad05fb6207c7b88a7"
+    "mtime": 1788637093.8789165,
+    "seen": 1788637487.3772538,
+    "ast_hash": "554888300b2a0a4203e45e1b9a10323e",
+    "semantic_hash": "554888300b2a0a4203e45e1b9a10323e"
   },
   "scripts/data/fetch_activsg2000.sh": {
     "mtime": 1788625447.3418434,
@@ -114,22 +114,22 @@
     "semantic_hash": "824d7277bf46fa78e70406876bbf472f"
   },
   "README.md": {
-    "mtime": 1788625447.2943935,
-    "seen": 1788626594.3658793,
-    "ast_hash": "ed7fb24f925d17050cd45533b7ef4b4e",
-    "semantic_hash": "ed7fb24f925d17050cd45533b7ef4b4e"
+    "mtime": 1788637093.811693,
+    "seen": 1788637487.3787665,
+    "ast_hash": "a4e9f698401622b1b4ded170521e32aa",
+    "semantic_hash": "a4e9f698401622b1b4ded170521e32aa"
   },
   "STACK-LOCK.md": {
-    "mtime": 1788625447.2956421,
-    "seen": 1788626594.3658807,
-    "ast_hash": "cf622d6735dfe342d3db10ba37ee4857",
-    "semantic_hash": "cf622d6735dfe342d3db10ba37ee4857"
+    "mtime": 1788637093.8136892,
+    "seen": 1788637487.3787687,
+    "ast_hash": "cceeb9e582de030b39651941b7309f95",
+    "semantic_hash": "cceeb9e582de030b39651941b7309f95"
   },
   "data/sources/ingest/README.md": {
-    "mtime": 1788625447.3006094,
-    "seen": 1788626594.3658824,
-    "ast_hash": "17fc6cc3922ea85a2608b3c9a106936b",
-    "semantic_hash": "17fc6cc3922ea85a2608b3c9a106936b"
+    "mtime": 1788637093.8230374,
+    "seen": 1788637487.3787706,
+    "ast_hash": "efe716021c21583b338c6654c7cb586b",
+    "semantic_hash": "efe716021c21583b338c6654c7cb586b"
   },
   "datasets/README.md": {
     "mtime": 1788625447.303668,
@@ -156,10 +156,10 @@
     "semantic_hash": "2e225e7a060f5b820bba8f8d258ec88d"
   },
   "docs/data/texas-new-york-feasibility.md": {
-    "mtime": 1788626215.182681,
-    "seen": 1788626594.365891,
-    "ast_hash": "68afb8d378d1270d94b686537fb13abd",
-    "semantic_hash": "68afb8d378d1270d94b686537fb13abd"
+    "mtime": 1788637093.828262,
+    "seen": 1788637487.3787754,
+    "ast_hash": "dcc70b6d912b47fe8fa3e598bfd915b0",
+    "semantic_hash": "dcc70b6d912b47fe8fa3e598bfd915b0"
   },
   "docs/demo-script.md": {
     "mtime": 1788625447.3201306,
@@ -174,76 +174,76 @@
     "semantic_hash": "0c61b33530a426e395b3f62ff2d0178e"
   },
   "docs/plans/data-collection-and-curation-plan.md": {
-    "mtime": 1788625447.3247929,
-    "seen": 1788626594.3658962,
-    "ast_hash": "fcc580b9d73c3d9128041a9c8cdaa656",
-    "semantic_hash": "fcc580b9d73c3d9128041a9c8cdaa656"
+    "mtime": 1788637093.83051,
+    "seen": 1788637487.3787777,
+    "ast_hash": "d3065c3d6d1b71ff7ebbefc72ce7f7e5",
+    "semantic_hash": "d3065c3d6d1b71ff7ebbefc72ce7f7e5"
   },
   "docs/specs/00-overview.md": {
     "mtime": 1788625447.325803,
     "seen": 1788626594.365898,
     "ast_hash": "a093a21e514488865b7738139ed7f219",
-    "semantic_hash": "a093a21e514488865b7738139ed7f219"
+    "semantic_hash": ""
   },
   "docs/specs/01-data-ingest.md": {
     "mtime": 1788619188.9774609,
     "seen": 1788626594.3658996,
     "ast_hash": "5638485ba0a3d0b428d8bf420b644dfe",
-    "semantic_hash": "5638485ba0a3d0b428d8bf420b644dfe"
+    "semantic_hash": ""
   },
   "docs/specs/02-outage-model.md": {
     "mtime": 1788619188.978469,
     "seen": 1788626594.3659012,
     "ast_hash": "4c89b62f4286e93317be25bd6c32451e",
-    "semantic_hash": "4c89b62f4286e93317be25bd6c32451e"
+    "semantic_hash": ""
   },
   "docs/specs/03-cascade-sim.md": {
     "mtime": 1788619188.9794638,
     "seen": 1788626594.3659031,
     "ast_hash": "4a78e65ac83b6d0c6f1b9c8752d09b85",
-    "semantic_hash": "4a78e65ac83b6d0c6f1b9c8752d09b85"
+    "semantic_hash": ""
   },
   "docs/specs/04-siting-engine.md": {
     "mtime": 1788619188.9804606,
     "seen": 1788626594.3659046,
     "ast_hash": "6af0763ff31269df8a98f2eca75037fd",
-    "semantic_hash": "6af0763ff31269df8a98f2eca75037fd"
+    "semantic_hash": ""
   },
   "docs/specs/05-copilot.md": {
     "mtime": 1788625447.3288124,
     "seen": 1788626594.365906,
     "ast_hash": "b884ca63a3d539648b2d032b88fe7489",
-    "semantic_hash": "b884ca63a3d539648b2d032b88fe7489"
+    "semantic_hash": ""
   },
   "docs/specs/06-frontend.md": {
     "mtime": 1788619188.9824617,
     "seen": 1788626594.3659077,
     "ast_hash": "0da67e2760c3d8d9c15fdba166cc03c5",
-    "semantic_hash": "0da67e2760c3d8d9c15fdba166cc03c5"
+    "semantic_hash": ""
   },
   "docs/specs/07-causal-layer.md": {
     "mtime": 1788619188.9834764,
     "seen": 1788626594.3659096,
     "ast_hash": "14b922ed7de0b114200e078baee5c71e",
-    "semantic_hash": "14b922ed7de0b114200e078baee5c71e"
+    "semantic_hash": ""
   },
   "docs/specs/08-line-upgrade-screen.md": {
     "mtime": 1788619188.9844651,
     "seen": 1788626594.3659112,
     "ast_hash": "55cdf355d229ec4f167f5859c5b05e7e",
-    "semantic_hash": "55cdf355d229ec4f167f5859c5b05e7e"
+    "semantic_hash": ""
   },
   "docs/specs/09-backup-idea2-datacenter-load.md": {
     "mtime": 1788625447.3301504,
     "seen": 1788626594.365913,
     "ast_hash": "38d19e2b96b36453d1018775d56d52d2",
-    "semantic_hash": "38d19e2b96b36453d1018775d56d52d2"
+    "semantic_hash": ""
   },
   "docs/specs/README.md": {
-    "mtime": 1788625447.3336725,
-    "seen": 1788626594.3659143,
-    "ast_hash": "3200e892a8230020e2e43de985660633",
-    "semantic_hash": "3200e892a8230020e2e43de985660633"
+    "mtime": 1788637093.870898,
+    "seen": 1788637487.3787942,
+    "ast_hash": "5467173d538608d6d3df79afaddb9d19",
+    "semantic_hash": "5467173d538608d6d3df79afaddb9d19"
   },
   "docs/specs/VERIFICATION.md": {
     "mtime": 1788619188.9864752,
@@ -281,16 +281,184 @@
     "ast_hash": "74cfd65a3b24387d49d5df171d98afbb",
     "semantic_hash": "74cfd65a3b24387d49d5df171d98afbb"
   },
-  "hackathon-pitches-and-designs.md": {
-    "mtime": 1788625447.3358161,
-    "seen": 1788626594.3659272,
-    "ast_hash": "0c61b33530a426e395b3f62ff2d0178e",
-    "semantic_hash": "0c61b33530a426e395b3f62ff2d0178e"
-  },
   "web/index.html": {
     "mtime": 1788625447.3448453,
     "seen": 1788626594.3659286,
     "ast_hash": "617722516b42eb59939712db9851c17f",
     "semantic_hash": "617722516b42eb59939712db9851c17f"
+  },
+  "copilot/__init__.py": {
+    "mtime": 1788637093.8149126,
+    "seen": 1788637487.3758564,
+    "ast_hash": "4ff80baf8841aad80e3168d644578d9b",
+    "semantic_hash": "4ff80baf8841aad80e3168d644578d9b"
+  },
+  "copilot/retrieval/__init__.py": {
+    "mtime": 1788637093.816981,
+    "seen": 1788637487.3758662,
+    "ast_hash": "ad6e581e38742df0b3f7d701916cd292",
+    "semantic_hash": "ad6e581e38742df0b3f7d701916cd292"
+  },
+  "copilot/retrieval/chunking.py": {
+    "mtime": 1788637093.816981,
+    "seen": 1788637487.3758695,
+    "ast_hash": "2983674d0addcd26af54f1892bcd246a",
+    "semantic_hash": "2983674d0addcd26af54f1892bcd246a"
+  },
+  "copilot/tools/__init__.py": {
+    "mtime": 1788637093.8192015,
+    "seen": 1788637487.3758712,
+    "ast_hash": "3f636e34eb34cc77a2bb7aed39fac4bf",
+    "semantic_hash": "3f636e34eb34cc77a2bb7aed39fac4bf"
+  },
+  "copilot/tools/schemas.py": {
+    "mtime": 1788637093.8202014,
+    "seen": 1788637487.3758729,
+    "ast_hash": "028d83785c1bb52448cc1c04a516f3c9",
+    "semantic_hash": "028d83785c1bb52448cc1c04a516f3c9"
+  },
+  "datasets/operations.json": {
+    "mtime": 1788637093.8242557,
+    "seen": 1788637487.3768816,
+    "ast_hash": "872100bec4f85f0a45fc0b1ddbf403f1",
+    "semantic_hash": "872100bec4f85f0a45fc0b1ddbf403f1"
+  },
+  "pipelines/__init__.py": {
+    "mtime": 1788637093.8729079,
+    "seen": 1788637487.3772461,
+    "ast_hash": "60b64656d5c1e3e24331e0fe4d916759",
+    "semantic_hash": "60b64656d5c1e3e24331e0fe4d916759"
+  },
+  "pipelines/db.py": {
+    "mtime": 1788637093.874929,
+    "seen": 1788637487.3772483,
+    "ast_hash": "77233ceeb71d6c9e07750ed34a922b36",
+    "semantic_hash": "77233ceeb71d6c9e07750ed34a922b36"
+  },
+  "pipelines/line_upgrade_contracts.py": {
+    "mtime": 1788637093.875932,
+    "seen": 1788637487.37725,
+    "ast_hash": "fe1bf2071a603c4e64e1aedbfc716243",
+    "semantic_hash": "fe1bf2071a603c4e64e1aedbfc716243"
+  },
+  "pipelines/tests/test_line_upgrade_contracts.py": {
+    "mtime": 1788637093.8769214,
+    "seen": 1788637487.3772516,
+    "ast_hash": "4cb0bab4ad900d00ca3d0d2acba1854d",
+    "semantic_hash": "4cb0bab4ad900d00ca3d0d2acba1854d"
+  },
+  "tests/__init__.py": {
+    "mtime": 1788637093.8809488,
+    "seen": 1788637487.3775902,
+    "ast_hash": "b7647453a20c41943733f24c38dcd515",
+    "semantic_hash": "b7647453a20c41943733f24c38dcd515"
+  },
+  "tests/test_chunking.py": {
+    "mtime": 1788637093.881944,
+    "seen": 1788637487.3775923,
+    "ast_hash": "8efd28b47263f53c677afa1ab1edba0d",
+    "semantic_hash": "8efd28b47263f53c677afa1ab1edba0d"
+  },
+  "tests/test_schema_contract.py": {
+    "mtime": 1788637093.8829467,
+    "seen": 1788637487.377594,
+    "ast_hash": "512e189a9caac6ebbb7c6f7d07ceecfa",
+    "semantic_hash": "512e189a9caac6ebbb7c6f7d07ceecfa"
+  },
+  "tests/test_tool_schemas.py": {
+    "mtime": 1788637093.8936176,
+    "seen": 1788637487.3775954,
+    "ast_hash": "d55819997fc316e38e561d67fb93fca7",
+    "semantic_hash": "d55819997fc316e38e561d67fb93fca7"
+  },
+  ".agents/skills/flux-orchestration/SKILL.md": {
+    "mtime": 1788637093.802004,
+    "seen": 1788637487.3787565,
+    "ast_hash": "ea1f435df286c5ffefce360a67f10f4e",
+    "semantic_hash": "ea1f435df286c5ffefce360a67f10f4e"
+  },
+  ".agents/skills/flux-orchestration/templates/review-report.md": {
+    "mtime": 1788637093.8040059,
+    "seen": 1788637487.378759,
+    "ast_hash": "722f3abaa762dbc638920a25f463784b",
+    "semantic_hash": "722f3abaa762dbc638920a25f463784b"
+  },
+  ".agents/skills/flux-orchestration/templates/worker-brief.md": {
+    "mtime": 1788637093.8050046,
+    "seen": 1788637487.378761,
+    "ast_hash": "e9398a3bc9a1738c4de030bc86e216d2",
+    "semantic_hash": "e9398a3bc9a1738c4de030bc86e216d2"
+  },
+  ".claude/skills/flux-orchestration/SKILL.md": {
+    "mtime": 1788637093.807009,
+    "seen": 1788637487.3787627,
+    "ast_hash": "3d8f619eaa5896fb00277e60b738f5c0",
+    "semantic_hash": "3d8f619eaa5896fb00277e60b738f5c0"
+  },
+  "AGENTS.md": {
+    "mtime": 1788625447.2873769,
+    "seen": 1788637487.378764,
+    "ast_hash": "052a1484fd0d50e0b430f3256259b5c6",
+    "semantic_hash": "052a1484fd0d50e0b430f3256259b5c6"
+  },
+  "docs/data/ingestion-operations.md": {
+    "mtime": 1788637093.8262608,
+    "seen": 1788637487.3787723,
+    "ast_hash": "e7020ea6f5fe6bb01d50fff1ebf2f5f6",
+    "semantic_hash": "e7020ea6f5fe6bb01d50fff1ebf2f5f6"
+  },
+  "docs/plans/generalizable-multi-energy-roadmap.md": {
+    "mtime": 1788637093.8315165,
+    "seen": 1788637487.3787794,
+    "ast_hash": "92208854509f2d7ede6b864ff26f7f6f",
+    "semantic_hash": "92208854509f2d7ede6b864ff26f7f6f"
+  },
+  "docs/plans/source-backed-multi-energy-stress-shortlist.md": {
+    "mtime": 1788637093.8325095,
+    "seen": 1788637487.378781,
+    "ast_hash": "d9d1e4cc148e73437a096eecae30f1bd",
+    "semantic_hash": "d9d1e4cc148e73437a096eecae30f1bd"
+  },
+  "docs/research/minnesota/demand-history-granularity.md": {
+    "mtime": 1788637093.835465,
+    "seen": 1788637487.3787827,
+    "ast_hash": "629f1eb1d5425b4aac6fdaf069e11c0a",
+    "semantic_hash": "629f1eb1d5425b4aac6fdaf069e11c0a"
+  },
+  "docs/research/minnesota/solver-network-feasibility.md": {
+    "mtime": 1788637093.837072,
+    "seen": 1788637487.3787842,
+    "ast_hash": "c637d0e152d792767d1f9b3f80e9182e",
+    "semantic_hash": "c637d0e152d792767d1f9b3f80e9182e"
+  },
+  "docs/research/minnesota/source-citation-inventory.md": {
+    "mtime": 1788637093.8393104,
+    "seen": 1788637487.3787856,
+    "ast_hash": "04bdc39d149d6c8b5dc8ee521e0cf4cf",
+    "semantic_hash": "04bdc39d149d6c8b5dc8ee521e0cf4cf"
+  },
+  "docs/research/minnesota/weather-geography-evidence.md": {
+    "mtime": 1788637093.8407388,
+    "seen": 1788637487.378787,
+    "ast_hash": "f6676cc50eb45d2fb1e4c979548c0612",
+    "semantic_hash": "f6676cc50eb45d2fb1e4c979548c0612"
+  },
+  "docs/runbooks/static-origin-and-tunnel.md": {
+    "mtime": 1788637093.842928,
+    "seen": 1788637487.3787887,
+    "ast_hash": "76957feb47c1061e6da75ff162c2beb5",
+    "semantic_hash": "76957feb47c1061e6da75ff162c2beb5"
+  },
+  "docs/specs/10-duckdb-contract.md": {
+    "mtime": 1788637093.8673782,
+    "seen": 1788637487.37879,
+    "ast_hash": "8128cc81cc0d5359a72101dd910d4b5d",
+    "semantic_hash": "8128cc81cc0d5359a72101dd910d4b5d"
+  },
+  "docs/specs/10-minnesota-demo.md": {
+    "mtime": 1788637093.8688858,
+    "seen": 1788637487.3787913,
+    "ast_hash": "c1db699c2dc38ccc03a37a6f296e1203",
+    "semantic_hash": "c1db699c2dc38ccc03a37a6f296e1203"
   }
 }

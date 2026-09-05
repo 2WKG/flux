@@ -91,10 +91,51 @@ class ScoreSiteInput(ContractModel):
     scenario_id: ScenarioId
 
 
+TOP_LINES_MAX_LIMIT = 50
+"""The largest page a ``top_lines`` read may request."""
+
+TOP_LINES_MAX_OFFSET = 10_000
+"""The largest zero-based page offset a ``top_lines`` read may request."""
+
+TOP_LINES_DEFAULT_SORT = "mw_per_musd DESC, cost_usd ASC, line_id ASC"
+"""The fixed ranking order; callers cannot supply an arbitrary sort expression."""
+
+
 class TopLinesInput(ContractModel):
-    region: Annotated[str, Field(min_length=1, max_length=64)]
+    """Closed, bounded input for the persisted line-upgrade ranking read.
+
+    ``region`` and ``tech`` are the complete filter allowlist.  Results use
+    :data:`TOP_LINES_DEFAULT_SORT`; that fixed order gives equal primary scores
+    a deterministic cost and line-id tie-breaker.  ``offset`` is zero-based and
+    skips rows in that same order.  A page beyond the result set is empty rather
+    than wrapping or changing sort order.
+    """
+
+    region: Annotated[
+        str,
+        Field(
+            min_length=1,
+            max_length=64,
+            description="Exact persisted region key; no SQL fragment or wildcard syntax.",
+        ),
+    ]
     tech: Literal["dlr", "reconductor", "any"]
-    n: Annotated[int, Field(ge=1, le=50)] = 10
+    n: Annotated[
+        int,
+        Field(
+            ge=1,
+            le=TOP_LINES_MAX_LIMIT,
+            description="Page size; at most 50 persisted ranking rows.",
+        ),
+    ] = 10
+    offset: Annotated[
+        int,
+        Field(
+            ge=0,
+            le=TOP_LINES_MAX_OFFSET,
+            description="Zero-based number of rows to skip in the fixed ranking order.",
+        ),
+    ] = 0
 
 
 class SqlInput(ContractModel):

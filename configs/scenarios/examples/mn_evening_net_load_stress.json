@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "scenario": {
+    "id": "mn_evening_net_load_stress",
+    "label": "Minnesota hypothetical evening net-load stress",
+    "class": "synthetic_stress",
+    "execution_status": "example_only",
+    "time_window": {
+      "start_utc": "2023-09-06T00:00:00Z",
+      "end_utc": "2023-09-07T00:00:00Z",
+      "interval_minutes": 60
+    }
+  },
+  "static_context": {
+    "geography": {
+      "artifact_id": null,
+      "status": "unavailable",
+      "provenance": {
+        "source_id": "mn_demo_authority",
+        "url": "https://github.com/Wyzard1004/flux/pull/45",
+        "retrieved_at_utc": "2026-09-05T18:16:00Z",
+        "scope": "Minnesota map boundary must come from a documented service-area geometry or named aggregate zones."
+      }
+    },
+    "network": {
+      "artifact_id": null,
+      "status": "unavailable",
+      "provenance": {
+        "source_id": "mn_demo_authority",
+        "url": "https://github.com/Wyzard1004/flux/pull/45",
+        "retrieved_at_utc": "2026-09-05T18:16:00Z",
+        "scope": "No Minnesota topology is selected; only aggregate mode may be used after its metric contract is accepted."
+      }
+    }
+  },
+  "time_series": {
+    "demand": {
+      "artifact_id": "inline:mn_evening_net_load_stress:demand:v1",
+      "status": "supported",
+      "unit": "MW",
+      "time_basis": "UTC",
+      "samples": [{ "ts_utc": "2023-09-06T18:00:00Z", "value": 1000 }, { "ts_utc": "2023-09-06T19:00:00Z", "value": 1100 }],
+      "provenance": {
+        "source_id": "declared_sensitivity_assumption",
+        "url": "https://github.com/Wyzard1004/flux/pull/45",
+        "retrieved_at_utc": "2026-09-05T00:00:00Z",
+        "scope": "Illustrative Minnesota demand sensitivity values; they are not measured Minnesota demand."
+      }
+    },
+    "weather": {
+      "artifact_id": null,
+      "status": "unavailable",
+      "unit": "mixed",
+      "time_basis": "UTC",
+      "samples": [],
+      "provenance": {
+        "source_id": "not_selected",
+        "url": "https://github.com/Wyzard1004/flux/pull/45",
+        "retrieved_at_utc": "2026-09-05T18:16:00Z",
+        "scope": "No Minnesota weather artifact is attached to this non-executable example."
+      }
+    },
+    "outage": {
+      "artifact_id": null,
+      "status": "unavailable",
+      "unit": "customers_out",
+      "time_basis": "UTC",
+      "samples": [],
+      "provenance": {
+        "source_id": "ercot_2023_09_06_release",
+        "url": "https://www.ercot.com/news/release/2023-09-06-ercot-has-exited",
+        "retrieved_at_utc": "2026-09-05T00:00:00Z",
+        "scope": "ERCOT states that no outages were necessary; this is not a Minnesota outage record."
+      }
+    },
+    "availability": {
+      "artifact_id": "inline:mn_evening_net_load_stress:availability:v1",
+      "status": "supported",
+      "unit": "fraction",
+      "time_basis": "UTC",
+      "samples": [{ "ts_utc": "2023-09-06T18:00:00Z", "value": 0.55 }, { "ts_utc": "2023-09-06T19:00:00Z", "value": 0.35 }],
+      "provenance": {
+        "source_id": "declared_sensitivity_assumption",
+        "url": "https://github.com/Wyzard1004/flux/pull/45",
+        "retrieved_at_utc": "2026-09-05T00:00:00Z",
+        "scope": "Illustrative low-variable-resource sensitivity values; they are not measured Minnesota availability."
+      }
+    }
+  },
+  "resources": {
+    "generation": [
+      {
+        "resource_id": "aggregate_dispatchable_generation",
+        "fuel": "mixed",
+        "ramp_mw_per_min": {
+          "value": null,
+          "unit": "MW/min",
+          "status": "unsupported",
+          "provenance": {
+            "source_id": "not_selected",
+            "url": "https://github.com/Wyzard1004/flux/pull/45",
+            "retrieved_at_utc": "2026-09-05T18:16:00Z",
+            "scope": "No generator-level Minnesota ramp evidence is attached."
+          }
+        }
+      }
+    ],
+    "storage": [
+      {
+        "resource_id": "aggregate_storage",
+        "power_mw": { "value": null, "unit": "MW", "status": "unsupported", "provenance": { "source_id": "not_selected", "url": "https://github.com/Wyzard1004/flux/pull/45", "retrieved_at_utc": "2026-09-05T18:16:00Z", "scope": "No storage power evidence is attached." } },
+        "energy_mwh": { "value": null, "unit": "MWh", "status": "unsupported", "provenance": { "source_id": "not_selected", "url": "https://github.com/Wyzard1004/flux/pull/45", "retrieved_at_utc": "2026-09-05T18:16:00Z", "scope": "No storage energy evidence is attached." } },
+        "state_of_charge": { "value": null, "unit": "fraction", "status": "unsupported", "provenance": { "source_id": "not_selected", "url": "https://github.com/Wyzard1004/flux/pull/45", "retrieved_at_utc": "2026-09-05T18:16:00Z", "scope": "No state-of-charge evidence is attached." } }
+      }
+    ]
+  },
+  "provenance": {
+    "source_id": "2WKG-279_rank_2",
+    "url": "https://www.ercot.com/news/release/2023-09-06-ercot-has-exited",
+    "retrieved_at_utc": "2026-09-05T00:00:00Z",
+    "scope": "Rank 2 in 2WKG-279: September 6, 2023 evening net-load stress. This is a hypothetical Minnesota sensitivity configuration, not an observed Minnesota event or an executable scenario."
+  },
+  "uncertainty": {
+    "level": "high",
+    "notes": [
+      "The source describes an ERCOT event; no Texas demand, resource, outage, or topology value is transferred to Minnesota.",
+      "The two demand and availability samples are declared sensitivity assumptions, not measurements or a historical replay.",
+      "This does not replace PR 45's initial mn_winter_2023_snow candidate or authorize a result."
+    ]
+  }
+}

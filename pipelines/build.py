@@ -144,7 +144,28 @@ def _copy_database(source: Path, stage: Path) -> None:
         quote = lambda path: "'" + str(path).replace("'", "''") + "'"
         con.execute(f"ATTACH {quote(source)} AS live (READ_ONLY)")
         con.execute(f"ATTACH {quote(stage)} AS staged")
-        con.execute("COPY FROM DATABASE live TO staged")
+        # Native schema copying retains namespaces, views, and constraints.
+        # Native full copying inserts tables in catalog order, which can put
+        # populated children before their referenced parents.
+        con.execute("COPY FROM DATABASE live TO staged (SCHEMA)")
+        tables = set(con.execute(
+            "SELECT schema_name, table_name FROM duckdb_tables() WHERE database_name = 'live'"
+        ).fetchall())
+        dependencies = {table: set() for table in tables}
+        for schema, child, parent in con.execute(
+            "SELECT schema_name, table_name, referenced_table FROM duckdb_constraints() "
+            "WHERE database_name = 'live' AND constraint_type = 'FOREIGN KEY'"
+        ).fetchall():
+            dependencies[(schema, child)].add((schema, parent))
+        identifier = lambda value: '"' + value.replace('"', '""') + '"'
+        while tables:
+            ready = sorted(table for table in tables if not (dependencies[table] & tables))
+            if not ready:
+                raise RuntimeError(f"cannot stage cyclic foreign-key dependencies: {sorted(tables)}")
+            for schema, table in ready:
+                qualified = f"{identifier(schema)}.{identifier(table)}"
+                con.execute(f"INSERT INTO staged.{qualified} BY NAME SELECT * FROM live.{qualified}")
+                tables.remove((schema, table))
     finally:
         con.close()
 
