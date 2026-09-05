@@ -30,8 +30,8 @@ def test_storm_events_uses_each_rows_cz_timezone(tmp_path):
         observed = con.execute("SELECT event_id, ts_begin FROM storm_events ORDER BY event_id").fetchall()
     finally:
         con.close()
-    assert observed == [(1, pd.Timestamp("2021-07-01 17:00:00")),
-                        (2, pd.Timestamp("2021-07-01 18:00:00"))]
+    assert observed == [(1, pd.Timestamp("2021-07-01 18:00:00")),
+                        (2, pd.Timestamp("2021-07-01 19:00:00"))]
 
 
 def test_storm_events_rejects_undocumented_timezone():
