@@ -441,13 +441,17 @@ def test_write_ranking_skips_unavailables_and_reports_scored_count():
 
 
 @pytest.mark.parametrize("source_kind", ["observed", "simulated", "heuristic"])
-def test_writer_persists_declared_source_kind_to_both_line_artifacts(tmp_path, source_kind):
+def test_writer_persists_declared_source_kind_to_both_line_artifacts(
+    tmp_path, source_kind
+):
     con = db.connect(tmp_path / "grid.duckdb")
     _seed_lines(con, (1,))
     storage = STORAGE.model_copy(update={"source_kind": source_kind})
     write_ranking(con, persist_ranking((_result(1, 20),), storage))
     for table in ("line_upgrade_scores", "line_upgrade_detail"):
-        assert con.execute(f"SELECT source_kind FROM {table}").fetchone() == (source_kind,)
+        assert con.execute(f"SELECT source_kind FROM {table}").fetchone() == (
+            source_kind,
+        )
     con.close()
 
 

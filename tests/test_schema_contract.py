@@ -152,5 +152,7 @@ def test_opening_a_v2_database_fails_at_the_version_guard(tmp_path: Path) -> Non
     con.execute("CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
     con.execute("INSERT INTO schema_meta VALUES ('contract_version', '2.0.0')")
     con.close()
-    with pytest.raises(RuntimeError, match=r"contract version is '2\.0\.0', expected '2\.1\.0'"):
+    with pytest.raises(
+        RuntimeError, match=r"contract version is '2\.0\.0', expected '2\.1\.0'"
+    ):
         connect(path)
