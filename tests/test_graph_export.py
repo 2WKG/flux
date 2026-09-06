@@ -96,7 +96,9 @@ def test_export_keeps_missing_values_explicit_and_persists_stats(
     assert stats["edge_features"]["rate_a_mw"]["mean"] is None
 
 
-def test_export_rejects_source_parent_as_output_without_deleting_db(tmp_path: Path) -> None:
+def test_export_rejects_source_parent_as_output_without_deleting_db(
+    tmp_path: Path,
+) -> None:
     database = tmp_path / "grid.duckdb"
     _fixture_db(database)
     original = database.read_bytes()

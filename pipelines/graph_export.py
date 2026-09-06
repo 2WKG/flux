@@ -68,7 +68,10 @@ def _validate_output_target(source: Path, target: Path) -> None:
         manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError("refusing to replace an invalid export directory") from error
-    if manifest.get("schema_version") != DATASET_SCHEMA_VERSION or manifest.get("topology_label") != TOPOLOGY_LABEL:
+    if (
+        manifest.get("schema_version") != DATASET_SCHEMA_VERSION
+        or manifest.get("topology_label") != TOPOLOGY_LABEL
+    ):
         raise ValueError("refusing to replace a non-export directory")
 
 
