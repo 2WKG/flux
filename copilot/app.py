@@ -86,7 +86,7 @@ def create_app(
         create_demo_data_router(
             duckdb_path=app.state.settings.duckdb_path,
             jepa_artifact_path=app_root
-            / "artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json",
+            / "data/artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json",
         )
     )
     return app
