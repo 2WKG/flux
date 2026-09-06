@@ -29,6 +29,7 @@ const PROXIED = [
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
   { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/cascade$/, methods: ["GET"] },
   { pattern: /^\/demo\/brief$/, methods: ["GET"] },
   { pattern: /^\/demo\/forecast$/, methods: ["GET"] },
   { pattern: /^\/demo\/model$/, methods: ["GET"] },
