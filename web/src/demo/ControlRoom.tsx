@@ -120,7 +120,11 @@ function statusCopy(availability: DemoAvailability): string {
 }
 
 function Evidence({ notes, limitations }: { notes?: readonly ProvenanceNote[]; limitations?: readonly string[] }) {
-  const meaningfulNotes = notes?.filter((note) => note.label.trim() !== "" || (note.detail?.trim() ?? "") !== "") ?? [];
+  const meaningfulNotes = notes?.flatMap((note) => {
+    const label = typeof note.label === "string" ? note.label.trim() : "";
+    const detail = typeof note.detail === "string" ? note.detail.trim() : "";
+    return label || detail ? [{ label, ...(detail ? { detail } : {}) }] : [];
+  }) ?? [];
   if (meaningfulNotes.length === 0 && (!limitations || limitations.length === 0)) return null;
   return <div className="control-room__evidence">
     {meaningfulNotes.length > 0 ? <p><strong>Source:</strong> {meaningfulNotes.map((note) => note.detail ? `${note.label} — ${note.detail}` : note.label).join(" · ")}</p> : null}

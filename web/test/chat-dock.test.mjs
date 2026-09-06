@@ -123,7 +123,7 @@ test("the dock's scene context is exactly the server's AskContext, field for fie
   const { fields } = await askContextFields();
   await mounted(async ({ api }) => {
     assert.deepEqual(Object.keys(api.EMPTY_SCENE_CONTEXT).sort(), [...fields].sort());
-    assert.equal(fields.length, 6);
+    assert.equal(fields.length, 9);
   });
 });
 
