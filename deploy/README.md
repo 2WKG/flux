@@ -21,17 +21,19 @@ opens a browser, so only the Cloudflare account owner can run this:
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel login                   # select the bouncepulse.com zone
-cloudflared tunnel list                    # a tunnel may already be routed here; adopt it if so
-cloudflared tunnel create flux-demo        # only if `list` shows none; prints the credentials file path
+cloudflared tunnel list                    # done: nothing to adopt, see the runbook
+cloudflared tunnel create flux-demo        # done 2026-09-06; prints the credentials file path
 cloudflared tunnel route dns --overwrite-dns flux-demo bouncepulse.com
 copy deploy\cloudflared\config.example.yml $env:USERPROFILE\.cloudflared\config.yml
 # then edit that copy: set credentials-file to the path just printed
 ```
 
-`https://bouncepulse.com/` currently answers HTTP `530` with the body
-`error code: 1033` — a Cloudflare *Tunnel* error meaning the hostname is already
-routed to a tunnel that has no live connector. So `tunnel list` may show a
-tunnel to adopt; creating `flux-demo` in that case duplicates it. `route dns`
+`https://bouncepulse.com/` answers HTTP `530` with the body `error code: 1033` —
+a Cloudflare *Tunnel* error meaning the hostname is already routed to a tunnel
+with no live connector. `tunnel list` (run 2026-09-06) identified that as
+`pulse-prod`, which has no connections and serves nothing, so there is nothing
+worth adopting and `flux-demo` is the tunnel to use. The account's third tunnel,
+`pairperks-pi`, is unrelated and live — never repoint it. `route dns`
 defaults to `--overwrite-dns=false` and the apex already carries two proxied A
 records, so without the flag that step fails with a "record already exists"
 error. See

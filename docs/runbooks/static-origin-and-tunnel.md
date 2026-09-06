@@ -124,6 +124,24 @@ curl.exe -I https://bouncepulse.com/
 
 It should return the same built HTML as the local root, not HTTP `530`.
 
+## Which tunnel the account actually has (resolved 2026-09-06)
+
+`cloudflared tunnel list` has since been run by the owner, which settles the
+`1033` question above. The account holds three tunnels (UUIDs deliberately not
+recorded here):
+
+| Tunnel | Connections | Disposition |
+| --- | --- | --- |
+| `flux-demo` | none | Created 2026-09-06 for this demo. **Use this one.** |
+| `pulse-prod` | none | Created 2026-05-02; the stale route behind the `1033`. Serving nothing. |
+| `pairperks-pi` | 4 active | **Unrelated and live. Do not touch it.** |
+
+So no tunnel needs adopting: the hostname's existing route points at
+`pulse-prod`, which has had no connector for months. `--overwrite-dns` repoints
+the apex to `flux-demo` and leaves `pulse-prod` idle; deleting it afterwards is
+optional cleanup, not a deploy step. Every command below names `flux-demo` and
+`bouncepulse.com` explicitly, so `pairperks-pi` is never affected.
+
 ## Deployment command (recorded, not yet run)
 
 The checked-in scaffolding for these steps is [`deploy/`](../../deploy/README.md):
@@ -138,10 +156,8 @@ authentication, so the owner must run this sequence interactively.
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel login                   # browser auth; select the bouncepulse.com zone
-cloudflared tunnel list                    # STOP: the 1033 above means a tunnel may already exist
-# If one is already routed to bouncepulse.com, adopt it: skip `create`, skip
-# `route dns`, and use its name and credentials file below.
-cloudflared tunnel create flux-demo        # only if `list` shows none; writes credentials to $env:USERPROFILE\.cloudflared
+cloudflared tunnel list                    # done: see the table above; nothing to adopt
+cloudflared tunnel create flux-demo        # done 2026-09-06; writes credentials to $env:USERPROFILE\.cloudflared
 cloudflared tunnel route dns --overwrite-dns flux-demo bouncepulse.com
 ```
 
@@ -159,7 +175,7 @@ Known failure branches for this sequence:
 | --- | --- | --- |
 | `route dns` reports an existing record | the apex A records above | re-run with `--overwrite-dns`, after confirming with the zone owner |
 | `tunnel login` offers the wrong zone | multiple zones on the account | re-run `cloudflared tunnel login` and pick `bouncepulse.com`; the cert it writes is per-zone |
-| `tunnel list` already shows a tunnel for this hostname | the `1033` case | adopt it; do not create `flux-demo` as a duplicate |
+| `tunnel list` already shows a tunnel for this hostname | the `1033` case | resolved: the stale route is `pulse-prod`, which serves nothing; overwrite it. Never repoint `pairperks-pi`. |
 | public route returns `200` but a 360-byte shell for every path | `web/dist/` was never built | run `npm --prefix web run build` and re-check with the fixture-hash probe above |
 
 Then copy `deploy/cloudflared/config.example.yml` to
