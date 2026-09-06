@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 import { FailureState } from "../failure-states/FailureState";
 import { STATUS_COPY } from "../source-truth";
+import { CausalSection } from "../explainer/causal";
 import { runToyCascade, TOY_BUSES, TOY_LINES, type CascadeStage, type SolvedLine } from "./toyCascade";
 
 const METHOD = [
@@ -47,6 +48,7 @@ export function ExplainerPage() {
     <section className="method" aria-label="Method status">{METHOD.map(([title, body]) => <article key={title} className="method-entry"><h2>{title}</h2><p>{body}</p></article>)}</section>
     <section className="pipeline" aria-label="Cascade controls"><div><p className="eyebrow">STEP THROUGH THE TOY CASCADE</p><h2>{stage.title}</h2><p>Choose a stage to inspect the recalculated bus balances and every active line’s arithmetic.</p></div><div role="group" aria-label="Cascade stage"><button type="button" onClick={() => setStageIndex(Math.max(0, stageIndex - 1))} disabled={stageIndex === 0}>Previous</button>{" "}<button type="button" onClick={() => setStageIndex(Math.min(result.stages.length - 1, stageIndex + 1))} disabled={stageIndex === result.stages.length - 1}>Next</button><p aria-live="polite">Stage {stageIndex + 1} of {result.stages.length}</p></div></section>
     <NetworkDiagram stage={stage} /><Arithmetic stage={stage} />
+    <CausalSection />
     <section className="pipeline" aria-label="Simplifications"><div><p className="eyebrow">WHAT THIS LEAVES OUT</p><h2>A DC screening lesson, not an operational grid model.</h2></div><ul><li>No reactive power or voltage constraints.</li><li>No dynamics, stability, or restoration timeline.</li><li>No protection settings or relay behavior; the toy rule trips one most-overloaded line.</li><li>Islands balance through proportional load shedding or generation curtailment.</li><li>All topology, ratings, and injections here are synthetic teaching inputs.</li></ul></section>
   </main>;
 }
