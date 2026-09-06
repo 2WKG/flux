@@ -7,6 +7,12 @@ from copilot.demo.ask_backend import (
 )
 from copilot.demo.bridge import DemoCapability, DemoToolBridge, DemoToolResult
 from copilot.demo.data import create_demo_data_router
+from copilot.demo.interactive import (
+    InteractiveAskBackend,
+    InteractiveEvidence,
+    InteractiveToolBridge,
+)
+from copilot.demo.interactive_service import InteractiveServiceBridge
 from copilot.demo.jepa import read_experimental_jepa_forecast
 from copilot.demo.model import create_demo_model_router
 from copilot.demo.runtime import CoreCascadeRunner, build_demo_ask_backend
@@ -19,6 +25,10 @@ __all__ = (
     "DemoToolBridge",
     "DemoToolResult",
     "DeterministicNarrationProvider",
+    "InteractiveAskBackend",
+    "InteractiveEvidence",
+    "InteractiveServiceBridge",
+    "InteractiveToolBridge",
     "build_demo_ask_backend",
     "create_demo_data_router",
     "create_demo_model_router",
