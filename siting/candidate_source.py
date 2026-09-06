@@ -31,8 +31,12 @@ def producer_candidates(net: object) -> list[dict[str, object]]:
     """
 
     topology = _required_synthetic_topology(net)
-    source_hash = _required_string(net, "flux_input_sha256")
-    _required_string(net, "flux_source_db")
+    # The current builder (twin/build.py) declares no input digest, so the
+    # digest is an OPTIONAL provenance fact whose absence is stated rather than
+    # filled in.  The source database path stays required: without it a
+    # candidate cannot name the artifact it came from at all.
+    source_hash = _optional_string(net, "flux_input_sha256")
+    source_db = _required_string(net, "flux_source_db")
     bus_ids = _source_bus_ids(net)
     lookup = _element_lookup(net)
     candidates: dict[int, dict[str, object]] = {}
@@ -75,7 +79,11 @@ def producer_candidates(net: object) -> list[dict[str, object]]:
                 ),
                 "generator_element_id": element_id,
                 "source_bus_id": bus_id,
+                "grid_source_db": source_db,
                 "grid_input_sha256": source_hash,
+                "grid_input_sha256_status": (
+                    "declared" if source_hash is not None else "undeclared_by_builder"
+                ),
             },
         }
         current = candidates.get(bus_id)
@@ -102,6 +110,21 @@ def _required_synthetic_topology(net: object) -> str:
 
 def _required_string(net: object, name: str) -> str:
     value = _value(net, name)
+    if not isinstance(value, str) or not value.strip():
+        raise SyntheticCandidateSourceUnavailable(f"network lacks {name}")
+    return value
+
+
+def _optional_string(net: object, name: str) -> str | None:
+    """Return a declared string fact, or None when the builder declares none.
+
+    An empty or non-string value is a malformed declaration, not an absence,
+    so it still refuses.
+    """
+
+    value = _value(net, name)
+    if value is None:
+        return None
     if not isinstance(value, str) or not value.strip():
         raise SyntheticCandidateSourceUnavailable(f"network lacks {name}")
     return value

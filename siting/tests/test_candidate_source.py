@@ -117,6 +117,7 @@ def test_candidates_are_bounded_deterministic_json_safe_and_duckdb_derived(
     assert provenance["topology"] == SYNTHETIC_TOPOLOGY_LABEL
     assert provenance["source_bus_id"] == 1
     assert "not a physical site" in provenance["derivation"]
+    assert provenance["grid_source_db"].endswith("synthetic-grid.duckdb")
     json.dumps(first, allow_nan=False)
 
 
@@ -176,11 +177,11 @@ def test_search_uses_synthetic_generator_bus_source_without_candidate_tables(
 
 def test_missing_source_metadata_fails_closed(tmp_path: Path) -> None:
     net = build_network(_source_db(tmp_path, generators=1))
-    net.pop("flux_input_sha256")
+    net.pop("flux_source_db")
 
-    with pytest.raises(SyntheticCandidateSourceUnavailable, match="flux_input_sha256"):
+    with pytest.raises(SyntheticCandidateSourceUnavailable, match="flux_source_db"):
         producer_candidates(net)
-    with pytest.raises(SearchUnavailable, match="flux_input_sha256"):
+    with pytest.raises(SearchUnavailable, match="flux_source_db"):
         search_locations(
             net,
             kind="producer",
@@ -278,3 +279,35 @@ def test_declared_candidate_table_is_not_reported_as_the_substitute(
         # A mapping-valued field must not default to a list: a consumer doing
         # row["candidate_provenance"]["source_kind"] needs an honest absence.
         assert row["candidate_provenance"] is None
+
+
+def test_an_undeclared_input_digest_is_stated_not_fabricated(tmp_path: Path) -> None:
+    # twin/build.py declares no flux_input_sha256 today.  The digest must come
+    # back as an explicit absence, never as an invented or borrowed value.
+    net = build_network(_source_db(tmp_path, generators=1))
+    assert net.get("flux_input_sha256") is None
+
+    provenance = producer_candidates(net)[0]["candidate_provenance"]
+
+    assert provenance["grid_input_sha256"] is None
+    assert provenance["grid_input_sha256_status"] == "undeclared_by_builder"
+    assert provenance["grid_input_sha256_status"] != "declared"
+
+
+def test_a_declared_input_digest_is_reported_as_declared(tmp_path: Path) -> None:
+    net = build_network(_source_db(tmp_path, generators=1))
+    net["flux_input_sha256"] = "a" * 64
+
+    provenance = producer_candidates(net)[0]["candidate_provenance"]
+
+    assert provenance["grid_input_sha256"] == "a" * 64
+    assert provenance["grid_input_sha256_status"] == "declared"
+
+
+def test_a_malformed_input_digest_is_an_unavailable_network(tmp_path: Path) -> None:
+    # An empty declaration is a malformed fact, not an honest absence.
+    net = build_network(_source_db(tmp_path, generators=1))
+    net["flux_input_sha256"] = "   "
+
+    with pytest.raises(SyntheticCandidateSourceUnavailable, match="flux_input_sha256"):
+        producer_candidates(net)
