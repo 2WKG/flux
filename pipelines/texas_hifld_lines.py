@@ -31,7 +31,9 @@ def _geometry(value: dict[str, Any]) -> dict[str, Any]:
     elif value.get("type") == "FeatureCollection":
         features = value.get("features", [])
         if len(features) != 1:
-            raise ValueError("Texas boundary FeatureCollection must contain exactly one feature")
+            raise ValueError(
+                "Texas boundary FeatureCollection must contain exactly one feature"
+            )
         value = features[0].get("geometry", {})
     if value.get("type") not in {"Polygon", "MultiPolygon"}:
         raise ValueError("Texas boundary must be a GeoJSON Polygon or MultiPolygon")
@@ -47,7 +49,9 @@ def _esri_polygon(geometry: dict[str, Any]) -> dict[str, Any]:
     return {"rings": rings, "spatialReference": {"wkid": 4326}}
 
 
-def fetch_texas_lines(boundary: dict[str, Any], session: requests.Session | Any = requests) -> dict[str, Any]:
+def fetch_texas_lines(
+    boundary: dict[str, Any], session: requests.Session | Any = requests
+) -> dict[str, Any]:
     """Return all source-native routes whose geometry intersects Texas.
 
     ArcGIS receives the actual state polygon in EPSG:4326.  The returned route
@@ -80,9 +84,14 @@ def fetch_texas_lines(boundary: dict[str, Any], session: requests.Session | Any 
         response = session.post(
             SERVICE_URL,
             data={
-                "where": "1=1", "returnGeometry": "true", "outSR": "4326",
-                "outFields": OUT_FIELDS, "f": "geojson",
-                "objectIds": ",".join(str(item) for item in object_ids[offset : offset + 1000]),
+                "where": "1=1",
+                "returnGeometry": "true",
+                "outSR": "4326",
+                "outFields": OUT_FIELDS,
+                "f": "geojson",
+                "objectIds": ",".join(
+                    str(item) for item in object_ids[offset : offset + 1000]
+                ),
             },
             timeout=60,
         )
@@ -102,22 +111,58 @@ def fetch_texas_lines(boundary: dict[str, Any], session: requests.Session | Any 
         source_record_id = str(properties.get("ID") or properties.get("OBJECTID_1"))
         if not source_record_id or feature.get("geometry") is None:
             raise RuntimeError("HIFLD feature lacks an ID or native geometry")
-        assets.append({
-            "asset_id": f"hifld-line:{source_record_id}", "asset_class": "line",
-            "asset_kind": str(properties.get("TYPE") or "unspecified"),
-            "source_id": "hifld-lines-2024-09-30", "source_record_id": source_record_id,
-            "geometry": feature["geometry"], "geometry_crs": "EPSG:4326",
-            "geometry_precision_m": None, "geometry_accuracy_basis": "Native archived HIFLD geometry; numeric coordinate precision is unpublished. Per-feature SOURCE/SOURCEDATE/VAL_METHOD/VAL_DATE/INFERRED remain in source sidecar.",
-            "geometry_derivation_method": None,
-            "geometry_status": "source",
-        })
+        assets.append(
+            {
+                "asset_id": f"hifld-line:{source_record_id}",
+                "asset_class": "line",
+                "asset_kind": str(properties.get("TYPE") or "unspecified"),
+                "source_id": "hifld-lines-2024-09-30",
+                "source_record_id": source_record_id,
+                "geometry": feature["geometry"],
+                "geometry_crs": "EPSG:4326",
+                "geometry_precision_m": None,
+                "geometry_accuracy_basis": "Native archived HIFLD geometry; numeric coordinate precision is unpublished. Per-feature SOURCE/SOURCEDATE/VAL_METHOD/VAL_DATE/INFERRED remain in source sidecar.",
+                "geometry_derivation_method": None,
+                "geometry_status": "source",
+            }
+        )
     artifact = {
-        "artifact_id": "us-tx:physical-inventory:1.0.0", "contract_version": "1.0.0",
-        "geography_id": "us-tx", "artifact_version": "1.0.0", "inventory_mode": "physical_observed",
-        "electrical_model_mode": "none", "created_at": retrieved_at, "content_sha256": "0" * 64,
-        "sources": [{"source_id": "hifld-lines-2024-09-30", "authority": "Federal User Community / HIFLD archive", "source_ref": SERVICE_URL.rsplit("/query", 1)[0], "source_version": "Archived service; last data update 2024-09-30", "retrieved_at": retrieved_at, "license_or_terms": "Esri Master License Agreement in service item metadata", "content_sha256": source_hash}],
-        "assets": assets, "terminals": [], "connectivity_edges": [],
-        "coverage": [{"asset_class": "line", "scope_id": "us-tx", "status": "partial", "observed_count": len(assets), "denominator_count": None, "unknown_count": None, "unavailable_count": None, "denominator_basis": "unknown", "source_scope": "Archived national HIFLD service selected by supplied Texas polygon; no owner-level Texas completeness declaration", "reason": "Native observed routes are partial/stale public overlay; endpoint labels are not terminals or edges."}],
+        "artifact_id": "us-tx:physical-inventory:1.0.0",
+        "contract_version": "1.0.0",
+        "geography_id": "us-tx",
+        "artifact_version": "1.0.0",
+        "inventory_mode": "physical_observed",
+        "electrical_model_mode": "none",
+        "created_at": retrieved_at,
+        "content_sha256": "0" * 64,
+        "sources": [
+            {
+                "source_id": "hifld-lines-2024-09-30",
+                "authority": "Federal User Community / HIFLD archive",
+                "source_ref": SERVICE_URL.rsplit("/query", 1)[0],
+                "source_version": "Archived service; last data update 2024-09-30",
+                "retrieved_at": retrieved_at,
+                "license_or_terms": "Esri Master License Agreement in service item metadata",
+                "content_sha256": source_hash,
+            }
+        ],
+        "assets": assets,
+        "terminals": [],
+        "connectivity_edges": [],
+        "coverage": [
+            {
+                "asset_class": "line",
+                "scope_id": "us-tx",
+                "status": "partial",
+                "observed_count": len(assets),
+                "denominator_count": None,
+                "unknown_count": None,
+                "unavailable_count": None,
+                "denominator_basis": "unknown",
+                "source_scope": "Archived national HIFLD service selected by supplied Texas polygon; no owner-level Texas completeness declaration",
+                "reason": "Native observed routes are partial/stale public overlay; endpoint labels are not terminals or edges.",
+            }
+        ],
     }
     artifact["content_sha256"] = artifact_sha256(artifact)
     return validate_artifact(artifact)
