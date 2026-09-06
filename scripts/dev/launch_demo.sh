@@ -22,7 +22,7 @@ Modes:
   --live --duckdb PATH      Require an existing readable DuckDB file, start the
                             local API and same-origin web proxy, then verify
                             health and an allowlisted proxy response.
-  --case PATH               Read a current ACTIVSg2000 RAW case for the optional
+  --case PATH               Read a current ACTIVSg2000 MATPOWER case for the optional
                             synthetic Texas model and cascade routes. Required
                             with --persist; it is never copied or generated.
   --persist                 Install and start the explicit macOS user LaunchAgent
