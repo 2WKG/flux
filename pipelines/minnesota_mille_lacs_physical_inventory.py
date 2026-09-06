@@ -21,7 +21,7 @@ from pipelines.physical_inventory import (
 
 SOURCE_ID = "mille_lacs_county_utilities_mapserver_2026"
 SOURCE_REF = "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer"
-NATIVE_CRS = "EPSG:103705"
+NATIVE_CRS = "ESRI:103705"
 
 
 def _sha(path: Path) -> str:
