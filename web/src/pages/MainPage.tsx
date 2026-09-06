@@ -12,8 +12,9 @@ import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "../source-truth";
 import { type ChatMessage } from "../chat/ChatDock";
 import { EMPTY_SCENE_CONTEXT, type AskRequestBody, type SceneContext } from "../chat/ask-contract";
 import { MainAssistant, type RequestOverlay } from "../main-assistant/MainAssistant";
+import { AgentSimulationAdapter } from "../interactive/AgentSimulationAdapter";
 import { createRunState } from "../ask/run-state/reducer";
-import type { RunIdentity, RunState } from "../ask/run-state/types";
+import type { RunEvent, RunIdentity, RunState } from "../ask/run-state/types";
 import { ResultCards } from "../ask/results";
 import type { AskResult } from "../ask/results/types";
 import { FailureState } from "../failure-states/FailureState";
@@ -369,6 +370,11 @@ export function App() {
   const [runState, setRunState] = useState<RunState>(() =>
     createRunState({ attemptId: initialAttemptId, contextRevision: `baseline:${initialAttemptId}` }, SOURCE_TRUTH.status));
   const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
+  // The raw arrival-ordered contract events. `MainAssistant` renders the reduced
+  // run state (phase, cancellation, tool payloads); the simulation adapter
+  // renders the contract determination the reducer does not make -- which
+  // published tool was named, and which ArtifactRef the result is attributed to.
+  const [askEvents, setAskEvents] = useState<readonly RunEvent[]>([]);
   const [askAvailable, setAskAvailable] = useState(false);
 
   const [gridState, setGridState] = useState<GridState>("tx");
@@ -509,7 +515,11 @@ export function App() {
     setMessages((current) => [...current, { id: `${identity.attemptId}-${current.length}`, role: "user", content: body.question }]);
     const initial = createRunState(identity, SOURCE_TRUTH.status);
     setRunState(initial);
-    runAsk(body, identity, initial, { onState: setRunState })
+    setAskEvents([]);
+    runAsk(body, identity, initial, {
+      onState: setRunState,
+      onEvent: (event) => setAskEvents((seen) => [...seen, event]),
+    })
       .then(({ state, connection }) => {
         setRunState(state);
         setAskResults(resultsFromRun(state));
@@ -652,6 +662,7 @@ export function App() {
           run={runState}
           request={request}
         />
+        <AgentSimulationAdapter events={askEvents} />
         <ResultCards results={askResults} />
         {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
       </ChatDockView>

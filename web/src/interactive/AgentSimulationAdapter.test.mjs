@@ -52,11 +52,9 @@ test("all absent simulation capabilities render as typed unavailable states", ()
     assert.match(markup, new RegExp(`data-agent-simulation-capability="${capability}"`));
     assert.match(markup, new RegExp(`data-agent-simulation-capability="${capability}"[^>]*data-agent-simulation-availability="unavailable"`));
   }
-  assert.match(markup, /absent_from_received_ask_event_data/);
-  assert.match(markup, /No explicit simulation action is present/);
-  assert.match(markup, /No provider identity is present/);
-  assert.match(markup, /No scene attribution is present/);
-  assert.match(markup, /No reversal capability is present/);
+  // The frozen `unavailable` token is the availability; the finer machine cause
+  // is carried alongside it, never instead of it.
+  assert.match(markup, /data-agent-simulation-reason="absent_from_received_ask_event_data"/);
   assert.doesNotMatch(markup, /<button/);
 });
 
@@ -83,6 +81,97 @@ test("preserves only generic ordered tool and terminal-error trace facts", () =>
   ]);
   assert.doesNotMatch(markup, /scene_action/);
   assert.doesNotMatch(markup, /A narration is not an action/);
+});
+
+test("a failed tool result renders as failed, never as completed", () => {
+  const markup = render([
+    event("tool_call", 1, { call_id: "call-1", tool: "run_cascade", input: {} }),
+    event("tool_result", 2, {
+      call_id: "call-1",
+      tool: "run_cascade",
+      ok: false,
+      elapsed_ms: 9,
+      error: { code: "artifact_unavailable", message: "The cascade artifact is not built." },
+    }),
+  ]);
+
+  const rows = [...markup.matchAll(/<li[^>]*data-ask-event-seq="([^"]+)"[^>]*>([^<]*)<\/li>/g)];
+  assert.deepEqual(rows.map((row) => [row[1], row[2]]), [
+    ["1", "run_cascade: requested"],
+    ["2", "run_cascade: failed"],
+  ]);
+  assert.doesNotMatch(markup, /run_cascade: completed/);
+});
+
+test("a published simulation tool name is a named simulation action, not a refusal", () => {
+  // `run_cascade` is in ToolName in web/src/contracts/copilot-tools.d.ts, so
+  // rendering it unavailable would be a wrong claim about the received data.
+  const markup = render([
+    event("tool_call", 1, { call_id: "call-1", tool: "run_cascade", input: { scenario_id: "s" } }),
+  ]);
+  assert.match(markup, /data-agent-simulation-capability="simulation_action"[^>]*data-agent-simulation-availability="available"/);
+  assert.match(markup, /published simulation tools: run_cascade/);
+  // A tool the contract does not publish is still not a simulation action.
+  const other = render([event("tool_call", 1, { call_id: "c", tool: "not_a_published_tool", input: {} })]);
+  assert.match(other, /data-agent-simulation-capability="simulation_action"[^>]*data-agent-simulation-availability="unavailable"/);
+});
+
+test("scene attribution is the result's ArtifactRef provenance, not a refusal", () => {
+  const markup = render([
+    event("tool_result", 1, {
+      call_id: "call-1",
+      tool: "run_cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: {
+        provenance: [
+          { artifact_id: "cascade_runs", artifact_version: "2026-09-06", source_kind: "simulated", source_ref: "twin/cascade.py" },
+        ],
+      },
+    }),
+  ]);
+  assert.match(markup, /data-agent-simulation-capability="scene_attribution"[^>]*data-agent-simulation-availability="available"/);
+  assert.match(markup, /cascade_runs@2026-09-06/);
+
+  // An incomplete reference is dropped rather than rendered with an invented field.
+  const partial = render([
+    event("tool_result", 1, {
+      call_id: "call-1",
+      tool: "run_cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: { provenance: [{ artifact_id: "cascade_runs", source_kind: "simulated" }] },
+    }),
+  ]);
+  assert.match(partial, /data-agent-simulation-capability="scene_attribution"[^>]*data-agent-simulation-availability="unavailable"/);
+  assert.doesNotMatch(partial, /cascade_runs@/);
+
+  // A source_kind outside the frozen ArtifactRef enum is not attribution either.
+  const bogus = render([
+    event("tool_result", 1, {
+      call_id: "call-1",
+      tool: "run_cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: { provenance: [{ artifact_id: "a", artifact_version: "1", source_kind: "invented", source_ref: "r" }] },
+    }),
+  ]);
+  assert.match(bogus, /data-agent-simulation-capability="scene_attribution"[^>]*data-agent-simulation-availability="unavailable"/);
+});
+
+test("provider and reversal stay unavailable: the v1 contract publishes neither", () => {
+  const markup = render([
+    event("tool_result", 1, {
+      call_id: "call-1",
+      tool: "run_cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: { provenance: [{ artifact_id: "a", artifact_version: "1", source_kind: "simulated", source_ref: "r" }] },
+    }),
+  ]);
+  for (const capability of ["provider", "reversal"]) {
+    assert.match(markup, new RegExp(`data-agent-simulation-capability="${capability}"[^>]*data-agent-simulation-availability="unavailable"`));
+  }
 });
 
 test("reads only a complete attributed additive scene action", () => {

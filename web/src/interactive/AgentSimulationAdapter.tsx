@@ -1,16 +1,38 @@
 /**
- * Present the ordered, generic `/ask` trace at the seam where a future
- * interactive-simulation transport can be mounted.
+ * Determine, from the ordered generic `/ask` trace, which interactive-simulation
+ * capabilities the received data actually carries.
  *
- * Generic v1 ask events name tool calls/results and terminal errors. The
- * approved additive action, when present, is nested in a successful
- * `tool_result.result.scene_action` declared in `docs/research/sse-event-schema.md`
- * § "`scene_action` (additive)"; provider identity, scene attribution, and
- * a reversal operation remain absent. This component therefore accepts only
- * that exact action shape and leaves every absent capability unavailable. It
- * is intentionally presentational: it neither opens a stream nor mutates a
- * scene.
+ * Two of the four capabilities are published by the frozen tool contract and are
+ * read from it, never restated here:
+ *
+ * - **simulation action** — `ToolName` in `../contracts/copilot-tools` names
+ *   `run_cascade`, `score_site`, `predict_outage` and `compare_interventions`,
+ *   so a `tool_call`/`tool_result` carrying one of those names *is* a named
+ *   simulation action with a typed input and output.
+ * - **scene attribution** — every tool output carries
+ *   `provenance?: ArtifactRef[]` (`artifact_id`, `artifact_version`,
+ *   `source_kind`, `source_ref`). That is the attribution, and this component
+ *   reads it out of the typed `tool_result.result` instead of discarding it.
+ *
+ * The other two — **provider identity** and a **reversal** operation — are
+ * genuinely absent from the v1 contract, so they stay `unavailable` with the
+ * frozen token and the finer machine reason carried alongside it.
+ *
+ * On top of that, the approved additive action nested in a successful
+ * `tool_result.result.scene_action`, declared in
+ * `docs/research/sse-event-schema.md` § "`scene_action` (additive)", is accepted
+ * only in its exact shape.
+ *
+ * Why this is not `../ask/run-state/RunTrace`: `RunTrace` owns the run's phase,
+ * its cancellation affordance and the raw tool payloads. This component renders
+ * neither; it renders the contract determination above, which `RunTrace` does
+ * not make. `web/src/pages/MainPage.tsx` mounts both, `RunTrace` first.
+ *
+ * It is presentational: it neither opens a stream nor mutates a scene.
  */
+import type { ArtifactRef } from "../contracts/copilot-tools";
+import { isArtifactSourceKind, isSimulationToolName } from "../contracts/tool-names";
+import type { AssetStatus } from "../labels";
 import type { ErrorEvent, RunEvent, ToolCallEvent, ToolResultEvent } from "../ask/run-state/types";
 import { missingSceneActionIdentity, type SceneActionKind } from "../ask/results/types";
 
@@ -20,9 +42,15 @@ export type SimulationCapability =
   | "scene_attribution"
   | "reversal";
 
-/** A capability absent from the received generic ask event data. */
+/**
+ * A capability absent from the received generic ask event data.
+ *
+ * `availability` is the frozen `unavailable` token from `src/labels.ts`;
+ * `reason` is the finer machine cause carried *alongside* it, never instead of
+ * it, the way `src/failure-states/adapters.ts` already does.
+ */
 export interface UnavailableSimulationCapability {
-  readonly availability: "unavailable";
+  readonly availability: Extract<AssetStatus, "unavailable">;
   readonly reason: "absent_from_received_ask_event_data";
 }
 
@@ -46,9 +74,9 @@ export interface AgentSimulationAdapterProps {
 type TraceEvent = ToolCallEvent | ToolResultEvent | ErrorEvent;
 
 const capabilityCopy: Readonly<Record<SimulationCapability, readonly [string, string]>> = {
-  simulation_action: ["Simulation action", "No explicit simulation action is present in the received /ask event data."],
+  simulation_action: ["Simulation action", "No published simulation tool and no attributed scene action are present in the received /ask event data."],
   provider: ["Provider", "No provider identity is present in the received /ask event data."],
-  scene_attribution: ["Scene attribution", "No scene attribution is present in the received /ask event data."],
+  scene_attribution: ["Scene attribution", "No provenance artifact reference is present in the received /ask event data."],
   reversal: ["Reversal", "No reversal capability is present in the received /ask event data."],
 };
 
@@ -142,6 +170,36 @@ export function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneActi
   };
 }
 
+/**
+ * The `provenance: ArtifactRef[]` the frozen contract carries on every tool
+ * output. Only complete references are kept: a partial one is dropped rather
+ * than rendered with an invented id or version.
+ */
+function provenanceFromResult(event: ToolResultEvent): readonly ArtifactRef[] {
+  if (!event.ok) return [];
+  const result = record(event.result);
+  const refs = result?.provenance;
+  if (!Array.isArray(refs)) return [];
+  const kept: ArtifactRef[] = [];
+  for (const entry of refs) {
+    const source = record(entry);
+    if (source === null) continue;
+    const artifactId = requiredString(source.artifact_id);
+    const artifactVersion = requiredString(source.artifact_version);
+    const sourceKind = requiredString(source.source_kind);
+    const sourceRef = requiredString(source.source_ref);
+    if (artifactId === null || artifactVersion === null || sourceKind === null || sourceRef === null) continue;
+    if (!isArtifactSourceKind(sourceKind)) continue;
+    kept.push({
+      artifact_id: artifactId,
+      artifact_version: artifactVersion,
+      source_kind: sourceKind,
+      source_ref: sourceRef,
+    });
+  }
+  return kept;
+}
+
 function isTraceEvent(event: RunEvent): event is TraceEvent {
   return event.type === "tool_call" || event.type === "tool_result" || event.type === "error";
 }
@@ -169,7 +227,20 @@ export function AgentSimulationAdapter({ events }: AgentSimulationAdapterProps) 
     : []);
   const availableActions = actions.filter((action) => action.status === "available");
   const unavailableAction = actions.find((action) => action.status === "unavailable");
-  const actionAvailable = availableActions.length > 0;
+  // A published simulation tool name IS a named simulation action; refusing it
+  // would be a wrong claim about data this component holds.
+  const namedTools = [...new Set(trace
+    .filter((event): event is ToolCallEvent | ToolResultEvent => event.type !== "error")
+    .map((event) => event.tool)
+    .filter(isSimulationToolName))];
+  const actionAvailable = availableActions.length > 0 || namedTools.length > 0;
+  const provenance = trace.flatMap((event) => event.type === "tool_result" ? [...provenanceFromResult(event)] : []);
+  const attributionAvailable = provenance.length > 0;
+  const availabilityOf = (capability: SimulationCapability) =>
+    (capability === "simulation_action" && actionAvailable)
+    || (capability === "scene_attribution" && attributionAvailable)
+      ? "available"
+      : unavailable.availability;
 
   return (
     <section aria-label="Agent simulation status" data-agent-simulation-adapter="ask-v1">
@@ -179,8 +250,8 @@ export function AgentSimulationAdapter({ events }: AgentSimulationAdapterProps) 
           <div
             key={capability}
             data-agent-simulation-capability={capability}
-            data-agent-simulation-availability={capability === "simulation_action" && actionAvailable ? "available" : unavailable.availability}
-            data-agent-simulation-reason={capability === "simulation_action" && actionAvailable
+            data-agent-simulation-availability={availabilityOf(capability)}
+            data-agent-simulation-reason={availabilityOf(capability) === "available"
               ? undefined
               : capability === "simulation_action" && unavailableAction?.reason !== undefined
                 ? unavailableAction.reason
@@ -188,10 +259,14 @@ export function AgentSimulationAdapter({ events }: AgentSimulationAdapterProps) 
           >
             <dt>{label}</dt>
             <dd>{capability === "simulation_action" && actionAvailable
-              ? "An attributed simulation action is present in the received /ask event data."
-              : capability === "simulation_action" && unavailableAction?.reason !== undefined
-                ? unavailableAction.reason
-                : detail}</dd>
+              ? namedTools.length > 0
+                ? `The received /ask events name published simulation tools: ${namedTools.join(", ")}.`
+                : "An attributed simulation action is present in the received /ask event data."
+              : capability === "scene_attribution" && attributionAvailable
+                ? `Attributed to ${provenance.map((ref) => `${ref.artifact_id}@${ref.artifact_version}`).join(", ")}.`
+                : capability === "simulation_action" && unavailableAction?.reason !== undefined
+                  ? unavailableAction.reason
+                  : detail}</dd>
           </div>
         ))}
       </dl>
@@ -214,7 +289,7 @@ export function AgentSimulationAdapter({ events }: AgentSimulationAdapterProps) 
       ))}
       <ol aria-label="Received ask tool and error events">
         {trace.map((event) => (
-          <li key={`${event.seq}:${event.type}`} data-ask-event-type={event.type} data-ask-event-seq={event.seq}>
+          <li key={event.seq} data-ask-event-type={event.type} data-ask-event-seq={event.seq}>
             {traceSummary(event)}
           </li>
         ))}
