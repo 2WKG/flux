@@ -33,7 +33,7 @@ export interface Route {
   readonly truthNote: string;
 }
 
-export type RouteId = "main" | "explainer";
+export type RouteId = "main" | "explainer" | "minnesota";
 
 export const ROUTES: readonly Route[] = [
   {
@@ -51,6 +51,14 @@ export const ROUTES: readonly Route[] = [
     title: "Flux | How the math works",
     truthLabels: ["synthetic", "unavailable"],
     truthNote: "This page describes the method only; no model runs in this build.",
+  },
+  {
+    id: "minnesota",
+    path: "/minnesota",
+    label: "Minnesota aggregate",
+    title: "Flux | Minnesota aggregate baseline",
+    truthLabels: ["unavailable"],
+    truthNote: "This shell names the accepted aggregate baseline and every server contract that is still unavailable.",
   },
 ];
 
