@@ -59,6 +59,14 @@ _FIXTURE = (
     "2026-01-01T00:00:00",
     "fixture:flux-demo@1.0.0",
 )
+_PLAIN_FIXTURE = (
+    "fixture:hand-placed",
+    "fixture",
+    "pipelines/fixtures/inputs/buses.json",
+    "1.0.0",
+    "2026-01-01T00:00:00",
+    "fixture@1.0.0",
+)
 
 
 def _insert(
@@ -157,6 +165,19 @@ def test_activsg_rows_carry_the_synthetic_topology_label_from_their_provenance(
         "coord_sources": ["ACTIVSg2000.aux (2018 build)"],
         "fixture_batch_ids": ["activsg2000@2018"],
     }
+
+
+def test_plain_fixture_source_name_is_labelled_fixture(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(
+        database, rows=[_row(1, "Plain fixture", -96.1, 31.2, _PLAIN_FIXTURE)]
+    )
+
+    provenance = _client(database).get("/layers/buses").json()["provenance"]
+
+    assert provenance["source_kinds"] == ["fixture"]
+    assert provenance["source_names"] == ["fixture"]
+    assert provenance["topology"] is None
 
 
 def test_fixture_rows_are_labelled_fixture_not_hardcoded(tmp_path: Path) -> None:
@@ -418,3 +439,13 @@ def test_layers_root_is_an_enveloped_not_found(tmp_path: Path) -> None:
     assert body["data"] is None
     assert body["error"]["code"] == "not_found"
     assert body["meta"]["request_id"] == response.headers["X-Request-ID"]
+
+
+def test_non_404_http_errors_keep_fastapi_status_headers_and_body(
+    tmp_path: Path,
+) -> None:
+    response = _client(tmp_path / "missing.duckdb").post("/layers/buses")
+
+    assert response.status_code == 405
+    assert response.headers["allow"] == "GET"
+    assert response.json() == {"detail": "Method Not Allowed"}
