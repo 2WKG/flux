@@ -24,7 +24,9 @@ def _fixture_db(path: Path) -> None:
         con.execute(
             "INSERT INTO lines VALUES (1, 1, 2, '1', 230, 0.01, 0.1, NULL, 0, NULL, TRUE, 'fixture', 'test', NULL, NULL, 'fixture')"
         )
-        con.execute("INSERT INTO synthetic_bus_electrical VALUES (1, 1, 10, NULL, 0, 0, 1, 0, 1.1, 0.9)")
+        con.execute(
+            "INSERT INTO synthetic_bus_electrical VALUES (1, 1, 10, NULL, 0, 0, 1, 0, 1.1, 0.9)"
+        )
         con.execute("INSERT INTO synthetic_branch_electrical VALUES (1, 0, 1, 0, 1)")
     finally:
         con.close()
@@ -45,7 +47,10 @@ def test_export_is_content_hashed_and_byte_identical(tmp_path: Path) -> None:
 
     assert _files(first) == _files(second)
     assert first_manifest == second_manifest
-    assert first_manifest["files"]["nodes.json"] == hashlib.sha256((first / "nodes.json").read_bytes()).hexdigest()
+    assert (
+        first_manifest["files"]["nodes.json"]
+        == hashlib.sha256((first / "nodes.json").read_bytes()).hexdigest()
+    )
     assert first_manifest["topology_label"] == "synthetic (ACTIVSg2000)"
     assert first_manifest["edge_counts"] == {
         "source_edge_type": {"transformer": 1},
@@ -53,7 +58,9 @@ def test_export_is_content_hashed_and_byte_identical(tmp_path: Path) -> None:
     }
 
 
-def test_export_keeps_missing_values_explicit_and_persists_stats(tmp_path: Path) -> None:
+def test_export_keeps_missing_values_explicit_and_persists_stats(
+    tmp_path: Path,
+) -> None:
     database = tmp_path / "grid.duckdb"
     _fixture_db(database)
     target = tmp_path / "dataset"

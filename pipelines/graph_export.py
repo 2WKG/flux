@@ -43,7 +43,16 @@ EDGE_FEATURES = (
 
 
 def _canonical_bytes(value: object) -> bytes:
-    return (json.dumps(value, allow_nan=False, ensure_ascii=False, separators=(",", ":"), sort_keys=True) + "\n").encode("utf-8")
+    return (
+        json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
 
 
 def _write_json(path: Path, value: object) -> str:
@@ -53,7 +62,12 @@ def _write_json(path: Path, value: object) -> str:
 
 
 def _required_tables(con: duckdb.DuckDBPyConnection) -> None:
-    expected = {"buses", "lines", "synthetic_bus_electrical", "synthetic_branch_electrical"}
+    expected = {
+        "buses",
+        "lines",
+        "synthetic_bus_electrical",
+        "synthetic_branch_electrical",
+    }
     found = {
         row[0]
         for row in con.execute(
@@ -74,12 +88,24 @@ def _number(value: object, *, field: str, record_id: int) -> float | None:
     return result
 
 
-def _normalization(rows: list[dict[str, Any]], feature_names: tuple[str, ...]) -> dict[str, dict[str, Any]]:
+def _normalization(
+    rows: list[dict[str, Any]], feature_names: tuple[str, ...]
+) -> dict[str, dict[str, Any]]:
     stats: dict[str, dict[str, Any]] = {}
     for feature in feature_names:
-        values = [row["features"][feature] for row in rows if row["features"][feature] is not None]
+        values = [
+            row["features"][feature]
+            for row in rows
+            if row["features"][feature] is not None
+        ]
         if not values:
-            stats[feature] = {"count": 0, "missing_count": len(rows), "mean": None, "std": None, "zero_variance": None}
+            stats[feature] = {
+                "count": 0,
+                "missing_count": len(rows),
+                "mean": None,
+                "std": None,
+                "zero_variance": None,
+            }
             continue
         mean = fmean(values)
         std = pstdev(values, mu=mean)
@@ -93,7 +119,9 @@ def _normalization(rows: list[dict[str, Any]], feature_names: tuple[str, ...]) -
     return stats
 
 
-def _apply_normalization(rows: list[dict[str, Any]], stats: dict[str, dict[str, Any]]) -> None:
+def _apply_normalization(
+    rows: list[dict[str, Any]], stats: dict[str, dict[str, Any]]
+) -> None:
     for row in rows:
         normalized: dict[str, float | None] = {}
         for feature, value in row["features"].items():
@@ -120,7 +148,10 @@ def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     return [
         {
             "node_id": int(row[0]),
-            "features": {feature: _number(value, field=feature, record_id=int(row[0])) for feature, value in zip(NODE_FEATURES, row[1:], strict=True)},
+            "features": {
+                feature: _number(value, field=feature, record_id=int(row[0]))
+                for feature, value in zip(NODE_FEATURES, row[1:], strict=True)
+            },
         }
         for row in rows
     ]
@@ -148,13 +179,18 @@ def _edges(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
                 # Pandapower imports these voltage-transition branches as net.impedance.
                 "source_edge_type": source_edge_type,
                 "solver_edge_type": "impedance_branch" if is_transformer else "line",
-                "features": {feature: _number(value, field=feature, record_id=int(line_id)) for feature, value in zip(EDGE_FEATURES, values, strict=True)},
+                "features": {
+                    feature: _number(value, field=feature, record_id=int(line_id))
+                    for feature, value in zip(EDGE_FEATURES, values, strict=True)
+                },
             }
         )
     return result
 
 
-def export_texas_graph_dataset(db_path: str | Path, out_dir: str | Path) -> dict[str, Any]:
+def export_texas_graph_dataset(
+    db_path: str | Path, out_dir: str | Path
+) -> dict[str, Any]:
     """Write a content-addressed graph dataset without changing the source database."""
     source = Path(db_path)
     if not source.is_file():
@@ -179,7 +215,9 @@ def export_texas_graph_dataset(db_path: str | Path, out_dir: str | Path) -> dict
         file_hashes = {
             "nodes.json": _write_json(temporary / "nodes.json", nodes),
             "edges.json": _write_json(temporary / "edges.json", edges),
-            "normalization.json": _write_json(temporary / "normalization.json", normalization),
+            "normalization.json": _write_json(
+                temporary / "normalization.json", normalization
+            ),
         }
         source_types = Counter(edge["source_edge_type"] for edge in edges)
         solver_types = Counter(edge["solver_edge_type"] for edge in edges)
@@ -189,8 +227,13 @@ def export_texas_graph_dataset(db_path: str | Path, out_dir: str | Path) -> dict
             "files": file_hashes,
         }
         manifest = {
-            "dataset_sha256": hashlib.sha256(_canonical_bytes(dataset_identity)).hexdigest(),
-            "edge_counts": {"source_edge_type": dict(sorted(source_types.items())), "solver_edge_type": dict(sorted(solver_types.items()))},
+            "dataset_sha256": hashlib.sha256(
+                _canonical_bytes(dataset_identity)
+            ).hexdigest(),
+            "edge_counts": {
+                "source_edge_type": dict(sorted(source_types.items())),
+                "solver_edge_type": dict(sorted(solver_types.items())),
+            },
             "files": file_hashes,
             "node_count": len(nodes),
             "edge_count": len(edges),
@@ -209,7 +252,9 @@ def export_texas_graph_dataset(db_path: str | Path, out_dir: str | Path) -> dict
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--db", default="data/duck/grid.duckdb", help="source DuckDB path")
+    parser.add_argument(
+        "--db", default="data/duck/grid.duckdb", help="source DuckDB path"
+    )
     parser.add_argument("--out", required=True, help="output directory")
     args = parser.parse_args()
     print(json.dumps(export_texas_graph_dataset(args.db, args.out), sort_keys=True))
