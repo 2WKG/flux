@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
+import json
 import zipfile
 from pathlib import Path
 
@@ -202,3 +204,25 @@ def test_contract_adapter_preserves_units_without_promoting_their_plant_point(
         == 1
     )
     assert len(units) == 2
+
+
+def test_checked_state_artifacts_validate_and_link_back_to_source_intake():
+    pytest.importorskip("pipelines.physical_inventory")
+    from pipelines.physical_inventory import artifact_sha256, validate_artifact
+
+    root = Path(__file__).resolve().parents[2]
+    for state, expected_count in (("tx", 4907), ("mn", 2405)):
+        artifact_path = root / "data/artifacts/physical_inventory" / state / "eia860-2025er-physical-inventory-1.0.0.json"
+        intake_path = root / "data/sources/ingest" / f"eia860-2025er-{state}-source-intake-v1.json.gz"
+        artifact = json.loads(artifact_path.read_text(encoding="utf-8"))
+        with gzip.open(intake_path, "rt", encoding="utf-8") as stream:
+            intake = json.load(stream)
+        source_records = {
+            record["source_record_id"]
+            for facility in intake["records"]
+            for record in [facility, *facility["attributes"]["generator_units"], *facility["attributes"]["storage_units"]]
+        }
+        assert len(artifact["assets"]) == expected_count
+        assert artifact["content_sha256"] == artifact_sha256(artifact)
+        assert validate_artifact(artifact) == artifact
+        assert {asset["source_record_id"] for asset in artifact["assets"]} <= source_records
