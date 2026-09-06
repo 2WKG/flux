@@ -126,18 +126,19 @@
       "vintage": "figshare article 24237376 version 4; 2021 and 2024 annual files",
       "license_access": {"license": "CC BY 4.0", "access": "public"},
       "artifacts": [
-        {"logical_name": "eaglei_outages_2021.csv", "immutable_id": "figshare-file:42547891", "raw_path": "eaglei/2021/eaglei_outages_2021.csv"},
-        {"logical_name": "eaglei_outages_2024.csv", "immutable_id": "figshare-file:53581661", "raw_path": "eaglei/2024/eaglei_outages_2024.csv"},
-        {"logical_name": "MCC.csv", "immutable_id": "figshare-file:42547708", "raw_path": "eaglei/support/MCC.csv"},
-        {"logical_name": "coverage_history.csv", "immutable_id": "figshare-file:42547714", "raw_path": "eaglei/support/coverage_history.csv"}
+        {"logical_name": "eaglei_outages_2021.csv", "immutable_id": "sha256:e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319", "raw_path": "eaglei/2021/eaglei_outages_2021.csv"},
+        {"logical_name": "eaglei_outages_2024.csv", "immutable_id": "sha256:d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6", "raw_path": "eaglei/2024/eaglei_outages_2024.csv"},
+        {"logical_name": "MCC.csv", "immutable_id": "sha256:d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e", "raw_path": "eaglei/support/MCC.csv"},
+        {"logical_name": "coverage_history.csv", "immutable_id": "sha256:a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267", "raw_path": "eaglei/support/coverage_history.csv"}
       ],
       "coverage": "Texas county 15-minute customers-out observations for 2021 and 2024 plus modeled county-customer and historical coverage support files. Missing observations are not zeros.",
       "timezone": "UTC (documented source-timezone decision for run_start_time)",
       "units": {"customers_out": "customers", "cadence": "15 minutes"},
       "destinations": ["eaglei_outages"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "Public immutable figshare file IDs are known, but their raw files, checksums, and curated output are not checked into this clone."
+      "checked_in_receipt": "data/sources/texas-eaglei-2021-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T05:20:00Z",
+      "reason": "All four public artifacts were retrieved, hashed, and passed the streaming loader with the official UTC source-timezone semantics. Uri and Beryl fixed-window coverage is recorded in the receipt; blank 2021 targets remain missing, not zero."
     },
     {
       "id": "noaa-storm-events-2021-2024",
@@ -190,7 +191,8 @@
       "destinations": ["weather_hourly"],
       "status": "unavailable",
       "ingestion_timestamp": null,
-      "reason": "The legacy ingestion spec names Uri 2021-02-11T00Z..2021-02-21T00Z and Beryl 2024-07-07T00Z..2024-07-11T00Z, but it does not select historical HRRR init times/leads for those valid hours. This clone has no run/lead manifest, county-grid index, HRRR loader, raw subset, checksum, or weather_hourly output. Selecting any of those inputs here would invent a weather source decision."
+      "feasibility_evidence": "data/sources/texas-hrrr-manifest-feasibility.json",
+      "reason": "A reproducible f00/f01 rule for the fixed Uri and Beryl windows is recorded in the linked feasibility evidence, and representative official objects are reachable. This clone has no HRRR county-grid index, loader, GRIB transform, raw subset, checksum, or weather_hourly output, so it cannot validate a weather input yet."
     },
     {
       "id": "ntad-military-bases-fy2024",
