@@ -61,7 +61,7 @@ than a 3 a.m. commit nobody notices.
 ```
 7a59e2edc921aad536068bb62ab66c286e04aaea934b6115cccf6fa11378403a  data/demo/bundle.json
 29c9305b903f59ff1a3642f58e8ae4f2055a334aa16962a32a9086ec5b8f4069  README.md
-62d4904a44d5439bf79a1b62f5c1db7d6597840eb5e210f5ff369e9795e7845d  web/server.mjs
+1815428191a2b69d3a9e2ec31034e6bb90684885fa8d9bac12f2fb388cd4961d  web/server.mjs
 ```
 <!-- freeze-manifest:end -->
 
