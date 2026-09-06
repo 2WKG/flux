@@ -19,16 +19,8 @@ DATASET_SCHEMA_VERSION = "1.0.0"
 TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
 NODE_FEATURES = (
     "base_kv",
-    "lon",
-    "lat",
-    "pd_mw",
-    "qd_mvar",
-    "gs_mw",
-    "bs_mvar",
-    "vm_pu",
-    "va_deg",
-    "vmax_pu",
-    "vmin_pu",
+    "p_mw_nominal",
+    "pmax_mw",
 )
 EDGE_FEATURES = (
     "base_kv",
@@ -64,37 +56,28 @@ def _write_json(path: Path, value: object) -> str:
 
 def _validate_output_target(source: Path, target: Path) -> None:
     if target == source or source.is_relative_to(target):
-        raise ValueError("output directory must not contain the source database")
+        raise ValueError("graph output must not contain the source database")
     if not target.exists():
         return
     if not target.is_dir():
-        raise ValueError(f"output path is not a directory: {target}")
-
-    expected_files = {
-        "edges.json",
-        "manifest.json",
-        "nodes.json",
-        "normalization.json",
-    }
-    if {entry.name for entry in target.iterdir()} != expected_files:
-        raise ValueError(f"refusing to replace a non-export directory: {target}")
+        raise ValueError("graph output must be a directory")
+    expected = {"edges.json", "manifest.json", "nodes.json", "normalization.json"}
+    if {entry.name for entry in target.iterdir()} != expected:
+        raise ValueError("refusing to replace a non-export directory")
     try:
         manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
-        raise ValueError(
-            f"refusing to replace an invalid export directory: {target}"
-        ) from error
-    if (
-        manifest.get("schema_version") != DATASET_SCHEMA_VERSION
-        or manifest.get("topology_label") != TOPOLOGY_LABEL
-    ):
-        raise ValueError(f"refusing to replace a non-export directory: {target}")
+        raise ValueError("refusing to replace an invalid export directory") from error
+    if manifest.get("schema_version") != DATASET_SCHEMA_VERSION or manifest.get("topology_label") != TOPOLOGY_LABEL:
+        raise ValueError("refusing to replace a non-export directory")
 
 
 def _required_tables(con: duckdb.DuckDBPyConnection) -> None:
     expected = {
         "buses",
         "lines",
+        "gens",
+        "loads",
         "synthetic_bus_electrical",
         "synthetic_branch_electrical",
     }
@@ -168,23 +151,60 @@ def _apply_normalization(
 def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     rows = con.execute(
         """
-        SELECT b.bus_id, b.base_kv, b.lon, b.lat, e.pd_mw, e.qd_mvar, e.gs_mw,
-               e.bs_mvar, e.vm_pu, e.va_deg, e.vmax_pu, e.vmin_pu
+        WITH load_totals AS (
+          SELECT bus_id, sum(p_mw_nominal) AS p_mw_nominal FROM loads GROUP BY bus_id
+        ), generator_totals AS (
+          SELECT bus_id, sum(pmax_mw) AS pmax_mw FROM gens GROUP BY bus_id
+        )
+        SELECT b.bus_id, b.base_kv, l.p_mw_nominal, g.pmax_mw, b.county_fips, b.ba_code
         FROM buses AS b
-        LEFT JOIN synthetic_bus_electrical AS e USING (bus_id)
+        LEFT JOIN load_totals AS l USING (bus_id)
+        LEFT JOIN generator_totals AS g USING (bus_id)
         ORDER BY b.bus_id
         """
     ).fetchall()
-    return [
-        {
-            "node_id": int(row[0]),
-            "features": {
-                feature: _number(value, field=feature, record_id=int(row[0]))
-                for feature, value in zip(NODE_FEATURES, row[1:], strict=True)
-            },
+    fuel_rows = con.execute(
+        "SELECT bus_id, fuel, sum(pmax_mw) FROM gens GROUP BY bus_id, fuel ORDER BY bus_id, fuel"
+    ).fetchall()
+    fuels = tuple(sorted({str(row[1]) for row in fuel_rows}))
+    by_bus: dict[int, dict[str, float]] = {}
+    for bus_id, fuel, capacity in fuel_rows:
+        by_bus.setdefault(int(bus_id), {})[str(fuel)] = float(capacity)
+    result = []
+    for bus_id, base_kv, load, capacity, county_fips, ba_code in rows:
+        numeric = {
+            feature: _number(value, field=feature, record_id=int(bus_id))
+            for feature, value in zip(
+                NODE_FEATURES, (base_kv, load, capacity), strict=True
+            )
         }
-        for row in rows
-    ]
+        fuel_capacity = {
+            fuel: by_bus.get(int(bus_id), {}).get(fuel, 0.0) for fuel in fuels
+        }
+        has_load = numeric["p_mw_nominal"] not in (None, 0.0)
+        has_generation = numeric["pmax_mw"] not in (None, 0.0)
+        role = (
+            "both"
+            if has_load and has_generation
+            else "consumer"
+            if has_load
+            else "producer"
+            if has_generation
+            else "transmission"
+        )
+        result.append(
+            {
+                "node_id": int(bus_id),
+                "features": numeric,
+                "fuel_capacity_mw": fuel_capacity,
+                "categorical_features": {
+                    "role": role,
+                    "county_fips": county_fips,
+                    "ba_code": ba_code,
+                },
+            }
+        )
+    return result
 
 
 def _edges(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
@@ -225,10 +245,13 @@ def export_texas_graph_dataset(
     source = Path(db_path).resolve()
     if not source.is_file():
         raise FileNotFoundError(f"DuckDB database not found: {source}")
-    target = Path(out_dir).resolve()
+    requested_target = Path(out_dir)
+    if requested_target.is_symlink():
+        raise ValueError("graph output directory must not be a symlink")
+    target = requested_target.resolve()
     _validate_output_target(source, target)
     target.parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent))
+    temporary = Path(tempfile.mkdtemp(prefix=f".{target.name}.tmp-", dir=target.parent))
     try:
         with duckdb.connect(str(source), read_only=True) as con:
             _required_tables(con)
@@ -271,8 +294,19 @@ def export_texas_graph_dataset(
         }
         _write_json(temporary / "manifest.json", manifest)
         if target.exists():
-            shutil.rmtree(target)
-        temporary.replace(target)
+            backup = Path(
+                tempfile.mkdtemp(prefix=f".{target.name}.previous-", dir=target.parent)
+            )
+            backup.rmdir()
+            target.replace(backup)
+            try:
+                temporary.replace(target)
+            except Exception:
+                backup.replace(target)
+                raise
+            shutil.rmtree(backup)
+        else:
+            temporary.replace(target)
         return manifest
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)

@@ -10,7 +10,9 @@ The output is deliberately labelled `synthetic (ACTIVSg2000)`: it is a Texas-sha
 not ERCOT topology or a physical asset inventory. The command refuses an absent or empty source database
 instead of writing a fixture-looking result.
 
-- `nodes.json` contains one bus node per `buses.bus_id`.
+- `nodes.json` contains one bus node per `buses.bus_id`, normalized electrical/load/capacity features,
+  per-fuel capacity, and categorical role/county/BA membership. Coordinates are deliberately excluded
+  so graph models cannot memorize geography.
 - `edges.json` contains every `lines` branch. `source_edge_type` distinguishes lines from voltage-transition
   transformers; `solver_edge_type` records that those transformer branches import as pandapower impedance branches.
 - `normalization.json` persists population z-score statistics for every numeric node and edge feature.
@@ -20,3 +22,6 @@ instead of writing a fixture-looking result.
 All JSON is canonical (sorted keys, compact UTF-8, trailing newline), and source rows are ordered by their stable
 IDs. Repeating an export from unchanged DuckDB content produces byte-identical files. Database `NULL` values remain
 JSON `null` in both raw and normalized feature maps; the exporter never substitutes zero or another plausible value.
+The output directory must not equal or contain the source database, and it cannot be a symlink; unsafe overlap is
+rejected before any output directory is created or replaced. A prior real output directory is atomically swapped with
+the completed temporary dataset only after all files have been written.

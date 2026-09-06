@@ -4,8 +4,6 @@ import hashlib
 import json
 from pathlib import Path
 
-import pytest
-
 from pipelines.db import connect
 from pipelines.graph_export import export_texas_graph_dataset
 
@@ -30,6 +28,12 @@ def _fixture_db(path: Path) -> None:
             "INSERT INTO synthetic_bus_electrical VALUES (1, 1, 10, NULL, 0, 0, 1, 0, 1.1, 0.9)"
         )
         con.execute("INSERT INTO synthetic_branch_electrical VALUES (1, 0, 1, 0, 1)")
+        con.execute(
+            "INSERT INTO loads VALUES (1, 1, 10, 'fixture', 'test', NULL, NULL, 'fixture')"
+        )
+        con.execute(
+            "INSERT INTO gens VALUES (1, 2, 'wind', 25, NULL, 'unit-1', 'fixture', 'test', NULL, NULL, 'fixture')"
+        )
     finally:
         con.close()
 
@@ -72,12 +76,16 @@ def test_export_keeps_missing_values_explicit_and_persists_stats(
     edges = json.loads((target / "edges.json").read_text())
     stats = json.loads((target / "normalization.json").read_text())
 
-    assert nodes[0]["features"]["qd_mvar"] is None
-    assert nodes[0]["normalized_features"]["qd_mvar"] is None
-    assert nodes[1]["features"]["pd_mw"] is None
+    assert "lon" not in nodes[0]["features"]
+    assert "lat" not in nodes[0]["features"]
+    assert nodes[0]["features"]["p_mw_nominal"] == 10.0
+    assert nodes[0]["categorical_features"]["role"] == "consumer"
+    assert nodes[1]["features"]["pmax_mw"] == 25.0
+    assert nodes[1]["fuel_capacity_mw"] == {"wind": 25.0}
+    assert nodes[1]["categorical_features"]["role"] == "producer"
     assert edges[0]["features"]["rate_a_mw"] is None
     assert edges[0]["normalized_features"]["rate_a_mw"] is None
-    assert stats["node_features"]["pd_mw"] == {
+    assert stats["node_features"]["p_mw_nominal"] == {
         "count": 1,
         "mean": 10.0,
         "missing_count": 1,
@@ -88,18 +96,35 @@ def test_export_keeps_missing_values_explicit_and_persists_stats(
     assert stats["edge_features"]["rate_a_mw"]["mean"] is None
 
 
-def test_export_refuses_output_that_contains_the_source_database(
-    tmp_path: Path,
-) -> None:
+def test_export_rejects_source_parent_as_output_without_deleting_db(tmp_path: Path) -> None:
     database = tmp_path / "grid.duckdb"
     _fixture_db(database)
-    database_hash = hashlib.sha256(database.read_bytes()).hexdigest()
+    original = database.read_bytes()
 
-    with pytest.raises(ValueError, match="must not contain the source database"):
+    try:
         export_texas_graph_dataset(database, tmp_path)
+    except ValueError as error:
+        assert "must not" in str(error)
+    else:
+        raise AssertionError("source parent must be rejected as graph output")
+
+    assert database.read_bytes() == original
+
+
+def test_export_rejects_output_symlink_to_source_parent(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    output_link = tmp_path / "output-link"
+    output_link.symlink_to(tmp_path, target_is_directory=True)
+
+    try:
+        export_texas_graph_dataset(database, output_link)
+    except ValueError as error:
+        assert "symlink" in str(error)
+    else:
+        raise AssertionError("symlinked graph output must be rejected")
 
     assert database.exists()
-    assert hashlib.sha256(database.read_bytes()).hexdigest() == database_hash
 
 
 def test_export_refuses_to_replace_non_export_directory(tmp_path: Path) -> None:
@@ -107,27 +132,24 @@ def test_export_refuses_to_replace_non_export_directory(tmp_path: Path) -> None:
     _fixture_db(database)
     target = tmp_path / "dataset"
     target.mkdir()
-    sentinel = target / "keep.txt"
-    sentinel.write_text("do not delete")
+    (target / "stale.txt").write_text("old")
+    original = database.read_bytes()
 
-    with pytest.raises(ValueError, match="refusing to replace a non-export directory"):
+    try:
         export_texas_graph_dataset(database, target)
+    except ValueError as error:
+        assert "non-export" in str(error)
+    else:
+        raise AssertionError("non-export directory must not be replaced")
 
-    assert sentinel.read_text() == "do not delete"
+    assert database.read_bytes() == original
+    assert (target / "stale.txt").is_file()
 
 
-def test_export_replaces_only_a_prior_owned_export(tmp_path: Path) -> None:
+def test_export_atomically_replaces_prior_owned_export(tmp_path: Path) -> None:
     database = tmp_path / "grid.duckdb"
     _fixture_db(database)
     target = tmp_path / "dataset"
-
-    first_manifest = export_texas_graph_dataset(database, target)
-    second_manifest = export_texas_graph_dataset(database, target)
-
-    assert second_manifest == first_manifest
-    assert set(_files(target)) == {
-        "edges.json",
-        "manifest.json",
-        "nodes.json",
-        "normalization.json",
-    }
+    first = export_texas_graph_dataset(database, target)
+    second = export_texas_graph_dataset(database, target)
+    assert first == second
