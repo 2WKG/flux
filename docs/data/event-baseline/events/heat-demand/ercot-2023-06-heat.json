@@ -74,7 +74,22 @@
       "retrieved_at_utc": "2026-09-06T08:03:31.874224Z",
       "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
       "units": "sum: customers; run_start_time: UTC",
-      "url": "https://ndownloader.figshare.com/files/44574907"
+      "url": "https://ndownloader.figshare.com/files/44574907",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:44574907",
+        "source_file": "eaglei_outages_2023.csv",
+        "source_file_id": 44574907,
+        "source_file_bytes": 1199752423,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+        "raw_artifact_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+        "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
+        "filtered_artifact_uri": "data/raw/event-baseline/ercot-2023-06-heat_eaglei_2023_20230719T000000_20230719T060000.csv",
+        "filtered_artifact_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170"
+      }
     }
   ],
   "records": [
