@@ -280,3 +280,23 @@ def details(response) -> dict[str, str]:  # type: ignore[no-untyped-def]
     body = response.json()
     assert body["status"] in {"unavailable", "error"}
     return body["error"]["details"]
+
+
+HTTP_METHODS = frozenset(
+    {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
+)
+
+
+def registered_routes() -> frozenset[tuple[str, str]]:
+    """The live registered ``(METHOD, path)`` surface from the OpenAPI document.
+
+    One definition so the route inventories that pin it cannot drift apart; the
+    non-method keys of an OpenAPI path item are filtered out rather than being
+    read as phantom operations.
+    """
+    return frozenset(
+        (method.upper(), path)
+        for path, operations in create_app().openapi()["paths"].items()
+        for method in operations
+        if method.lower() in HTTP_METHODS
+    )
