@@ -723,3 +723,90 @@ def test_two_same_year_batch_requests_parse_the_annual_csv_once(
     assert parse_count == 1
     assert [item["eaglei"]["event_id"] for item in results] == ["first", "second"]
     assert all(item["eaglei"]["acquisition_complete"] for item in results)
+
+
+def test_batch_indexes_county_requests_without_changing_overlapping_results(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Only a row's county requests are considered; empty FIPS remains unrestricted."""
+    payload = (
+        HEADER
+        + "11111,Alpha,Minnesota,1,2024-06-19 00:00:00,100\n"
+        + "22222,Beta,Minnesota,2,2024-06-19 00:15:00,200\n"
+        + "11111,Alpha,Minnesota,3,2024-06-19 00:30:00,100\n"
+        + "99999,Elsewhere,California,4,2024-06-19 00:00:00,300\n"
+    ).encode()
+    _write_completed_source(tmp_path, payload)
+    requests_path = tmp_path / "requests.json"
+    requests_path.write_text(
+        json.dumps(
+            [
+                {
+                    "event_id": "alpha-first-half",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T00:30:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["11111"],
+                },
+                {
+                    "event_id": "alpha-full-hour",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T01:00:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["11111"],
+                },
+                {
+                    "event_id": "beta-full-hour",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T01:00:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["22222"],
+                },
+                {
+                    "event_id": "all-minnesota",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T01:00:00Z",
+                    "states": ["Minnesota"],
+                    "fips": [],
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original_matches = eaglei._row_matches
+    calls: list[tuple[str, str]] = []
+
+    def counting_matches(
+        row: dict[str, str], request: dict[str, object], timestamp: datetime
+    ) -> bool:
+        calls.append((row["fips_code"], str(request["event_id"])))
+        return original_matches(row, request, timestamp)
+
+    monkeypatch.setattr(eaglei, "_row_matches", counting_matches)
+
+    receipts = eaglei.batch_scan_requests(requests_path, tmp_path)
+
+    rows_by_event = {
+        item["eaglei"]["event_id"]: [
+            row["customers_out"] for row in _rows(item["eaglei"]["filtered_artifact"])
+        ]
+        for item in receipts
+    }
+    assert rows_by_event == {
+        "alpha-first-half": ["1"],
+        "alpha-full-hour": ["1", "3"],
+        "beta-full-hour": ["2"],
+        "all-minnesota": ["1", "2", "3"],
+    }
+    assert not any(
+        row_fips == "99999" and event_id != "all-minnesota"
+        for row_fips, event_id in calls
+    )
+    assert not any(
+        row_fips == "22222" and event_id.startswith("alpha")
+        for row_fips, event_id in calls
+    )

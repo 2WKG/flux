@@ -629,6 +629,16 @@ def acquire_exhaustive(
     return payload
 
 
+def _row_matches(
+    row: dict[str, str], request: dict[str, Any], timestamp: datetime
+) -> bool:
+    """Apply the state and half-open-window portion of a batch request."""
+    return (
+        row["state"] in request["states"]
+        and request["start"] <= timestamp < request["end"]
+    )
+
+
 def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, Any]]:
     """Scan each cached annual CSV once and dispatch rows to requested windows."""
     payload = json.loads(requests_path.read_text(encoding="utf-8"))
@@ -662,17 +672,22 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
         license_name, license_url, license_source = manifest_license(meta)
         source_system_id = str(meta["source_system_id"])
         article_id, file_id = source_system_id.split(":")[1:3]
+        requests_by_fips: dict[str, list[dict[str, Any]]] = {}
+        unrestricted_requests: list[dict[str, Any]] = []
+        for request in group:
+            if request["fips"]:
+                for code in request["fips"]:
+                    requests_by_fips.setdefault(code, []).append(request)
+            else:
+                unrestricted_requests.append(request)
         with raw_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             batch_fieldnames = reader.fieldnames or []
             for row in reader:
                 ts = parse_source_time(row["run_start_time"])
-                for request in group:
-                    if (
-                        row["state"] in request["states"]
-                        and row["fips_code"] in request["fips"]
-                        and request["start"] <= ts < request["end"]
-                    ):
+                candidates = requests_by_fips.get(row["fips_code"], [])
+                for request in [*candidates, *unrestricted_requests]:
+                    if _row_matches(row, request, ts):
                         request["rows"].append(row)
         for request in group:
             file = {
