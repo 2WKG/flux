@@ -104,10 +104,16 @@ def _assemble(standardizers, source_features, key=HOLDOUT_KEY, **overrides):
         "source_features": source_features,
         "standardizers": standardizers,
         "feature_set_version": FEATURE_SET_VERSION,
-        "source_input_sha256": HASH,
+        "source_input_sha256": standardizers.transforms.source_input_sha256,
     }
     kwargs.update(overrides)
     return assemble_features(**kwargs)
+
+
+def _fit_for_holdout(source_features):
+    source_rows = dict(SOURCE_ROWS)
+    source_rows[HOLDOUT_KEY] = source_features
+    return _fit(source_rows=source_rows, split=_manifest(source_rows))
 
 
 # --- fit: train-only, hand-computed, reproducible ----------------------------
@@ -212,15 +218,15 @@ def test_standardized_values_are_train_centred_and_scaled():
     assert artifact.row.missing == ()
     assert artifact.transform_version == TRANSFORM_VERSION
 
-    negative = _assemble(
-        _fit(), {"gust": RawFeature(5.0, "m_s"), "rain": RawFeature(1.0, "mm")}
-    )
+    negative_features = {"gust": RawFeature(5.0, "m_s"), "rain": RawFeature(1.0, "mm")}
+    negative = _assemble(_fit_for_holdout(negative_features), negative_features)
     assert dict(negative.row.features)["gust"].value == -1.5
     assert dict(negative.row.features)["rain"].value == -2.0
 
 
 def test_partially_missing_features_preserve_status_and_reason():
-    artifact = _assemble(_fit(), {"gust": RawFeature(30.0, "m_s")})
+    source_features = {"gust": RawFeature(30.0, "m_s")}
+    artifact = _assemble(_fit_for_holdout(source_features), source_features)
 
     fields = dict(artifact.row.features)
     assert fields["gust"].status is FeatureStatus.PRESENT
@@ -232,15 +238,11 @@ def test_partially_missing_features_preserve_status_and_reason():
 
 
 def test_unsupported_input_is_explicit_not_silently_imputed():
-    artifact = _assemble(
-        _fit(),
-        {
-            "gust": RawFeature(
-                None, "m_s", FeatureStatus.OUT_OF_COVERAGE, "no station"
-            ),
-            "rain": RawFeature(float("nan"), "mm"),
-        },
-    )
+    source_features = {
+        "gust": RawFeature(None, "m_s", FeatureStatus.OUT_OF_COVERAGE, "no station"),
+        "rain": RawFeature(float("nan"), "mm"),
+    }
+    artifact = _assemble(_fit_for_holdout(source_features), source_features)
 
     fields = dict(artifact.row.features)
     assert fields["gust"].status is FeatureStatus.OUT_OF_COVERAGE
@@ -252,9 +254,8 @@ def test_unsupported_input_is_explicit_not_silently_imputed():
 
 
 def test_incompatible_unit_is_missing_source_not_a_converted_number():
-    artifact = _assemble(
-        _fit(), {"gust": RawFeature(35.0, "mph"), "rain": RawFeature(5.0, "mm")}
-    )
+    source_features = {"gust": RawFeature(35.0, "mph"), "rain": RawFeature(5.0, "mm")}
+    artifact = _assemble(_fit_for_holdout(source_features), source_features)
 
     fields = dict(artifact.row.features)
     assert fields["gust"].status is FeatureStatus.MISSING_SOURCE
@@ -263,15 +264,11 @@ def test_incompatible_unit_is_missing_source_not_a_converted_number():
 
 
 def test_upstream_imputed_source_keeps_its_status_and_is_standardized():
-    artifact = _assemble(
-        _fit(),
-        {
-            "gust": RawFeature(
-                30.0, "m_s", FeatureStatus.IMPUTED, "station gap filled"
-            ),
-            "rain": RawFeature(5.0, "mm"),
-        },
-    )
+    source_features = {
+        "gust": RawFeature(30.0, "m_s", FeatureStatus.IMPUTED, "station gap filled"),
+        "rain": RawFeature(5.0, "mm"),
+    }
+    artifact = _assemble(_fit_for_holdout(source_features), source_features)
 
     fields = dict(artifact.row.features)
     assert fields["gust"].status is FeatureStatus.IMPUTED
@@ -279,21 +276,17 @@ def test_upstream_imputed_source_keeps_its_status_and_is_standardized():
     assert artifact.missing_reasons == (("gust", "station gap filled"),)
     assert artifact.row.missing == ("gust",)
 
-    unlabelled = _assemble(
-        _fit(),
-        {
-            "gust": RawFeature(30.0, "m_s", FeatureStatus.IMPUTED),
-            "rain": RawFeature(5.0, "mm"),
-        },
-    )
+    unlabelled_features = {
+        "gust": RawFeature(30.0, "m_s", FeatureStatus.IMPUTED),
+        "rain": RawFeature(5.0, "mm"),
+    }
+    unlabelled = _assemble(_fit_for_holdout(unlabelled_features), unlabelled_features)
     assert unlabelled.missing_reasons == (("gust", IMPUTED_SOURCE_VALUE),)
 
 
 def test_source_feature_outside_the_fitted_set_is_named_not_dropped():
-    artifact = _assemble(
-        _fit(),
-        {**SOURCE_ROWS[HOLDOUT_KEY], "extra": RawFeature(5.0, "mm")},
-    )
+    source_features = {**SOURCE_ROWS[HOLDOUT_KEY], "extra": RawFeature(5.0, "mm")}
+    artifact = _assemble(_fit_for_holdout(source_features), source_features)
 
     assert tuple(name for name, _ in artifact.row.features) == ("gust", "rain")
     assert artifact.missing_reasons == (("extra", NOT_IN_FITTED_FEATURE_SET),)
@@ -309,6 +302,19 @@ def test_assemble_rejects_a_version_or_source_hash_the_standardizers_were_not_fi
         )
     with pytest.raises(FeatureAssemblyError, match="input artifact hash"):
         _assemble(standardizers, SOURCE_ROWS[HOLDOUT_KEY], source_input_sha256="b" * 64)
+
+
+def test_assemble_rejects_arbitrary_values_paired_with_a_copied_source_hash():
+    standardizers = _fit()
+    copied_hash = standardizers.transforms.source_input_sha256
+    arbitrary = {"gust": RawFeature(9999.0, "m_s"), "rain": RawFeature(-123.0, "mm")}
+
+    with pytest.raises(FeatureAssemblyError, match="content does not match"):
+        _assemble(
+            standardizers,
+            arbitrary,
+            source_input_sha256=copied_hash,
+        )
 
 
 # --- artifact bytes ------------------------------------------------------------
@@ -343,9 +349,8 @@ def test_feature_artifact_bytes_are_identical_across_runs_and_input_order():
 
 def test_feature_artifact_digest_covers_the_standardized_values_and_provenance():
     base = _assemble(_fit(), SOURCE_ROWS[HOLDOUT_KEY])
-    other_value = _assemble(
-        _fit(), {"gust": RawFeature(36.0, "m_s"), "rain": RawFeature(5.0, "mm")}
-    )
+    other_features = {"gust": RawFeature(36.0, "m_s"), "rain": RawFeature(5.0, "mm")}
+    other_value = _assemble(_fit_for_holdout(other_features), other_features)
     assert base.artifact_sha256 != other_value.artifact_sha256
 
     retagged = replace(base, transform_version="0.0.0")
@@ -394,7 +399,10 @@ def test_partial_row_is_refused_by_prediction_paths_not_scored():
         raise AssertionError("a row with a missing feature must not be scored")
 
     record = trained_prediction(
-        features=_assemble(_fit(), {"gust": RawFeature(35.0, "m_s")}).row,
+        features=_assemble(
+            _fit_for_holdout({"gust": RawFeature(35.0, "m_s")}),
+            {"gust": RawFeature(35.0, "m_s")},
+        ).row,
         artifact=_model(),
         scorer=scorer,
         customers_at_risk=10,

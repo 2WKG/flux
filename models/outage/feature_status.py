@@ -35,7 +35,7 @@ import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from hashlib import sha256
-from math import isfinite
+from math import isfinite, isnan
 
 import pandas as pd
 
@@ -101,10 +101,11 @@ class RawFeature:
 
 @dataclass(frozen=True)
 class StandardizerArtifact:
-    """Fitted transforms (from :mod:`models.outage.transforms`) plus their units."""
+    """Fitted transforms, units, and evidence for each source row."""
 
     transforms: FeatureTransformArtifact
     units: tuple[tuple[str, str], ...]
+    source_row_sha256s: tuple[tuple[WindowKey, str], ...]
 
     @property
     def names(self) -> tuple[str, ...]:
@@ -122,10 +123,20 @@ class StandardizerArtifact:
                 return unit
         raise KeyError(name)
 
+    def source_row_sha256_for(self, key: WindowKey) -> str:
+        for row_key, row_sha256 in self.source_row_sha256s:
+            if row_key == key:
+                return row_sha256
+        raise KeyError(key)
+
     def as_dict(self) -> dict[str, object]:
         return {
             "transforms": self.transforms.as_dict(),
             "units": [[name, unit] for name, unit in self.units],
+            "source_rows": [
+                [key.model_dump(mode="json"), row_sha256]
+                for key, row_sha256 in self.source_row_sha256s
+            ],
         }
 
     def canonical_json(self) -> str:
@@ -267,7 +278,21 @@ def fit_standardizers(
         )
     except TransformError as error:
         raise FeatureFitError(str(error)) from error
-    return StandardizerArtifact(transforms=transforms, units=tuple(units))
+    return StandardizerArtifact(
+        transforms=transforms,
+        units=tuple(units),
+        source_row_sha256s=tuple(
+            (key, _source_row_sha256(key, features))
+            for key, features in sorted(
+                source_rows.items(),
+                key=lambda item: (
+                    item[0].county_fips,
+                    item[0].scenario_id,
+                    item[0].window_start,
+                ),
+            )
+        ),
+    )
 
 
 def assemble_features(
@@ -281,13 +306,25 @@ def assemble_features(
     """Apply fitted standardizers without concealing missing or invalid sources.
 
     ``feature_set_version`` and ``source_input_sha256`` must equal the values
-    the standardizers were fitted under; a mismatch is a
+    the standardizers were fitted under.  The supplied row must also exactly
+    match the source-row evidence captured at fit time; a copied artifact hash
+    cannot label arbitrary values as verified input.  Any mismatch is a
     :class:`FeatureAssemblyError`, never a silently incomparable row.  The
     arithmetic is :func:`models.outage.transforms.apply_feature_transforms`;
     cells it would impute are never emitted, they become explicit statuses.
     """
 
     names = standardizers.names
+    try:
+        expected_row_sha256 = standardizers.source_row_sha256_for(key)
+    except KeyError as error:
+        raise FeatureAssemblyError(
+            "source row is not present in the fitted artifact"
+        ) from error
+    if _source_row_sha256(key, source_features) != expected_row_sha256:
+        raise FeatureAssemblyError(
+            "source feature content does not match the fitted artifact evidence"
+        )
     usable: dict[str, float] = {}
     for name in names:
         source = source_features.get(name)
@@ -383,3 +420,29 @@ def _feature_names(feature_names: Sequence[str]) -> tuple[str, ...]:
 
 def _canonical_json(document: object) -> str:
     return json.dumps(document, sort_keys=True, separators=(",", ":"), allow_nan=False)
+
+
+def _source_row_sha256(key: WindowKey, features: Mapping[str, RawFeature]) -> str:
+    """Digest raw row content before transform-time missing-value handling."""
+
+    document = {
+        "key": key.model_dump(mode="json"),
+        "features": {
+            name: {
+                "value": _canonical_raw_value(feature.value),
+                "unit": feature.unit,
+                "status": feature.status.value,
+                "reason": feature.reason,
+            }
+            for name, feature in sorted(features.items())
+        },
+    }
+    return sha256(_canonical_json(document).encode("utf-8")).hexdigest()
+
+
+def _canonical_raw_value(value: float | None) -> float | str | None:
+    if value is None or isfinite(value):
+        return value
+    if isnan(value):
+        return "NaN"
+    return "Infinity" if value > 0 else "-Infinity"
