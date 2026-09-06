@@ -73,7 +73,7 @@ def fetch_texas_lines(boundary: dict[str, Any], session: requests.Session | Any 
     ids_response.raise_for_status()
     object_ids = ids_response.json().get("objectIds")
     if not isinstance(object_ids, list):
-        raise RuntimeError("HIFLD service did not return objectIds")
+        raise TypeError("HIFLD service did not return objectIds")
 
     features: list[dict[str, Any]] = []
     for offset in range(0, len(object_ids), 1000):
