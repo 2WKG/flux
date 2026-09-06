@@ -1,7 +1,7 @@
 # 2WKG-352 integrated browser proof
 
 Base: `53cfafc` (`feat(web): compose static explorer support panels`). This proof
-tests the frozen combined frontend as a static synthetic/offline application.
+tests the frozen combined frontend as a static synthetic application with a bounded OpenFreeMap basemap network dependency; it has no live Flux API, agent, or provider connection.
 
 ## Reproducible setup
 

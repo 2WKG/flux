@@ -1,8 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-const fixtureDisclosure = /Synthetic five-bus fixture.*no API required/i;
+const fixtureDisclosure = /Synthetic five-bus fixture.*OpenFreeMap basemap context.*no API required/i;
+const openFreeMapHost = "tiles.openfreemap.org";
 
-test("static explorer supports scenario selection, inspection, and honest offline agent state", async ({ page }) => {
+function assertBoundedRequest(requests: string[], baseURL: string) {
+  for (const value of requests) {
+    const url = new URL(value);
+    if (url.origin === baseURL) {
+      expect(url.pathname).not.toMatch(/^\/(?:ask|api)(?:\/|$)/);
+      continue;
+    }
+    expect(url.hostname).toBe(openFreeMapHost);
+    expect(url.pathname).toMatch(/^\/(?:styles\/|planet(?:\/|$)|fonts\/|sprites\/)/);
+  }
+}
+
+test("static explorer supports scenario selection, inspection, and honest unavailable agent state", async ({ page }) => {
   const requests: string[] = [];
   page.on("request", (request) => requests.push(request.url()));
 
@@ -40,7 +53,16 @@ test("static explorer supports scenario selection, inspection, and honest offlin
   await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
   await expect(chat.getByText(/revision .*:b:c3/i).first()).toBeVisible();
 
-  expect(requests.some((url) => /\/(ask|api)(?:\/|$|\?)/.test(new URL(url).pathname))).toBeFalsy();
+  await expect(page.getByText(/Deck overlay: initialized with zero accepted feature layers/i)).toBeVisible();
+  assertBoundedRequest(requests, new URL(page.url()).origin);
+});
+
+test("basemap failure is visible while the synthetic fixture remains usable", async ({ page }) => {
+  await page.route("https://tiles.openfreemap.org/**", (route) => route.abort());
+  await page.goto("/");
+  await expect(page.getByText(/Basemap unavailable:/i)).toBeVisible();
+  await page.getByRole("button", { name: /Candidate A/i }).first().click();
+  await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
 });
 
 test("keyboard selection and disclosure focus remain usable", async ({ page }) => {

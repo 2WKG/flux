@@ -340,7 +340,7 @@ function App() {
       title="Where does 300 MW cut the most unmet demand?"
       source={{
         status: "synthetic",
-        label: "Synthetic five-bus fixture · no API required",
+        label: "Synthetic five-bus fixture · OpenFreeMap basemap context · no API required",
         detail: "Checked-in synthetic artifact; no live API or agent connection. Not a Minnesota or Texas topology, facility map, or interconnection result.",
       }}
       viewport={
