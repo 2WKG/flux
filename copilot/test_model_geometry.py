@@ -49,6 +49,8 @@ def test_model_returns_bus_and_branch_geometry_from_synthetic_db(
         "branches": 2,
         "lines": 1,
         "impedance_branches": 1,
+        "generators": 1,
+        "loads": 1,
     }
     elements = {item["element_id"]: item for item in body["data"]["elements"]}
     assert elements["bus:10"]["geometry"] == {

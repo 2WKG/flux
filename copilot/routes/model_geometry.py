@@ -139,6 +139,8 @@ def _read_model_geometry(
                 "impedance_branches": sum(
                     key.startswith("impedance:") for key in branches
                 ),
+                "generators": len(generators),
+                "loads": len(loads),
             },
             "capabilities": {"selected_component_failure": True},
             "provenance": {

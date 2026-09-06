@@ -27,7 +27,7 @@ export type TexasModelPayload = Readonly<{
     elements?: readonly TexasModelElement[];
   }>;
 }>;
-type Point = Readonly<{ id: string; position: Position }>;
+type Point = Readonly<{ id: string; position: Position; role: string }>;
 type Line = Readonly<{ id: string; path: readonly Position[] }>;
 type AssetOverlay = Readonly<{ placements: readonly FluxPlacement[]; groups: readonly LoadedFluxGroup[] }>;
 
@@ -42,7 +42,7 @@ function geometry(elements: readonly TexasModelElement[]): { points: readonly Po
     if (!element.resolved || !element.element_id) continue;
     if (element.geometry?.type === "Point") {
       const item = position(element.geometry.coordinates);
-      if (item) points.push({ id: element.element_id, position: item });
+      if (item) points.push({ id: element.element_id, position: item, role: element.role ?? "unknown" });
     } else if (element.geometry?.type === "LineString" && Array.isArray(element.geometry.coordinates)) {
       const path = element.geometry.coordinates.flatMap((item) => {
         const value = position(item);
@@ -70,6 +70,9 @@ export function isTexasModelPayload(value: unknown): value is TexasModelPayload 
 /** All resolved branches remain in the PathLayer at every zoom. */
 export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayload }) {
   const { points, lines } = useMemo(() => geometry(payload.data?.elements ?? []), [payload]);
+  const buses = useMemo(() => points.filter((point) => point.role === "bus"), [points]);
+  const generators = useMemo(() => points.filter((point) => point.role === "generator"), [points]);
+  const loads = useMemo(() => points.filter((point) => point.role === "load"), [points]);
   const bounds = useMemo(() => boundsOf(points, lines), [points, lines]);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(5.4);
@@ -102,15 +105,19 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const layers = useMemo<LayersList>(() => [
     new PathLayer<Line>({ id: "texas-model-branches", data: lines, getPath: (line) => line.path as Position[],
       getColor: [74, 222, 128, 170], getWidth: 1.5, widthUnits: "pixels", pickable: true }),
-    new ScatterplotLayer<Point>({ id: "texas-model-buses", data: points, getPosition: (point) => point.position,
+    new ScatterplotLayer<Point>({ id: "texas-model-buses", data: buses, getPosition: (point) => point.position,
       getRadius: 3, radiusUnits: "pixels", getFillColor: [148, 163, 184, 210], pickable: true }),
     ...(assets ? createFluxAssetLayers({ zoom, mode: "accepted" }, assets) : []),
-  ], [assets, lines, points, zoom]);
+    new ScatterplotLayer<Point>({ id: "texas-model-generators", data: generators, getPosition: (point) => point.position,
+      getRadius: 4, radiusUnits: "pixels", getFillColor: [251, 191, 36, 220], pickable: true }),
+    new ScatterplotLayer<Point>({ id: "texas-model-loads", data: loads, getPosition: (point) => point.position,
+      getRadius: 3, radiusUnits: "pixels", getFillColor: [96, 165, 250, 210], pickable: true }),
+  ], [assets, buses, generators, lines, loads, zoom]);
   if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
   return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"}>
     <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
       <DeckOverlay layers={layers} />
     </Map>
-    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {points.length} resolved buses · {lines.length} resolved branches. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
+    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {buses.length} resolved buses · {lines.length} resolved branches · {generators.length} generators · {loads.length} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
   </section>;
 }

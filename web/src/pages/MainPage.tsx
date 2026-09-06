@@ -355,8 +355,8 @@ export function App() {
   const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
   const [askAvailable, setAskAvailable] = useState(false);
 
-  const [gridState, setGridState] = useState<GridState>("mn");
-  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.mn);
+  const [gridState, setGridState] = useState<GridState>("tx");
+  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.tx);
   const [gridQuery, setGridQuery] = useState("");
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
@@ -538,36 +538,18 @@ export function App() {
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
-      <header className="shell-intro">
-        <p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p>
-        <h1>Where does 300 MW cut the most unmet demand?</h1>
-        <p>
-          One fixed cold-stress snapshot, three runs from the same assumptions. Pick a candidate to see the
-          corridors it relieves. Every figure is read from a checked-in synthetic artifact — no runtime request,
-          and no claim about a real grid.
-        </p>
+      <header className="shell-intro texas-model-intro">
+        <p className="eyebrow">SYNTHETIC TEXAS / STATIC TOPOLOGY</p>
+        <h1>ACTIVSg2000 network geometry</h1>
+        <p>All displayed buses and branches come from the read-only synthetic model route. Physical 3D visuals remain a separately labeled observed-inventory overlay.</p>
       </header>
 
-      <section className="shell-controls" aria-label="Scenario controls">
-        <div>
-          <p className="eyebrow">Scenario comparison</p>
-          <p>Choose a bundled run. All choices keep the same synthetic five-bus assumptions.</p>
-        </div>
-        <span className="shell-status">{STATUS_COPY[SOURCE_TRUTH.status]} five-bus preview · not Minnesota data</span>
-      </section>
-
-      <CompareRail selected={selected} onSelect={select} />
-
-      <section className={`workspace${texasModel.status === "available" || texasModel.status === "partial" ? " model-workspace" : ""}`} aria-label="Viewport-first scenario workspace">
+      <section className="workspace model-workspace" aria-label="Full synthetic Texas topology workspace">
         <article className="map scene-viewport">
           <div className="map-head">
             <div>
-              <p className="eyebrow">NETWORK STATE · {scenario.label.toUpperCase()}</p>
-              <p className="hint">Line weight tracks utilization. Hover or tab a corridor for its reading.</p>
-            </div>
-            <div className="toggle" role="group" aria-label="Corridor colouring">
-              <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
-              <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
+              <p className="eyebrow">SYNTHETIC TEXAS TOPOLOGY</p>
+              <p className="hint">All supplied branches and buses remain visible at every zoom. 3D visual LOD never culls topology.</p>
             </div>
           </div>
 
@@ -579,11 +561,7 @@ export function App() {
                 <button type="button" onClick={() => setModelAttempt((value) => value + 1)}>Retry model request</button>
               </section>}
 
-          <div className="legend">
-            {view === "load"
-              ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
-              : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
-          </div>
+          <div className="legend">Synthetic model geometry · no solved flows or observed electrical state.</div>
           <LayerControls
             layers={layerDescriptors}
             visibleLayerIds={visibleLayerIds}
@@ -670,7 +648,7 @@ export function App() {
         </aside>
       </section>
 
-      <GridInventoryPanel
+      {false && <GridInventoryPanel
         load={gridLoad}
         state={gridState}
         layers={gridLayers}
@@ -681,7 +659,7 @@ export function App() {
         onQueryChange={setGridQuery}
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
-      />
+      />}
 
       <section className="pipeline">
         <div>
