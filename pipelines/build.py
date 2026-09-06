@@ -197,12 +197,25 @@ def _build_mutating(
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
         validate_schema(con)
         export_parquet(con, parquet_dir)
-        manifest = build_manifest(con, state_scope=str(selected_scope.slug))
-        store_manifest(con, manifest)
-        write_manifest(manifest, Path(parquet_dir) / "manifest.json")
     finally:
         con.close()
     return counts
+
+
+def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> dict:
+    """Describe the staged release before it is checked and promoted.
+
+    The manifest is stored in the staged database and written next to the
+    staged Parquet export, so both are promoted together or not at all.
+    """
+    con = connect(stage_db)
+    try:
+        manifest = build_manifest(con, state_scope=scope(states).slug)
+        store_manifest(con, manifest)
+    finally:
+        con.close()
+    write_manifest(manifest, stage_parquet / "manifest.json")
+    return manifest
 
 
 def _copy_database(source: Path, stage: Path) -> None:
@@ -323,6 +336,7 @@ def build(
         counts = (
             _build_mutating(*args) if states is None else _build_mutating(*args, states)
         )
+        _write_stage_manifest(stage_db, stage_parquet, states)
         checks = run_checks(str(stage_db), states)
         if not all(check.passed for check in checks):
             raise RuntimeError(
