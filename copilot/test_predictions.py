@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from hashlib import sha256
 from pathlib import Path
 
 import duckdb
@@ -14,6 +15,10 @@ from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 def _client(path: Path) -> TestClient:
     return TestClient(create_app(Settings(duckdb_path=path)))
+
+
+def _file_sha256(path: Path) -> str:
+    return sha256(path.read_bytes()).hexdigest()
 
 
 def _prediction_database(
@@ -152,6 +157,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
 def test_qualified_persisted_prediction_is_returned(tmp_path: Path) -> None:
     database = tmp_path / "qualified.duckdb"
     _prediction_database(database, qualifications=(True, False))
+    before = _file_sha256(database)
 
     response = _client(database).get(
         "/predictions", params={"scenario_id": "mn_winter_2023_snow"}
@@ -181,6 +187,7 @@ def test_qualified_persisted_prediction_is_returned(tmp_path: Path) -> None:
         "qualified": True,
         "qualification_reason": None,
     }
+    assert _file_sha256(database) == before
 
 
 def test_unqualified_prediction_is_not_returned_as_success(tmp_path: Path) -> None:
@@ -200,6 +207,7 @@ def test_unqualified_prediction_is_not_returned_as_success(tmp_path: Path) -> No
 def test_persisted_cascade_is_returned(tmp_path: Path) -> None:
     database = tmp_path / "cascade.duckdb"
     _cascade_database(database)
+    before = _file_sha256(database)
 
     response = _client(database).get(
         "/cascade", params={"scenario_id": "mn_winter_2023_snow"}
@@ -226,6 +234,7 @@ def test_persisted_cascade_is_returned(tmp_path: Path) -> None:
         ],
         "limitations": ["Fixture topology evidence only."],
     }
+    assert _file_sha256(database) == before
 
 
 def test_prediction_missing_artifact_is_unavailable(tmp_path: Path) -> None:
@@ -276,3 +285,14 @@ def test_prediction_invalid_model_kind_is_rejected(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_cascade_requires_scenario_id_without_opening_a_database(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "missing.duckdb"
+
+    response = _client(database).get("/cascade")
+
+    assert response.status_code == 422
+    assert not database.exists()
