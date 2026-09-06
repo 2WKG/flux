@@ -51,7 +51,14 @@
       "gaps": [
         "Filtered selection: data/raw/event-baseline/weather-or-context/864bc2a451dcc2044a9334f3b92a99ea99c62062be199dc84c1f057fef67d85c.json; 2539 bytes; serializer Python csv.DictReader over gzip then json.dumps(rows, sort_keys=True, separators=(',', ':')) plus newline UTF-8.",
         "Selected EVENT_ID values: 1064167. Raw annual file is in approved ignored storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2022-42547897-20221221t180000z-20221222t000000z",
@@ -87,7 +94,14 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-12-21-winter-storm-27053-20221221180000_eaglei_2022_20221221T180000_20221222T000000.csv",
         "filtered_artifact_sha256": "936d8c63bc269789e7f691282239cf57213f03228dc77d373ed3c5e0154e7742"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -174,7 +188,7 @@
         "observed_samples": 24,
         "missing_timestamps": [],
         "event_report": null,
-        "notes": "Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 1088–1189."
+        "notes": "Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 1088\u20131189."
       },
       "matched_coverage_decision": "matched",
       "label": {
@@ -186,7 +200,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

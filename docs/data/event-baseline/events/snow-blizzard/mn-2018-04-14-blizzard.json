@@ -52,7 +52,14 @@
       "grid_index_mapping": "No grid index; forecast zone MNZ060 retained.",
       "gaps": [
         "Raw annual file is in approved ignored storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2018-42547879-20180414t180000-20180415t000000",
@@ -88,7 +95,14 @@
         "source_sidecar_sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2018-04-14-blizzard-27053-20180414180000_eaglei_2018_20180414T180000_20180415T000000.csv",
         "filtered_artifact_sha256": "895127461af17322d73cde2a99d8fecfca37187275134548064ef11760c7cbaf"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -187,7 +201,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
