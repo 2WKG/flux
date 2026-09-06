@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate the shared 3D asset archetype catalog against its contract.
 
 The contract is only real if a machine can check it. This refuses a catalog that
