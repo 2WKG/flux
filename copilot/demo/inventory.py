@@ -141,8 +141,12 @@ class PhysicalInventoryReader:
             status="available",
             data={
                 "region": region,
+                "artifact_id": artifact_id,
+                "artifact_version": release.get("artifact_version"),
+                "release_sha256": release.get("content_sha256"),
                 "inventory_mode": release.get("inventory_mode"),
                 "electrical_model_mode": release.get("electrical_model_mode"),
+                "asset_count": len(assets),
                 "asset_classes": classes,
                 "source_records": source_rows,
                 "selected_asset": selected_asset,
