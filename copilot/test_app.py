@@ -114,7 +114,7 @@ def test_cors_exposes_response_metadata_headers(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert response.headers["Access-Control-Expose-Headers"] == (
-        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact"
+        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact, X-Flux-Attempt-Id"
     )
 
 
@@ -134,7 +134,7 @@ def test_internal_error_keeps_cors_and_response_metadata(tmp_path: Path) -> None
     assert response.status_code == 500
     assert response.headers["Access-Control-Allow-Origin"] == "http://localhost:5173"
     assert response.headers["Access-Control-Expose-Headers"] == (
-        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact"
+        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact, X-Flux-Attempt-Id"
     )
     assert response.headers["X-Flux-Api-Version"] == API_VERSION
     assert "X-Flux-Artifact" not in response.headers

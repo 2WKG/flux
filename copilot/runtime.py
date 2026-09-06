@@ -8,8 +8,9 @@ cancellation) needs a generator built on the same emitter.
 
 from __future__ import annotations
 
+import asyncio
 from asyncio import CancelledError
-from collections.abc import Iterable, Mapping
+from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any, Protocol
 
@@ -23,6 +24,12 @@ class NarrationProvider(Protocol):
     """An injected provider; tests use deterministic local implementations."""
 
     def text(self, narration: GroundedNarration) -> Iterable[str]: ...
+
+
+class AsyncNarrationProvider(Protocol):
+    """Cooperative provider used by the HTTP streaming transport."""
+
+    def text(self, narration: GroundedNarration) -> AsyncIterator[str]: ...
 
 
 @dataclass(frozen=True)
@@ -131,6 +138,90 @@ def run_turn(
         )
     )
     return tuple(events)
+
+
+async def stream_turn(
+    provider: AsyncNarrationProvider | None,
+    turn: ToolTurn,
+    *,
+    stream: CopilotEventStream | None = None,
+    include_lifecycle: bool = True,
+) -> AsyncIterator[SseEvent]:
+    """Yield one turn through the same safe emitter contract as ``run_turn``.
+
+    The HTTP route uses cooperative injected boundaries: provider deltas are
+    yielded as they arrive, permitting heartbeat and disconnect tasks to run.
+    A real response-task cancellation is re-raised after iterator cleanup; a
+    provider-raised cancellation remains the documented terminal event.
+    """
+
+    active = stream or CopilotEventStream()
+    if include_lifecycle:
+        yield active.start()
+    yield active.tool_call(turn.call_id, turn.tool, turn.input)
+    narration = turn.narration
+    if narration.status == "unavailable":
+        unavailable = narration.unavailable
+        if unavailable is None:  # pragma: no cover - GroundedNarration forbids it
+            raise ValueError("unavailable narration carries no unavailable reason")
+        code, message = _TOOL_FAILURES[unavailable.code]
+        yield active.failed_tool_result(
+            turn.call_id, turn.tool, code, message, elapsed_ms=turn.elapsed_ms
+        )
+        yield active.error(
+            "unavailable",
+            _TOOL_UNAVAILABLE_MESSAGE,
+            retryable=unavailable.retryable,
+        )
+        return
+
+    evidence = _thaw_mapping(narration.evidence)
+    yield active.tool_result(
+        turn.call_id, turn.tool, evidence, elapsed_ms=turn.elapsed_ms
+    )
+    for index, hit in enumerate(narration.citations, 1):
+        yield active.citation(f"{turn.call_id}:cite:{index}", _citation_payload(hit))
+    if provider is None:
+        yield active.error("unavailable", _NO_PROVIDER_MESSAGE, retryable=False)
+        return
+
+    iterator: AsyncIterator[str] | None = None
+    deltas: list[str] = []
+    try:
+        iterator = provider.text(narration)
+        async for delta in iterator:
+            if delta:
+                deltas.append(delta)
+                yield active.text(delta)
+    except CancelledError as exc:
+        if asyncio.current_task() is not None and asyncio.current_task().cancelling():
+            await _close_iterator(iterator)
+            raise
+        yield active.disconnected(exc)
+        return
+    except Exception as exc:  # noqa: BLE001 - provider exceptions become fixed terminals.
+        yield active.provider_failed(exc)
+        return
+    if not deltas:
+        yield active.error("upstream_error", _EMPTY_ANSWER_MESSAGE, retryable=True)
+        return
+
+    report = verify("".join(deltas), [evidence], narration.citations)
+    yield active.done(
+        verified=report.verified,
+        unverified_numbers=report.unverified_numbers,
+        unverified_citations=report.unverified_citations,
+        reason=report.reason,
+    )
+
+
+async def _close_iterator(iterator: AsyncIterator[str] | None) -> None:
+    closer = getattr(iterator, "aclose", None)
+    if closer is not None:
+        try:
+            await closer()
+        except Exception:  # noqa: BLE001 - disconnect cleanup must not replace cancellation.
+            return
 
 
 def _citation_payload(hit: RetrievalHit) -> dict[str, Any]:
