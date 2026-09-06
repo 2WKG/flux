@@ -33,6 +33,16 @@ export const MINNESOTA_AGGREGATE_SCENE_ID = `scene:${MINNESOTA_BASELINE_CONTEXT_
 export const MINNESOTA_AGGREGATE_ARTIFACT_ID = "mn:aggregate:manifest:v1";
 
 /**
+ * The only v1 identifiers the aggregate comparison route accepts from this
+ * shell. They name persisted server contexts; their presence does not claim
+ * that a particular deployment has those artifacts available.
+ */
+export const MINNESOTA_COMPARISON_CONTEXT_IDS = Object.freeze({
+  baseline: "mn:baseline:v1",
+  candidate: "mn:candidate:v1",
+});
+
+/**
  * The accepted manifest's content digest, copied from
  * `data/sources/minnesota-accepted-artifact-inventory.json`. A shareable link
  * carries it so a link made against one manifest cannot silently be read as
@@ -213,41 +223,14 @@ export type MinnesotaRunResultAcceptance<T> =
   | { readonly kind: "stale" };
 
 /**
- * Comparison is a server-owned result, and the server half of this ticket
- * already owns it: `copilot/routes/mn_comparisons.py` serves
- * `POST /mn/comparisons` and returns the signed delta, unit, provenance and
- * highlight ids. That router is not in `copilot/app.py`'s `include_router`
- * list yet (2WKG-436 owns serial registration), so the browser still has
- * nothing to call. The message therefore names the real route and says it is
- * unmounted, instead of claiming no such contract was ever written.
- * `run-context.test.mjs` fails if that router is ever mounted while this copy
- * still reports it unreachable.
+ * The server route that owns Minnesota aggregate comparison.
+ * `copilot/routes/mn_comparisons.py` serves it and returns the signed delta,
+ * unit, provenance and highlight ids; `./comparison-client.ts` is the only
+ * caller. The stand-in `unavailableMinnesotaComparison` this module used to
+ * export was deleted with its last consumer -- a hand-written "no such
+ * contract" state is a false statement now that the contract exists.
  */
 export const MINNESOTA_COMPARISON_ROUTE = "POST /mn/comparisons";
-
-export interface MinnesotaComparisonUnavailable {
-  readonly kind: "unavailable";
-  readonly code: "mn_comparison_route_unmounted";
-  readonly baseline: Readonly<MinnesotaRunContext>;
-  readonly candidate: Readonly<MinnesotaRunContext>;
-  readonly message: string;
-}
-
-export function unavailableMinnesotaComparison(
-  baseline: Readonly<MinnesotaRunContext>,
-  candidate: Readonly<MinnesotaRunContext>,
-): MinnesotaComparisonUnavailable {
-  return {
-    kind: "unavailable",
-    code: "mn_comparison_route_unmounted",
-    baseline,
-    candidate,
-    message:
-      `The Minnesota aggregate comparison route (${MINNESOTA_COMPARISON_ROUTE}, ` +
-      "copilot/routes/mn_comparisons.py) is not mounted on this build, so no server-signed " +
-      "baseline, candidate, or delta can be read here.",
-  };
-}
 
 /** Consumers use this seam before rendering any future server response. */
 export function acceptMinnesotaRunResult<T>(

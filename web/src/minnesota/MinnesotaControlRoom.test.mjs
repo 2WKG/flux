@@ -18,7 +18,7 @@ await build({
     `,
     resolveDir: fileURLToPath(root), loader: "tsx", sourcefile: "mn-control-room-test.tsx",
   },
-  bundle: true, format: "esm", platform: "node", jsx: "automatic", packages: "external",
+  bundle: true, format: "esm", platform: "node", jsx: "automatic", packages: "external", loader: { ".css": "empty" },
   outfile: fileURLToPath(compiled),
 });
 const room = await import(compiled.href);
@@ -70,7 +70,7 @@ const FORBIDDEN_SHAPES = [
   [/synthetic five-bus|ACTIVSg2000/i, "a synthetic network fixture"],
 ];
 
-test("the route shell is aggregate-only and names the missing server contract", () => {
+test("the route shell is aggregate-only, composes its leaf surfaces, and keeps read/inspection unavailable", () => {
   const markup = room.render({ search: "", location: { pathname: "/minnesota", hash: "" } });
   assert.match(markup, /data-scene-mode="aggregate"/);
   assert.match(markup, /Minnesota aggregate baseline/);
@@ -78,6 +78,22 @@ test("the route shell is aggregate-only and names the missing server contract", 
   assert.match(markup, /No server read contract currently supplies a Minnesota aggregate result/);
   assert.match(markup, /Compare baseline/);
   assert.match(markup, /Inspect feature unavailable/);
+  assert.match(markup, /No server timeline artifact is mounted/);
+  assert.match(markup, /mn:baseline:v1/);
+  assert.match(markup, /mn:candidate:v1/);
+});
+
+test("the presenter script is mounted, not just imported", () => {
+  const markup = room.render({ search: "", location: { pathname: "/minnesota", hash: "" } });
+  assert.match(markup, /<h2>Presenter scenes<\/h2>/);
+  // Every scene the module publishes reaches the page. `[].map(...)` over the
+  // actions leaves the heading standing, so the heading alone proves nothing.
+  for (const label of [
+    "Present aggregate evidence baseline",
+    "Present synthetic-view disclosure",
+    "Present unavailable-artifact disclosure",
+  ]) assert.ok(markup.includes(label), `the presenter scene "${label}" is not rendered`);
+  assert.equal([...markup.matchAll(/Present [a-z-]+ ?[a-z-]*disclosure|Present aggregate evidence baseline/g)].length, 3);
 });
 
 test("the aggregate scene renders only the text it is allowed to render", () => {

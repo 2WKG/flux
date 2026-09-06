@@ -45,6 +45,11 @@ export const PROXIED = [
   // POST. Cloudflared filters paths, not methods, so publishing this at the edge
   // would expose the Copilot ask surface to the public internet; it stays local.
   { pattern: /^\/ask$/, methods: ["POST"] },
+  // The Minnesota aggregate comparison (`copilot/routes/mn_comparisons.py`).
+  // Without this entry the POST falls through to the SPA shell, the browser
+  // reads 404 HTML, and the page renders `malformed` -- a response-contract
+  // failure -- instead of the server's own named unavailable envelope.
+  { pattern: /^\/mn\/comparisons$/, methods: ["POST"] },
 ];
 
 /**

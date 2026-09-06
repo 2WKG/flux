@@ -131,6 +131,31 @@ test("with no API origin configured, every allowlisted path refuses by name", as
   }
 });
 
+test("POST /mn/comparisons is on the table, so it refuses by name instead of 404ing to the shell", async () => {
+  // The Minnesota comparison button posts here (`src/minnesota/comparison-client.ts`).
+  // Before the path was on the table it fell through to `app.get("/{*path}")`,
+  // which does not match POST, so Express answered its own 404 HTML; the
+  // browser's `validateJsonResponse` could only call that *malformed*, i.e. a
+  // broken server contract, rather than "this deployment has no API".
+  const get = await origin();
+  const shell = await get("/");
+  const posted = await get("/mn/comparisons", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ baseline_context_id: "mn:baseline:v1", candidate_context_id: "mn:candidate:v1" }),
+  });
+  assert.equal(posted.status, 503, "the comparison POST must refuse by name");
+  assert.match(posted.type, /json/, "the comparison POST must refuse in the envelope's media type");
+  assert.notEqual(posted.body, shell.body, "the comparison POST must not be answered with the SPA shell");
+  const body = JSON.parse(posted.body);
+  assert.equal(body.status, "unavailable");
+  assert.equal(body.error.details.reason, NO_API_ORIGIN_REASON);
+  assert.equal(body.data, null);
+  // The method half of the table: GET is not the comparison contract.
+  const got = await get("/mn/comparisons");
+  assert.equal(got.body, shell.body, "GET /mn/comparisons is outside the table and stays a client route");
+});
+
 test("with no API origin configured, a path outside the allowlist is not given the envelope", async () => {
   // The control: the named-envelope refusal above is registered for the
   // allowlist, not for everything. A blanket 503 envelope would pass the test

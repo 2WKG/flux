@@ -28,6 +28,11 @@ test("the Minnesota baseline is immutable aggregate metadata with no invented as
     scenario_id: null, hour: null, selected_site_id: null, compare_site_id: null, selected_element_id: null, unit_mw: null,
   });
   assert.equal(mn.resetMinnesotaRunContext(), baseline);
+  assert.deepEqual(mn.MINNESOTA_COMPARISON_CONTEXT_IDS, {
+    baseline: "mn:baseline:v1",
+    candidate: "mn:candidate:v1",
+  });
+  assert.equal(Object.isFrozen(mn.MINNESOTA_COMPARISON_CONTEXT_IDS), true);
 });
 
 test("a versioned bookmark round-trips exactly and rejects partial, duplicate, unknown, and future states", () => {
@@ -67,19 +72,6 @@ test("both RunIdentity fields guard against stale asynchronous results", () => {
     mn.acceptMinnesotaRunResult(current, { identity: { ...current, contextRevision: "mn:other" }, value: "wrong-context" }),
     { kind: "stale" },
   );
-});
-
-test("a compare request names the unmounted server route without deriving an aggregate effect", () => {
-  const comparison = mn.unavailableMinnesotaComparison(
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-  );
-  assert.equal(comparison.kind, "unavailable");
-  assert.equal(comparison.code, "mn_comparison_route_unmounted");
-  assert.equal(comparison.baseline, mn.MINNESOTA_BASELINE_RUN_CONTEXT);
-  assert.equal(comparison.candidate, mn.MINNESOTA_BASELINE_RUN_CONTEXT);
-  assert.equal("delta" in comparison, false);
-  assert.equal("value" in comparison, false);
 });
 
 test("the shareable scene id is the server's highlight vocabulary, not a browser label", async () => {
@@ -135,21 +127,36 @@ test("the artifact id and digest are the Gate-0 inventory's, not a constant pinn
   assert.match(mn.serializeMinnesotaBookmark(mn.MINNESOTA_BASELINE_RUN_CONTEXT), /(^|&)hash=/);
 });
 
-test("the comparison copy names the real route and stays true only while it is unmounted", async () => {
-  const comparison = mn.unavailableMinnesotaComparison(
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
+test("the comparison route the client posts to is the server's, and the mount is disclosed", async () => {
+  // `./comparison-client.ts` is the only caller now; the stand-in
+  // `unavailableMinnesotaComparison` was deleted with its last consumer.
+  const client = await readRepo("web/src/minnesota/comparison-client.ts");
+  assert.ok(
+    client.includes(`transport("${mn.MINNESOTA_COMPARISON_ROUTE.replace("POST ", "")}"`),
+    `the client does not post to ${mn.MINNESOTA_COMPARISON_ROUTE}`,
   );
-  assert.match(comparison.message, /POST \/mn\/comparisons/);
-  assert.match(comparison.message, /copilot\/routes\/mn_comparisons\.py/);
-  assert.match(comparison.message, /not mounted/);
+  const route = await readRepo("copilot/routes/mn_comparisons.py");
+  assert.match(route, /router = APIRouter\(prefix="\/mn"/);
+  assert.match(route, /@router\.post\("\/comparisons"\)/);
 
-  // The claim is falsifiable: once 2WKG-436 registers the router, this copy
-  // becomes a false statement to the user, and this assertion is what notices.
+  // The v1 context pair the client sends is the server's own vocabulary.
+  const serverText = await readRepo("copilot/test_mn_comparisons.py");
+  for (const contextId of Object.values(mn.MINNESOTA_COMPARISON_CONTEXT_IDS)) {
+    assert.ok(serverText.includes(contextId), `no server file names the context id ${contextId}`);
+  }
+
+  // The route is served but not registered (2WKG-436 owns serial mounting), so
+  // the browser reaches the origin's named unavailable envelope rather than a
+  // ready comparison. When the mount lands, this assertion is what says so.
   const app = await readRepo("copilot/app.py");
   assert.doesNotMatch(
     app,
     /include_router\(\s*mn_comparisons/,
-    "mn_comparisons is mounted, so the browser must stop reporting the comparison route unreachable",
+    "mn_comparisons is now mounted; the PR body's not-mounted disclosure is stale",
   );
+
+  // And the browser can actually reach the path: it must be on server.mjs's
+  // proxy allowlist, or the POST 404s to the SPA shell and renders `malformed`.
+  const server = await readRepo("web/server.mjs");
+  assert.match(server, /pattern: \/\^\\\/mn\\\/comparisons\$\/, methods: \["POST"\]/);
 });
