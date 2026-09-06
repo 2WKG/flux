@@ -1,0 +1,25 @@
+# Physical-inventory offline acceptance receipt
+
+Run `python scripts/verify_physical_inventory.py --artifact <artifact.json> --state tx --expected-version <version> --receipt <receipt.json>` after a state ingest lane writes a contract-11 physical inventory artifact. A state selector such as `mn` also accepts a scoped artifact geography such as `mn:mille-lacs-county`; `tx` accepts the canonical `us-tx` form. That scope remains visible in the receipt and is never promoted to statewide coverage.
+
+The verifier checks the immutable artifact checksum and contract, then reconciles
+each state coverage row with the normalized asset count. It retains source IDs,
+versions, record identities, source geometry/accuracy metadata, and
+source-backed terminal/edge counts in the receipt.
+
+A source query's returned count is deliberately recorded as
+`source_returned_count`. It never becomes a statewide completeness denominator.
+Only `denominator_basis: authoritative_state_class:<state>` plus
+`source_scope: statewide:<state>` can support an offline complete-class claim;
+even then, every counted asset must retain source geometry.
+
+The verifier rejects an over- or under-reconciled authoritative denominator,
+coverage rows that lose normalized assets, fabricated geometry metadata on an
+unavailable asset, and derived geometry whose accuracy basis does not name its
+source provenance. A nullable unavailable count remains explicitly reported as
+unknown/unreported instead of treated as zero.
+
+The receipt is only an offline artifact-to-normalized-inventory proof. It always
+marks spatial API transport, viewport rendering, selection, inspector, and
+browser interaction `NOT VERIFIED`. It cannot complete 2WKG-439, 2WKG-458, or
+2WKG-459.
