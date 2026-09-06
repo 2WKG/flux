@@ -1,0 +1,10 @@
+{
+  "model": {
+    "archetype_id": "military_base",
+    "contract_id": "flux:3d-asset-archetypes:v1",
+    "glb_uri": "asset://flux/3d/military_base.glb",
+    "footprint_m": {"length": 200, "width": 160},
+    "connectors": ["MV_FEED"],
+    "lod_triangles": {"lod0": 30000, "lod1": 11000, "lod2": 3200}
+  }
+}
