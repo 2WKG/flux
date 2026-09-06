@@ -86,6 +86,8 @@ def _apply(net: Any, edit: GridEdit) -> None:
     else:  # GridEdit is public and may be reconstructed from untrusted JSON.
         raise SimulationInputError(f"unsupported edit kind {edit.kind!r}")
     net[table].at[index, "flux_element_id"] = edit.element_id
+    if table == "load":
+        net[table].at[index, "flux_nominal_p_mw"] = float(edit.p_mw)
     lookup[edit.element_id] = (table, int(index))
 
 

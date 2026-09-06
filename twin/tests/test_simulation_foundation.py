@@ -22,7 +22,7 @@ def _fixture_db(tmp_path):
         con.execute("CREATE TABLE critical_loads(cl_id BIGINT, kind TEXT, name TEXT, bus_id BIGINT)")
         con.execute("INSERT INTO buses VALUES (10, 'slack', 110, -97, 30, '48001'), (20, 'load', 110, -97.1, 30.1, '48003'), (30, 'island', 220, -97.2, 30.2, '48003')")
         con.execute("INSERT INTO lines VALUES (1, 10, 20, 110, 0.01, 0.1, 100, 2, false), (2, 20, 30, 220, 0.01, 0.1, 30, 1, true)")
-        con.execute("INSERT INTO gens VALUES (1, 10, 'ng', 100), (2, 20, 'solar', 20)")
+        con.execute("INSERT INTO gens VALUES (1, 10, 'ng', 10), (2, 20, 'solar', 20)")
         con.execute("INSERT INTO synthetic_bus_electrical VALUES (10, 3, 0, 0, 0, 0, 1, 0, .9, 1.1), (20, 2, 10, 0, 0, 0, 1, 0, .9, 1.1), (30, 1, 20, 0, 0, 0, 1, 0, .9, 1.1)")
         con.execute("INSERT INTO synthetic_branch_electrical VALUES (1, 0, 0, 0, 1), (2, 0, 0, 0, 1)")
         con.execute("INSERT INTO synthetic_generator_electrical VALUES (1, 10, 0, 10, -10, 0, 1), (2, 20, 0, 20, -20, 0, 1)")
@@ -69,6 +69,13 @@ def test_cascade_sheds_island_and_attributes_modeled_load_without_customers(tmp_
     assert result["critical_loads_lost"] == [{"cl_id": "7", "kind": "hospital", "name": "fixture hospital"}]
     assert result["county_impacts"] == [{"county_fips": "48003", "lost_mw": 20.0, "fraction_dark": 0.666667, "basis": "synthetic modeled load; customer count unavailable"}]
     assert island_primitives(net, (outage("impedance:2"),))[1]["has_grid_forming_source"] is False
+
+
+def test_cascade_sheds_a_finite_generation_deficit_in_mw(tmp_path):
+    result = run_cascade(build_network(_fixture_db(tmp_path)), (outage("generator:2"),))
+    assert result["lost_load_mw"] == pytest.approx(20.0)
+    assert result["served_load_mw"] == pytest.approx(10.0)
+    assert {event["element_id"] for event in result["tripped_element_ids"]} >= {"generator:2", "load:1", "load:2"}
 
 
 def test_build_fails_closed_on_missing_artifact_or_schema(tmp_path):

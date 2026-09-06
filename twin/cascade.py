@@ -38,6 +38,10 @@ def run_cascade(net: Any, edits: Iterable[GridEdit] = (), *, overload_limit_pct:
         lost += island_lost
         dark_buses.update(buses)
         events.extend(island_events)
+        deficit_lost, deficit_buses, deficit_events = _shed_capacity_deficits(scenario, stage)
+        lost += deficit_lost
+        dark_buses.update(deficit_buses)
+        events.extend(deficit_events)
         _solve(scenario)
         overloads = _overloads(scenario, overload_limit_pct)
         loading.update({item[0]: item[3] for item in overloads})
@@ -131,6 +135,40 @@ def _shed_unsupplied_islands(net: Any, stage: int) -> tuple[float, set[int], lis
     return lost, dark, events
 
 
+def _shed_capacity_deficits(net: Any, stage: int) -> tuple[float, set[int], list[CascadeEvent]]:
+    """Proportionally shed an energized island whose finite supply is short."""
+    sources = _source_buses(net)
+    lost, dark, events = 0.0, set(), []
+    for component in nx.connected_components(_graph(net)):
+        if not sources.intersection(component):
+            continue
+        demand = float(net.load.loc[net.load.in_service & net.load.bus.isin(component), "p_mw"].sum())
+        available = _available_capacity(net, component)
+        if demand <= 0 or available >= demand:
+            continue
+        served_fraction = max(available, 0.0) / demand
+        for index in net.load.index[net.load.in_service & net.load.bus.isin(component)]:
+            before = float(net.load.at[index, "p_mw"])
+            shed = before * (1.0 - served_fraction)
+            if shed <= 0:
+                continue
+            net.load.at[index, "p_mw"] = before - shed
+            lost += shed
+            dark.add(int(net.load.at[index, "bus"]))
+            events.append(CascadeEvent(str(net.load.at[index, "flux_element_id"]), "load", stage, "island"))
+    return lost, dark, events
+
+
+def _available_capacity(net: Any, buses: set[int]) -> float:
+    available = _capacity(net, buses)
+    for _, row in net.ext_grid[net.ext_grid.in_service & net.ext_grid.bus.isin(buses)].iterrows():
+        limit = row.get("max_p_mw")
+        if limit is None or float(limit) != float(limit):
+            return float("inf")
+        available += max(float(limit), 0.0)
+    return available
+
+
 def _solve(net: Any) -> None:
     try:
         pp.rundcpp(net)
@@ -164,9 +202,11 @@ def _county_impacts(net: Any) -> list[dict[str, Any]]:
         county = metadata.get("county_fips")
         if county is None:
             continue
-        totals[county] = totals.get(county, 0.0) + float(row.p_mw)
-        if not bool(row.in_service):
-            lost[county] = lost.get(county, 0.0) + float(row.p_mw)
+        nominal = float(row.get("flux_nominal_p_mw", row.p_mw))
+        totals[county] = totals.get(county, 0.0) + nominal
+        served = float(row.p_mw) if bool(row.in_service) else 0.0
+        if nominal > served:
+            lost[county] = lost.get(county, 0.0) + nominal - served
     return [{"county_fips": county, "lost_mw": round(value, 6), "fraction_dark": round(value / totals[county], 6), "basis": "synthetic modeled load; customer count unavailable"} for county, value in sorted(lost.items())]
 
 
