@@ -28,6 +28,7 @@ from copilot.interactive_routes import (
     create_interactive_router,
     create_interactive_service,
 )
+from copilot.providers import build_tool_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.comparisons import router as comparisons_router
@@ -52,10 +53,22 @@ def create_app(
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings if settings is not None else load_settings()
-    # Provider and tool orchestration stay deployment-injected. The default is
-    # deliberately unavailable rather than an implicit provider/network call.
+    # Adapter construction is local-only; requests are the only point at which
+    # a configured provider can be contacted. Missing credentials stay
+    # explicitly unavailable.
     app.state.ask_backend = ask_backend
-    app.state.tool_provider = tool_provider
+    # An injected legacy backend owns the attempt outright.  Do not construct a
+    # configured SDK transport that the route will never select; the normal
+    # dispatcher path constructs its configured transport once at app startup.
+    app.state.tool_provider = (
+        tool_provider
+        if tool_provider is not None
+        else (
+            None
+            if ask_backend is not None
+            else build_tool_provider(app.state.settings)
+        )
+    )
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,

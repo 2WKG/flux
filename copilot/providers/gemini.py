@@ -184,7 +184,20 @@ def _parts(response: object) -> Sequence[object]:
 
 
 def _json(value: object) -> str:
-    return json.dumps(value, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return json.dumps(
+        _json_value(value), ensure_ascii=False, separators=(",", ":"), sort_keys=True
+    )
+
+
+def _json_value(value: object) -> object:
+    """Copy dispatcher-frozen mappings into the SDK's JSON-only boundary."""
+    if isinstance(value, Mapping):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [_json_value(item) for item in value]
+    if isinstance(value, list):
+        return [_json_value(item) for item in value]
+    return value
 
 
 def _field(value: object, name: str, default: object = None) -> object:

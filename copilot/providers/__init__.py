@@ -11,6 +11,7 @@ would make it impossible to say which model produced an answer.
 from __future__ import annotations
 
 from copilot.config import DEFAULT_PROVIDER_MODELS, ProviderStatus, Settings
+from copilot.dispatcher import ToolCallingProvider
 from copilot.providers.grounding import SYSTEM_PROMPT, narration_prompt
 from copilot.providers.tool_schemas import anthropic_tools, gemini_tools
 from copilot.runtime import AsyncNarrationProvider
@@ -21,6 +22,7 @@ __all__ = [
     "ProviderStatus",
     "anthropic_tools",
     "build_narration_provider",
+    "build_tool_provider",
     "gemini_tools",
     "narration_prompt",
     "provider_statuses",
@@ -50,6 +52,24 @@ def build_narration_provider(settings: Settings) -> AsyncNarrationProvider | Non
     Construction opens no network connection, so this stays safe to call at
     startup; a credential is still not evidence that the model answers.
     """
+    status = settings.provider_status()
+    if not status.ready:
+        return None
+    api_key = settings.credential_for(status.provider)
+    if api_key is None:  # pragma: no cover - `ready` already proved otherwise
+        return None
+    if status.provider == "claude":
+        from copilot.providers.claude import ClaudeNarrationProvider
+
+        return ClaudeNarrationProvider(api_key, status.model)
+    from copilot.providers.gemini import GeminiNarrationProvider
+
+    return GeminiNarrationProvider(api_key, status.model)
+
+
+def build_tool_provider(settings: Settings) -> ToolCallingProvider | None:
+    """Construct the configured bounded-tool transport without making a call."""
+
     status = settings.provider_status()
     if not status.ready:
         return None

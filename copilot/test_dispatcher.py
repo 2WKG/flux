@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
@@ -15,6 +16,7 @@ from copilot.dispatcher import (
     ToolDispatcher,
     interactive_tool_handlers,
 )
+from copilot.providers.claude import ClaudeNarrationProvider
 from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output
 
 
@@ -159,6 +161,98 @@ def test_ask_uses_provider_selected_pydantic_handler_and_nests_scene_action() ->
         "reversible": True,
         "status": "available",
     }
+
+
+def test_configured_app_provider_reaches_dispatcher_over_http_without_network(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A configured app uses the production Claude transport through ``/ask``."""
+
+    class FakeMessages:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, object]] = []
+            self.responses = [
+                SimpleNamespace(
+                    content=[
+                        SimpleNamespace(
+                            type="tool_use",
+                            id="configured-scene-edit",
+                            name="scenario_edit",
+                            input={
+                                "base_scenario_id": "interactive",
+                                "ops": [
+                                    {"op": "outage", "element_id": "line:7"}
+                                ],
+                                "hour": 0,
+                                "seed": 0,
+                            },
+                        )
+                    ]
+                ),
+                SimpleNamespace(content=[SimpleNamespace(type="text", text="Done.")]),
+            ]
+
+        async def create(self, **kwargs: object) -> object:
+            self.calls.append(dict(kwargs))
+            return self.responses.pop(0)
+
+    messages = FakeMessages()
+    built = []
+
+    def configured_factory(settings: Settings) -> ClaudeNarrationProvider:
+        built.append(settings.provider_status())
+        return ClaudeNarrationProvider(
+            "injected-test-key",
+            settings.model_for("claude"),
+            client=SimpleNamespace(messages=messages),
+        )
+
+    monkeypatch.setattr("copilot.app.build_tool_provider", configured_factory)
+    dispatcher = ToolDispatcher(interactive_tool_handlers(_InteractiveService()))
+    client = TestClient(
+        create_app(
+            Settings(
+                duckdb_path=Path("/tmp/grid.duckdb"),
+                anthropic_api_key="unused-configured-key",
+            ),
+            tool_dispatcher=dispatcher,
+        )
+    )
+
+    events = _events(
+        client.post(
+            "/ask",
+            json={
+                "attempt_id": "configured_dispatcher_1",
+                "question": "Make this outage edit.",
+                "history": [],
+            },
+        )
+    )
+
+    assert [(event, payload.get("tool")) for event, payload in events] == [
+        ("lifecycle", None),
+        ("tool_call", "scenario_edit"),
+        ("tool_result", "scenario_edit"),
+        ("text", None),
+        ("done", None),
+    ]
+    assert len(built) == 1
+    assert built[0].provider == "claude"
+    assert built[0].ready is True
+    assert events[2][1]["result"]["scene_action"] == {
+        "action_id": "scenario_edit:configured-scene-edit",
+        "kind": "scenario_edit",
+        "tool_call_id": "configured-scene-edit",
+        "edit_hash": "f" * 16,
+        "reversible": True,
+        "status": "available",
+    }
+    assert [tool["name"] for tool in messages.calls[0]["tools"]] == [
+        definition.name for definition in TOOL_REGISTRY
+    ]
+    replay = messages.calls[1]["messages"][-2:]
+    assert replay[1]["content"][0]["type"] == "tool_result"
 
 
 def test_dispatcher_nests_distinct_cascade_request_identity_in_scene_action() -> None:

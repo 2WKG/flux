@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from types import SimpleNamespace
+from types import MappingProxyType, SimpleNamespace
 from typing import Any
 
 from copilot.dispatcher import AssistantText, ToolCall, ToolResult
@@ -67,8 +67,10 @@ def _tool_result() -> ToolResult:
     return ToolResult(
         call_id="call-1",
         name="scenario_edit",
-        arguments={"base_scenario_id": "interactive", "ops": []},
-        result={"status": "available", "data": {"edit_hash": "abc"}},
+        arguments=MappingProxyType({"base_scenario_id": "interactive", "ops": []}),
+        result=MappingProxyType(
+            {"status": "available", "data": {"edit_hash": "abc"}}
+        ),
     )
 
 
@@ -76,7 +78,7 @@ def _kwargs() -> dict[str, Any]:
     return {
         "question": "What changes if this line is out?",
         "history": ({"role": "user", "content": "Earlier question"},),
-        "context": {"scenario_id": "interactive", "hour": 0},
+        "context": MappingProxyType({"scenario_id": "interactive", "hour": 0}),
         "tools": tuple(TOOL_SCHEMAS),
         "results": (_tool_result(),),
     }

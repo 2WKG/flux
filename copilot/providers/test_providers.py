@@ -12,6 +12,7 @@ from copilot.config import DEFAULT_PROVIDER_MODELS, Settings
 from copilot.narration import GroundedNarration
 from copilot.providers import (
     build_narration_provider,
+    build_tool_provider,
     provider_statuses,
     tools_for,
 )
@@ -38,30 +39,88 @@ def _settings(**overrides: object) -> Settings:
     return Settings(_env_file=None, **overrides)  # type: ignore[arg-type]
 
 
-def test_gemini_is_the_default_provider_with_its_documented_model() -> None:
+def test_claude_is_the_default_provider_with_its_documented_model() -> None:
     settings = _settings()
 
-    assert settings.copilot_provider == "gemini"
-    assert settings.provider_status().model == "gemini-3.8-flash"
+    assert settings.copilot_provider == "claude"
+    assert settings.provider_status().model == "claude-sonnet-5"
 
 
 def test_an_unconfigured_active_provider_is_reported_unavailable() -> None:
-    settings = _settings(gemini_api_key=None)
+    settings = _settings(anthropic_api_key=None)
 
     status = settings.provider_status()
 
     assert status.ready is False
-    assert status.reason == "GEMINI_API_KEY is not set"
+    assert status.reason == "CLAUDE_API_KEY is not set"
     assert settings.model_is_configured is False
     assert build_narration_provider(settings) is None
+    assert build_tool_provider(settings) is None
 
 
-def test_a_configured_claude_key_does_not_make_the_gemini_default_ready() -> None:
+def test_configured_provider_builds_the_matching_tool_transport(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    built: list[tuple[str, str]] = []
+
+    def fake_transport(api_key: str, model: str) -> object:
+        built.append((api_key, model))
+        return object()
+
+    monkeypatch.setattr(
+        "copilot.providers.claude.ClaudeNarrationProvider", fake_transport
+    )
+    settings = _settings(
+        copilot_provider="claude", anthropic_api_key="configured-claude"
+    )
+
+    provider = build_tool_provider(settings)
+
+    assert provider is not None
+    assert built == [("configured-claude", settings.model_for("claude"))]
+
+
+@pytest.mark.parametrize(
+    ("provider_name", "key_field", "credential"),
+    [
+        ("claude", "anthropic_api_key", "configured-claude"),
+        ("gemini", "gemini_api_key", "configured-gemini"),
+    ],
+)
+def test_tool_transport_uses_only_the_selected_provider(
+    monkeypatch: pytest.MonkeyPatch,
+    provider_name: str,
+    key_field: str,
+    credential: str,
+) -> None:
+    built: list[tuple[str, str, str]] = []
+
+    def claude_transport(api_key: str, model: str) -> object:
+        built.append(("claude", api_key, model))
+        return object()
+
+    def gemini_transport(api_key: str, model: str) -> object:
+        built.append(("gemini", api_key, model))
+        return object()
+
+    monkeypatch.setattr(
+        "copilot.providers.claude.ClaudeNarrationProvider", claude_transport
+    )
+    monkeypatch.setattr(
+        "copilot.providers.gemini.GeminiNarrationProvider", gemini_transport
+    )
+    settings = _settings(copilot_provider=provider_name, **{key_field: credential})
+
+    assert build_tool_provider(settings) is not None
+    assert built == [(provider_name, credential, settings.model_for(provider_name))]
+
+
+def test_a_configured_gemini_key_does_not_make_the_claude_default_ready() -> None:
     """No cross-provider fallback: the selected provider is the only one asked."""
-    settings = _settings(anthropic_api_key="configured-but-inactive")
+    settings = _settings(gemini_api_key="configured-but-inactive")
 
     assert settings.provider_status().ready is False
-    assert settings.provider_status("claude").ready is True
+    assert settings.provider_status("gemini").ready is True
     assert build_narration_provider(settings) is None
 
 
@@ -90,7 +149,7 @@ def test_the_hyphenated_gemini_key_spelling_is_accepted(
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.setenv("gemini-api-key", "from-a-local-dotenv")
 
-    assert _settings().provider_status().ready is True
+    assert _settings(copilot_provider="gemini").provider_status().ready is True
 
 
 def test_a_provider_status_never_carries_the_credential_value() -> None:
