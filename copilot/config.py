@@ -3,10 +3,23 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path, PureWindowsPath
+from typing import Literal
 
-from pydantic import Field, SecretStr, ValidationError, field_validator
+from pydantic import AliasChoices, Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+CopilotProvider = Literal["claude", "gemini"]
+DEFAULT_PROVIDER_MODELS = {"claude": "claude-sonnet-5", "gemini": "gemini-3.8-flash"}
+
+
+@dataclass(frozen=True)
+class ProviderStatus:
+    provider: str
+    model: str
+    ready: bool
+    reason: str | None = None
 
 
 class ConfigError(RuntimeError):
@@ -30,15 +43,21 @@ class Settings(BaseSettings):
     """Runtime settings kept separate from route and provider implementations."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", extra="ignore", hide_input_in_errors=True
+        env_file=".env", extra="ignore", hide_input_in_errors=True, populate_by_name=True
     )
 
     duckdb_path: Path = Field(default=Path("data/duck/grid.duckdb"))
     physical_inventory_root: Path = Field(
         default=Path("data/artifacts/physical_inventory")
     )
+    copilot_provider: CopilotProvider = Field(default="claude")
     copilot_model: str | None = Field(default=None)
     anthropic_api_key: SecretStr | None = Field(default=None, repr=False)
+    gemini_api_key: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices("GEMINI_API_KEY", "gemini-api-key"),
+    )
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
 
     @field_validator("duckdb_path", mode="before")
@@ -95,14 +114,34 @@ class Settings(BaseSettings):
             raise ValueError("DUCKDB_PATH must name a file, not a directory")
         return path
 
+    def credential_for(self, provider: str) -> str | None:
+        secret = {"claude": self.anthropic_api_key, "gemini": self.gemini_api_key}.get(
+            provider
+        )
+        return secret.get_secret_value() if secret is not None else None
+
+    def model_for(self, provider: str) -> str:
+        return (
+            self.copilot_model
+            if provider == self.copilot_provider and self.copilot_model
+            else DEFAULT_PROVIDER_MODELS[provider]
+        )
+
+    def provider_status(self, provider: str | None = None) -> ProviderStatus:
+        name = provider or self.copilot_provider
+        if name not in DEFAULT_PROVIDER_MODELS:
+            raise ValueError(f"unknown copilot provider: {name!r}")
+        model = self.model_for(name)
+        if not self.credential_for(name):
+            return ProviderStatus(
+                name, model, False, f"{name.upper()}_API_KEY is not set"
+            )
+        return ProviderStatus(name, model, True)
+
     @property
     def model_is_configured(self) -> bool:
         """Whether the model and its provider credential are configured locally."""
-        return bool(
-            self.copilot_model
-            and self.anthropic_api_key
-            and self.anthropic_api_key.get_secret_value()
-        )
+        return bool(self.copilot_model and self.provider_status().ready)
 
 
 def load_settings(**overrides: object) -> Settings:

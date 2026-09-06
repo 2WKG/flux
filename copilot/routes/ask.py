@@ -167,9 +167,15 @@ def ask(
         content = _encoded_events(events)
     else:
         content = _stream_backend(backend, payload)
+    headers = {"X-Flux-Attempt-Id": payload.attempt_id}
+    settings = getattr(request.app.state, "settings", None)
+    if settings is not None:
+        status = settings.provider_status()
+        headers["X-Flux-Copilot-Provider"] = status.provider
+        headers["X-Flux-Copilot-Model"] = status.model
     return EventSourceResponse(
         content,
-        headers={"X-Flux-Attempt-Id": payload.attempt_id},
+        headers=headers,
         ping=HEARTBEAT_SECONDS,
         ping_message_factory=_heartbeat,
     )
