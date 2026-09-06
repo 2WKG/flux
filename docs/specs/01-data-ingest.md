@@ -1,8 +1,8 @@
 # 01 — Data ingest (Layers 1 + 2: grid twin skeleton, geography, load, weather, hazard, outages)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Public context can be ingested for a selected U.S. state only from its declared source artifacts and configuration. The Texas material below documents the repository's ACTIVSg2000 / ERCOT topology adapter, which requires its source artifacts and build. [`10-minnesota-demo.md`](10-minnesota-demo.md) is a planning contract, not a checked-in Minnesota fixture.
 
-Status: build spec, weekend scope. Texas first (ACTIVSg2000 / ERCOT); national is a scale slide.
+Status: build spec. State-scoped public context; the Texas / ACTIVSg2000 / ERCOT topology adapter requires its source artifacts and build. Other-state topology requires a validated network contract.
 All access facts below were checked on 2026-09-05 with `curl -I` / WebFetch unless tagged
 `[UNVERIFIED]` or `[GATED: …]`; an independent fact-check pass (ledger:
 `docs/specs/verification/01-02.md`) re-checked every load-bearing claim against primary

@@ -1,12 +1,14 @@
-# 00 — Overview: Flux — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
+# 00 — Overview: Flux — State-Configurable Grid Resilience Analysis
 
-> **Scope decision (2WKG-295):** The Minnesota fixture contract coexists with this
-> Texas-first overview; it neither supersedes this overview wholesale nor derives
-> Minnesota fixture data from it. [`10-minnesota-demo.md`](10-minnesota-demo.md)
-> is authoritative for Minnesota-specific geography, model, scenario, and demo
-> claims. [`10-duckdb-contract.md`](10-duckdb-contract.md) is the geography-neutral
-> storage contract shared by both cases and contains no geographic fixture records.
-> Texas references below describe the Texas case, not the Minnesota demo.
+> **State scope:** Flux can ingest public context for a selected U.S. state when
+> its declared source artifacts and configuration are supplied. Topology-backed
+> analysis remains available only for a state with a validated topology contract.
+> The repository's only topology adapter is Texas / ACTIVSg2000 / ERCOT, and it
+> requires its source artifacts and build. The checked-in
+> five-bus preview represents no state. [`10-minnesota-demo.md`](10-minnesota-demo.md)
+> is planning authority for a Minnesota demonstration; it does not create a
+> Minnesota fixture or topology. [`10-duckdb-contract.md`](10-duckdb-contract.md)
+> remains the geography-neutral storage contract.
 
 Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
 Source pitch: `docs/pitch/hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas").
@@ -40,8 +42,8 @@ is duplicated whichever pitch leads.
 | Headline | Idea 1 — **Flux**: grid digital twin + outage prediction + nuclear siting |
 | Embedded screen | Line-upgrade ranking, one screen inside the twin (`08-line-upgrade-screen.md`); also the wire half of the backup |
 | Backup pitch | Idea 2 — Speed-to-Power: large-load verification (load half, `dc_*` tables) + grid headroom ranking (wire half = spec 08), separate deck (`09-backup-idea2-datacenter-load.md`) |
-| Geographic scope | **Texas first.** ACTIVSg2000 synthetic grid, ERCOT balancing authority, 254 Texas counties. |
-| National | A single scale slide (static map render of a larger synthetic grid or H3-aggregated HIFLD lines). Not interactive. Not a build target. |
+| Geographic scope | **State-configurable public context.** Each selected state needs declared, validated source artifacts. The repository's only topology adapter is the ACTIVSg2000 synthetic grid, ERCOT balancing authority, and 254 Texas counties; it requires its source artifacts and build. |
+| Other-state topology | Not implied by state-context ingestion. A state needs a validated network and explicit model contract before Flux can show topology, flow, cascade, or siting results there. |
 | Topology honesty | Synthetic topology, stated plainly on the slide and in the copilot system prompt. Real topology is CEII; architecture has a slot for it. |
 | LLM | Claude via the Anthropic SDK, model id `claude-sonnet-5` for tool loops. |
 
@@ -360,7 +362,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 4. **"Is the outage model any good?"** — It is a county-level LightGBM trained on EAGLE-I 2014–2025 with three storms held out. We show the held-out score on screen. It predicts *where and how many*, not *which pole*.
 5. **"Is the cascade real?"** — It is DC power flow with iterative overload tripping on a synthetic grid, with weather-driven initial failure probabilities. It is the standard academic cascade model, not an RTO-grade EMS. Hour-by-hour element order is illustrative; the aggregate lost-load and critical-load exposure is the claim.
 6. **"Your siting safety score is not an NRC review."** — Correct. It re-implements the published OR-SAGE/STAND screening criteria on open layers (population density within 20 miles, seismic PGA, floodplain, cooling water, protected land, wildfire, state moratorium flag). It is a screener, like DOE's 2022 tool, but ours has a grid model under it.
-7. **"Why Texas only?"** — One weekend. ERCOT is a single balancing authority with public hourly load, the best public synthetic grid, and the best-documented storm (Uri). The national model is the same pipeline on ACTIVSg82k/GridSFM — that is the scale slide.
+7. **"Which states can Flux cover?"** — Public context can be ingested for a selected U.S. state when its declared local source artifacts are supplied. The repository's Texas topology adapter has an ACTIVSg2000 / ERCOT path because ERCOT has public hourly load and Uri is well documented, but it still requires its source artifacts and build. Another state needs its own validated topology and model contract before Flux can present topology, flow, cascade, or siting results. The checked-in five-bus preview is not a state model.
 8. **"Line-upgrade numbers?"** — Congestion dollars are a twin-loading proxy, not RTO shadow prices (we did not map ERCOT constraint names to lines this weekend). DLR uplift is IEEE 738 on county-mean wind. Reconductor uplift and costs are LBNL REFA / GridLab assumptions. All three are labelled as estimates.
 9. **"The copilot hallucinates."** — The model never computes. Every number in an answer came from a tool call the judge can see on screen, and every regulatory claim comes from `cite()` with the page reference.
 

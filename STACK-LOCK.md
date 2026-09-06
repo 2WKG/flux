@@ -28,4 +28,4 @@ The web app reads saved result files only. Python is run before presentation and
 
 ## Demo boundary
 
-The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. It does not perform live calculations or fetch data during the demo. The model is a synthetic-grid illustration, not a representation of the real Texas grid.
+The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. It does not perform live calculations or fetch data during the demo. The model is a synthetic-grid illustration, not a representation of a real grid.
