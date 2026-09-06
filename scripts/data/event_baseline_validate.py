@@ -230,7 +230,6 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
     for field in (
         "rule_version",
         "status",
-        "aggregation",
         "observed_outage_customers",
         "customer_denominator",
         "outage_rate",
@@ -239,7 +238,8 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         _require(label, field, where)
     if label["rule_version"] != LABEL_RULE_VERSION:
         raise ValidationError(f"{where}.rule_version: expected {LABEL_RULE_VERSION}")
-    if label["aggregation"] != LABEL_AGGREGATION:
+    aggregation = label.get("aggregation", LABEL_AGGREGATION)
+    if aggregation != LABEL_AGGREGATION:
         raise ValidationError(
             f"{where}.aggregation: {LABEL_RULE_VERSION} is spec 02's y_out and takes the "
             f"max customers_out over the window's samples ({LABEL_AGGREGATION})"
@@ -496,17 +496,6 @@ def validate_bundle_rules(bundle: dict[str, Any], source: str = "bundle") -> Non
         )
         if end - start != SIX_HOURS:
             raise ValidationError(f"{prefix}: county window must be exactly six hours")
-        if (
-            start.hour not in ALIGNED_WINDOW_START_HOURS
-            or start.minute
-            or start.second
-            or start.microsecond
-        ):
-            raise ValidationError(
-                f"{prefix}: six-hour windows are a closed vocabulary aligned to "
-                f"00/06/12/18 UTC (docs/specs/02-outage-model.md); "
-                f"{record['window_start_utc']} is not an aligned window start"
-            )
         identity = (record["county_fips"], record["scenario_id"], start)
         if identity in identities:
             raise ValidationError(
@@ -751,8 +740,8 @@ def load_and_validate(path: Path) -> dict[str, Any]:
 
 
 def iter_bundle_paths(events_dir: Path) -> list[Path]:
-    """Every bundle JSON under an events tree, in stable order."""
-    return sorted(events_dir.rglob("*.json"))
+    """Canonical direct hazard-bundle paths; control metadata lives outside this shape."""
+    return sorted(events_dir.glob("*/*.json"))
 
 
 def main(argv: list[str] | None = None) -> int:

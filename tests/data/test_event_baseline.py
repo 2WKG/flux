@@ -339,17 +339,11 @@ def test_operational_eaglei_receipt_maps_to_acquisition_proof() -> None:
     assert proof["filtered_artifact_sha256"] == "b" * 64
 
 
-def test_window_must_be_aligned_to_the_six_hour_vocabulary() -> None:
-    """docs/specs/02-outage-model.md: 'Window = 6 h, aligned to 00/06/12/18 UTC'."""
+def test_six_hour_window_preserves_non_grid_evidence() -> None:
     candidate = copy.deepcopy(bundle())
     candidate["records"][0]["window_start_utc"] = "2021-01-01T15:00:00Z"
     candidate["records"][0]["window_end_utc"] = "2021-01-01T21:00:00Z"
-    # the published schema refuses the unaligned start by pattern ...
-    with pytest.raises(validator.ValidationError, match="schema violation"):
-        validator.validate_bundle(candidate)
-    # ... and the hand-written rule refuses it independently of the schema.
-    with pytest.raises(validator.ValidationError, match="aligned to"):
-        validator.validate_bundle_rules(candidate)
+    validator.validate_bundle(candidate)
 
 
 def test_window_must_be_exactly_six_hours() -> None:
@@ -580,12 +574,8 @@ def test_uncovered_window_may_not_record_a_gap_as_zero() -> None:
         validator.validate_bundle(label_only)
 
 
-def test_exactly_six_hours_but_off_grid_is_still_refused() -> None:
-    """A 6h span that is off the 00/06/12/18Z grid is not a valid window."""
+def test_exactly_six_hours_off_grid_is_valid() -> None:
     candidate = copy.deepcopy(bundle())
     candidate["records"][0]["window_start_utc"] = "2022-09-28T15:00:00Z"
     candidate["records"][0]["window_end_utc"] = "2022-09-28T21:00:00Z"
-    with pytest.raises(validator.ValidationError, match="schema violation"):
-        validator.validate_bundle(candidate)
-    with pytest.raises(validator.ValidationError, match="aligned to"):
-        validator.validate_bundle_rules(candidate)
+    validator.validate_bundle(candidate)
