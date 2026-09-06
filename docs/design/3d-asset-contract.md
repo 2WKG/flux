@@ -157,6 +157,22 @@ the axis-aligned bounds from `scene.nodes` and rejects geometry that overruns
 the archetype's `footprint_m` beyond the 5% tolerance, that leaves the scene's
 own `bounds_m`, or that does not sit on `y = 0` under the `ground_center` pivot.
 
+**Three tiers live under `data/3d/assets/` at once, and the validator applies
+exactly one of them per entry.** A directory holding `<archetype_id>.scene.json`
+is a **source kit** and gets the rules above. A directory holding
+`<archetype_id>.blender.py` is a **blender kit**: its geometry is authored in a
+Blender build script rather than as scene data, so `validate_asset_source.py`
+checks its README/script/meta file set, its catalog identity, its pinned
+transform axes and neutral `MAT_STATUS` slot, its connectors, the `bounds_m` the
+meta declares (against the same footprint tolerance and `y = 0` pivot rule), and
+that no `.glb` or `.preview.png` build output was committed beside it. A bare
+`<archetype_id>.meta.json` file directly under the asset root is a **flat meta**
+delivery and is checked by `scripts/asset_contract_lib.py`'s
+`validate_export_meta`. The tier is read from the entry's own contents, never
+from a name list, and an entry that matches none of the three is refused by name
+(`unknown_asset_tier`) rather than skipped — a directory nobody validates is
+indistinguishable from one that passes.
+
 ## The eighteen archetypes
 
 Each is claimed by exactly one Texas and one Minnesota work item; the validator

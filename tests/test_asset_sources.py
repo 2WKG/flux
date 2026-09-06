@@ -19,10 +19,17 @@ from typing import Any
 import pytest
 
 from scripts.validate_asset_source import (
+    BLENDER_KIT_TIER,
     DEFAULT_ASSET_ROOT,
+    FLAT_META_TIER,
     FOOTPRINT_TOLERANCE,
+    SOURCE_KIT_TIER,
+    UNKNOWN_TIER,
     asset_dirs,
+    asset_entries,
+    asset_tier,
     build_report,
+    entry_id,
     load_catalog,
     node_aabb,
     validate_asset,
@@ -31,6 +38,12 @@ from scripts.validate_asset_source import (
 CATALOG = load_catalog()
 ASSET_DIRS = asset_dirs()
 ASSET_IDS = [directory.name for directory in ASSET_DIRS]
+ASSET_ENTRIES = asset_entries()
+ENTRY_IDS = [entry_id(entry) for entry in ASSET_ENTRIES]
+SOURCE_KIT_DIRS = [d for d in ASSET_DIRS if asset_tier(d) == SOURCE_KIT_TIER]
+SOURCE_KIT_IDS = [d.name for d in SOURCE_KIT_DIRS]
+BLENDER_KIT_DIRS = [d for d in ASSET_DIRS if asset_tier(d) == BLENDER_KIT_TIER]
+BLENDER_KIT_IDS = [d.name for d in BLENDER_KIT_DIRS]
 
 
 def _read(asset_dir: Path, suffix: str) -> dict[str, Any]:
@@ -50,19 +63,29 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
 @pytest.fixture()
 def asset_copy(tmp_path: Path) -> Path:
     """A byte-copy of the first committed source kit, safe to corrupt."""
-    assert ASSET_DIRS, "no committed asset source kits to validate"
-    source = ASSET_DIRS[0]
+    assert SOURCE_KIT_DIRS, "no committed source kits to validate"
+    source = SOURCE_KIT_DIRS[0]
     destination = tmp_path / source.name
     shutil.copytree(source, destination)
     return destination
 
 
-@pytest.mark.parametrize("asset_dir", ASSET_DIRS, ids=ASSET_IDS)
+@pytest.fixture()
+def blender_copy(tmp_path: Path) -> Path:
+    """A byte-copy of the first committed blender kit, safe to corrupt."""
+    assert BLENDER_KIT_DIRS, "no committed blender kits to validate"
+    source = BLENDER_KIT_DIRS[0]
+    destination = tmp_path / source.name
+    shutil.copytree(source, destination)
+    return destination
+
+
+@pytest.mark.parametrize("asset_dir", SOURCE_KIT_DIRS, ids=SOURCE_KIT_IDS)
 def test_every_committed_source_kit_conforms_to_the_shared_contract(asset_dir: Path):
     assert validate_asset(asset_dir, CATALOG) == []
 
 
-@pytest.mark.parametrize("asset_dir", ASSET_DIRS, ids=ASSET_IDS)
+@pytest.mark.parametrize("asset_dir", SOURCE_KIT_DIRS, ids=SOURCE_KIT_IDS)
 def test_geometry_fits_the_declared_footprint_and_sits_on_the_ground(asset_dir: Path):
     """The footprint rectangle is the collision proxy; geometry must fit it."""
     scene = _read(asset_dir, ".scene.json")
@@ -83,7 +106,7 @@ def test_geometry_fits_the_declared_footprint_and_sits_on_the_ground(asset_dir: 
         assert aabb["max"][axis] <= bounds["max"][axis]
 
 
-@pytest.mark.parametrize("asset_dir", ASSET_DIRS, ids=ASSET_IDS)
+@pytest.mark.parametrize("asset_dir", SOURCE_KIT_DIRS, ids=SOURCE_KIT_IDS)
 def test_no_binary_or_render_is_committed_beside_a_source_kit(asset_dir: Path):
     """Binaries are asset-pipeline outputs; the contract governs shape, not hosting."""
     committed = sorted(path.name for path in asset_dir.iterdir() if path.is_file())
@@ -100,8 +123,13 @@ def test_report_covers_every_asset_directory():
     report = build_report(CATALOG, DEFAULT_ASSET_ROOT)
 
     assert report["validation"] == {"passed": True, "errors": []}
-    assert sorted(report["assets"]) == sorted(ASSET_IDS)
-    assert report["assetCount"] == len(ASSET_IDS)
+    assert sorted(report["assets"]) == sorted(ENTRY_IDS)
+    assert report["assetCount"] == len(ENTRY_IDS)
+    assert set(ASSET_IDS) <= set(report["assets"])
+    assert all(
+        entry["tier"] in {SOURCE_KIT_TIER, BLENDER_KIT_TIER, FLAT_META_TIER}
+        for entry in report["assets"].values()
+    )
 
 
 def test_identity_comes_from_the_directory_not_from_the_metadata(asset_copy: Path):
@@ -249,3 +277,143 @@ def test_an_unknown_asset_directory_is_rejected(tmp_path: Path):
     errors = validate_asset(stray, CATALOG)
 
     assert any("no catalog archetype" in error for error in errors)
+
+
+# --- Delivery tiers -------------------------------------------------------
+#
+# `data/3d/assets/` carries three tiers at once: source kits (`<id>.scene.json`),
+# blender kits (`<id>.blender.py`), and flat `<id>.meta.json` deliveries. The
+# tests below prove each tier is checked by its own rules, that the tier is read
+# off the directory's contents rather than a name list, and above all that an
+# entry matching no tier is refused by name instead of quietly skipped.
+
+
+def test_each_committed_entry_is_recognised_as_exactly_one_tier():
+    assert ASSET_ENTRIES, "no committed asset entries to validate"
+    tiers = {entry_id(entry): asset_tier(entry) for entry in ASSET_ENTRIES}
+
+    assert None not in tiers.values(), tiers
+    assert set(tiers.values()) == {SOURCE_KIT_TIER, BLENDER_KIT_TIER, FLAT_META_TIER}
+
+
+@pytest.mark.parametrize("asset_dir", BLENDER_KIT_DIRS, ids=BLENDER_KIT_IDS)
+def test_every_committed_blender_kit_conforms_to_its_own_tier(asset_dir: Path):
+    assert asset_tier(asset_dir) == BLENDER_KIT_TIER
+    assert validate_asset(asset_dir, CATALOG) == []
+
+
+def test_the_master_transmission_line_blender_kit_passes():
+    """The kit that broke the source-kit-only validator when it landed on master."""
+    kit = DEFAULT_ASSET_ROOT / "transmission_line_segment"
+
+    assert asset_tier(kit) == BLENDER_KIT_TIER
+    assert validate_asset(kit, CATALOG) == []
+
+
+@pytest.mark.parametrize(
+    "meta_path",
+    [e for e in ASSET_ENTRIES if e.is_file()],
+    ids=[entry_id(e) for e in ASSET_ENTRIES if e.is_file()],
+)
+def test_every_committed_flat_meta_delivery_conforms_to_its_own_tier(meta_path: Path):
+    assert asset_tier(meta_path) == FLAT_META_TIER
+    assert validate_asset(meta_path, CATALOG) == []
+
+
+def test_a_directory_matching_no_tier_is_refused_by_name(tmp_path: Path):
+    """Not a skip: a catalog-named directory with neither marker file is an error."""
+    known = CATALOG["archetypes"][0]["id"]
+    neither = tmp_path / known
+    neither.mkdir()
+    (neither / f"{known}.meta.json").write_text("{}", encoding="utf-8")
+
+    errors = validate_asset(neither, CATALOG)
+
+    assert asset_tier(neither) is None
+    assert any(UNKNOWN_TIER in error for error in errors), errors
+
+
+def test_a_tier_marker_decides_the_rules_not_the_directory_name(
+    asset_copy: Path, blender_copy: Path
+):
+    """Deleting the source kit's scene file changes its tier, not its pass/fail."""
+    assert asset_tier(asset_copy) == SOURCE_KIT_TIER
+    assert asset_tier(blender_copy) == BLENDER_KIT_TIER
+
+    (asset_copy / f"{asset_copy.name}.scene.json").unlink()
+
+    assert asset_tier(asset_copy) is None
+    assert any(UNKNOWN_TIER in error for error in validate_asset(asset_copy, CATALOG))
+
+
+def test_a_blender_kit_that_disowns_its_catalog_row_is_rejected(blender_copy: Path):
+    meta_path = blender_copy / f"{blender_copy.name}.meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["archetype_id"] = "totally_wrong"
+    _write(meta_path, meta)
+
+    errors = validate_asset(blender_copy, CATALOG)
+
+    assert any("must equal the asset directory name" in error for error in errors)
+
+
+def test_a_blender_kit_whose_bounds_overrun_the_footprint_is_rejected(
+    blender_copy: Path,
+):
+    meta_path = blender_copy / f"{blender_copy.name}.meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["bounds_m"]["max"] = [value * 10 for value in meta["bounds_m"]["max"]]
+    _write(meta_path, meta)
+
+    errors = validate_asset(blender_copy, CATALOG)
+
+    assert any("exceeds the declared" in error for error in errors)
+
+
+def test_a_blender_kit_that_floats_off_the_ground_is_rejected(blender_copy: Path):
+    meta_path = blender_copy / f"{blender_copy.name}.meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["bounds_m"]["min"][1] = 5.0
+    _write(meta_path, meta)
+
+    errors = validate_asset(blender_copy, CATALOG)
+
+    assert any("not 0" in error for error in errors)
+
+
+def test_a_blender_kit_with_a_wrong_axis_or_status_slot_is_rejected(
+    blender_copy: Path,
+):
+    meta_path = blender_copy / f"{blender_copy.name}.meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["transform"]["up_axis"] = "Z"
+    meta["material_slots"][0]["default"] = "source_supported"
+    _write(meta_path, meta)
+
+    errors = validate_asset(blender_copy, CATALOG)
+
+    assert any("transform.up_axis" in error for error in errors)
+    assert any("material_slots" in error for error in errors)
+
+
+def test_a_binary_committed_beside_a_blender_kit_is_rejected(blender_copy: Path):
+    (blender_copy / f"{blender_copy.name}.glb").write_bytes(b"glTF")
+
+    errors = validate_asset(blender_copy, CATALOG)
+
+    assert any("must not be committed" in error for error in errors)
+
+
+def test_a_flat_meta_delivery_that_drifts_from_the_catalog_is_rejected(
+    tmp_path: Path,
+):
+    root = DEFAULT_ASSET_ROOT
+    original = next(path for path in asset_entries(root) if path.is_file())
+    copy_path = tmp_path / original.name
+    meta = json.loads(original.read_text(encoding="utf-8"))
+    meta["footprint_m"] = {"length": 1, "width": 1}
+    _write(copy_path, meta)
+
+    errors = validate_asset(copy_path, CATALOG)
+
+    assert any("footprint_m does not match" in error for error in errors), errors

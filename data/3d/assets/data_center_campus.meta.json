@@ -1,0 +1,60 @@
+{
+  "archetype_id": "data_center_campus",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Data center campus",
+  "category": "load",
+  "minnesota_issue": "2WKG-383",
+  "catalog_limit": "Hall count implies no MW demand. Load comes from an artifact, not from geometry.",
+  "container": "glb",
+  "model_filename": "data_center_campus.glb",
+  "preview_filename": "data_center_campus.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 220,
+    "width": 150
+  },
+  "connectors": [
+    "MV_FEED"
+  ],
+  "lod_triangle_budget": {
+    "lod0": 28000,
+    "lod1": 10000,
+    "lod2": 3000
+  },
+  "triangles_lod0": null,
+  "triangles_lod1": null,
+  "triangles_lod2": null,
+  "lod_measurement_status": "No mesh exists yet, so no triangle count has been measured: null means not measured, never a measured zero. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "Flux hackathon team",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original neutral campus archetype; it is not derived from a named Minnesota facility or a third-party model.",
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview — not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "data_center_campus.glb",
+      "data_center_campus.preview.png"
+    ],
+    "preview_renderer": "scripts/render_data_center_campus_preview.py",
+    "model_producer": null,
+    "binary_policy": "No .glb is produced by this change and none is committed. Producing, checksumming and importing the binary is 2WKG-374; until then the model output is declared, not delivered."
+  }
+}
