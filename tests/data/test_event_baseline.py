@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import hashlib
 import importlib.util
 import json
 import subprocess
@@ -191,10 +192,8 @@ def test_county_event_report_can_support_weather_without_fake_samples() -> None:
     validator.validate_bundle(candidate)
 
 
-def test_zone_event_report_cannot_claim_covered_county_weather() -> None:
-    """A zone report is candidate context, not complete county weather evidence."""
-    candidate = copy.deepcopy(bundle())
-    candidate["records"][0]["weather"] = {
+def _zone_report(scope: str, identifier: str) -> dict:
+    return {
         "coverage": "covered",
         "evidence_kind": "authoritative_event_report",
         "observation_kind": "observed",
@@ -208,17 +207,167 @@ def test_zone_event_report_cannot_claim_covered_county_weather() -> None:
                 "start_utc": "2021-01-01T05:00:00Z",
                 "end_utc": "2021-01-01T13:00:00Z",
             },
-            "spatial_scope": "zone",
-            "scope_identifier": "MN zone",
+            "spatial_scope": scope,
+            "scope_identifier": identifier,
             "limitations": "not a county time series",
         },
         "notes": "fixture",
     }
+
+
+def _in_county(candidate: dict, county_fips: str) -> dict:
+    """Move the fixture's single record to another county, slices included."""
+    record = candidate["records"][0]
+    record["county_fips"] = county_fips
+    for source_slice in record["source_slices"]:
+        source_slice["county_fips"] = county_fips
+    return candidate
+
+
+def test_zone_one_to_one_with_its_county_supports_covered_weather() -> None:
+    """MNZ060 is exactly Hennepin 27053 in the NWS correlation, so its report covers."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = _zone_report(
+        "zone", "NWS public forecast zone MNZ060 (Hennepin); NCEI CZ_FIPS:060"
+    )
+    validator.validate_bundle(candidate)
+
+
+def test_zone_in_a_multi_zone_county_cannot_claim_covered_county_weather() -> None:
+    """Cook County 17031 holds ILZ103/ILZ104/ILZ105, so one zone is not the county."""
+    candidate = _in_county(copy.deepcopy(bundle()), "17031")
+    candidate["records"][0]["weather"] = _zone_report(
+        "zone", "NWS public forecast zone ILZ104 (Central Cook)"
+    )
     with pytest.raises(
         validator.ValidationError,
-        match="covered weather requires a county-scoped report",
+        match=r"county 17031 \(Cook\) contains zones \['ILZ103', 'ILZ104', 'ILZ105'\]",
     ):
         validator.validate_bundle(candidate)
+
+
+def test_zone_spanning_two_counties_cannot_claim_covered_county_weather() -> None:
+    """MNZ012 spans Cook 27031 and Lake 27075; it covers neither on its own."""
+    candidate = _in_county(copy.deepcopy(bundle()), "27031")
+    candidate["records"][0]["weather"] = _zone_report(
+        "zone", "NWS public forecast zone MNZ012 (Northern Cook/Northern Lake)"
+    )
+    with pytest.raises(
+        validator.ValidationError,
+        match=r"zone MNZ012 spans counties \['27031', '27075'\]",
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_county_scope_label_cannot_launder_a_zone_report() -> None:
+    """Flipping spatial_scope to county on a zone identifier must not buy coverage."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = _zone_report(
+        "county", "NCEI MN zone 060 HENNEPIN"
+    )
+    with pytest.raises(
+        validator.ValidationError, match="county-scoped report names a zone"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_county_scope_must_name_the_records_county() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = _zone_report("county", "Ramsey County")
+    with pytest.raises(
+        validator.ValidationError,
+        match="names neither county 27053 nor Hennepin County",
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_covered_zone_report_needs_a_resolvable_zone_id() -> None:
+    """A vague zone name cannot be checked against the correlation, so it is refused."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = _zone_report("zone", "MN zone")
+    with pytest.raises(
+        validator.ValidationError, match="carries no resolvable NWS zone id"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_the_correlation_rule_also_governs_outage_reports() -> None:
+    """The same epistemic defect one field over: a zone-backed covered outage."""
+    candidate = _in_county(copy.deepcopy(bundle()), "17031")
+    candidate["event"]["disposition"] = "candidate_only"
+    candidate["records"][0]["disposition"] = "candidate_only"
+    candidate["records"][0]["matched_coverage_decision"] = "unavailable"
+    candidate["records"][0]["outage"] = _zone_report(
+        "zone", "NWS public forecast zone ILZ104 (Central Cook)"
+    )
+    candidate["records"][0]["label"].update(
+        {
+            "status": "unavailable",
+            "observed_outage_customers": None,
+            "outage_rate": None,
+            "positive": None,
+        }
+    )
+    with pytest.raises(
+        validator.ValidationError,
+        match=r"records\[0\]\.outage: county 17031 \(Cook\) contains zones",
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_the_verdict_follows_the_correlation_file_not_the_code(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Give Hennepin a second zone and the very same record must go red.
+
+    This is the probe that proves the rule reads real data: nothing about the
+    bundle changes, only the correlation the validator consults.
+    """
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = _zone_report(
+        "zone", "NWS public forecast zone MNZ060 (Hennepin); NCEI CZ_FIPS:060"
+    )
+    validator.validate_bundle(candidate)
+
+    real = validator.ZONE_COUNTY_CORRELATION_PATH.read_text()
+    swapped = tmp_path / "swapped.psv"
+    swapped.write_text(
+        real
+        + "MN|999|MPX|Test Second Hennepin Zone|MN999|Hennepin|27053|C|se|45.0|-93.4\n"
+    )
+    monkeypatch.setattr(validator, "ZONE_COUNTY_CORRELATION_PATH", swapped)
+    monkeypatch.setattr(validator._zone_county_correlation, "cache", None)
+    try:
+        with pytest.raises(
+            validator.ValidationError,
+            match=r"county 27053 \(Hennepin\) contains zones \['MNZ060', 'MNZ999'\]",
+        ):
+            validator.validate_bundle(candidate)
+    finally:
+        validator._zone_county_correlation.cache = None
+
+
+def test_the_committed_correlation_slice_is_the_receipted_bytes() -> None:
+    """The slice the rule reads must be the file its receipt vouches for."""
+    receipt = json.loads(
+        (
+            validator.ZONE_COUNTY_CORRELATION_PATH.parent
+            / "bp05mr24-corpus-states.receipt.json"
+        ).read_text()
+    )
+    digest = hashlib.sha256(
+        validator.ZONE_COUNTY_CORRELATION_PATH.read_bytes()
+    ).hexdigest()
+    assert (
+        digest == receipt["filtered_sha256"] == receipt["files"]["filtered"]["sha256"]
+    )
+    assert receipt["url"].endswith("bp05mr24.dbx")
+    zone_to_counties, county_to_zones, county_names = (
+        validator._zone_county_correlation()
+    )
+    assert zone_to_counties["MNZ060"] == {"27053"}
+    assert county_to_zones["17031"] == {"ILZ103", "ILZ104", "ILZ105"}
+    assert county_names["27053"] == "Hennepin"
 
 
 def test_missing_denominator_is_honest_accepted_observation() -> None:

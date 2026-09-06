@@ -30,8 +30,8 @@
     "selection_basis": "NCEI episode 139802/event 840941 reports an Ice Storm in the Jackson forecast zone; the NWS Sioux Falls archive documents regional freezing rain, icing, and power outages.",
     "exclusions": [],
     "uncertainties": [
-      "NCEI CZ_TYPE=Z record is zone rather than county evidence.",
-      "The NCEI Jackson-zone report covers only the final three hours of the canonical county window and does not establish full county-window observed weather coverage.",
+      "NCEI CZ_TYPE=Z record: NWS zone MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the report is county-wide in extent; coverage is refused on temporal grounds, not spatial ones.",
+      "The NCEI Jackson report is a narrative event report, not a county time series, and its interval covers only 3 of the canonical window's 6 hours (2019-04-10T21:00:00Z onward), so it does not establish full county-window observed weather coverage.",
       "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
       "No native customer denominator is available."
     ]
@@ -160,7 +160,7 @@
         "observed_samples": null,
         "missing_timestamps": [],
         "event_report": null,
-        "notes": "NCEI zone event is retained as candidate context; no full county-window weather evidence is retained."
+        "notes": "NCEI zone event is retained as candidate context. MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the refusal is temporal: the report interval covers 3 of the window's 6 hours and is not a county time series."
       },
       "outage": {
         "coverage": "UncoveredLabel",

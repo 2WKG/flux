@@ -97,6 +97,29 @@ their `point`, `regional`, or `track` scope and cannot by themselves prove
 county weather coverage. Use `not_assessed` when evidence has not been
 collected rather than inventing a row key or count.
 
+Whether a zone scope identifier can carry `coverage="covered"` is decided by
+NOAA's own zone/county correlation, never by the label on the field. The
+receipted slice
+`controls-metadata/nws-zone-county-correlation/bp05mr24-corpus-states.psv`
+(source, retrieval, and sha256 in the sibling `.receipt.json`) is the
+authority, and the validator consults it for every `covered` event report,
+`weather` and `outage` alike:
+
+- A `zone`-scoped report establishes county coverage **only** where the zone
+  and the county are 1:1 in the correlation -- the zone lies in that county
+  and no other, and the county contains that zone and no other. MNZ060 is
+  exactly Hennepin 27053, so its report is county-wide in extent.
+- A zone that spans counties, or a county split across zones, is
+  `uncovered`, and the record must name the mismatch: ILZ104 is one of Cook
+  County 17031's three zones (ILZ103/ILZ104/ILZ105); MNZ012 spans Cook 27031
+  and Lake 27075.
+- A `county`-scoped report must actually name the record's county and may not
+  name a zone, so relabelling a zone report's `spatial_scope` buys nothing.
+- Spatial extent is not the only ground for refusing coverage. A narrative
+  report that covers part of the six-hour window is `uncovered` on temporal
+  grounds even where the zone is 1:1 with the county; state the true ground
+  in the record rather than a spatial-scope proxy for it.
+
 Coverage acceptance and label computation are distinct. A row can be accepted
 with observed outage coverage while its customer denominator is unavailable;
 in that case `label.status="unavailable"` and no rate or positive/negative
