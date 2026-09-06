@@ -156,6 +156,9 @@ test("`source_backed` is the artifact-provenance axis and never a status", async
     ["src/ask/results/types.ts", 2],
     // The negative fixture that proves an unrecognised status is refused, not tinted.
     ["src/layers/LayerControlsHarness.tsx", 1],
+    // `statusLabelOf`, the one written translation from the provenance axis into
+    // the UI vocabulary. It is a translation at a named seam, not a status value.
+    ["src/renderer/scene-view.ts", 1],
   ]);
   const seen = new Map();
   for (const file of await browserSources()) {
