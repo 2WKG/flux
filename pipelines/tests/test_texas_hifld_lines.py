@@ -15,6 +15,10 @@ class Session:
         self.calls.append(params)
         if params.get("returnIdsOnly") == "true": return Response({"objectIds": [7, 8]})
         return Response({"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-100, 30], [-99, 31]]}, "properties": {"ID": "7", "SUB_1": "UNKNOWN", "SUB_2": "TAP"}}]})
+    def post(self, url, data, timeout):
+        self.calls.append(data)
+        if data.get("returnIdsOnly") == "true": return Response({"objectIds": [7, 8]})
+        return Response({"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "LineString", "coordinates": [[-100, 30], [-99, 31]]}, "properties": {"ID": "7"}}]})
 
 
 def test_uses_real_polygon_not_bbox_and_records_partial_without_edges():
