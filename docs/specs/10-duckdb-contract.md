@@ -14,6 +14,16 @@ metadata concrete. It does not authorize a source download, a topology conversio
 or a result. The existing five-bus preview remains an unlabelled synthetic preview;
 it is not a Minnesota fixture, topology, scenario, or evidence source.
 
+[11-physical-inventory-contract.md](11-physical-inventory-contract.md) adds an
+additive, geography-neutral `physical_*` inventory namespace with a different
+artifact identity (`<geography_id>:physical-inventory:<semver>`) and a per
+class/scope coverage ledger instead of this document's artifact-level
+`availability`, `model_mode`, and `field_provenance` envelope. That divergence
+is deliberate and is recorded in spec 11's "Relationship to spec 10" section
+with its reason. This contract keeps sole ownership of Minnesota artifact
+identity, availability, and provenance (`mn_*`, `pipelines/minnesota_schema.py`);
+spec 11 owns no Minnesota artifact and no `mn_*` table.
+
 The table names and compatible physical types in [00-overview.md](00-overview.md)
 remain implementation inputs, but they do not authorize legacy Texas records for this
 demo. When this document and a legacy table description differ about Minnesota geography,

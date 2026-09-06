@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "filename": "flux-grid-assets-public.zip",
+  "bytes": 24713909,
+  "sha256": "ee032fe57c2cb61495271d6387a24f3acf9abd68e84e3b5dd2546ab90d45b39c",
+  "download_url": null,
+  "publication_status": "binary_attachment_pending",
+  "package_root": "flux-grid-assets",
+  "original_private_handoff_sha256": "8635e7404d5c0f1487bd07281de66222379d81be27205124ad8a1fcc6abbcb85",
+  "public_copy_changes": "Detailed validation-report paths made package-relative; three superseded development receipts omitted; inventory rebuilt. All 54 GLBs and both Blender masters are byte-identical to the approved handoff. Generic author-home metadata remains embedded in the Blender masters.",
+  "runtime_delivery": "Download and verify the archive, then copy verified assets into the existing same-origin static build. The attachment is not a runtime CDN."
+}

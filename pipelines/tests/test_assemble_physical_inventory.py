@@ -2,7 +2,11 @@ from copy import deepcopy
 
 import pytest
 
-from pipelines.assemble_physical_inventory import AssemblyError, assemble_artifacts
+from pipelines.assemble_physical_inventory import (
+    AssemblyError,
+    assemble_artifacts,
+    canonical_state_id,
+)
 from pipelines.physical_inventory import artifact_sha256
 from pipelines.tests.test_physical_inventory import _artifact
 
@@ -52,3 +56,58 @@ def test_rejects_conflicting_source_and_duplicate_asset() -> None:
     second["content_sha256"] = artifact_sha256(second)
     with pytest.raises(AssemblyError, match="duplicate asset"):
         assemble_artifacts([first, second], release_version="1.1.0")
+
+
+def test_keeps_each_component_coverage_count_instead_of_a_statewide_sum() -> None:
+    west = _component("hifld:line:west", "tx:west")
+    east = _component("hifld:line:east", "tx:east")
+    combined = assemble_artifacts([west, east], release_version="1.1.0")
+    generation = [
+        row for row in combined["coverage"] if row["asset_class"] == "generation"
+    ]
+    assert {row["scope_id"] for row in generation} == {"tx:west", "tx:east"}
+    assert [row["observed_count"] for row in generation] == [1, 1]
+    assert all(row["denominator_count"] is None for row in generation)
+    assert all(row["status"] == "partial" for row in generation)
+
+
+def test_rejects_two_components_disagreeing_about_the_same_class_and_scope() -> None:
+    first = _component("a", "tx:shared")
+    second = _component("b", "tx:shared")
+    second["coverage"][0]["reason"] = "A different account of the same class and scope."
+    second["content_sha256"] = artifact_sha256(second)
+    with pytest.raises(AssemblyError, match="conflicting coverage class/scope"):
+        assemble_artifacts([first, second], release_version="1.1.0")
+
+
+def test_rejects_inputs_from_two_states() -> None:
+    texas = _component("a", "tx:a", "us-tx")
+    minnesota = _component("b", "mn:b", "us-mn")
+    with pytest.raises(AssemblyError, match="do not resolve to one state"):
+        assemble_artifacts([texas, minnesota], release_version="1.1.0")
+
+
+def test_rejects_inputs_that_do_not_share_inventory_and_model_modes() -> None:
+    observed = _component("a", "tx:a")
+    fixture = _component("b", "tx:b")
+    fixture["inventory_mode"] = "fixture"
+    fixture["content_sha256"] = artifact_sha256(fixture)
+    with pytest.raises(AssemblyError, match="share inventory and electrical model"):
+        assemble_artifacts([observed, fixture], release_version="1.1.0")
+    modelled = _component("c", "tx:c")
+    modelled["electrical_model_mode"] = "source_backed"
+    modelled["content_sha256"] = artifact_sha256(modelled)
+    with pytest.raises(AssemblyError, match="share inventory and electrical model"):
+        assemble_artifacts([observed, modelled], release_version="1.1.0")
+
+
+def test_refuses_an_unrecognised_producer_geography_instead_of_guessing_a_state() -> (
+    None
+):
+    stray = _component("a", "tx:a", "texas")
+    assert canonical_state_id("us-tx") == "tx"
+    assert canonical_state_id("mn:mille-lacs-county") == "mn"
+    with pytest.raises(AssemblyError, match="texas"):
+        canonical_state_id("texas")
+    with pytest.raises(AssemblyError, match="do not resolve|texas"):
+        assemble_artifacts([stray], release_version="1.1.0")

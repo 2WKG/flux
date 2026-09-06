@@ -1,9 +1,18 @@
 # 11 — Physical inventory artifact contract
 
-This contract is the shared ingestion boundary for the Texas and Minnesota
-physical-map work. It is additive to the existing DuckDB, provenance, CRS,
-readiness, and unavailable-state contracts. It creates no route, API envelope,
-renderer adapter, state source acquisition, or electrical model.
+This contract is the shared **physical-inventory** ingestion boundary for state
+physical-map lanes (Texas first). It is additive to the existing DuckDB,
+provenance, CRS, readiness, and unavailable-state contracts. It creates no
+route, API envelope, renderer adapter, state source acquisition, or electrical
+model.
+
+It does **not** own Minnesota artifact identity, availability, or provenance.
+[10-duckdb-contract.md](10-duckdb-contract.md) remains the authority for the
+`mn:<artifact_kind>:<sha256-16>` identity and the `availability` /`model_mode` /
+`field_provenance` / `assumptions` / `limitations` envelope, implemented by
+`pipelines/minnesota_schema.py` in the `mn_*` namespace. A Minnesota producer
+that writes a `physical_*` inventory artifact still registers its Minnesota
+artifact under spec 10; see "Relationship to spec 10" below.
 
 `pipelines.physical_inventory` owns the stable version `1.0.0`. A producer
 submits one canonical JSON object with an ID of
@@ -63,3 +72,42 @@ read API owns pagination, viewport filtering, and response envelopes; it reads
 these tables without changing their truth labels. Renderers consume the API
 payload. No consumer may promote a fixture/synthetic artifact, unknown
 coverage, unavailable geometry, or absent terminal edge into a real-grid claim.
+
+## State-release composition
+
+`pipelines.assemble_physical_inventory` joins validated partial artifacts into a
+new state release, such as `tx:physical-inventory:1.1.0`. It resolves the
+documented `us-tx` producer alias and state-qualified scopes such as
+`mn:mille-lacs-county` to their state release keys, retains sorted input content
+SHA-256 values as `input_artifact_sha256s`, and preserves each coverage row without
+rolling counts into a completeness claim. Exact duplicate sources may be
+deduplicated, as may identical coverage rows; conflicting source IDs,
+duplicate physical identities, and conflicting class/scope coverage rows fail
+assembly.
+
+## Relationship to spec 10 (declared divergence)
+
+The `physical_*` namespace and the `mn_*` namespace are two different contracts
+and are deliberately not unified in this PR.
+
+| Concern | Spec 10 (`mn_*`) | Spec 11 (`physical_*`) |
+|---|---|---|
+| Identity | `mn:<artifact_kind>:<sha256-16>` — content-addressed, kind-qualified, Minnesota-scoped | `<geography_id>:physical-inventory:<semver>` — a *named release* a state lane can re-cut and version |
+| Availability | `availability` on the artifact | per class/scope rows in `physical_coverage` (`complete`/`partial`/`unknown`/`unavailable`) |
+| Model mode | `model_mode` ∈ `topology`/`aggregate`/`not_applicable` | `electrical_model_mode` ∈ `none`/`source_backed`/`synthetic`/`aggregate`, held separately from `inventory_mode` |
+| Provenance | `field_provenance`, `assumptions`, `limitations` per field | per-asset `source_id` + `source_record_id` + geometry accuracy basis and derivation method |
+
+**Reason for the divergence.** A physical inventory is republished as a versioned
+release whose id must stay stable while its digest changes across recuts, so a
+content-addressed id is the wrong identity for it; and its unavailability is
+per asset class and scope, not per artifact, so a single `availability` field
+cannot carry it. Unifying the two would either freeze release ids to content
+digests or flatten class/scope coverage into one artifact-level flag — both lose
+truth. This divergence is recorded in both documents; neither contract may be
+changed unilaterally to claim the other's namespace.
+
+**Boundary rule.** A `physical_*` artifact never writes, reads, or renames an
+`mn_*` row, and never substitutes for a spec-10 artifact in an API or Copilot
+envelope. A Minnesota lane that publishes physical inventory records the
+spec-10 artifact for the API surface and cites the `physical_*`
+`artifact_id`/`content_sha256` as its source identity.
