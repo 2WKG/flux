@@ -13,6 +13,17 @@ const dist = process.env.FLUX_WEB_DIST ? path.resolve(process.env.FLUX_WEB_DIST)
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "assets"), { recursive: true });
 await cp(path.join(webRoot, "index.html"), path.join(dist, "index.html"));
+// MapLibre's ESM bundle resolves this worker from the absolute assets path.
+// Keep the installed, version-locked artifact with the browser bundle rather than
+// falling back to a CDN or allowing a missing worker to degrade map rendering.
+await cp(
+  path.join(webRoot, "node_modules", "maplibre-gl", "dist", "maplibre-gl-worker.mjs"),
+  path.join(dist, "assets", "maplibre-gl-worker.mjs"),
+);
+await cp(
+  path.join(webRoot, "node_modules", "maplibre-gl", "dist", "maplibre-gl-shared.mjs"),
+  path.join(dist, "assets", "maplibre-gl-shared.mjs"),
+);
 
 const result = await build({
   entryPoints: [entry],
