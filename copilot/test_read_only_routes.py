@@ -18,7 +18,9 @@ Two independent observations carry the property:
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
+from datetime import UTC, datetime
 from pathlib import Path
 
 import duckdb
@@ -26,7 +28,6 @@ import pytest
 from fastapi.testclient import TestClient
 
 from copilot._artifact_fixtures import (
-    FIXTURE_PROVENANCE,
     OTHER_SCENARIO,
     SCENARIO,
     Prediction,
@@ -38,8 +39,20 @@ from copilot._artifact_fixtures import (
 )
 from copilot.app import create_app
 from copilot.config import Settings
+from copilot.persisted_fixtures import (
+    DEFAULT_SCENARIO,
+    SHA256,
+    insert,
+    persisted_read_route_database,
+    site_intervention_id,
+)
 
 Request = Callable[[TestClient], object]
+
+#: The geography ``persisted_read_route_database`` files its rows under.
+REGION = "mn"
+SITE_ID = 1
+CRITICAL_ARTIFACT = "mn:score:critical-line-10"
 
 #: Every registered route, the request that drives its read path against the
 #: fixture below, and the status that fixture produces.  A 503 here would mean
@@ -53,15 +66,30 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
     ("POST", "/site-score"): (
         lambda client: client.post(
             "/site-score",
-            json={"site_id": "1", "unit_mw": 300, "scenario_id": SCENARIO},
+            json={
+                "site_id": str(SITE_ID),
+                "unit_mw": 300,
+                "scenario_id": DEFAULT_SCENARIO,
+            },
         ),
         200,
     ),
     ("POST", "/compare"): (
         lambda client: client.post(
             "/compare",
-            json={"scenario_id": SCENARIO, "intervention_ids": ["site:1"]},
+            json={
+                "scenario_id": DEFAULT_SCENARIO,
+                "intervention_ids": [site_intervention_id(SITE_ID, 300)],
+            },
         ),
+        200,
+    ),
+    ("GET", "/lines/top"): (
+        lambda client: client.get("/lines/top", params={"region": REGION}),
+        200,
+    ),
+    ("GET", "/elements/critical"): (
+        lambda client: client.get("/elements/critical", params={"region": REGION}),
         200,
     ),
     ("GET", "/scenarios"): (lambda client: client.get("/scenarios"), 200),
@@ -91,43 +119,86 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
 }
 
 
+def _add_critical_element(connection: duckdb.DuckDBPyConnection) -> None:
+    """The one persisted artifact ``persisted_read_route_database`` omits."""
+    identity = {
+        "source_identity": {
+            "family": "critical_elements",
+            "region": REGION,
+            "scenario_id": DEFAULT_SCENARIO,
+            "element_id": "line-10",
+        }
+    }
+    insert(
+        connection,
+        "mn_artifact_manifests",
+        {
+            "artifact_id": CRITICAL_ARTIFACT,
+            "artifact_kind": "score",
+            "contract_version": "1.0.0",
+            "geography_id": REGION,
+            "availability": "available",
+            "model_mode": "topology",
+            "identity_json": json.dumps(identity),
+            "created_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "assumptions_json": json.dumps([]),
+            "limitations_json": json.dumps(["Fixture topology evidence only."]),
+            "input_artifact_ids_json": json.dumps([]),
+        },
+    )
+    insert(
+        connection,
+        "mn_artifact_provenance",
+        {
+            "artifact_id": CRITICAL_ARTIFACT,
+            "provenance_ordinal": 0,
+            "source_name": "fixture:critical-elements",
+            "source_ref": "fixture://critical-elements",
+            "source_version": "v1",
+            "retrieved_at": datetime(2026, 1, 1, tzinfo=UTC),
+            "license_or_terms": "test fixture",
+            "source_record_id": CRITICAL_ARTIFACT,
+            "content_sha256": SHA256,
+            "is_derived": False,
+        },
+    )
+    insert(
+        connection,
+        "mn_score_results",
+        {
+            "artifact_id": CRITICAL_ARTIFACT,
+            "metric": "critical_element",
+            "score_value": 12.5,
+            "score_unit": "MW",
+            "score_components_json": json.dumps(
+                {
+                    "scenario_id": DEFAULT_SCENARIO,
+                    "element_id": "line-10",
+                    "kind": "line",
+                    "runs": 1,
+                    "critical_loads_lost": ["cl-1"],
+                }
+            ),
+            "regulatory_label": "hypothetical",
+        },
+    )
+
+
 def _populate(database: Path) -> None:
     """Build a database every route can read, on the shared artifact contract.
 
-    ``prediction_database`` and ``cascade_database`` each seed their own
-    scenario row, so they are given different scenarios rather than colliding on
-    the ``scenarios`` primary key.  The bus, site-candidate and site-score rows
-    are inserted into the DDL those builders created -- no schema is re-declared
-    here, so the fixture cannot drift from the columns the routes read.
+    ``persisted_read_route_database`` carries the grid, site and line-upgrade
+    halves; the prediction and cascade builders add their own scenarios (each a
+    distinct row, so they cannot collide on the ``scenarios`` primary key).
+    Every table is created by the real DDL, so a contract change breaks the
+    fixture rather than quietly turning these routes back into 503s.
     """
+    persisted_read_route_database(database, site_id=SITE_ID, region=REGION)
     prediction_database(database, (Prediction("27000", scenario_id=OTHER_SCENARIO),))
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))
     try:
-        connection.execute(
-            "INSERT INTO buses (bus_id, name, base_kv, lon, lat, county_fips, ba_code,"
-            " coord_source, zone, area, source_name, source_ref, source_version,"
-            " source_retrieved_at, fixture_batch_id)"
-            " VALUES (1, 'Fixture Bus', 115.0, -93.1, 44.9, '27000', 'MISO',"
-            " 'fixture:hand-placed', 1, 1, ?, ?, ?, ?, ?)",
-            list(FIXTURE_PROVENANCE),
-        )
-        connection.execute(
-            "INSERT INTO site_candidates (site_id, name, kind, lon, lat, county_fips,"
-            " bus_id, capacity_slot_mw, source_site_id, source_name, source_ref,"
-            " source_version, source_retrieved_at, fixture_batch_id)"
-            " VALUES (1, 'Fixture Site', 'coal_retired', -93.1, 44.9, '27000', 1,"
-            " 300.0, 'fixture-site', ?, ?, ?, ?, ?)",
-            list(FIXTURE_PROVENANCE),
-        )
-        connection.execute(
-            "INSERT INTO site_scores (site_id, scenario_id, unit_mw, safety_score,"
-            " safety_flags_json, grid_value_score, lol_reduction_mwh,"
-            " congestion_relief_pct, blackstart_reach_mw, source_name, source_ref,"
-            " source_version, source_retrieved_at, fixture_batch_id)"
-            " VALUES (1, ?, 300.0, 10.0, '[]', 2.0, 3.0, 4.0, 5.0, ?, ?, ?, ?, ?)",
-            [SCENARIO, *FIXTURE_PROVENANCE],
-        )
+        _add_critical_element(connection)
     finally:
         connection.close()
 
