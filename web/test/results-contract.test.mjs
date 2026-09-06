@@ -79,6 +79,34 @@ test("a done frame with verified:false renders the unverified banner and never t
   assert.match(unknown, /Verification status was not supplied/);
 });
 
+test("the mounted admission test requires identity of every kind, not only the ones it draws", () => {
+  const withoutRunIdentity = {
+    kind: "cascade", id: "a3", revision: "v1", label: "Replay cascade",
+    source: "server", geometry: "synthetic",
+  };
+  assert.equal(isSupportedResultAction(withoutRunIdentity), false);
+
+  // The probe can tell the two states apart: the only difference is the run identity.
+  assert.equal(isSupportedResultAction({ ...withoutRunIdentity, cascadeId: "cascade-1" }), true);
+
+  // An edit hash is not a run identity and never stands in for one.
+  assert.equal(isSupportedResultAction({ ...withoutRunIdentity, editHash: "edit-abc" }), false);
+
+  const edit = {
+    kind: "scenario_edit", id: "a4", revision: "v1", label: "Apply edit",
+    source: "server", geometry: "synthetic",
+  };
+  assert.equal(isSupportedResultAction(edit), false);
+  assert.equal(isSupportedResultAction({ ...edit, editHash: "edit-abc" }), true);
+  assert.equal(isSupportedResultAction({ ...edit, cascadeId: "cascade-1" }), false);
+
+  // Kinds with no run identity are unaffected.
+  assert.equal(isSupportedResultAction({
+    kind: "focus", id: "a5", revision: "v1", label: "Focus artifact",
+    source: "server", geometry: "synthetic",
+  }), true);
+});
+
 test("an action whose geometry is unavailable renders no button at all", () => {
   const unavailableGeometry = {
     kind: "focus", id: "a1", revision: "v1", label: "Focus artifact",
@@ -187,7 +215,20 @@ test("done.unverified_numbers forces the unverified marker even on a bound numbe
 });
 
 test("every offered action kind is reversible and the card performs no network write", async () => {
-  assert.deepEqual([...REVERSIBLE_ACTION_KINDS].sort(), [...ACTION_KINDS].sort());
+  // Every kind the card OFFERS is reversible; the shared vocabulary may recognise more.
+  assert.ok(REVERSIBLE_ACTION_KINDS.every((kind) => ACTION_KINDS.has(kind)));
+  const notOffered = [...ACTION_KINDS].filter((kind) => !REVERSIBLE_ACTION_KINDS.includes(kind));
+  assert.deepEqual(notOffered.sort(), ["cascade", "scenario_edit"]);
+
+  // A recognised-but-not-reversible kind is refused, not silently dropped, and never
+  // gets a button -- even when it is otherwise complete and carries its own identity.
+  const serverRun = {
+    kind: "cascade", id: "a2", revision: "v1", label: "Replay cascade",
+    source: "server", geometry: "synthetic", cascadeId: "cascade-1",
+  };
+  const runMarkup = render([result({ status: { availability: "source_supported" }, action: serverRun })], handlers);
+  assert.doesNotMatch(runMarkup, /<button/);
+  assert.match(runMarkup, /Scene action was not applied/);
 
   const sources = await Promise.all(["ResultCards.tsx", "types.ts", "index.ts"].map(
     (file) => readFile(new URL(file, resultsRoot), "utf8"),

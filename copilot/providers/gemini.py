@@ -7,7 +7,8 @@ sees is built by `copilot.runtime` from the values below.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping, Sequence
+from typing import Any
 
 from copilot.narration import GroundedNarration
 from copilot.providers.grounding import (
@@ -15,6 +16,11 @@ from copilot.providers.grounding import (
     REQUEST_TIMEOUT_SECONDS,
     SYSTEM_PROMPT,
     narration_prompt,
+)
+from copilot.providers.selection import (
+    SELECTION_SYSTEM_PROMPT,
+    ToolSelection,
+    selection_prompt,
 )
 
 
@@ -64,3 +70,40 @@ class GeminiNarrationProvider:
                     yield chunk.text
 
         return deltas()
+
+    async def select_tool(
+        self,
+        question: str,
+        *,
+        tools: Sequence[Mapping[str, Any]],
+        context: Mapping[str, Any] | None = None,
+        history: Sequence[Mapping[str, str]] = (),
+    ) -> ToolSelection | None:
+        """Plan one turn against the same frozen contract the Claude adapter sends.
+
+        Automatic function calling stays disabled here for the same reason it is
+        disabled for narration: the SDK must not execute anything.  A response
+        that carries no `function_call` part is the documented refusal.
+        """
+
+        types = self._genai.types
+        config = types.GenerateContentConfig(
+            system_instruction=SELECTION_SYSTEM_PROMPT,
+            max_output_tokens=MAX_OUTPUT_TOKENS,
+            tools=[types.Tool(function_declarations=list(tools))],
+            automatic_function_calling=(
+                types.AutomaticFunctionCallingConfig(disable=True)
+            ),
+        )
+        response = await self._client.aio.models.generate_content(
+            model=self.model,
+            contents=selection_prompt(question, context, history),
+            config=config,
+        )
+        for candidate in response.candidates or ():
+            content = candidate.content
+            for part in (content.parts or ()) if content is not None else ():
+                call = part.function_call
+                if call is not None and call.name:
+                    return ToolSelection(call.name, dict(call.args or {}))
+        return None
