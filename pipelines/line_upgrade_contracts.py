@@ -321,7 +321,9 @@ class ScoredLine(Frozen):
             "line_id": self.key.line_id,
             "scenario_id": self.key.scenario_id,
             "congestion_usd_yr": congestion_usd_yr,
-            "dlr_uplift_mw": dlr.uplift_mw if isinstance(dlr, DlrIntervention) else None,
+            "dlr_uplift_mw": dlr.uplift_mw
+            if isinstance(dlr, DlrIntervention)
+            else None,
             "reconductor_uplift_mw": (
                 reconductor.uplift_mw
                 if isinstance(reconductor, ReconductorIntervention)

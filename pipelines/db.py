@@ -163,8 +163,13 @@ SCHEMA_STATEMENTS = (
 )
 
 LINE_UPGRADE_CONTRACT_COLUMN_NAMES = (
-    "ranking_version", "contract_version", "computed_at", "simulation_run_id",
-    "grid_input_sha256", "weather_input_sha256", "cost_params_sha256",
+    "ranking_version",
+    "contract_version",
+    "computed_at",
+    "simulation_run_id",
+    "grid_input_sha256",
+    "weather_input_sha256",
+    "cost_params_sha256",
 )
 TABLE_COLUMNS = {
     "buses": (
@@ -228,12 +233,73 @@ TABLE_COLUMNS = {
         "source_site_id",
     ),
     "scenarios": ("scenario_id", "name", "kind", "ts_start", "ts_end"),
-    "outage_predictions": ("scenario_id", "county_fips", "ts", "p_out", "customers_at_risk", "driver"),
-    "cascade_runs": ("run_id", "scenario_id", "hour", "tripped_element_ids_json", "lost_load_mw", "counties_dark_json", "critical_loads_lost_json", "counterfactual_site_id"),
-    "site_scores": ("site_id", "scenario_id", "unit_mw", "safety_score", "safety_flags_json", "grid_value_score", "lol_reduction_mwh", "congestion_relief_pct", "blackstart_reach_mw"),
-    "line_upgrade_scores": ("line_id", "scenario_id", "congestion_usd_yr", "dlr_uplift_mw", "reconductor_uplift_mw", "dlr_cost_usd", "reconductor_cost_usd", "mw_per_musd", "ferc_screen_pass", "spark_eligible", *LINE_UPGRADE_CONTRACT_COLUMN_NAMES),
-    "line_upgrade_detail": ("line_id", "scenario_id", "owner", "conductor_material", "conductor_kcmil", "static_rating_mw", "aar_rating_mw", "dlr_p50_mw", "dlr_hours_above_static", "best_tech", "payback_yr", "congestion_method", "region", *LINE_UPGRADE_CONTRACT_COLUMN_NAMES),
-    "corpus_chunks": ("chunk_id", "doc", "title", "page", "chunk_ordinal", "text", "embedding"),
+    "outage_predictions": (
+        "scenario_id",
+        "county_fips",
+        "ts",
+        "p_out",
+        "customers_at_risk",
+        "driver",
+    ),
+    "cascade_runs": (
+        "run_id",
+        "scenario_id",
+        "hour",
+        "tripped_element_ids_json",
+        "lost_load_mw",
+        "counties_dark_json",
+        "critical_loads_lost_json",
+        "counterfactual_site_id",
+    ),
+    "site_scores": (
+        "site_id",
+        "scenario_id",
+        "unit_mw",
+        "safety_score",
+        "safety_flags_json",
+        "grid_value_score",
+        "lol_reduction_mwh",
+        "congestion_relief_pct",
+        "blackstart_reach_mw",
+    ),
+    "line_upgrade_scores": (
+        "line_id",
+        "scenario_id",
+        "congestion_usd_yr",
+        "dlr_uplift_mw",
+        "reconductor_uplift_mw",
+        "dlr_cost_usd",
+        "reconductor_cost_usd",
+        "mw_per_musd",
+        "ferc_screen_pass",
+        "spark_eligible",
+        *LINE_UPGRADE_CONTRACT_COLUMN_NAMES,
+    ),
+    "line_upgrade_detail": (
+        "line_id",
+        "scenario_id",
+        "owner",
+        "conductor_material",
+        "conductor_kcmil",
+        "static_rating_mw",
+        "aar_rating_mw",
+        "dlr_p50_mw",
+        "dlr_hours_above_static",
+        "best_tech",
+        "payback_yr",
+        "congestion_method",
+        "region",
+        *LINE_UPGRADE_CONTRACT_COLUMN_NAMES,
+    ),
+    "corpus_chunks": (
+        "chunk_id",
+        "doc",
+        "title",
+        "page",
+        "chunk_ordinal",
+        "text",
+        "embedding",
+    ),
 }
 PROVENANCE_COLUMN_NAMES = (
     "source_name",
@@ -313,7 +379,9 @@ def stored_contract_version(con: duckdb.DuckDBPyConnection) -> str | None:
     ).fetchone()[0]
     if not has_meta:
         return None
-    existing = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+    existing = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
     return None if existing is None else existing[0]
 
 

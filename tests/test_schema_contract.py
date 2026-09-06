@@ -34,6 +34,8 @@ def test_schema_is_versioned_and_idempotent() -> None:
         con.execute("PRAGMA table_info('corpus_chunks')").fetchall()[6][2]
         == "FLOAT[1024]"
     )
+
+
 @pytest.mark.parametrize("table", ["line_upgrade_scores", "line_upgrade_detail"])
 def test_line_upgrade_artifacts_persist_scenario_identity_and_contract_provenance(
     table: str,
@@ -100,13 +102,17 @@ def _build_v1_database(path: Path) -> set[str]:
                 if f"CREATE TABLE IF NOT EXISTS {table} (" in statement:
                     statement = v1_statement
             con.execute(statement)
-        con.execute("INSERT INTO schema_meta (key, value) VALUES ('contract_version', '1.0.0')")
+        con.execute(
+            "INSERT INTO schema_meta (key, value) VALUES ('contract_version', '1.0.0')"
+        )
         return {row[0] for row in con.execute("SHOW TABLES").fetchall()}
     finally:
         con.close()
 
 
-def test_opening_a_v1_database_raises_the_named_migration_error_before_any_ddl(tmp_path: Path) -> None:
+def test_opening_a_v1_database_raises_the_named_migration_error_before_any_ddl(
+    tmp_path: Path,
+) -> None:
     """A stale database must fail on the version guard, not on a DDL bind error.
 
     On a v1 file every CREATE TABLE IF NOT EXISTS is a no-op, so without the guard
@@ -116,14 +122,24 @@ def test_opening_a_v1_database_raises_the_named_migration_error_before_any_ddl(t
     path = tmp_path / "grid.duckdb"
     v1_tables = _build_v1_database(path)
 
-    with pytest.raises(RuntimeError, match=r"contract version is '1\.0\.0', expected '2\.0\.0'; migrate explicitly"):
+    with pytest.raises(
+        RuntimeError,
+        match=r"contract version is '1\.0\.0', expected '2\.0\.0'; migrate explicitly",
+    ):
         connect(path)
 
     con = duckdb.connect(str(path))
     try:
-        assert con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone() == ("1.0.0",)
+        assert con.execute(
+            "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+        ).fetchone() == ("1.0.0",)
         assert {row[0] for row in con.execute("SHOW TABLES").fetchall()} == v1_tables
-        v1_columns = {row[1] for row in con.execute("PRAGMA table_info('line_upgrade_scores')").fetchall()}
+        v1_columns = {
+            row[1]
+            for row in con.execute(
+                "PRAGMA table_info('line_upgrade_scores')"
+            ).fetchall()
+        }
         assert "scenario_id" not in v1_columns
         assert con.execute("SELECT count(*) FROM duckdb_indexes()").fetchone() == (0,)
     finally:
