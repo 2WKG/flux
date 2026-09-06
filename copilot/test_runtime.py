@@ -80,6 +80,14 @@ def test_missing_provider_is_explicit_unavailable_terminal():
 
 def test_cancelled_provider_emits_cancelled_terminal():
     events = run_turn(CancelledProvider(), _turn())
+    assert [event.event for event in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "citation",
+        "error",
+    ]
+    assert [event.seq for event in events] == list(range(1, 6))
     assert events[-1].event == "error"
     assert events[-1].data["error"]["code"] == "cancelled"
 
