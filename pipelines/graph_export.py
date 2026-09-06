@@ -1,0 +1,253 @@
+"""Export the synthetic Texas topology from DuckDB as a deterministic graph dataset."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import shutil
+import tempfile
+from collections import Counter
+from pathlib import Path
+from typing import Any
+
+import duckdb
+
+DATASET_SCHEMA_VERSION = "1.0.0"
+TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
+NODE_FEATURES = (
+    "base_kv",
+    "p_mw_nominal",
+    "pmax_mw",
+)
+EDGE_FEATURES = (
+    "base_kv",
+    "r_pu",
+    "x_pu",
+    "b_pu",
+    "tap_ratio",
+    "shift_deg",
+    "rate_a_mw",
+    "length_km",
+    "status",
+)
+
+
+def _canonical_bytes(value: object) -> bytes:
+    return (
+        json.dumps(
+            value,
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def _write_json(path: Path, value: object) -> str:
+    payload = _canonical_bytes(value)
+    path.write_bytes(payload)
+    return hashlib.sha256(payload).hexdigest()
+
+
+def _required_tables(con: duckdb.DuckDBPyConnection) -> None:
+    expected = {
+        "buses",
+        "lines",
+        "gens",
+        "loads",
+        "synthetic_bus_electrical",
+        "synthetic_branch_electrical",
+    }
+    found = {
+        row[0]
+        for row in con.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+        ).fetchall()
+    }
+    missing = sorted(expected - found)
+    if missing:
+        raise RuntimeError(f"graph export requires tables: {', '.join(missing)}")
+
+
+def _number(value: object, *, field: str, record_id: int) -> float | None:
+    if value is None:
+        return None
+    result = float(value)
+    if not math.isfinite(result):
+        raise ValueError(f"{field} for {record_id} must be finite or NULL")
+    return result
+
+
+def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
+    rows = con.execute(
+        """
+        WITH load_totals AS (
+          SELECT bus_id, sum(p_mw_nominal) AS p_mw_nominal FROM loads GROUP BY bus_id
+        ), generator_totals AS (
+          SELECT bus_id, sum(pmax_mw) AS pmax_mw FROM gens GROUP BY bus_id
+        )
+        SELECT b.bus_id, b.base_kv, l.p_mw_nominal, g.pmax_mw, b.county_fips, b.ba_code
+        FROM buses AS b
+        LEFT JOIN load_totals AS l USING (bus_id)
+        LEFT JOIN generator_totals AS g USING (bus_id)
+        ORDER BY b.bus_id
+        """
+    ).fetchall()
+    fuel_rows = con.execute(
+        "SELECT bus_id, fuel, sum(pmax_mw) FROM gens GROUP BY bus_id, fuel ORDER BY bus_id, fuel"
+    ).fetchall()
+    by_bus: dict[int, dict[str, float]] = {}
+    for bus_id, fuel, capacity in fuel_rows:
+        by_bus.setdefault(int(bus_id), {})[str(fuel)] = float(capacity)
+    result = []
+    for bus_id, base_kv, load, capacity, county_fips, ba_code in rows:
+        numeric = {
+            feature: _number(value, field=feature, record_id=int(bus_id))
+            for feature, value in zip(
+                NODE_FEATURES, (base_kv, load, capacity), strict=True
+            )
+        }
+        fuel_capacity = by_bus.get(int(bus_id), {})
+        has_load = numeric["p_mw_nominal"] is not None
+        has_generation = numeric["pmax_mw"] is not None
+        role = (
+            "both"
+            if has_load and has_generation
+            else "consumer"
+            if has_load
+            else "producer"
+            if has_generation
+            else "transmission"
+        )
+        result.append(
+            {
+                "node_id": int(bus_id),
+                "features": numeric,
+                "fuel_capacity_mw": fuel_capacity,
+                "categorical_features": {
+                    "role": role,
+                    "county_fips": county_fips,
+                    "ba_code": ba_code,
+                },
+            }
+        )
+    return result
+
+
+def _edges(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
+    rows = con.execute(
+        """
+        SELECT l.line_id, l.from_bus, l.to_bus, l.is_transformer, l.base_kv, l.r_pu,
+               l.x_pu, e.b_pu, e.tap_ratio, e.shift_deg, l.rate_a_mw, l.length_km, e.status
+        FROM lines AS l
+        LEFT JOIN synthetic_branch_electrical AS e USING (line_id)
+        ORDER BY l.line_id
+        """
+    ).fetchall()
+    result: list[dict[str, Any]] = []
+    for row in rows:
+        line_id, from_bus, to_bus, is_transformer, *values = row
+        source_edge_type = "transformer" if is_transformer else "line"
+        result.append(
+            {
+                "edge_id": int(line_id),
+                "source": int(from_bus),
+                "target": int(to_bus),
+                # Pandapower imports these voltage-transition branches as net.impedance.
+                "source_edge_type": source_edge_type,
+                "solver_edge_type": "impedance_branch" if is_transformer else "line",
+                "features": {
+                    feature: _number(value, field=feature, record_id=int(line_id))
+                    for feature, value in zip(EDGE_FEATURES, values, strict=True)
+                },
+            }
+        )
+    return result
+
+
+def export_texas_graph_dataset(
+    db_path: str | Path, out_dir: str | Path
+) -> dict[str, Any]:
+    """Write a content-addressed graph dataset without changing the source database."""
+    source = Path(db_path).resolve()
+    if not source.is_file():
+        raise FileNotFoundError(f"DuckDB database not found: {source}")
+    requested_target = Path(out_dir)
+    if requested_target.is_symlink():
+        raise ValueError("graph output directory must not be a symlink")
+    target = requested_target.resolve()
+    if target == source or source.is_relative_to(target):
+        raise ValueError("graph output must not contain the source database")
+    if target.exists():
+        raise ValueError("graph output already exists; remove it before exporting")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=f".{target.name}.tmp-", dir=target.parent))
+    try:
+        with duckdb.connect(str(source), read_only=True) as con:
+            _required_tables(con)
+            nodes = _nodes(con)
+            edges = _edges(con)
+            if not nodes or not edges:
+                raise RuntimeError(
+                    "graph export requires at least one bus and one branch"
+                )
+            for table in ("buses", "lines", "gens", "loads"):
+                source_names = {
+                    row[0]
+                    for row in con.execute(
+                        f"SELECT DISTINCT source_name FROM {table}"
+                    ).fetchall()
+                }
+                if source_names != {"activsg2000"}:
+                    raise RuntimeError(
+                        f"{table}.source_name must be exactly activsg2000"
+                    )
+        file_hashes = {
+            "nodes.json": _write_json(temporary / "nodes.json", nodes),
+            "edges.json": _write_json(temporary / "edges.json", edges),
+        }
+        source_types = Counter(edge["source_edge_type"] for edge in edges)
+        solver_types = Counter(edge["solver_edge_type"] for edge in edges)
+        dataset_identity = {
+            "schema_version": DATASET_SCHEMA_VERSION,
+            "topology_label": TOPOLOGY_LABEL,
+            "files": file_hashes,
+        }
+        manifest = {
+            "dataset_sha256": hashlib.sha256(
+                _canonical_bytes(dataset_identity)
+            ).hexdigest(),
+            "edge_counts": {
+                "source_edge_type": dict(sorted(source_types.items())),
+                "solver_edge_type": dict(sorted(solver_types.items())),
+            },
+            "files": file_hashes,
+            "node_count": len(nodes),
+            "edge_count": len(edges),
+            "schema_version": DATASET_SCHEMA_VERSION,
+            "topology_label": TOPOLOGY_LABEL,
+        }
+        _write_json(temporary / "manifest.json", manifest)
+        temporary.replace(target)
+        return manifest
+    except Exception:
+        shutil.rmtree(temporary, ignore_errors=True)
+        raise
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--db", default="data/duck/grid.duckdb", help="source DuckDB path"
+    )
+    parser.add_argument("--out", required=True, help="output directory")
+    args = parser.parse_args()
+    print(json.dumps(export_texas_graph_dataset(args.db, args.out), sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

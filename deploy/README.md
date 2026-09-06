@@ -7,6 +7,11 @@ The full inventory, verified facts, and the one-time setup sequence are in
 [`docs/runbooks/static-origin-and-tunnel.md`](../docs/runbooks/static-origin-and-tunnel.md).
 This directory is the checked-in scaffolding that sequence uses.
 
+The tunnel maps only the API's health and read-path surface to `127.0.0.1:8000`.
+It does not publish `/ask`, `/site-score`, or `/compare`; Cloudflared matches
+paths rather than HTTP methods, so FastAPI remains responsible for rejecting an
+unsupported method on a routed read path.
+
 | File | Purpose |
 | --- | --- |
 | `serve.ps1` | Builds `web/dist/` and serves it at `http://127.0.0.1:4173` |
@@ -42,11 +47,12 @@ for the evidence and the failure branches.
 
 ## Every deploy
 
-Two shells from the repository root:
+Three shells from the repository root:
 
 ```powershell
 ./deploy/serve.ps1        # shell 1: build + static origin on :4173
-./deploy/tunnel.ps1       # shell 2: preflight + connector
+uv run uvicorn copilot.app:app --port 8000 # shell 2: API health + read paths
+./deploy/tunnel.ps1       # shell 3: preflight + connector
 ```
 
 `./deploy/serve.ps1 -SkipBuild` reuses an existing `web/dist/`.
@@ -65,10 +71,23 @@ A `200` alone is not proof the demo is served — the origin answers every
 unmatched path with the 360-byte SPA shell, so also check that
 `https://bouncepulse.com/assets/app.js` comes back as `text/javascript`.
 
+The configured API read routes reach FastAPI, not the SPA shell:
+
+```powershell
+curl.exe -i https://bouncepulse.com/health
+curl.exe -i https://bouncepulse.com/scenarios
+```
+
+`/health` returns `200` with a prepared database or its documented `503`
+unavailable envelope without one. The same is true for read routes whose
+required artifact is unavailable. `/ask`, `/site-score`, and `/compare` are
+not public tunnel routes.
+
 ## Boundaries
 
-- Only the static origin is routed. The FastAPI copilot on port `8000` has no
-  ingress rule; do not add one without verifying that service first.
+- The FastAPI ingress is limited by path to `/health` and its read routes.
+  `/ask`, `/site-score`, and `/compare` remain unrouted. Cloudflared does not
+  filter HTTP methods; FastAPI rejects unsupported methods on the routed paths.
 - Credentials, the tunnel UUID, and the filled-in `config.yml` live on the host
   and are gitignored. Never commit them.
 - `tunnel.ps1` starts an existing tunnel. It never creates one, logs in, or
