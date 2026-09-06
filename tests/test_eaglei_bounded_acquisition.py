@@ -224,7 +224,7 @@ def test_bounded_acquisition_never_transfers_more_than_its_ceiling(
     )
     assert result["eaglei"]["bytes_transferred"] == source.bytes_served
     assert result["eaglei"]["acquisition_method"] == "bounded_http_range_binary_search"
-    assert result["capture_method"] == "bounded_http_range_binary_search"
+    assert result["receipt"]["capture_method"] == "bounded_http_range_binary_search"
     # The binary search really ran: probes were issued and recorded.
     assert result["eaglei"]["range_probes"], "no range probes were recorded"
     assert len(source.range_requests) == len(result["eaglei"]["range_probes"]) + 2
@@ -300,7 +300,7 @@ def test_full_download_is_opt_in_and_named_in_the_receipt(
     )
 
     assert streamed == [len(body)]
-    assert result["capture_method"] == "exhaustive_annual_stream"
+    assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
     assert result["receipt"]["bytes"] == len(body)
 
 
@@ -312,7 +312,10 @@ def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["receipt_id"].islower()
     assert isinstance(result["receipt"]["gaps"], list)
-    assert result["verification"]["full_annual_file_streamed"] is False
+    assert (
+        "the full annual file was not streamed"
+        in result["receipt"]["verification"]["notes"]
+    )
 
 
 def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -341,17 +344,29 @@ def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
 
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["license_or_access"].startswith("CC BY 4.0")
-    assert result["capture_method"] == "exhaustive_annual_stream"
-    assert set(result["verification"])  # #199/#216 convention is carried alongside
+    assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
+    assert (
+        result["receipt"]["verification"]["sha256_computed_from_response_body"] is True
+    )
 
 
 def test_the_receipt_object_carries_no_fields_the_schema_forbids(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: bytes
 ) -> None:
-    """`additionalProperties: false` is the reason #199's fields are siblings."""
-    result = run_bounded(FakeSource(body), tmp_path, monkeypatch)
+    """The published schema is where the receipt's field set is decided.
 
-    assert set(result["receipt"]) == set(VENDORED_RECEIPT_SCHEMA["required"])
-    assert "capture_method" not in result["receipt"]
-    assert result["capture_method"]
-    assert result["verification"]
+    2WKG-461 made ``capture_method``, ``verification``, ``files`` and
+    ``uncertainty`` **required members of the receipt**, converging it on the
+    #199 convention, so they belong inside ``receipt`` and not beside it.
+    ``additionalProperties: false`` then means the receipt may carry those and
+    nothing else.
+    """
+    result = run_bounded(FakeSource(body), tmp_path, monkeypatch)
+    published = receipt_schema()
+
+    assert set(result["receipt"]) <= set(published["properties"])
+    assert set(published["required"]) <= set(result["receipt"])
+    for field in ("capture_method", "verification", "files", "uncertainty"):
+        assert field in result["receipt"], field
+    assert "capture_method" not in result
+    assert "verification" not in result
