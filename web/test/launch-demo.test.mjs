@@ -11,7 +11,7 @@
 // Every process these tests start is stopped in the same test.
 import assert from "node:assert/strict";
 import { execFile, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import net from "node:net";
 import os from "node:os";
@@ -86,6 +86,27 @@ function decoy(port, host, handler) {
 }
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A throwaway repo the launcher can be pointed at, so a test that needs a broken
+ * build never mutates the shared `web/dist/` that the other test files read.
+ * `repo` is resolved from the script's own location, so copying the scripts is
+ * enough to move the launcher's idea of the repo root.
+ */
+function sandboxRepo({ withAppBundle }) {
+  const root = mkdtempSync(path.join(os.tmpdir(), "flux-launch-sandbox-"));
+  mkdirSync(path.join(root, "scripts/dev"), { recursive: true });
+  for (const name of ["launch_demo.sh", "port_free.mjs", "health_ready.mjs"]) {
+    cpSync(path.join(repo, "scripts/dev", name), path.join(root, "scripts/dev", name));
+  }
+  mkdirSync(path.join(root, "web"), { recursive: true });
+  // A copy, not a symlink: server.mjs resolves dist/ from its own real path.
+  cpSync(path.join(repo, "web/server.mjs"), path.join(root, "web/server.mjs"));
+  symlinkSync(path.join(repo, "web/node_modules"), path.join(root, "web/node_modules"));
+  cpSync(dist, path.join(root, "web/dist"), { recursive: true });
+  if (!withAppBundle) rmSync(path.join(root, "web/dist/assets/app.js"));
+  return root;
+}
 
 test("start, status, and stop leave no listener behind", TIMEOUT, async (t) => {
   assert.ok(existsSync(path.join(dist, "assets/app.js")), "run `npm run build` in web/ first");
@@ -169,28 +190,32 @@ test("the occupied-port guard sees a listener on the other address family", TIME
 });
 
 test("the asset check fails when the bundle is missing instead of accepting the SPA shell", TIMEOUT, async (t) => {
+  const broken = sandboxRepo({ withAppBundle: false });
   const dir = runDir();
   const port = await freePort();
-  const asset = path.join(dist, "assets/app.js");
-  const stash = `${asset}.stashed-by-test`;
-  renameSync(asset, stash);
   t.after(async () => {
-    if (existsSync(stash)) renameSync(stash, asset);
-    await launch(["--run-dir", dir, "--stop"]);
+    await run("bash", [path.join(broken, "scripts/dev/launch_demo.sh"), "--run-dir", dir, "--stop"]);
+    rmSync(broken, { recursive: true, force: true });
     rmSync(dir, { recursive: true, force: true });
   });
 
-  // --skip-build is required here: a rebuild would recreate the file under test.
-  const started = await launch(["--offline", "--skip-install", "--skip-build", "--web-port", String(port), "--run-dir", dir]);
+  const brokenLauncher = path.join(broken, "scripts/dev/launch_demo.sh");
+  const started = await run("bash", [brokenLauncher, "--offline", "--skip-install", "--skip-build", "--web-port", String(port), "--run-dir", dir]);
   assert.notEqual(started.status, 0, "GET /assets/app.js answers 200 with the SPA shell; the check must still fail");
   assert.match(started.stderr, /--skip-build needs an existing build|not JavaScript|SPA shell/);
   assert.equal(await connects("127.0.0.1", port), false, "a failed launch must not strand the web server");
 
-  renameSync(stash, asset);
-  // Control: with the bundle back, the same launch succeeds.
-  const ok = await launch(["--offline", "--skip-install", "--skip-build", "--web-port", String(await freePort()), "--run-dir", runDir()]);
-  const okDir = ok.stdout.match(/Logs and PIDs: (\S+)/)?.[1];
-  if (okDir) await launch(["--run-dir", okDir, "--stop"]);
+  // Control: the identical sandbox with the bundle present launches cleanly, so
+  // the failure above is about the missing bundle and nothing else.
+  const whole = sandboxRepo({ withAppBundle: true });
+  const okDir = runDir();
+  const okPort = await freePort();
+  t.after(async () => {
+    await run("bash", [path.join(whole, "scripts/dev/launch_demo.sh"), "--run-dir", okDir, "--stop"]);
+    rmSync(whole, { recursive: true, force: true });
+    rmSync(okDir, { recursive: true, force: true });
+  });
+  const ok = await run("bash", [path.join(whole, "scripts/dev/launch_demo.sh"), "--offline", "--skip-install", "--skip-build", "--web-port", String(okPort), "--run-dir", okDir]);
   assert.equal(ok.status, 0, ok.stderr);
 });
 
