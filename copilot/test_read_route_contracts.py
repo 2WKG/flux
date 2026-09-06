@@ -140,6 +140,64 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/api/v1/grid/asset-placements"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_assets.py::test_asset_placement_validation_and_missing_release_are_explicit",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_asset_placement_validation_and_missing_release_are_explicit",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/assets/flux-grid/manifest.json"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/assets/flux-grid/{asset_path}"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=Unreachable(
+            "the catch-all path treats an unsafe asset name as not found"
+        ),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_assets.py::test_only_manifest_registered_safe_paths_are_served",
+            404,
+        ),
+    ),
+    ("GET", "/demo/model"): RouteContract(
+        success=Cell(
+            "copilot/test_model_geometry.py::test_model_returns_bus_and_branch_geometry_from_synthetic_db",
+            200,
+        ),
+        invalid=Unreachable(
+            "unknown element IDs are represented as resolved false elements, not invalid input"
+        ),
+        unavailable=Cell(
+            "copilot/test_model_geometry.py::test_model_missing_database_is_named_unavailable",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
     ("POST", "/site-score"): RouteContract(
         success=Cell(
             "copilot/test_interventions.py::test_site_read_is_server_side_and_unqualified_comparison_is_unavailable",

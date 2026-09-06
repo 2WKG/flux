@@ -293,7 +293,8 @@ test("the built bundle actually ships the shell, the dock, and the derived label
   // them, so the shipped artifact is the entry plus every chunk beside it.
   const built = await readBuiltScripts();
   for (const marker of [
-    'className: "workspace"',
+    "model-workspace",
+    "Full synthetic Texas topology",
     "map scene-viewport",
     "Not available in this offline build",
     "no asserted topology",

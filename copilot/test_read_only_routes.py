@@ -107,6 +107,7 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.get("/assets/flux-grid/line/line.glb"),
         200,
     ),
+    ("GET", "/demo/model"): (lambda client: client.get("/demo/model"), 200),
     ("POST", "/site-score"): (
         lambda client: client.post(
             "/site-score",
@@ -256,6 +257,18 @@ def _populate(database: Path) -> None:
                 "critical_loads_lost": ["cl-1"],
             },
         )
+        connection.execute(
+            "CREATE TABLE buses(bus_id BIGINT, lon DOUBLE, lat DOUBLE, coord_source TEXT)"
+        )
+        connection.execute(
+            "CREATE TABLE lines(line_id BIGINT, from_bus BIGINT, to_bus BIGINT, is_transformer BOOLEAN)"
+        )
+        connection.execute("CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT)")
+        connection.execute("CREATE TABLE loads(load_id BIGINT, bus_id BIGINT)")
+        connection.execute(
+            "INSERT INTO buses VALUES (1, -97.0, 30.0, 'tamu_aux'), (2, -96.0, 31.0, 'tamu_aux')"
+        )
+        connection.execute("INSERT INTO lines VALUES (1, 1, 2, false)")
         _add_score_artifact(
             connection,
             COMPARISON_ARTIFACT,
