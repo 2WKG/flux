@@ -5,10 +5,17 @@ hashed feature artifact and derives every numeric transform from *only* the
 manifest's ``train`` assignments.  Calibration, holdout, and excluded rows are
 never used to estimate an imputation value, centre, or scale.
 
+Fitting does not trust a caller's hash claim on its own.  The frame handed to
+:func:`fit_feature_transforms` is digested with :func:`feature_frame_sha256`
+(the canonical byte encoding of the whole population) and that digest must
+equal the manifest's ``input_artifact_sha256``; a frame whose values differ
+from the one the manifest was built for is rejected even when the caller
+repeats the manifest's hash.
+
 The fitted artifact is deliberately small and serialisable: it carries the
-source artifact hash, split id, feature-set version, and transform version so
-the values produced later can be traced to exactly the input and split that
-created them.
+source artifact hash, split id, feature-set version, transform version, and
+every fitted value, and ``artifact_sha256`` is the digest of exactly those
+canonical bytes, so altering or dropping any fitted value changes the hash.
 """
 
 from __future__ import annotations
@@ -16,6 +23,7 @@ from __future__ import annotations
 import json
 from collections.abc import Sequence
 from dataclasses import dataclass
+from datetime import datetime
 from hashlib import sha256
 from typing import Final
 
@@ -29,6 +37,9 @@ TRANSFORM_VERSION: Final = "1.0.0"
 """Bump when transform semantics change."""
 
 IDENTITY_COLUMNS: Final = ("county_fips", "scenario_id", "window_start")
+
+FRAME_DIGEST_VERSION: Final = "feature-frame-v1"
+"""Prefix of the canonical frame encoding; bump when the encoding changes."""
 
 
 class TransformError(ValueError):
@@ -104,6 +115,54 @@ class TransformedFeatureFrame:
         }
 
 
+def feature_frame_sha256(frame: pd.DataFrame) -> str:
+    """Return the canonical SHA-256 digest of a complete feature frame.
+
+    The encoding is independent of row order and column order: rows are
+    sorted by the identity triple, columns by name.  Every cell value is part
+    of the digest (missing values encode as ``null``, timestamps as ISO-8601
+    UTC), so changing, adding, or removing any value or column changes the
+    result.  Column dtype is deliberately significant: ``10`` and ``10.0``
+    encode differently.
+    """
+
+    keys = _frame_keys(frame)
+    order = sorted(range(len(keys)), key=keys.__getitem__)
+    ordered = frame.iloc[order]
+    columns = sorted(str(column) for column in frame.columns)
+    if len(set(columns)) != len(columns):
+        raise TransformError("feature frame contains duplicate column names")
+    values = {column: _canonical_column(ordered[column]) for column in columns}
+    encoded = json.dumps(
+        {"columns": columns, "values": values},
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+        default=_canonical_scalar,
+    )
+    return sha256(f"{FRAME_DIGEST_VERSION}\x00{encoded}".encode()).hexdigest()
+
+
+def _canonical_column(values: pd.Series) -> list[object]:
+    if pd.api.types.is_datetime64_any_dtype(values):
+        stamps = pd.to_datetime(values, utc=True)
+        return [None if pd.isna(stamp) else stamp.isoformat() for stamp in stamps]
+    as_objects = values.astype(object).where(values.notna(), None)
+    return as_objects.tolist()
+
+
+def _canonical_scalar(value: object) -> object:
+    if isinstance(value, pd.Timestamp | datetime):
+        return value.isoformat()
+    if isinstance(value, np.generic):
+        return value.item()
+    if isinstance(value, bytes):
+        return value.hex()
+    raise TransformError(
+        f"feature frame contains a value that cannot be digested: {type(value).__name__}"
+    )
+
+
 def fit_feature_transforms(
     frame: pd.DataFrame,
     manifest: SplitManifest,
@@ -116,8 +175,12 @@ def fit_feature_transforms(
 
     ``frame`` must be the complete population represented by ``manifest`` and
     ``verified_input_artifact_sha256`` must be the externally verified digest
-    of that versioned source artifact.  Those checks make it impossible to
-    sneak calibration or holdout rows into a fitting subset by accident.
+    of that versioned source artifact.  The caller's claim is not taken on
+    trust: ``frame`` is digested with :func:`feature_frame_sha256` and that
+    digest must also equal the manifest's ``input_artifact_sha256``.  Those
+    checks make it impossible to sneak calibration or holdout rows into a
+    fitting subset by accident, or to fit against a frame whose values differ
+    from the artifact the manifest was built for.
     """
 
     try:
@@ -126,6 +189,9 @@ def fit_feature_transforms(
         raise TransformError(f"invalid split manifest: {error}") from error
     if verified_input_artifact_sha256 != manifest.input_artifact_sha256:
         raise TransformError("verified input artifact hash does not match the split manifest")
+    actual_input_sha256 = feature_frame_sha256(frame)
+    if actual_input_sha256 != manifest.input_artifact_sha256:
+        raise TransformError("feature frame digest does not match the split manifest input artifact hash")
     if not feature_set_version.strip():
         raise TransformError("feature_set_version must not be empty")
 
@@ -172,6 +238,12 @@ def apply_feature_transforms(
 
     This function has no fitting path.  It rejects a different source version
     or feature-set version rather than silently producing incomparable values.
+
+    ``frame`` may be any subset of rows (a single holdout window, for
+    example), so its digest cannot be checked against the full-population
+    ``source_input_sha256``; ``verified_input_artifact_sha256`` is therefore a
+    binding to the source artifact the caller verified, not a digest of
+    ``frame`` itself.
     """
 
     if verified_input_artifact_sha256 != artifact.source_input_sha256:
