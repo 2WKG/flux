@@ -190,7 +190,7 @@
       "destinations": ["weather_hourly"],
       "status": "unavailable",
       "ingestion_timestamp": null,
-      "reason": "No HRRR run/lead manifest, raw subset, checksum, or weather_hourly output is checked into this clone; the current P0 builder does not promote HRRR weather."
+      "reason": "The legacy ingestion spec names Uri 2021-02-11T00Z..2021-02-21T00Z and Beryl 2024-07-07T00Z..2024-07-11T00Z, but it does not select historical HRRR init times/leads for those valid hours. This clone has no run/lead manifest, county-grid index, HRRR loader, raw subset, checksum, or weather_hourly output. Selecting any of those inputs here would invent a weather source decision."
     },
     {
       "id": "ntad-military-bases-fy2024",
