@@ -82,6 +82,30 @@ def test_unknown_or_malformed_edits_fail_explicitly(monkeypatch):
     assert client.post("/interactive/scenario/edit", json={"base_scenario_id": "uri", "ops": []}).status_code == 422
 
 
+def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch):
+    client = _client(monkeypatch)
+    edit = client.post(
+        "/interactive/scenario/edit",
+        json={
+            "base_scenario_id": "uri",
+            "seed": 1,
+            "ops": [{"op": "outage", "element_id": "line:7"}],
+        },
+    )
+    replay = client.post(
+        "/interactive/cascade",
+        json={
+            "element_ids": ["line:7"],
+            "scenario_id": "uri",
+            "hour": 0,
+            "seed": 0,
+            "edit_hash": edit.json()["data"]["edit_hash"],
+        },
+    )
+    assert replay.status_code == 422
+    assert replay.json()["error"]["code"] == "invalid_input"
+
+
 def test_service_and_router_share_an_immutable_edit_registry(monkeypatch):
     client = _client(monkeypatch)
     service = client.app.state.interactive_service
