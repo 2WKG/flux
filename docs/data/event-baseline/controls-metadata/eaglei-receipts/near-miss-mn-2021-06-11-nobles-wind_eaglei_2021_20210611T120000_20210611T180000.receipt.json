@@ -1,0 +1,319 @@
+{
+  "absence_rule": "missing rows are UncoveredLabel, never zero",
+  "county_fips_filter": [
+    "27105"
+  ],
+  "coverage_by_county": {
+    "27105": {
+      "availability": "UncoveredLabel",
+      "coverage_state": "UncoveredLabel",
+      "expected_intervals_at_15_min": 24,
+      "missing_intervals": 24,
+      "observed_intervals": 0
+    }
+  },
+  "customer_denominator": "unavailable in this annual slice; do not substitute population",
+  "customers_out_summary": {
+    "27105": {
+      "max": null,
+      "min": null
+    }
+  },
+  "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+  "event_id": "near-miss-mn-2021-06-11-nobles-wind",
+  "filtered_artifact": "/private/tmp/flux-460-source-cache/near-miss-mn-2021-06-11-nobles-wind_eaglei_2021_20210611T120000_20210611T180000.csv",
+  "filtered_bytes": 53,
+  "filtered_rows": 0,
+  "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+  "filters": {
+    "county_fips": [
+      "27105"
+    ],
+    "states": [
+      "Minnesota"
+    ],
+    "window": "UTC half-open"
+  },
+  "gaps": "EAGLE-I omits zero-outage observations and does not distinguish zero from collection gaps; contract classification is UncoveredLabel.",
+  "grid_index_mapping": null,
+  "header_range": {
+    "bytes_received": 4096,
+    "content_range": "bytes 0-4095/1141058232",
+    "end": 4095,
+    "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+    "sha256": "7bd6b668b8c4b01064a06c703816e7709436a35436d593caebe49435290e4e78",
+    "start": 0
+  },
+  "license": {
+    "name": "CC BY 4.0",
+    "url": "https://creativecommons.org/licenses/by/4.0/"
+  },
+  "outage_field_semantics": "total customers without electricity at the source timestamp",
+  "outage_field_source": "customers_out",
+  "provider": "ORNL EAGLE-I via Figshare",
+  "range_probes": [
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 570490880-570556415/1141058232",
+      "end": 570556415,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "9cc0f9f9e48e038d263abef8d0e399f3d59f8623944757402b28c705a4f6e55c",
+      "start": 570490880
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 285212672-285278207/1141058232",
+      "end": 285278207,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "88dab4994382a25d4d7a83792a3ca6c5bec06d67543bdfaee9439d49fa7c3138",
+      "start": 285212672
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 427884544-427950079/1141058232",
+      "end": 427950079,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "6b056a2dbc1fffcf83ecc612e32f32e0d0a2b0a1fb072d59a903c39997c379ab",
+      "start": 427884544
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 499187712-499253247/1141058232",
+      "end": 499253247,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "32f8b441db2e26c64a5ff8787577cdfa2c709c8cd9e9607f5aec659354dae8c2",
+      "start": 499187712
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 463536128-463601663/1141058232",
+      "end": 463601663,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "2f20a0b7206dd60381c1dec7586eb4a751acc7d817353546aadbb1a301a04d5f",
+      "start": 463536128
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 481361920-481427455/1141058232",
+      "end": 481427455,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "c9da2c663bb26839e497bb2e7ce32ce05119a93450a19e9e13606af967d63100",
+      "start": 481361920
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 472449024-472514559/1141058232",
+      "end": 472514559,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "c594d89995bc099474de79898424b3b0793d1cf4e697bc04529278127812238d",
+      "start": 472449024
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 476905472-476971007/1141058232",
+      "end": 476971007,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "3d567983ab1a34ffe5b3c8f861b79369622ef9793e00e42f6dd69fa69657b5d9",
+      "start": 476905472
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 474677248-474742783/1141058232",
+      "end": 474742783,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "084b9da09064af86cec961b6d054507e5bc693f0ae89bb68fb374818d5253f46",
+      "start": 474677248
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 473563136-473628671/1141058232",
+      "end": 473628671,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "fa5a7c72fa9a095b66489e3c8f3252776e2896d8ca919223be127eeaa9b044bd",
+      "start": 473563136
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 474152960-474218495/1141058232",
+      "end": 474218495,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "b459dc4b8730bcda7304edd38e40eec9aa6426f0aeb5b58024a62f7959def956",
+      "start": 474152960
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 473890816-473956351/1141058232",
+      "end": 473956351,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "b9b9ceeb7d31166278cd9aff421f2a6796eaf2ce1129ef401a49cdb669772859",
+      "start": 473890816
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 473759744-473825279/1141058232",
+      "end": 473825279,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "7646542fa65f69e14104f57756514a5735865d5b41e5eaf676e7a10584dea1ef",
+      "start": 473759744
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 473694208-473759743/1141058232",
+      "end": 473759743,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "4452e7f8386b8f41a17b634a8b9e1d1f0613e1e1aaa8cbe9459a248db2dcb77c",
+      "start": 473694208
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 570490880-570556415/1141058232",
+      "end": 570556415,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "9cc0f9f9e48e038d263abef8d0e399f3d59f8623944757402b28c705a4f6e55c",
+      "start": 570490880
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 285212672-285278207/1141058232",
+      "end": 285278207,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "88dab4994382a25d4d7a83792a3ca6c5bec06d67543bdfaee9439d49fa7c3138",
+      "start": 285212672
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 427884544-427950079/1141058232",
+      "end": 427950079,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "6b056a2dbc1fffcf83ecc612e32f32e0d0a2b0a1fb072d59a903c39997c379ab",
+      "start": 427884544
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 499187712-499253247/1141058232",
+      "end": 499253247,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "32f8b441db2e26c64a5ff8787577cdfa2c709c8cd9e9607f5aec659354dae8c2",
+      "start": 499187712
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 463536128-463601663/1141058232",
+      "end": 463601663,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "2f20a0b7206dd60381c1dec7586eb4a751acc7d817353546aadbb1a301a04d5f",
+      "start": 463536128
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 481361920-481427455/1141058232",
+      "end": 481427455,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "c9da2c663bb26839e497bb2e7ce32ce05119a93450a19e9e13606af967d63100",
+      "start": 481361920
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 472449024-472514559/1141058232",
+      "end": 472514559,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "c594d89995bc099474de79898424b3b0793d1cf4e697bc04529278127812238d",
+      "start": 472449024
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 476905472-476971007/1141058232",
+      "end": 476971007,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "3d567983ab1a34ffe5b3c8f861b79369622ef9793e00e42f6dd69fa69657b5d9",
+      "start": 476905472
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 474677248-474742783/1141058232",
+      "end": 474742783,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "084b9da09064af86cec961b6d054507e5bc693f0ae89bb68fb374818d5253f46",
+      "start": 474677248
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 475791360-475856895/1141058232",
+      "end": 475856895,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "2e38d3807589222b22f043ffde0dac4848351a3c4b9cf7b22bab47c88ed42c63",
+      "start": 475791360
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 475267072-475332607/1141058232",
+      "end": 475332607,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "0a7517a7a1aa9d7c373839d841a814cb216ce9ff8423f0c0901cf410a1a8c926",
+      "start": 475267072
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 475004928-475070463/1141058232",
+      "end": 475070463,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "04add28f6340dfdb0a7b424fc680aa3f65858cca195f066c907dba9e24817e2f",
+      "start": 475004928
+    },
+    {
+      "bytes_received": 65536,
+      "content_range": "bytes 474873856-474939391/1141058232",
+      "end": 474939391,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "sha256": "91594eca2276122b917064b4cb50a9d945340f5788a80fb5a6fad91497224b22",
+      "start": 474873856
+    }
+  ],
+  "raw_bytes": 1507328,
+  "raw_range": {
+    "bytes_received": 1507328,
+    "content_range": "bytes 473563136-475070463/1141058232",
+    "end": 475070463,
+    "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+    "sha256": "d20842f5ed33aa60d4f97935f69bee4e00ca74474f40739eb7cea0b1fa6d14cf",
+    "start": 473563136
+  },
+  "raw_sha256": "d20842f5ed33aa60d4f97935f69bee4e00ca74474f40739eb7cea0b1fa6d14cf",
+  "receipt_id": "eaglei-2021-42547891-20210611T120000-20210611T180000",
+  "release": "10.6084/m9.figshare.24237376.v4",
+  "reported_timestamp_max": null,
+  "reported_timestamp_min": null,
+  "requested_utc_half_open": {
+    "end": "2021-06-11T18:00:00+00:00",
+    "start": "2021-06-11T12:00:00+00:00"
+  },
+  "retrieved_at_utc": "2026-09-06T07:14:29.020958Z",
+  "source_columns": [
+    "fips_code",
+    "county",
+    "state",
+    "customers_out",
+    "run_start_time"
+  ],
+  "source_doi": "10.6084/m9.figshare.24237376.v4",
+  "source_file": "eaglei_outages_2021.csv",
+  "source_file_bytes": 1141058232,
+  "source_row_identity": [
+    "fips_code",
+    "run_start_time"
+  ],
+  "source_system_id": "figshare:24237376:42547891",
+  "source_time_basis": "UTC (EAGLE-I Scientific Data documentation)",
+  "source_time_basis_url": "https://www.nature.com/articles/s41597-024-03095-5",
+  "source_title": "The Environment for Analysis of Geo-Located Energy Information\u2019s Recorded Electricity Outages 2014-2025",
+  "source_url": "https://ndownloader.figshare.com/files/42547891",
+  "state_filter": [
+    "Minnesota"
+  ],
+  "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+  "total_customers_summary": null,
+  "units": {
+    "customers_out": "customers",
+    "run_start_time": "UTC"
+  }
+}

@@ -45,7 +45,14 @@
       "grid_index_mapping": "not applicable",
       "gaps": [
         "Specific annual-file version, raw hash, and filtered receipt are pending per-event source capture."
-      ]
+      ],
+      "capture_method": "Directory index URL recorded during candidate discovery; no archive bytes were retrieved through this receipt.",
+      "uncertainty": "Names where the Storm Events annual archives live. Establishes no event, no coverage and no label; per-event digests belong to the receipts that actually fetched an archive.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     },
     {
       "receipt_id": "nws-mpx-events-archive",
@@ -64,7 +71,14 @@
       "grid_index_mapping": "not applicable",
       "gaps": [
         "No raw local-weather analysis is captured by this receipt."
-      ]
+      ],
+      "capture_method": "HTTP GET of the public landing/summary page during candidate discovery; the response body was read but not retained, so no digest was computed.",
+      "uncertainty": "Establishes that the provider published the cited page. Establishes no county-window measurement, no sample series and no outage label.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     },
     {
       "receipt_id": "eaglei-2022-42547897-calendar-control-mn-2022-autumn-01-27053-20221007t000000",
@@ -98,7 +112,14 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/calendar-control-mn-2022-autumn-01-27053-20221007000000_eaglei_2022_20221007T000000_20221007T060000.csv",
         "filtered_artifact_sha256": "7f4fe3214a0d566c8deaf9e7d74be47d62aba939af74facd05a09c6c47ee7999"
-      }
+      },
+      "capture_method": "HTTP GET of the public landing/summary page during candidate discovery; the response body was read but not retained, so no digest was computed.",
+      "uncertainty": "Establishes that the provider published the cited page. Establishes no county-window measurement, no sample series and no outage label.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     }
   ],
   "records": [
@@ -162,6 +183,7 @@
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

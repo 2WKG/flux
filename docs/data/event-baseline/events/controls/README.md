@@ -17,31 +17,49 @@ coverage evidence. It cannot revise eligibility, selection order, or cohort
 membership. A missing label remains `UncoveredLabel`, never zero; a missing
 denominator is unavailable, never inferred from population.
 
-The candidate frame, matching variables, exclusions, seed, IDs, and explicitly
-unweighted choice are in [preselection-plan.yaml](preselection-plan.yaml). The
+The candidate frame, matching variables, exclusions, the `stratum_key`
+serialization, IDs, and the explicitly unweighted choice are in
+[preselection-plan.yaml](preselection-plan.yaml). That plan makes no
+reproducible-rerun claim: selection order and record IDs were recorded by hand,
+no selector script exists here, and the `ctrl-calendar-<hex>` IDs are opaque
+names rather than recomputable digests. The
 machine-readable row shape and preselection state are in
-[metadata/controls-candidate-manifest.json](metadata/controls-candidate-manifest.json). Selections
+[controls-candidate-manifest.json](../../controls-metadata/controls-candidate-manifest.json). Selections
 stay `pending_catalog_and_coverage` until the shared event contract and source
 coverage receipt establish the county/window frame. This prevents claims of
 accepted controls before matched weather and outage coverage are evidenced.
 
-The separate [metadata/diagnostic-near-miss-candidates.json](metadata/diagnostic-near-miss-candidates.json)
+The separate [diagnostic-near-miss-candidates.json](../../controls-metadata/diagnostic-near-miss-candidates.json)
 contains five NCEI-documented Minnesota convective-weather candidates. It records
 event and episode IDs, county FIPS, UTC conversion, the exact source-file hash,
 and selection order, but deliberately has no outage result. Those rows are
 diagnostic candidates only. They require their own weather/outage coverage
 decision before an event-baseline bundle may present them as accepted.
 
-[metadata/eaglei-capture-audit.json](metadata/eaglei-capture-audit.json) links the frozen plan to
-the bounded, ignored-cache EAGLE-I receipts produced afterward. It distinguishes
+[eaglei-capture-audit.json](../../controls-metadata/eaglei-capture-audit.json) links the frozen plan to
+the bounded EAGLE-I receipts produced afterward, which are committed under
+`../../controls-metadata/eaglei-receipts/`. Each receipt is the extractor's
+verbatim output, so its `filtered_artifact` field still names the machine-local
+path it was written to; the repo-relative location and a recomputed digest of
+each filtered slice are recorded in the audit's `filtered_artifact_path` and
+`filtered_artifact_sha256_recomputed`. Those bounded captures are superseded as
+outage evidence by the exhaustive full-annual scans each bundle now carries as
+its own `eaglei-*` source receipt. The audit distinguishes
 complete observations, partial observations, `UncoveredLabel`, and an extractor
 error. None of those post-selection outcomes changes membership or makes a
 diagnostic candidate a “low-outage” near miss.
 
 ## Frozen starter selection
 
-The first five calendar candidates are frozen in
-`mn-calendar-controls-2021-2022.json`. They are Hennepin County (`27053`),
+The first five calendar candidates are frozen as one bundle each:
+[calendar-control-mn-2021-spring-01.json](calendar-control-mn-2021-spring-01.json),
+[calendar-control-mn-2021-summer-01.json](calendar-control-mn-2021-summer-01.json),
+[calendar-control-mn-2021-autumn-01.json](calendar-control-mn-2021-autumn-01.json),
+[calendar-control-mn-2022-spring-01.json](calendar-control-mn-2022-spring-01.json), and
+[calendar-control-mn-2022-autumn-01.json](calendar-control-mn-2022-autumn-01.json).
+They replaced a single pre-split `mn-calendar-controls-2021-2022.json` blob,
+whose capture-time digest is kept under `superseded_selection_artifacts` in the
+capture audit; that file is not in the tree. They are Hennepin County (`27053`),
 one UTC six-hour window per predeclared season/year stratum. At selection time,
 the known candidate envelopes received from the parallel winter, wind, water,
 heat, fire, and PSPS streams were exclusion constraints. The selected windows

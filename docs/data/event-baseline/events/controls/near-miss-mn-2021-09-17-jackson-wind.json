@@ -12,23 +12,24 @@
       "163247"
     ],
     "context_window": {
-      "start_utc": "2021-09-16T18:00:00Z",
-      "end_utc": "2021-09-17T12:00:00Z"
+      "start_utc": "2021-09-17T00:00:00Z",
+      "end_utc": "2021-09-17T18:00:00Z"
     },
     "event_window": {
-      "start_utc": "2021-09-17T00:00:00Z",
-      "end_utc": "2021-09-17T06:00:00Z"
-    },
-    "recovery_window": {
       "start_utc": "2021-09-17T06:00:00Z",
       "end_utc": "2021-09-17T12:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-09-17T12:00:00Z",
+      "end_utc": "2021-09-17T18:00:00Z"
     },
     "disposition": "candidate_only",
     "selection_basis": "controls-preselection-v1 diagnostic cohort; NCEI documented event selected without outage screening",
     "uncertainties": [
       "Diagnostic candidate, not a causal or low-outage control.",
       "Coverage evidence pending.",
-      "EAGLE-I outage coverage has a collection shortfall and is UncoveredLabel; this candidate is not accepted."
+      "EAGLE-I outage coverage has a collection shortfall and is UncoveredLabel; this candidate is not accepted.",
+      "County window corrected from 2021-09-17T00:00-06:00Z to 06:00-12:00Z: NCEI 985545 is 17-SEP-21 00:40-00:42 CZ_TIMEZONE CST-6 = 2021-09-17T06:40-06:42Z under the unconditional +6 rule this cohort declares, so the original window did not contain its own source event."
     ]
   },
   "source_receipts": [
@@ -49,7 +50,14 @@
       "grid_index_mapping": "not applicable",
       "gaps": [
         "Specific annual-file version, raw hash, and filtered receipt are pending per-event source capture."
-      ]
+      ],
+      "capture_method": "Directory index URL recorded during candidate discovery; no archive bytes were retrieved through this receipt.",
+      "uncertainty": "Names where the Storm Events annual archives live. Establishes no event, no coverage and no label; per-event digests belong to the receipts that actually fetched an archive.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     },
     {
       "receipt_id": "nws-mpx-events-archive",
@@ -68,7 +76,14 @@
       "grid_index_mapping": "not applicable",
       "gaps": [
         "No raw local-weather analysis is captured by this receipt."
-      ]
+      ],
+      "capture_method": "HTTP GET of the public landing/summary page during candidate discovery; the response body was read but not retained, so no digest was computed.",
+      "uncertainty": "Establishes that the provider published the cited page. Establishes no county-window measurement, no sample series and no outage label.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     },
     {
       "receipt_id": "eaglei-2021-42547891-near-miss-mn-2021-09-17-jackson-wind-27063-20210917t000000",
@@ -102,7 +117,14 @@
         "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
         "filtered_artifact_uri": "data/raw/event-baseline/near-miss-mn-2021-09-17-jackson-wind-27063-20210917000000_eaglei_2021_20210917T000000_20210917T060000.csv",
         "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
-      }
+      },
+      "capture_method": "HTTP GET of the public landing/summary page during candidate discovery; the response body was read but not retained, so no digest was computed.",
+      "uncertainty": "Establishes that the provider published the cited page. Establishes no county-window measurement, no sample series and no outage label.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No bytes were retained through this receipt, so raw_sha256, filtered_sha256, bytes and etag are null with a gap recorded and there is no digest to verify."
+      },
+      "files": {}
     }
   ],
   "records": [
@@ -111,8 +133,8 @@
       "county_fips": "27063",
       "boundary_vintage": "pending-catalog-contract",
       "scenario_id": "near-miss-mn-2021-09-17-jackson-wind",
-      "window_start_utc": "2021-09-17T00:00:00Z",
-      "window_end_utc": "2021-09-17T06:00:00Z",
+      "window_start_utc": "2021-09-17T06:00:00Z",
+      "window_end_utc": "2021-09-17T12:00:00Z",
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
@@ -137,46 +159,20 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [
-          "eaglei-2021-42547891-near-miss-mn-2021-09-17-jackson-wind-27063-20210917t000000"
-        ],
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
-        "expected_samples": 24,
-        "observed_samples": 0,
-        "missing_timestamps": [
-          "2021-09-17T00:00:00Z",
-          "2021-09-17T00:15:00Z",
-          "2021-09-17T00:30:00Z",
-          "2021-09-17T00:45:00Z",
-          "2021-09-17T01:00:00Z",
-          "2021-09-17T01:15:00Z",
-          "2021-09-17T01:30:00Z",
-          "2021-09-17T01:45:00Z",
-          "2021-09-17T02:00:00Z",
-          "2021-09-17T02:15:00Z",
-          "2021-09-17T02:30:00Z",
-          "2021-09-17T02:45:00Z",
-          "2021-09-17T03:00:00Z",
-          "2021-09-17T03:15:00Z",
-          "2021-09-17T03:30:00Z",
-          "2021-09-17T03:45:00Z",
-          "2021-09-17T04:00:00Z",
-          "2021-09-17T04:15:00Z",
-          "2021-09-17T04:30:00Z",
-          "2021-09-17T04:45:00Z",
-          "2021-09-17T05:00:00Z",
-          "2021-09-17T05:15:00Z",
-          "2021-09-17T05:30:00Z",
-          "2021-09-17T05:45:00Z"
-        ],
+        "source_receipt_ids": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
         "event_report": null,
-        "notes": "Complete full-annual-source scan found 0 valid rows across 24 expected 15-minute intervals. Missing or invalid rows have unknown meaning and are UncoveredLabel, never zero outage. Customer denominator is unavailable; no population substitution."
+        "notes": "The committed EAGLE-I capture covers 2021-09-17T00:00-06:00Z, the window this record carried before the CST-6 correction, so no outage evidence has been collected for the corrected 06:00-12:00Z window. The superseded capture is kept in source_receipts as eaglei-2021-42547891-near-miss-mn-2021-09-17-jackson-wind-27063-20210917t000000 so the record of what was fetched survives, but it is not cited as this record's outage evidence and no sample count is asserted here."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

@@ -72,15 +72,40 @@ exclusions:
   - non-UTC or non-six-hour-aligned windows
   - Texas Uri and Beryl bundles as new independent events
 
-determinism:
-  seed: flux-2wkg-472-controls-v1
-  ordering_key: sha256(plan_id + cohort + stratum_key + county_fips + window_start_utc + source_event_id)
-  selection_order: ascending_hex_digest
-  stable_id: ctrl-{cohort}-{sha256(ordering_key)[0:16]}
-  rerun_behavior: >-
-    With the same contract, source snapshots, and candidate frame, the ordered
-    candidate list and IDs must be identical. A source/contract change requires
-    a new plan_id and superseding receipt.
+stratum_key:
+  definition: >-
+    The stratum a candidate belongs to, written as the ordered, pipe-joined
+    values of that cohort's matching_variables:
+    calendar_control -> "<region>|<calendar_season>|<calendar_month>|<UTC_window_slot>|<county_fips>",
+    hazard_near_miss -> "<primary_hazard_family>|<region>|<calendar_season>|<calendar_month>|<UTC_window_slot>".
+  example: "MN|AUTUMN|10|0000|27053"
+  units:
+    region: two-letter state code for the single-state frame used here
+    calendar_season: one of SPRING, SUMMER, AUTUMN, WINTER (meteorological)
+    calendar_month: zero-padded month of window_start_utc
+    UTC_window_slot: window_start_utc hour as HHMM, one of 0000/0600/1200/1800
+
+reproducibility:
+  status: manually_recorded_not_recomputable
+  statement: >-
+    Selection order and record IDs were chosen and written down by hand from the
+    frame described above. No selector script exists in this repository, so the
+    ordering and the IDs cannot be recomputed from this plan and are not claimed
+    to be. A rerun would have to reproduce them by reading
+    controls-candidate-manifest.json and diagnostic-near-miss-candidates.json,
+    not by rerunning code.
+  record_id_shape: >-
+    Calendar-control record IDs are opaque stable slugs of the form
+    ctrl-calendar-<16 hex characters>. The hex is an identifier assigned at
+    selection time, not a digest a reader can recompute; treat it as a name.
+  what_is_verifiable: >-
+    That this plan and both manifests were committed before the EAGLE-I capture,
+    and that every committed candidate appears in the predeclared manifests.
+    Both are checkable from the commit order and from the digests in
+    ../../controls-metadata/eaglei-capture-audit.json.
+  change_rule: >-
+    A source or contract change requires a new plan_id and a superseding
+    receipt.
 
 weights:
   status: explicitly_unweighted
