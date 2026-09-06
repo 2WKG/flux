@@ -30,6 +30,11 @@ CALIBRATION_KEY = WindowKey(
     scenario_id="summer-peak",
     window_start=datetime(2024, 7, 1, 6, tzinfo=UTC),
 )
+SECOND_HOLDOUT_KEY = WindowKey(
+    county_fips="48453",
+    scenario_id="summer-peak",
+    window_start=datetime(2024, 7, 1, 18, tzinfo=UTC),
+)
 TRAINING_KEY = WindowKey(
     county_fips="48453",
     scenario_id="summer-peak",
@@ -48,6 +53,7 @@ SPLIT = SplitManifest(
     input_artifact_sha256=H,
     assignments=(
         SplitAssignment(key=KEY, partition=Partition.HOLDOUT),
+        SplitAssignment(key=SECOND_HOLDOUT_KEY, partition=Partition.HOLDOUT),
         SplitAssignment(key=CALIBRATION_KEY, partition=Partition.CALIBRATION),
         SplitAssignment(key=TRAINING_KEY, partition=Partition.TRAIN),
     ),
@@ -63,26 +69,28 @@ LABEL = ObservedLabel(
 
 def test_evaluation_is_tied_to_holdout_model_and_split_hashes():
     artifact = evaluate_holdout_predictions(
-        evaluation_sha256=H,
         model=MODEL,
         split=SPLIT,
-        predictions=(HeldoutPrediction(key=KEY, p_out=0.3, label=LABEL),),
+        predictions=(
+            HeldoutPrediction(key=KEY, p_out=0.3, label=LABEL),
+            HeldoutPrediction(key=SECOND_HOLDOUT_KEY, p_out=0.3, label=LABEL),
+        ),
     )
 
     assert isinstance(artifact, EvaluationArtifact)
     assert artifact.status is EvaluationStatus.READY
-    assert artifact.metrics.denominator == 1
-    assert artifact.metrics.brier_score == pytest.approx(0.01)
+    assert artifact.metrics.denominator == 2
+    assert artifact.metrics.brier_score == pytest.approx(0.49)
     assert artifact.model_artifact_sha256 == MODEL.artifact_sha256
     assert artifact.split_input_artifact_sha256 == SPLIT.input_artifact_sha256
     assert artifact.calibration_status == "not_calibrated"
+    assert artifact.evaluation_sha256 != H
 
 
 @pytest.mark.parametrize("non_holdout_key", (CALIBRATION_KEY, TRAINING_KEY))
 def test_calibration_or_training_rows_cannot_enter_heldout_evaluation(non_holdout_key):
     with pytest.raises(ValueError, match="holdout"):
         evaluate_holdout_predictions(
-            evaluation_sha256=H,
             model=MODEL,
             split=SPLIT,
             predictions=(
@@ -93,7 +101,6 @@ def test_calibration_or_training_rows_cannot_enter_heldout_evaluation(non_holdou
 
 def test_empty_evaluation_is_explicitly_unavailable():
     artifact = evaluate_holdout_predictions(
-        evaluation_sha256=H,
         model=MODEL,
         split=SPLIT,
         predictions=(),
@@ -102,3 +109,14 @@ def test_empty_evaluation_is_explicitly_unavailable():
     assert isinstance(artifact, UnavailableEvaluationArtifact)
     assert artifact.status is EvaluationStatus.UNAVAILABLE
     assert artifact.reason is EvaluationUnavailableReason.INSUFFICIENT_HOLDOUT_RECORDS
+
+
+def test_incomplete_or_duplicate_holdout_predictions_are_unavailable():
+    artifact = evaluate_holdout_predictions(
+        model=MODEL,
+        split=SPLIT,
+        predictions=(HeldoutPrediction(key=KEY, p_out=0.3, label=LABEL),),
+    )
+
+    assert isinstance(artifact, UnavailableEvaluationArtifact)
+    assert artifact.reason is EvaluationUnavailableReason.INCOMPLETE_HOLDOUT
