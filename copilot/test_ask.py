@@ -181,7 +181,9 @@ class _UnavailableCitationBackend:
             {"query": payload.question, "k": 1},
             narrate(
                 "cite",
-                unavailable_output("insufficient_evidence", "fixture corpus has no hit"),
+                unavailable_output(
+                    "insufficient_evidence", "fixture corpus has no hit"
+                ),
             ),
         )
 
