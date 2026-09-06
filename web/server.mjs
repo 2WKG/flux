@@ -60,7 +60,7 @@ export const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
-  "script-src 'self' 'wasm-unsafe-eval'",
+  "script-src 'self'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "object-src 'none'",

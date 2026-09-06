@@ -123,6 +123,35 @@ purpose-built probe entry.
 (`ask.py:76-86`, D-5b), so the dock's collapsed label stays "Not available in this offline build"
 until a probe proves otherwise, and its Send button stays disabled.
 
+### D-12 — `script-src` stays `'self'`; the `'wasm-unsafe-eval'` relaxation is dropped
+
+*What happened:* the 2WKG-475 branch shipped `script-src 'self' 'wasm-unsafe-eval'` in
+`web/index.html` and `web/server.mjs`, where D-10's policy is `script-src 'self'`. It arrived with
+no comment and no entry here, and `web/test/renderer-artifact.test.mjs` and
+`web/test/server.test.mjs` were widened to admit the new token -- so the CSP assertion those two
+files exist to make was relaxed without a recorded reason.
+
+*What was checked, not assumed.* `WebAssembly` appears five times in the built
+`dist/assets/app.js`, and every one is inside loaders.gl, pulled in by deck.gl:
+three in the meshoptimizer decoder (`WebAssembly.validate`, `WebAssembly.instantiate`, and the
+same call inside the source string it posts to its worker) and two in Draco's
+`typeof WebAssembly === "object"` decoder-type probe. Neither decoder runs unless a glTF asset
+declares `KHR_draco_mesh_compression` or `EXT_meshopt_compression`, which only
+`FluxAssetLayer`'s `ScenegraphLayer` could request -- and this repository publishes no `.glb` at
+all: `data/3d/packs/flux-grid-v1/manifest.json` records
+`"completion": "source_only_binaries_unpublished"`.
+
+*The probe.* `script-src 'self'` was put back, `npm run build` re-run, and the Playwright suite
+driven against the real `server.mjs` with a `securitypolicyviolation` listener installed on the
+page. The primary route reported `CSP-VIOLATIONS: []` and `PAGE-ERRORS: []`, and the whole
+suite stayed green (4 passed, 1 live-only skip) -- the same result it gives with the relaxation
+present. Nothing that ships today exercises it.
+
+*Decision:* drop it. D-10's `script-src 'self'` stands, and both test files go back to the
+narrower allowlist. If a Draco- or meshopt-compressed `.glb` is ever published into
+`data/3d/packs/`, `'wasm-unsafe-eval'` must be added back in the same commit that publishes it,
+with the browser proof that it is needed -- not before.
+
 ### D-11 — the webfonts are dropped for a system stack
 
 *Decision:* "use your own system font according to style guide". `web/src/styles.css:1`'s

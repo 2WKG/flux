@@ -61,7 +61,7 @@ test("every response carries a CSP that names no off-origin source", async () =>
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
