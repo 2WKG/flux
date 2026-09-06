@@ -65,15 +65,21 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["ncei_stormevents_2020"],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": null,
-        "notes": "Candidate discovery only; county/zone weather evidence has not been matched to this canonical window."
+        "event_report": {
+          "source_event_ids": ["868457"],
+          "source_window": {"start_utc": "2020-02-12T18:00:00Z", "end_utc": "2020-02-13T16:00:00Z"},
+          "spatial_scope": "zone",
+          "scope_identifier": "CZ_FIPS:047",
+          "limitations": "NCEI weather-zone report; not a county time series."
+        },
+        "notes": "The NCEI source interval intersects this canonical county window."
       },
       "outage": {
         "coverage": "uncovered",
