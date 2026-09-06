@@ -52,7 +52,12 @@ class ScriptedToolProvider:
         return ToolCall(
             call_id="cascade-call-1",
             name="cascade",
-            arguments={"element_ids": ["line:1"], "scenario_id": "interactive", "hour": 0, "seed": 0},
+            arguments={
+                "element_ids": ["line:1"],
+                "scenario_id": "interactive",
+                "hour": 0,
+                "seed": 0,
+            },
         )
 
 
@@ -66,9 +71,13 @@ def main() -> int:
     app = create_app(tool_provider=ScriptedToolProvider())
     # The capture is only meaningful if the route took the path a deployment
     # takes, not a test double wired around it.
-    assert app.state.ask_backend is None, "a provider is configured; this capture would not exercise the dispatcher path"
+    assert app.state.ask_backend is None, (
+        "a provider is configured; this capture would not exercise the dispatcher path"
+    )
     port = free_port()
-    server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error"))
+    server = uvicorn.Server(
+        uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error")
+    )
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
     deadline = time.monotonic() + 30
@@ -79,12 +88,14 @@ def main() -> int:
         return 1
 
     try:
-        body = json.dumps({
-            "attempt_id": ATTEMPT,
-            "question": "Run a cascade on line:1.",
-            "context": {},
-            "history": [],
-        }).encode()
+        body = json.dumps(
+            {
+                "attempt_id": ATTEMPT,
+                "question": "Run a cascade on line:1.",
+                "context": {},
+                "history": [],
+            }
+        ).encode()
         request = urllib.request.Request(
             f"http://127.0.0.1:{port}/ask",
             data=body,
@@ -106,11 +117,11 @@ def main() -> int:
         data = None
         for line in block.splitlines():
             if line.startswith("id:"):
-                frame_id = line[len("id:"):].strip()
+                frame_id = line[len("id:") :].strip()
             elif line.startswith("event:"):
-                frame_type = line[len("event:"):].strip()
+                frame_type = line[len("event:") :].strip()
             elif line.startswith("data:"):
-                data = line[len("data:"):].strip()
+                data = line[len("data:") :].strip()
         if not data:
             continue
         payload = json.loads(data)
@@ -122,15 +133,28 @@ def main() -> int:
 
     kinds = [frame.get("type") for frame in frames]
     scene = next(
-        (f for f in frames if f.get("type") == "tool_result" and isinstance(f.get("result"), dict) and "scene_action" in f["result"]),
+        (
+            f
+            for f in frames
+            if f.get("type") == "tool_result"
+            and isinstance(f.get("result"), dict)
+            and "scene_action" in f["result"]
+        ),
         None,
     )
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({
-        "captured_from": "POST http://127.0.0.1:<port>/ask against copilot.app.create_app on uvicorn",
-        "attempt_id": ATTEMPT,
-        "frames": frames,
-    }, separators=(",", ":")) + "\n", encoding="utf8")
+    OUT.write_text(
+        json.dumps(
+            {
+                "captured_from": "POST http://127.0.0.1:<port>/ask against copilot.app.create_app on uvicorn",
+                "attempt_id": ATTEMPT,
+                "frames": frames,
+            },
+            separators=(",", ":"),
+        )
+        + "\n",
+        encoding="utf8",
+    )
     print(f"frames={kinds}")
     print(f"scene_action={'PRESENT' if scene else 'ABSENT'}")
     if scene:
