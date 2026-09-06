@@ -110,3 +110,16 @@ def test_missing_release_is_explicitly_unavailable() -> None:
         "state": "tx",
         "version": "9.9.9",
     }
+
+
+def test_invalid_viewport_and_unknown_physical_layer_use_shared_errors() -> None:
+    client = _client()
+    invalid = client.get(
+        "/api/v1/grid/layers/line?state=tx&version=1.1.0&bbox=not,a,bbox"
+    )
+    unknown = client.get("/api/v1/grid/layers/transformer?state=tx&version=1.1.0")
+
+    assert invalid.status_code == 422
+    assert invalid.json()["error"]["code"] == "invalid_input"
+    assert unknown.status_code == 404
+    assert unknown.json()["error"]["code"] == "not_found"
