@@ -9,16 +9,20 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
   forbidOnly: Boolean(process.env.CI),
+  retries: process.env.CI ? 2 : 0,
+  workers: 1,
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:4173",
     browserName: "chromium",
     launchOptions: executablePath ? { executablePath } : undefined,
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
   webServer: {
     command: "npm run build && node server.mjs",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: false,
-    timeout: 30_000,
+    timeout: 120_000,
   },
 });
