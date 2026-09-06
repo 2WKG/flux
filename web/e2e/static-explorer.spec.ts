@@ -2,6 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 const recorded = new WeakMap<Page, string[]>();
 const pageErrors = new WeakMap<Page, string[]>();
+const hasLiveApi = Boolean(process.env.FLUX_API_ORIGIN);
 
 test.beforeEach(async ({ page }) => {
   const requests: string[] = [];
@@ -27,6 +28,13 @@ test("the primary route keeps a compact source-backed weather strip and named Mi
   const room = page.getByLabel("Flux control room");
   await expect(room).toBeVisible();
   await expect(room.getByText(/Weather, grid context, and evidence/i)).toBeVisible();
+  if (!hasLiveApi) {
+    await expect(room.getByText(/Weather unavailable/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Texas grid model" })).toBeVisible();
+    await expectNoPageErrors(page);
+    await expectSameOriginOnly(page);
+    return;
+  }
   await expect(room.getByLabel("Weather timeline").getByRole("listitem")).toHaveCount(12);
   await expect(room.getByText(/of 240/i)).toBeVisible();
   await expect(room.getByText(/synthetic \(ACTIVSg2000\)/i).first()).toBeVisible();
@@ -41,6 +49,7 @@ test("the primary route keeps a compact source-backed weather strip and named Mi
 });
 
 test("Texas model navigation uses only canonical synthetic geometry and carries a prompt context", async ({ page }) => {
+  test.skip(!hasLiveApi, "requires the real demo API; static CI verifies named unavailable state instead");
   await page.goto("/");
   await page.getByRole("button", { name: "Texas grid model" }).click();
   const stage = page.getByLabel("Texas grid model scene");
