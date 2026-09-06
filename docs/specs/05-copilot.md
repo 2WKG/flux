@@ -14,7 +14,7 @@ Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.du
 
 ## Purpose
 
-A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling Claude copilot behind `POST /ask`.
+A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling copilot behind `POST /ask`, running on either Claude or Gemini (§Providers; Gemini is the default).
 
 The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
@@ -77,7 +77,45 @@ copilot/
 
 One process, one DuckDB connection (read-only), async FastAPI; blocking DuckDB and engine calls run in `asyncio.to_thread`.
 
-### Model and SDK
+### Providers (2WKG-481)
+
+The tool loop, the grounding rules, and the SSE contract are **provider-agnostic
+and written once**. Two adapters sit behind them, selected by configuration:
+
+| provider | SDK (verified) | client | default model | verified where |
+| --- | --- | --- | --- | --- |
+| `gemini` (**default**) | `google-genai` 2.22.0, introspected 2026-09-06 | `google.genai.Client(api_key=…)`, `client.aio.models.generate_content_stream(model=…, contents=…, config=GenerateContentConfig(system_instruction=…, max_output_tokens=…))` → `AsyncIterator[GenerateContentResponse]`, `chunk.text` | `gemini-3.8-flash` | published at <https://ai.google.dev/gemini-api/docs/models> (fetched 2026-09-06) as the current stable Flash id, and returned by `client.models.list()` against this checkout's developer key |
+| `claude` | `anthropic` 1.4.0, introspected 2026-09-05 | `anthropic.AsyncAnthropic(api_key=…)`, `client.messages.stream(...)`, `stream.text_stream` | `claude-sonnet-5` (00-overview §"LLM") | the `claude-api` skill model table; **not** exercised live in this checkout — no Anthropic key here |
+
+Rules that hold for both:
+
+- **The SSE event vocabulary does not change.** `text`, `tool_call`,
+  `tool_result`, `citation`, `done`, `error` are emitted by `copilot/runtime.py`
+  from the adapter's text deltas, so the browser cannot tell which provider
+  answered. Ordering, verification, and every terminal event stay shared.
+- **Tool schemas are one contract in two renderings.**
+  `copilot/tools/schemas.py:TOOL_SCHEMAS` is the contract; `providers/tool_schemas.py`
+  renders it as Anthropic strict tools and as Gemini `FunctionDeclaration`s
+  (`parameters_json_schema`). Names, descriptions, and parameter schemas are
+  identical — that is asserted in `copilot/providers/test_providers.py`.
+- **Grounding is written once** in `providers/grounding.py` (`SYSTEM_PROMPT` and
+  `narration_prompt`). An adapter must not add, relax, or restate a rule.
+- **No automatic cross-provider fallback.** Each provider reports ready or
+  unavailable independently; an unconfigured active provider yields the
+  documented unavailable terminal rather than being answered by the other one,
+  so a reader can always say which model produced an answer. An explicit,
+  labelled fallback would be a separate, labelled feature.
+- **Server-side only.** Both adapters run in the FastAPI host; no key reaches
+  the client, and the page cannot reach an external origin under the CSP.
+- Run metadata: `POST /ask` answers with `X-Flux-Copilot-Provider` and
+  `X-Flux-Copilot-Model`, and `GET /health`'s `model` component carries
+  `provider` and `model`. Those headers are deliberately **not** in the CORS
+  expose list, so they inform an operator without letting the page branch on
+  the provider. A configured credential still never means "verified".
+- Configuration tests prove ready/unavailable behaviour and schema translation
+  only; none of them makes a paid API call.
+
+### Model and SDK (Claude path)
 
 - SDK: `anthropic` (Python; installed 1.4.0, introspected 2026-09-05). Client: `anthropic.AsyncAnthropic()` (reads `ANTHROPIC_API_KEY`).
 - Model: `claude-opus-5` (default; `COPILOT_MODEL` env can override, e.g. `claude-sonnet-5` for cheaper eval runs). Ids match the Anthropic `claude-api` skill model table (cached 2026-06-24); not confirmed against the live Models API this session (no key in the checkout) — the `/health` startup check must call `client.models.retrieve(COPILOT_MODEL)` and fail loud. Adaptive thinking is on by default on Opus 5; we set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
@@ -317,9 +355,11 @@ def resolve_site(lat: float, lon: float) -> dict: ...        # helper, not in TO
 
 | var | required | default | meaning |
 | --- | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | yes | — | SDK reads it; startup fails loud if missing |
+| `COPILOT_PROVIDER` | no | `gemini` | `gemini` or `claude`; selects the adapter (2WKG-481) |
+| `GEMINI_API_KEY` | when `COPILOT_PROVIDER=gemini` | — | Gemini credential (the hyphenated `gemini-api-key` spelling found in local `.env` files is accepted as an alias) |
+| `ANTHROPIC_API_KEY` | when `COPILOT_PROVIDER=claude` | — | Claude credential; the unselected provider's key is never used as a fallback |
 | `DUCKDB_PATH` | yes | `data/duck/grid.duckdb` | opened read-only |
-| `COPILOT_MODEL` | no | `claude-opus-5` | model id |
+| `COPILOT_MODEL` | no | per provider (`gemini-3.8-flash` / `claude-sonnet-5`) | model id; overrides **only the active provider** |
 | `COPILOT_EFFORT` | no | `medium` | `output_config.effort` |
 | `VOYAGE_API_KEY` | no | unset | enables dense retrieval |
 | `CORPUS_DIR` | no | `copilot/corpus` | |
