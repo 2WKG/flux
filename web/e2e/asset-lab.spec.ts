@@ -8,7 +8,10 @@ test("the Asset Lab loads a verified same-origin model from the published runtim
 
   await page.goto("/asset-lab/");
   await expect(page.getByRole("heading", { name: /Infrastructure, made visible/i })).toBeVisible();
-  await page.waitForTimeout(2_000);
+  await page.waitForFunction(() => {
+    const preview = (window as unknown as { fluxAssetPreview?: { ready?: boolean; loaded?: boolean } }).fluxAssetPreview;
+    return preview?.ready === true && preview.loaded === true;
+  }, undefined, { timeout: 15_000 });
   expect(failed).toEqual([]);
   const state = await page.evaluate(() => {
     const preview = (window as unknown as { fluxAssetPreview?: { ready?: boolean; loaded?: boolean; errors?: string[] } }).fluxAssetPreview;
