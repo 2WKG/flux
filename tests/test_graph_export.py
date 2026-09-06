@@ -2,6 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import duckdb
@@ -248,3 +251,177 @@ def test_export_rejects_non_activsg_sources(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match=r"lines\.source_name.*activsg2000"):
         export_texas_graph_dataset(database, tmp_path / "dataset")
+
+
+def _wide_fixture_db(path: Path, *, reverse: bool) -> None:
+    """A grid wide enough that an unordered scan really is unordered.
+
+    With five buses, loads on every bus and generators on the odd ones, DuckDB's
+    join returns the rows out of bus_id order, so the exporter's `ORDER BY` is
+    the only thing making the output stable.
+    """
+    con = connect(path)
+    try:
+        con.execute(
+            """
+            INSERT INTO counties (
+                county_fips, name, state, pop, geom_wkb, source_name, source_ref,
+                source_version, source_retrieved_at, fixture_batch_id
+            ) VALUES ('48001', 'Anderson', 'TX', 1, ?, 'activsg2000', 'test',
+                      NULL, NULL, 'fixture')
+            """,
+            [b"geometry"],
+        )
+        order = (lambda values: list(reversed(values))) if reverse else list
+        for bus_id in order(range(1, 6)):
+            con.execute(
+                """
+                INSERT INTO buses (
+                    bus_id, name, base_kv, lon, lat, county_fips, ba_code,
+                    coord_source, zone, area, source_name, source_ref,
+                    source_version, source_retrieved_at, fixture_batch_id
+                ) VALUES (?, ?, 230, -95, 31, '48001', NULL, 'tamu_aux', 1, 1,
+                          'activsg2000', 'test', NULL, NULL, 'fixture')
+                """,
+                [bus_id, f"bus-{bus_id}"],
+            )
+        for line_id in order(range(1, 5)):
+            con.execute(
+                """
+                INSERT INTO lines (
+                    line_id, from_bus, to_bus, circuit, base_kv, r_pu, x_pu,
+                    rate_a_mw, length_km, geom_wkb, is_transformer, source_name,
+                    source_ref, source_version, source_retrieved_at, fixture_batch_id
+                ) VALUES (?, ?, ?, '1', 230, 0.01, 0.1, NULL, 0, NULL, ?,
+                          'activsg2000', 'test', NULL, NULL, 'fixture')
+                """,
+                [line_id, line_id, line_id + 1, line_id % 2 == 0],
+            )
+            con.execute(
+                """
+                INSERT INTO synthetic_branch_electrical (
+                    line_id, b_pu, tap_ratio, shift_deg, status
+                ) VALUES (?, 0, 1, 0, 1)
+                """,
+                [line_id],
+            )
+        for bus_id in order(range(1, 6)):
+            con.execute(
+                """
+                INSERT INTO synthetic_bus_electrical (
+                    bus_id, bus_type, pd_mw, qd_mvar, gs_mw, bs_mvar, vm_pu,
+                    va_deg, vmin_pu, vmax_pu
+                ) VALUES (?, 1, 10, NULL, 0, 0, 1, 0, 0.9, 1.1)
+                """,
+                [bus_id],
+            )
+            con.execute(
+                """
+                INSERT INTO loads (
+                    load_id, bus_id, p_mw_nominal, source_name, source_ref,
+                    source_version, source_retrieved_at, fixture_batch_id
+                ) VALUES (?, ?, ?, 'activsg2000', 'test', NULL, NULL, 'fixture')
+                """,
+                [bus_id, bus_id, float(bus_id)],
+            )
+            if bus_id % 2:
+                con.execute(
+                    """
+                    INSERT INTO gens (
+                        gen_id, bus_id, fuel, pmax_mw, eia_plant_id, source_unit_id,
+                        source_name, source_ref, source_version, source_retrieved_at,
+                        fixture_batch_id
+                    ) VALUES (?, ?, 'wind', ?, NULL, ?, 'activsg2000', 'test',
+                              NULL, NULL, 'fixture')
+                    """,
+                    [bus_id, bus_id, float(bus_id), f"unit-{bus_id}"],
+                )
+    finally:
+        con.close()
+
+
+def _export_in_subprocess(database: Path, target: Path) -> dict[str, object]:
+    """Export through the CLI so the two exports share no interpreter state."""
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pipelines.graph_export",
+            "--db",
+            str(database),
+            "--out",
+            str(target),
+        ],
+        capture_output=True,
+        check=False,
+        cwd=Path(__file__).resolve().parents[1],
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+    return json.loads(completed.stdout)
+
+
+def _canonical_form(payload: bytes) -> bytes:
+    """Re-serialize with sorted keys; canonical output must already equal this."""
+    return (
+        json.dumps(
+            json.loads(payload),
+            allow_nan=False,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+        + "\n"
+    ).encode("utf-8")
+
+
+def test_export_is_canonical_across_separate_processes(tmp_path: Path) -> None:
+    """Two databases with rows inserted in opposite order, exported by two
+    separate interpreters, produce byte-identical canonical files."""
+    ascending = tmp_path / "ascending.duckdb"
+    descending = tmp_path / "descending.duckdb"
+    _wide_fixture_db(ascending, reverse=False)
+    _wide_fixture_db(descending, reverse=True)
+
+    ascending_out = tmp_path / "ascending-out"
+    descending_out = tmp_path / "descending-out"
+    ascending_manifest = _export_in_subprocess(ascending, ascending_out)
+    descending_manifest = _export_in_subprocess(descending, descending_out)
+
+    ascending_files = _files(ascending_out)
+    assert ascending_files == _files(descending_out)
+    assert ascending_manifest["dataset_sha256"] == descending_manifest["dataset_sha256"]
+
+    for name, payload in sorted(ascending_files.items()):
+        assert payload == _canonical_form(payload), f"{name} is not canonical JSON"
+
+    nodes = json.loads(ascending_files["nodes.json"])
+    edges = json.loads(ascending_files["edges.json"])
+    assert [node["node_id"] for node in nodes] == [1, 2, 3, 4, 5]
+    assert [edge["edge_id"] for edge in edges] == [1, 2, 3, 4]
+
+
+def test_every_record_carries_the_topology_label(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    target = tmp_path / "dataset"
+    export_texas_graph_dataset(database, target)
+
+    nodes = json.loads((target / "nodes.json").read_text())
+    edges = json.loads((target / "edges.json").read_text())
+    assert nodes and edges
+    for record in [*nodes, *edges]:
+        assert record["topology_label"] == "synthetic (ACTIVSg2000)"
+
+
+def test_export_opens_a_write_protected_source_database(tmp_path: Path) -> None:
+    """A source this process cannot write is exportable only via a read-only open."""
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    database.chmod(0o444)
+    if os.access(database, os.W_OK):
+        pytest.skip("this process can write a mode 0444 file (root or Windows)")
+
+    manifest = export_texas_graph_dataset(database, tmp_path / "dataset")
+
+    assert manifest["node_count"] == 3
