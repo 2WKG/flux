@@ -42,7 +42,7 @@ export const ROUTES: readonly Route[] = [
     label: "Scenario explorer",
     title: "Flux | Resilience desk",
     truthLabels: ["synthetic"],
-    truthNote: "Every figure on this page is read from the checked-in five-bus fixture.",
+    truthNote: "The primary scene renders server-supplied synthetic ACTIVSg2000 geometry; the five-bus fixture appears only when that layer is unavailable.",
   },
   {
     id: "explainer",
