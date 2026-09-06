@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import duckdb
+import pandapower as pp
 import pytest
 
-from twin.build import attach_current_bus_coordinates, build_network, network_summary
+from twin.build import _resolve_geometry_element, attach_current_bus_coordinates, build_network, network_summary
 from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationUnavailableError
 
 
@@ -42,3 +43,13 @@ def test_coordinate_hydration_rejects_noncurrent_or_partial_records(tmp_path) ->
     con.close()
     with pytest.raises(SimulationUnavailableError, match="current AUX"):
         attach_current_bus_coordinates(build_network(case), db)
+
+
+def test_geometry_resolves_same_one_based_impedance_alias_as_cascade() -> None:
+    net = pp.create_empty_network()
+    first, second = pp.create_bus(net, 110), pp.create_bus(net, 110)
+    pp.create_impedance(net, first, second, rft_pu=0.01, xft_pu=0.1, sn_mva=10)
+    net.impedance["flux_element_id"] = ["impedance:7"]
+    canonical, resolved = _resolve_geometry_element(net, {"impedance:7": ("impedance", 0)}, "impedance:1")
+    assert canonical == "impedance:7"
+    assert resolved == ("impedance", 0)

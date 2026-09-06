@@ -207,10 +207,10 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             all_elements[str(element_id)] = (table, int(index))
     selected = sorted(all_elements) if element_ids is None else [str(value) for value in element_ids]
     elements: list[dict[str, Any]] = []
-    for element_id in selected:
-        record = all_elements.get(element_id)
+    for requested_element_id in selected:
+        element_id, record = _resolve_geometry_element(net, all_elements, requested_element_id)
         if record is None:
-            elements.append({"element_id": element_id, "resolved": False, "reason": "unknown synthetic model element"})
+            elements.append({"element_id": requested_element_id, "resolved": False, "reason": "unknown synthetic model element"})
             continue
         table, index = record
         frame = net[table]
@@ -237,6 +237,7 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             source_bus_ids = [int(net.bus.at[bus, "flux_source_bus_id"])]
         elements.append({
             "element_id": element_id,
+            **({"requested_element_id": requested_element_id} if requested_element_id != element_id else {}),
             "resolved": True,
             "role": {"line": "line", "impedance": "impedance_branch", "gen": "generator", "load": "load"}[table],
             "pandapower_index": index,
@@ -265,6 +266,26 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             },
         },
     }
+
+
+def _resolve_geometry_element(
+    net: Any, all_elements: dict[str, tuple[str, int]], requested_element_id: str,
+) -> tuple[str, tuple[str, int] | None]:
+    """Resolve the same one-based table aliases accepted by ``run_cascade``."""
+    if requested_element_id in all_elements:
+        return requested_element_id, all_elements[requested_element_id]
+    prefix, separator, raw_index = requested_element_id.partition(":")
+    table = {"line": "line", "impedance": "impedance", "generator": "gen", "gen": "gen", "load": "load"}.get(prefix)
+    if not separator or table is None:
+        return requested_element_id, None
+    try:
+        index = int(raw_index) - 1
+    except ValueError:
+        return requested_element_id, None
+    if index not in net[table].index:
+        return requested_element_id, None
+    canonical = str(net[table].at[index, "flux_element_id"])
+    return canonical, (table, index)
 
 
 def _bus_point(net: Any, bus_id: int) -> list[float] | None:
