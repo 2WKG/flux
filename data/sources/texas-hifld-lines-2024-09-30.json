@@ -5,7 +5,7 @@
   "source_version": "Archived service; last data update 2024-09-30",
   "boundary_source": "Census TIGER/Line 2024 counties, STATEFP=48, unioned 254 Texas counties in EPSG:4326",
   "selection": "ArcGIS polygon POST query with esriSpatialRelIntersects; complete native source routes retained without clipping",
-  "artifact": {"path": "data/raw/hifld/texas-hifld-lines-2024-09-30.geojson", "bytes": 24891864, "sha256": "c3985a2109771c1e0a2e5d5292df9e1d314f5510e0066eb67e72ebb370a6c007", "source_feature_digest": "fe9c2d8a0f7fb5c010b7b112fa4a7c249dff693408eec55ea5d1df0577db3ade", "observed_routes": 7042},
+  "artifact": {"raw_path": "data/raw/hifld/texas-hifld-lines-2024-09-30.geojson", "raw_bytes": 24891864, "raw_sha256": "c3985a2109771c1e0a2e5d5292df9e1d314f5510e0066eb67e72ebb370a6c007", "normalized_path": "data/physical-inventory/texas/us-tx-hifld-lines-2024-09-30-v1.0.0.json.gz", "normalized_bytes": 3651617, "normalized_sha256": "4b31c51f9b9936a9d67f21b32b8233da652bea10632cba2d6caf86c712abc83f", "source_feature_digest": "fe9c2d8a0f7fb5c010b7b112fa4a7c249dff693408eec55ea5d1df0577db3ade", "observed_routes": 7042},
   "coverage": {"status": "partial", "denominator_count": null, "unknown_count": null, "unavailable_count": null, "reason": "Archived national public overlay has no owner-level Texas completeness declaration."},
   "connectivity": "No terminals or connectivity edges were created; SUB_1/SUB_2 remain source attributes only."
 }
