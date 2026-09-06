@@ -77,7 +77,36 @@ test("comparison client maps the standard unavailable envelope without inventing
 });
 
 test("comparison client rejects incomplete ready data before rendering it", () => {
+  assert.equal(comparison.isMinnesotaComparisonResponse(ready), true, "the control fixture must validate");
   assert.equal(comparison.isMinnesotaComparisonResponse({ ...ready, metrics: [] }), false);
   assert.equal(comparison.isMinnesotaComparisonResponse({ ...ready, highlight_ids: [] }), false);
   assert.equal(comparison.isMinnesotaComparisonResponse({ ...ready, metrics: [{ ...ready.metrics[0], delta_signed: "-3" }] }), false);
+
+  // The guard must require every field the page renders. A provenance row
+  // without an artifact id or a version validated and rendered `undefined`.
+  const provenance = ready.metrics[0].provenance[0];
+  for (const field of ["source_id", "artifact_id", "version", "kind"]) {
+    const { [field]: _dropped, ...missing } = provenance;
+    assert.equal(
+      comparison.isMinnesotaComparisonResponse({
+        ...ready,
+        metrics: [{ ...ready.metrics[0], provenance: [missing] }],
+      }),
+      false,
+      `a provenance row with no ${field} was accepted, and the page renders that field`,
+    );
+    assert.equal(
+      comparison.isMinnesotaComparisonResponse({
+        ...ready,
+        metrics: [{ ...ready.metrics[0], provenance: [{ ...provenance, [field]: "" }] }],
+      }),
+      false,
+      `a provenance row with an empty ${field} was accepted`,
+    );
+  }
+  assert.equal(
+    comparison.isMinnesotaComparisonResponse({ ...ready, metrics: [{ ...ready.metrics[0], provenance: [] }] }),
+    false,
+    "a metric with no provenance at all was accepted",
+  );
 });

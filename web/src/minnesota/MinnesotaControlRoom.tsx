@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 
 import { createMinnesotaPresenterSceneActions } from "../demo/mn-scenes";
-import { type ClientState } from "../data/client-state";
+import { type ClientState, type Transport } from "../data/client-state";
 import { FailureState } from "../failure-states/FailureState";
 import { fromClientState } from "../failure-states/adapters";
 import type { RunIdentity } from "../ask/run-state/types";
@@ -31,6 +31,12 @@ export interface MinnesotaControlRoomProps {
   readonly search?: string;
   readonly location?: Pick<Location, "pathname" | "hash">;
   readonly onContextChange?: MinnesotaRunContextChange;
+  /**
+   * Injectable transport for the comparison POST. Production leaves it unset
+   * and `requestMinnesotaComparison` uses the shared `fetchWithPolicy`; a test
+   * supplies a stub so the rendered server response can be asserted.
+   */
+  readonly comparisonTransport?: Transport;
 }
 
 interface MountedMinnesotaRun {
@@ -55,7 +61,7 @@ function initialRun(search: string): { readonly parsed: ReturnType<typeof readMi
  * flow, score, or fabricated fallback. The sole comparison view renders only
  * the mounted server route's persisted aggregate response.
  */
-export function MinnesotaControlRoom({ search, location, onContextChange }: MinnesotaControlRoomProps) {
+export function MinnesotaControlRoom({ search, location, onContextChange, comparisonTransport }: MinnesotaControlRoomProps) {
   const initialSearch = search ?? (typeof window === "undefined" ? "" : window.location.search);
   const [{ parsed, run }, setMounted] = useState(() => initialRun(initialSearch));
   const [bookmarkNotice, setBookmarkNotice] = useState<string | null>(null);
@@ -78,12 +84,17 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
   const compareBaseline = async () => {
     const identity = run.identity;
     setComparison({ kind: "loading" });
-    const value = await requestMinnesotaComparison({
-      baselineContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.baseline,
-      candidateContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.candidate,
-    });
+    const value = await requestMinnesotaComparison(
+      {
+        baselineContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.baseline,
+        candidateContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.candidate,
+      },
+      comparisonTransport,
+    );
     const accepted = acceptMinnesotaRunResult(currentIdentity.current, { identity, value });
-    if (accepted.kind === "accepted") setComparison(accepted.value);
+    // A stale answer is dropped explicitly rather than left to whatever the
+    // previous render happened to be showing.
+    setComparison(accepted.kind === "accepted" ? accepted.value : null);
   };
 
   const copyBookmark = async () => {
@@ -168,12 +179,8 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
       </section>
 
       <FailureTimelinePanel
-        context={{
-          identity: { runId: run.identity.attemptId, contextRevision: run.identity.contextRevision },
-          scenarioId: MINNESOTA_COMPARISON_CONTEXT_IDS.baseline,
-          artifactId: run.context.artifactId,
-          modelMode: "aggregate",
-        }}
+        context={run.context}
+        identity={run.identity}
         result={unavailableTimeline(run.identity)}
       />
 
@@ -194,10 +201,10 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
   );
 }
 
-function unavailableTimeline(identity: RunIdentity): MinnesotaFailureTimelineResult {
+function unavailableTimeline(identity: Readonly<RunIdentity>): MinnesotaFailureTimelineResult {
   return {
     status: "unavailable",
-    identity: { runId: identity.attemptId, contextRevision: identity.contextRevision },
+    identity,
     message: "No server timeline artifact is mounted for the active Minnesota aggregate run.",
   };
 }
