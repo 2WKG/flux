@@ -1,18 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-const fixtureDisclosure = /Synthetic five-bus fixture.*OpenFreeMap basemap context.*no API required/i;
-const openFreeMapHost = "tiles.openfreemap.org";
+const fixtureDisclosure = /Synthetic five-bus fixture.*offline basemap.*no API required/i;
 
-function assertBoundedRequest(requests: readonly { url: string; method: string }[], baseURL: string) {
+/**
+ * The static demo is offline: every request it makes must be to its own origin,
+ * and only for the shell, its favicon, or its own build assets. Any other URL --
+ * a tile CDN, a font host, a style JSON, an API -- fails here. This is asserted
+ * on the request origin, not on a path pattern, so no third-party host can be
+ * permitted by construction.
+ */
+function assertNoRequestLeavesTheOrigin(requests: readonly { url: string; method: string }[], baseURL: string) {
+  const offOrigin = requests.filter((request) => new URL(request.url).origin !== baseURL);
+  expect(offOrigin.map((request) => request.url)).toEqual([]);
   for (const request of requests) {
     expect(request.method).toBe("GET");
     const url = new URL(request.url);
-    if (url.origin === baseURL) {
-      expect(url.pathname === "/" || url.pathname === "/favicon.ico" || url.pathname.startsWith("/assets/")).toBeTruthy();
-      continue;
-    }
-    expect(url.hostname).toBe(openFreeMapHost);
-    expect(url.pathname).toMatch(/^\/(?:styles\/|planet(?:\/|$)|fonts\/|sprites\/)/);
+    expect(url.pathname === "/" || url.pathname === "/favicon.ico" || url.pathname.startsWith("/assets/")).toBeTruthy();
   }
 }
 
@@ -54,14 +57,46 @@ test("static explorer supports scenario selection, inspection, and honest unavai
   await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
   await expect(chat.getByText(/revision .*:b:c3/i).first()).toBeVisible();
 
-  await expect(page.getByText(/Deck overlay: initialized with zero accepted feature layers/i)).toBeVisible();
-  assertBoundedRequest(requests, new URL(page.url()).origin);
+  await expect(page.getByText(/Deck overlay: initialized with 0 accepted feature layers/i)).toBeVisible();
+  assertNoRequestLeavesTheOrigin(requests, new URL(page.url()).origin);
 });
 
-test("basemap failure is visible while the synthetic fixture remains usable", async ({ page }) => {
-  await page.route("https://tiles.openfreemap.org/**", (route) => route.abort());
+test("the demo is unaffected when every off-origin request is cut", async ({ page }) => {
+  // Nothing off-origin may be load-bearing. Aborting all of it must change nothing:
+  // the basemap, the overlay, and the fixture all come from this origin.
+  const aborted: string[] = [];
+  await page.route("**", async (route, request) => {
+    if (new URL(request.url()).origin === "http://127.0.0.1:4173") return route.continue();
+    aborted.push(request.url());
+    return route.abort();
+  });
   await page.goto("/");
-  await expect(page.getByText(/Basemap unavailable:/i)).toBeVisible();
+  await expect(page.getByText(fixtureDisclosure)).toBeVisible();
+  await expect(page.getByText(/Deck overlay: initialized with 0 accepted feature layers/i)).toBeVisible();
+  await expect(page.locator(".map-foundation-notice")).toContainText(/Offline geometry-free basemap/i);
+  await page.getByRole("button", { name: /Candidate A/i }).first().click();
+  await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
+  expect(aborted).toEqual([]);
+});
+
+test("an overlay that never initialized is never reported as initialized", async ({ page }) => {
+  // Deny the WebGL contexts deck needs. The UI must observe the failure rather
+  // than reporting health from a mount effect.
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...rest: unknown[]) {
+      if (type === "webgl" || type === "webgl2" || type === "experimental-webgl") return null;
+      return (original as (...args: unknown[]) => unknown).call(this, type, ...rest);
+    } as typeof HTMLCanvasElement.prototype.getContext;
+  });
+  await page.goto("/");
+  const notice = page.locator(".map-foundation-notice");
+  await expect(notice).toContainText(/Basemap unavailable: .*WebGL2 is required/i);
+  // The claim under test: without an initialized overlay the UI must not say it has one.
+  // A mount-effect onInitialized reports "initialized with 0 accepted feature layers" here.
+  await expect(notice).not.toContainText(/Deck overlay: initialized/i);
+  await expect(notice).toContainText(/Deck overlay: (initializing|unavailable \(request_failed\))/i);
+  // The rest of the static demo still works while the overlay is down.
   await page.getByRole("button", { name: /Candidate A/i }).first().click();
   await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
 });
