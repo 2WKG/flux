@@ -25,10 +25,20 @@ test("database packages are rejected by segment, including scoped and suffixed D
   ]) {
     assert.throws(() => assertBrowserBundle(inputs(input), webRoot), /database dependency/, input);
   }
-  for (const input of ["node_modules/postgres-array/index.js", "node_modules/react/index.js", "src/main.tsx"]) {
+  for (const input of [
+    "node_modules/postgres-array/index.js",
+    "node_modules/react/index.js",
+    "src/main.tsx",
+    // A file merely *named* like a database package, inside an unrelated dependency:
+    // deck.gl -> fast-xml-parser -> is-unsafe ships a DOM-free string predicate here.
+    "node_modules/is-unsafe/src/contexts/sql.js",
+    "src/contexts/sql.js",
+  ]) {
     assertBrowserBundle(inputs(input), webRoot);
   }
-  assertBrowserBundle(inputs("node_modules/is-unsafe/src/contexts/sql.js"), webRoot);
+
+  // The real package by that name is still rejected.
+  assert.throws(() => assertBrowserBundle(inputs("node_modules/sql.js/dist/sql-wasm.js"), webRoot), /database dependency/);
 });
 
 test("analytics directories are judged on the web-relative input path, not the absolute one", () => {
