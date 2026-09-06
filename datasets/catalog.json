@@ -31,6 +31,20 @@
       "downloads": [{"filename": "eaglei_outages_2021.csv", "url": "https://ndownloader.figshare.com/files/42547891"}]
     },
     {
+      "id": "eaglei-2024",
+      "name": "EAGLE-I county outages, 2024",
+      "category": "outages",
+      "groups": ["core"],
+      "access": "direct",
+      "large": true,
+      "estimated_bytes": 1445000000,
+      "source_url": "https://openenergyhub.ornl.gov/explore/dataset/eaglei_outages_2014/",
+      "license": "Public research dataset; retain ORNL citation and upstream terms",
+      "use": "Fifteen-minute county customers-out labels",
+      "caveat": "Utility coverage varies over time and geography",
+      "downloads": [{"filename": "eaglei_outages_2024.csv", "url": "https://ndownloader.figshare.com/files/53581661"}]
+    },
+    {
       "id": "eaglei-2025",
       "name": "EAGLE-I county outages, 2025",
       "category": "outages",

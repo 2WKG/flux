@@ -265,7 +265,7 @@ Seeded rows in `scenarios`:
 Build order (`uv run python -m pipelines.build --tier p0|p1|p2`):
 
 1. `counties` (S13) → `hazard_static` + `counties.pop` (S9, S10, S11).
-2. `buses/lines/gens/loads` (S1). Line `length_km` = haversine between endpoint buses × 1.15 (routing factor) when the case gives none; `geom_wkb` = straight `LINESTRING(from, to)`. Transformers (branches whose endpoint `base_kv` differ or `TAP≠0`) are kept in `lines` with `is_transformer=TRUE` and `length_km=0`.
+2. `buses/lines/gens/loads` (S1). Line `length_km` = haversine between endpoint buses × 1.15 (routing factor) when the case gives none; `geom_wkb` = straight `LINESTRING(from, to)`. Transformers (branches whose endpoint `base_kv` differ) are kept in `lines` with `is_transformer=TRUE` and `length_km=0`. The tap ratio is not part of the rule: the current case has 14 same-kV branches with `TAP=1` that are phase-shifting lines, so `base_kv`-only yields exactly the verified 2,359 line / 847 transformer split (the `base_kv OR TAP≠0` heuristic yields 861 and fails the 847 check).
 3. **J1 bus→county:** `ST_Within(ST_Point(lon,lat), county.geom)` via DuckDB spatial; buses that fall outside any county (coastal jitter) take the nearest county centroid within 30 km, else NULL and a warning row in helper `ingest_warnings`.
 4. **J2 county→BA:** `assign_ba` (S17); `buses.ba_code` inherits.
 5. **J3 critical load→bus:** nearest bus by haversine among `base_kv ≥ 115`, ties → higher kV; store distance in helper `critical_load_bus_dist`.
