@@ -163,6 +163,15 @@ unaccepted topology gate uses this shape. Copilot reports the tool's result; it 
 replacement. When such a condition reaches the HTTP boundary it is raised as an `UnavailableError`
 and leaves as the 503 failure envelope `envelopes.md` defines, with the cause in `details.reason`.
 
+**Status: intended shape, not current behaviour — follow-up FU-3 (D-1).** No tool on `master`
+emits this payload today. `grep -rn next_step copilot/ causal/` is **0 hits** in both trees; the
+only real `next_step` producer is `pipelines/data_quality.py:87-94`, an unrelated gate-report
+dict. The only real `availability` on a result is `causal/`'s **nested**
+`{"status", "unavailable_codes"}` object (`causal/validation.py:144-150`,
+`causal/fixtures/*.json`), not a flat top-level string. Read the two paragraphs above as the
+target shape for a tool that adopts it; implementing or amending them is a code change, filed as
+FU-3, not a description of what runs.
+
 An unavailable artifact persisted for audit/rebuild still has its deterministic
 `artifact_id`, `availability="unavailable"`, and `model_mode="not_applicable"`; it has
 no domain-family row. The null `artifact_id` form is only an ephemeral API/Copilot
