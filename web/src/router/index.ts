@@ -42,14 +42,14 @@ export const ROUTES: readonly Route[] = [
     label: "Scenario explorer",
     title: "Flux | Resilience desk",
     truthLabels: ["synthetic"],
-    truthNote: "The primary scene renders server-supplied synthetic ACTIVSg2000 geometry; the five-bus fixture appears only when that layer is unavailable.",
+    truthNote: "The primary scene is a checked-in synthetic five-bus artifact. The separately mounted live layer route is labelled with its own synthetic ACTIVSg2000 provenance.",
   },
   {
     id: "explainer",
     path: "/explainer",
     label: "How the math works",
     title: "Flux | How the math works",
-    truthLabels: ["synthetic", "unavailable"],
+    truthLabels: ["synthetic"],
     truthNote: "This page describes the method only; no model runs in this build.",
   },
   {
