@@ -22,15 +22,31 @@ export interface CascadeData {
   unavailable?: Unavailable | null;
 }
 
+export interface CausalCitation {
+  locator: string;
+  source_id: string;
+}
+
 export interface CausalData {
   answer_numbers: Record<string, number>;
   assumptions: string[];
+  citations: CausalCitation[];
+  diagnostics: CausalDiagnostic[];
   evidence_rows: Array<Record<string, JsonValue>>;
   interval?: number[] | null;
   method: string;
   provenance?: ArtifactRef[];
+  question: CausalQuestion;
+  sample: CausalSample;
+  sources: CausalSource[];
   status: ToolStatus;
   unavailable?: Unavailable | null;
+}
+
+export interface CausalDiagnostic {
+  evidence: string;
+  name: string;
+  status: "pass";
 }
 
 export interface CausalQueryInput {
@@ -40,6 +56,41 @@ export interface CausalQueryInput {
   scenario_id?: ScenarioId;
   site_id?: string | null;
   treatment?: "hardening_saidi" | "firm_generation_100mw" | null;
+}
+
+export interface CausalQuestion {
+  outcome: CausalVariable;
+  target_population: CausalTargetPopulation;
+  treatment: CausalVariable;
+}
+
+export interface CausalSample {
+  n_control: number;
+  n_total: number;
+  n_treated: number;
+  period: string;
+  unit: string;
+}
+
+export interface CausalSource {
+  coverage: string;
+  locator: string;
+  name: string;
+  source_id: string;
+  version: string;
+}
+
+export interface CausalTargetPopulation {
+  description: string;
+  geography: string;
+  time_window: string;
+}
+
+export interface CausalVariable {
+  definition: string;
+  name: string;
+  source_id: string;
+  unit_or_category: string;
 }
 
 export interface CiteData {
