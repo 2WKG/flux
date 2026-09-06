@@ -417,12 +417,16 @@ def query_predictions(
     county_fips: str | None = None,
     model_kind: str | None = None,
     limit: int = 1000,
+    qualified_only: bool = False,
 ) -> list[dict[str, object]]:
     """Return prediction rows joined with provenance and evaluation qualification.
 
     Rows are ordered by ``(scenario_id, county_fips, ts)``; ``ts`` and
     ``persisted_at`` are UTC-aware. ``limit`` must be in
     ``[1, MAX_QUERY_LIMIT]`` and ``model_kind`` one of :data:`MODEL_KINDS`.
+    ``qualified_only=True`` restricts the read, in SQL and before ``LIMIT``, to
+    rows whose cited evaluation is persisted with ``qualified = TRUE``; a row
+    with no evaluation (heuristic, ``qualified`` NULL) is excluded by it.
     Unavailable predictions are never in the table; this query never fabricates
     one, and ``qualified`` is read from ``evaluation_artifacts``, never derived.
     """
@@ -444,6 +448,8 @@ def query_predictions(
     if model_kind is not None:
         clauses.append("v.model_kind = ?")
         params.append(model_kind)
+    if qualified_only:
+        clauses.append("e.qualified = TRUE")
 
     where = " AND ".join(clauses)
     rows = con.execute(
