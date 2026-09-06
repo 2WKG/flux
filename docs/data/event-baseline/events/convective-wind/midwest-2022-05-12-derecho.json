@@ -134,16 +134,9 @@
         "forecast_evaluation": "not_forecast_scored",
         "inputs": []
       },
-      "source_evidence_status": "available",
+      "source_evidence_status": "unavailable",
       "source_row_keys": [],
-      "source_slices": [
-        {
-          "receipt_id": "ncei-stormevents-2022",
-          "county_fips": "27073",
-          "start_utc": "2022-05-12T18:00:00Z",
-          "end_utc": "2022-05-13T00:00:00Z"
-        }
-      ]
+      "source_slices": []
     }
   ]
 }
