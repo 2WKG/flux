@@ -36,10 +36,10 @@
   ],
   "receipt": {
     "capture_method": "generated",
-    "generator_commit": "dd3c252f2ceb9ff64511d499865a55793cfbedf6",
+    "generator_commit": "28872f85148af4b440417e1b2f6bcf3d14aad0c4",
     "generator_path": "scripts/data/event_baseline_split.py",
     "generator_sha256": "96d2bdb9139d4cc2ab799406267667d14fe08dc7bd4f35a05b795f5c55ed8a2b",
-    "input_bundle_count": 40,
+    "input_bundle_count": 58,
     "input_bundles": [
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2018-01-01-arctic.json",
@@ -126,6 +126,26 @@
         "sha256": "cef48e8118974ddecb0f98233d378c52292102e6889987617cfad7c509b5df63"
       },
       {
+        "path": "docs/data/event-baseline/events/heat-demand/caiso-2022-09-heat.json",
+        "sha256": "118ab85a15483a11b4f76842af64bff5f5c3742738a19925bd0e0cd930672000"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/ercot-2023-06-heat.json",
+        "sha256": "4b94908a1f8a66c36c35e130fb4b0eeca8deec0ac2e27d02949ed6507b8d5b10"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/mn-2021-06-heat.json",
+        "sha256": "075a7415fc4c9886adf14171170bc841599789af5b584d66fc3d810349e92717"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/pnw-2021-06-heat.json",
+        "sha256": "6398fa1992f2ea1abbfa3768f820316fa61a2ab1aefc9fbaf4de7d484689c5d9"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/southwest-2023-07-heat.json",
+        "sha256": "636e8e1e84dfd5115a79022b821b39af469eed6c7fb8e7ddc3e315e52f7ab1ea"
+      },
+      {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2019-04-10-ice.json",
         "sha256": "08831feefdc179cb8635b401ac43f6c41d5ae2893bf6f17eaa6fcf744f7d98f4"
       },
@@ -200,6 +220,58 @@
       {
         "path": "docs/data/event-baseline/events/tornado-hail/mn-2024-07-13-hail-tornado.json",
         "sha256": "d4300eea3cd74945cbcb0761b5bb3d6e499099d6829e7fbb2d5f907f71e83952"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/florence-2018.json",
+        "sha256": "fc14f1e2fe73a4f9f4c9c05123a935c6c752eaa623ef859a2ae6bc9daf6ef3b5"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/ian-2022.json",
+        "sha256": "e63da3159a838215c619d48f4542d2c0fe478e6b7bea68f412375e677c3a0bfe"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/ida-2021.json",
+        "sha256": "df1f00f9daad32c1bb2893106ee617adbd2d1026cc0c685fa085cca1a545dee3"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/idalia-2023.json",
+        "sha256": "02f17a993b4da42b4c9f6aa1798a81864c49eed10249c9e9c8b79315a22e08c6"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/matthew-2016.json",
+        "sha256": "2771ac798af0509e15c8e0b85c3ead180d8da8d10e974a3baaef389e49b85570"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2019-kincade.json",
+        "sha256": "37d7836d1229d910a61a83cc72c3440b06f8981289b2d8852142cbee6e02b72c"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2020-czu.json",
+        "sha256": "d0384c565d564b8bdd252b48d03ee1eb3306bf1fb15db19dac35f3b41af1fd30"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2020-glass.json",
+        "sha256": "4cca1d284908ecf93be811b8db1ff1c6e9fc03e6f4d00982a921c73756e678b3"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2021-dixie.json",
+        "sha256": "bff3241b1ffff53eafade7742ec20d8def867e1e5d9fb8b1b339be8ac0a047c2"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2022-mosquito.json",
+        "sha256": "117bff243323efe3dc85c0f247c29ec7f62abdb9b4ed3cbc124b46de6b54091b"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2019-10-09-pge-napa.json",
+        "sha256": "0a6d3e06e127b42911a8c3dc61c68e11fbd5994f8d3dacad28fd3d852c8551c7"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2021-08-17-pge-shasta.json",
+        "sha256": "819cf86f3208fd5cbebb1aaee7bbf84d19b42b2eb6d3d86683b7c2456f1bdac4"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2023-09-20-pge-tehama.json",
+        "sha256": "3803043c4937eeb8e82270540d968fd2ee58d938e6fbc76d6b9f91dedbe61fc4"
       }
     ],
     "input_events_dir": "docs/data/event-baseline/events"

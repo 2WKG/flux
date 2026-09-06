@@ -50,6 +50,18 @@ EAGLEI_SAMPLES_PER_WINDOW = 24
 # docs/specs/02-outage-model.md: counties with total_customers < 500 are dropped.
 MINIMUM_CUSTOMER_DENOMINATOR = 500
 LABEL_AGGREGATION = "max_customers_out_over_window_samples"
+# docs/data/event-baseline/README.md: a zone-scoped event report establishes county
+# weather coverage only when the NWS public forecast zone is 1:1 with the county in
+# NOAA's own zone/county correlation file. The receipted slice next to it records the
+# source URL, retrieval, and sha256 of the rows below.
+ZONE_COUNTY_CORRELATION_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs/data/event-baseline/controls-metadata/nws-zone-county-correlation"
+    / "bp05mr24.psv"
+)
+# STATE_ZONE column form, e.g. "MN060"; also how a covered report must name its zone.
+NWS_ZONE_ID = re.compile(r"\b([A-Z]{2})Z?([0-9]{3})\b")
+ZONE_WORD = re.compile(r"\bzones?\b", re.IGNORECASE)
 
 
 class ValidationError(ValueError):
@@ -125,6 +137,110 @@ def _window(window: Any, where: str) -> tuple[datetime, datetime]:
     if end <= start:
         raise ValidationError(f"{where}: end must be after start")
     return start, end
+
+
+def _zone_county_correlation() -> tuple[
+    dict[str, set[str]], dict[str, set[str]], dict[str, str]
+]:
+    """Parse the receipted NWS zone/county correlation slice.
+
+    Returns ``(zone -> county FIPS set, county FIPS -> zone id set, county FIPS ->
+    county name)``. Zone ids are normalised to ``<STATE>Z<NNN>`` (e.g. ``MNZ060``).
+    """
+    if _zone_county_correlation.cache is None:  # type: ignore[attr-defined]
+        zone_to_counties: dict[str, set[str]] = {}
+        county_to_zones: dict[str, set[str]] = {}
+        county_names: dict[str, str] = {}
+        text = ZONE_COUNTY_CORRELATION_PATH.read_text()
+        for line in text.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            fields = line.split("|")
+            if len(fields) < 7:
+                raise ValidationError(
+                    f"{ZONE_COUNTY_CORRELATION_PATH.name}: expected the eleven-column "
+                    "NWS correlation layout"
+                )
+            state, zone, county, fips = fields[0], fields[1], fields[5], fields[6]
+            zone_id = f"{state}Z{zone}"
+            zone_to_counties.setdefault(zone_id, set()).add(fips)
+            county_to_zones.setdefault(fips, set()).add(zone_id)
+            county_names[fips] = county
+        _zone_county_correlation.cache = (  # type: ignore[attr-defined]
+            zone_to_counties,
+            county_to_zones,
+            county_names,
+        )
+    return _zone_county_correlation.cache  # type: ignore[attr-defined]
+
+
+_zone_county_correlation.cache = None  # type: ignore[attr-defined]
+
+
+def _report_establishes_county_coverage(
+    report: dict[str, Any], county_fips: str, where: str
+) -> None:
+    """Refuse a ``covered`` event report that the correlation does not support.
+
+    A zone-scoped report establishes coverage of a county only when the correlation
+    makes the two 1:1 -- the zone lies in that county and no other, and the county
+    contains that zone and no other. A county-scoped report must actually name the
+    record's county, so flipping ``spatial_scope`` on a zone identifier cannot buy
+    coverage.
+    """
+    zone_to_counties, county_to_zones, county_names = _zone_county_correlation()
+    scope = report.get("spatial_scope")
+    identifier = report.get("scope_identifier")
+    if not isinstance(identifier, str) or not identifier.strip():
+        raise ValidationError(f"{where}: covered report requires a scope_identifier")
+    if county_fips not in county_to_zones:
+        raise ValidationError(
+            f"{where}: county {county_fips} is absent from the NWS zone/county "
+            f"correlation ({ZONE_COUNTY_CORRELATION_PATH.name}); coverage cannot be "
+            "established"
+        )
+    if scope == "county":
+        county_name = county_names[county_fips]
+        if ZONE_WORD.search(identifier):
+            raise ValidationError(
+                f"{where}: county-scoped report names a zone "
+                f"({identifier!r}); a zone report may not be relabelled as county scope"
+            )
+        if (
+            county_name.lower() not in identifier.lower()
+            and county_fips not in identifier
+        ):
+            raise ValidationError(
+                f"{where}: county-scoped report identifier {identifier!r} names neither "
+                f"county {county_fips} nor {county_name} County"
+            )
+        return
+    match = NWS_ZONE_ID.search(identifier)
+    if match is None:
+        raise ValidationError(
+            f"{where}: covered zone report identifier {identifier!r} carries no "
+            "resolvable NWS zone id (expected e.g. MNZ060)"
+        )
+    zone_id = f"{match.group(1)}Z{match.group(2)}"
+    counties = zone_to_counties.get(zone_id)
+    if not counties:
+        raise ValidationError(
+            f"{where}: zone {zone_id} is absent from the NWS zone/county correlation "
+            f"({ZONE_COUNTY_CORRELATION_PATH.name})"
+        )
+    if counties != {county_fips}:
+        raise ValidationError(
+            f"{where}: zone {zone_id} spans counties {sorted(counties)} in the NWS "
+            f"correlation, so it does not establish coverage of county {county_fips}"
+        )
+    zones = county_to_zones[county_fips]
+    if zones != {zone_id}:
+        raise ValidationError(
+            f"{where}: county {county_fips} ({county_names[county_fips]}) contains "
+            f"zones {sorted(zones)} in the NWS correlation, so zone {zone_id} covers "
+            "only part of it"
+        )
 
 
 def _validate_receipts(receipts: Any, where: str) -> dict[str, dict[str, Any]]:
@@ -662,13 +778,11 @@ def validate_bundle_rules(bundle: dict[str, Any], source: str = "bundle") -> Non
                     raise ValidationError(
                         f"{prefix}.{coverage_name}: report evidence requires county or zone scope"
                     )
-                if (
-                    coverage_name == "weather"
-                    and coverage["coverage"] == "covered"
-                    and report["spatial_scope"] != "county"
-                ):
-                    raise ValidationError(
-                        f"{prefix}.weather: covered weather requires a county-scoped report"
+                if coverage["coverage"] == "covered":
+                    _report_establishes_county_coverage(
+                        report,
+                        record["county_fips"],
+                        f"{prefix}.{coverage_name}",
                     )
                 report_start, report_end = _window(
                     report.get("source_window"),

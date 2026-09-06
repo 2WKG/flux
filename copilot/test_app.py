@@ -318,6 +318,8 @@ def test_health_opens_a_fixture_database_without_claiming_model_availability(
         "model": {
             "status": "not_configured",
             "message": "No model provider credential is configured.",
+            "provider": "gemini",
+            "model": "gemini-3.8-flash",
         },
     }
     assert response.headers["X-Request-ID"] == "health-1"
@@ -344,6 +346,8 @@ def test_health_reports_a_sparse_fixture_without_claiming_dense_retrieval(
         "model": {
             "status": "not_configured",
             "message": "No model provider credential is configured.",
+            "provider": "gemini",
+            "model": "gemini-3.8-flash",
         },
     }
 
@@ -425,6 +429,7 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     app = create_app(
         Settings(
             duckdb_path=database,
+            copilot_provider="claude",
             copilot_model="claude-sonnet-5",
             anthropic_api_key=secret,
         )
@@ -438,4 +443,34 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     assert response.json()["model"] == {
         "status": "not_verified",
         "message": "Model availability is not verified by this local health check.",
+        "provider": "claude",
+        "model": "claude-sonnet-5",
     }
+
+
+def test_ask_run_metadata_names_the_provider_without_exposing_it_to_the_browser(
+    tmp_path: Path,
+) -> None:
+    """The provider is observable to an operator, never to the page."""
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+    app = create_app(
+        Settings(
+            duckdb_path=database,
+            copilot_provider="claude",
+            anthropic_api_key="configured-but-unchecked",
+        )
+    )
+
+    response = TestClient(app).post(
+        "/ask",
+        json={"attempt_id": "a" * 20, "question": "which lines?"},
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert response.headers["X-Flux-Copilot-Provider"] == "claude"
+    assert response.headers["X-Flux-Copilot-Model"] == "claude-sonnet-5"
+    assert (
+        "X-Flux-Copilot-Provider"
+        not in (response.headers["Access-Control-Expose-Headers"])
+    )
