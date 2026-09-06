@@ -11,7 +11,7 @@ an untracked database artifact available in a fresh clone.
 | FEMA NRI v1.20 counties | [`texas-nri-v1.20.json`](../../data/sources/texas-nri-v1.20.json) | `load_nri` loaded 254 Texas county rows, with no missing population or NRI score. |
 | PUDL EIA-860 v2026.2.0 | [`texas-pudl-eia860-v2026.2.0.json`](../../data/sources/texas-pudl-eia860-v2026.2.0.json) | `load_eia860_plants` loaded 1,584 Texas plants and 628,701 generator-history rows. |
 | EIA-930 2021 H1 and 2024 H2 | [`texas-eia930-2021-2024.json`](../../data/sources/texas-eia930-2021-2024.json) | `load_eia930` loaded 35,040 rows across four declared BAs. |
-| NOAA Storm Events 2021 and 2024 | [`texas-noaa-storm-events-2021-2024.json`](../../data/sources/texas-noaa-storm-events-2021-2024.json) | `load_storm_events` loaded 10,355 qualified expanded rows; 22 unsupported 2021 legacy-zone rows are retained in the receipt. |
+| NOAA Storm Events 2021 and 2024 | [`texas-noaa-storm-events-2021-2024.json`](../../data/sources/texas-noaa-storm-events-2021-2024.json) | Fixed-window interval-selected intake produced 615 Uri and 58 Beryl event rows. The older 10,355-row bp16 annual check is retained only as historical validation, not current output. |
 | NWS bp16ap26 zone-to-county crosswalk | [`texas-nws-zone-county-bp16ap26.json`](../../data/sources/texas-nws-zone-county-bp16ap26.json) | 308 TX rows cover 298 zones and all 254 county FIPS. |
 | NTAD military bases FY2024 | [`texas-ntad-military-bases-fy2024.json`](../../data/sources/texas-ntad-military-bases-fy2024.json) | `load_dod` loaded 21 active, at-least-1-km² facilities from 32 TX source features. |
 | EAGLE-I 2021 and 2024 annual outages | [`texas-eaglei-2021-2024.json`](../../data/sources/texas-eaglei-2021-2024.json) | UTC streaming intake loaded 2,443,041 (2021) and 2,921,200 (2024) TX observations; Uri and Beryl fixed-window coverage and blank targets are recorded. |
@@ -26,6 +26,10 @@ records a reproducible rule for the fixed Uri and Beryl contract windows and
 four byte-range probes of official archive objects. It is not an ingestion
 receipt: this checkout has no HRRR county-grid index, loader, or aggregation
 artifact to validate `weather_hourly`.
+
+[`texas-hrrr-2021-2024-run.json`](../../data/sources/texas-hrrr-2021-2024-run.json)
+records the completed four-worker fixed-window intake: 85,344 county-hour rows
+and 336 paired source-run records with zero swaps.
 
 ## Reproduce the bounded intake
 
