@@ -20,13 +20,23 @@ import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "./layer
 import { legendForLayer } from "./layers/legend";
 import { createReadApiClient } from "./data/client-state";
 import { loadRegistryDataStatuses } from "./data/layer-status";
-import { loadScenarioAsset } from "./data/scenario-asset";
 import { runAsk } from "./data/ask-stream";
 import { resultsFromRun } from "./data/ask-result";
 import { loadGridLayer, GRID_LAYERS, type GridState } from "./data/grid-client";
 import type { SpatialItem, SpatialPage } from "./data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "./renderer/GridInventoryPanel";
-import { ControlRoom, type ControlRoomProps, type RegionId } from "./demo";
+import {
+  HistoricalForecastPanel,
+  PrimaryDemo,
+  ControlRoom,
+  createPrimaryDemoRuntime,
+  historicalForecastFromPayload,
+  type HistoricalCountForecast,
+  type PrimarySceneMode,
+  type RegionId,
+  type TexasModelScene,
+  type ControlRoomProps,
+} from "./demo";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
@@ -77,6 +87,24 @@ function newAttemptId(): string {
 }
 
 const READ_CLIENT = createReadApiClient();
+
+type DemoWeatherRecord = { ts: string; condition: string; label: string; observed_or_forecast: string; wind_ms: number; gust_ms: number; temp_c: number; ice_mm: number; precip_mm: number; provenance: string[]; rule: string };
+type DemoBrief = { regions: Array<{ id: string; mode: string; availability: string }>; scenarios: Array<{ scenario_id: string; name: string; kind: string; provenance: string[]; weather: DemoWeatherRecord[] }> };
+type DemoForecastPayload = Parameters<typeof historicalForecastFromPayload>[0];
+
+function isDemoBrief(value: unknown): value is DemoBrief {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return Array.isArray(record.regions) && Array.isArray(record.scenarios);
+}
+
+function isDemoForecastPayload(value: unknown): value is DemoForecastPayload {
+  return Boolean(value && typeof value === "object" && typeof (value as Record<string, unknown>).status === "string");
+}
+
+function weatherSymbol(condition: string): "clear" | "cloudy" | "rain" | "snow" | "wind" | "storm" | "heat" | "unknown" {
+  return ["clear", "cloudy", "rain", "snow", "wind", "storm", "heat"].includes(condition) ? condition as "clear" | "cloudy" | "rain" | "snow" | "wind" | "storm" | "heat" : "unknown";
+}
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -347,13 +375,16 @@ export function App() {
   const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
   const [askAvailable, setAskAvailable] = useState(false);
 
-  const [gridState, setGridState] = useState<GridState>("mn");
-  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.mn);
+  const [gridState, setGridState] = useState<GridState>("tx");
+  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.tx);
   const [gridQuery, setGridQuery] = useState("");
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
   const [controlRoomRegion, setControlRoomRegion] = useState<RegionId>("texas");
+  const [sceneMode, setSceneMode] = useState<PrimarySceneMode>("inventory");
+  const [weatherFrames, setWeatherFrames] = useState<ReturnType<typeof createPrimaryDemoRuntime>["scenarios"][number]["weather"]>([]);
+  const [historicalForecast, setHistoricalForecast] = useState<HistoricalCountForecast>({ availability: "unavailable", reason: "The historical trajectory has not been requested." });
 
   const contextRevision = `${selected}:${attemptId}`;
 
@@ -405,14 +436,39 @@ export function App() {
     return () => controller.abort();
   }, []);
 
-  // The inspector reads the scenario the shell has selected.
+  // Primary data comes from the explicitly versioned demo read surfaces. A
+  // failure leaves a named unavailable state; it never falls back to the five-bus fixture.
   useEffect(() => {
     const controller = new AbortController();
-    loadScenarioAsset(selected, READ_CLIENT, { signal: controller.signal })
-      .then((asset) => setInspectorAsset(asset))
-      .catch(() => undefined);
+    READ_CLIENT.get<DemoBrief>("/demo/brief?region=tx&scenario_id=uri_2021", isDemoBrief, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => {
+        if (state.kind !== "ready") return setWeatherFrames([]);
+        const sourceScenario = state.data.scenarios.find((item) => item.scenario_id === "uri_2021");
+        if (!sourceScenario) return setWeatherFrames([]);
+        setWeatherFrames(sourceScenario.weather.map((frame) => ({
+          id: frame.ts,
+          timeLabel: new Date(frame.ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric" }),
+          condition: frame.label,
+          symbol: weatherSymbol(frame.condition),
+          detail: `${frame.observed_or_forecast} HRRR frame · wind ${frame.wind_ms} m/s · gust ${frame.gust_ms} m/s · ${frame.temp_c} °C`,
+          availability: "available",
+          provenance: frame.provenance.map((label) => ({ label })),
+          limitations: [frame.rule],
+        })));
+      })
+      .catch(() => setWeatherFrames([]));
     return () => controller.abort();
-  }, [selected]);
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    READ_CLIENT.get<DemoForecastPayload>("/demo/forecast?county_fips=48453", isDemoForecastPayload, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => setHistoricalForecast(state.kind === "ready"
+        ? historicalForecastFromPayload(state.data)
+        : { availability: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The historical trajectory is unavailable." }))
+      .catch(() => setHistoricalForecast({ availability: "unavailable", reason: "The historical trajectory could not be read." }));
+    return () => controller.abort();
+  }, []);
 
   // One probe decides what the dock is allowed to claim about itself. A health
   // route that does not answer is a named failure state, never a quiet default.
@@ -524,6 +580,65 @@ export function App() {
     onPromptSelect: () => { if (!chatOpen) toggleChat("toggle"); },
   };
 
+  const onPrimaryRegionChange = useCallback((region: RegionId) => {
+    setControlRoomRegion(region);
+    const nextGridState: GridState = region === "texas" ? "tx" : "mn";
+    setGridState(nextGridState);
+    setGridLayers(GRID_LAYERS[nextGridState]);
+    setGridSelected(null);
+    setSceneMode("inventory");
+  }, []);
+
+  const primaryControlRoomProps = createPrimaryDemoRuntime({
+    regions: [
+      {
+        id: "texas",
+        label: "Texas",
+        summary: "Source-backed physical inventory and Uri weather context are available. The model scene is synthetic (ACTIVSg2000).",
+        topology: {
+          label: "synthetic (ACTIVSg2000)", mode: "synthetic", availability: "available",
+          provenance: [{ label: "Texas model contract", detail: "synthetic topology; separate from physical inventory geometry" }],
+          limitations: ["Model geometry and any cascade events are kept separate from source-backed physical inventory."],
+        },
+      },
+      {
+        id: "minnesota",
+        label: "Minnesota",
+        summary: "Source-backed physical inventory may be browsed; no Minnesota topology is asserted.",
+        topology: {
+          label: "aggregate / topology unavailable", mode: "aggregate", availability: "partial",
+          provenance: [{ label: "Minnesota inventory boundary", detail: "physical inventory is not an electrical model" }],
+          limitations: ["Minnesota remains inventory or aggregate only until an accepted topology contract is supplied."],
+        },
+      },
+    ],
+    selectedRegionId: controlRoomRegion,
+    onRegionChange: onPrimaryRegionChange,
+    weather: controlRoomRegion === "texas" ? weatherFrames : [],
+    historicalModel: {
+      availability: historicalForecast.availability,
+      label: "Experimental historical observed-count trajectory",
+      provenance: historicalForecast.provenance ?? [],
+      limitations: historicalForecast.limitations,
+    },
+    suggestedPrompts: [
+      { id: "ask-evidence", prompt: "What evidence is available for this selected region?", availability: askAvailable ? "available" : "unavailable" },
+      { id: "open-texas-model", prompt: "Open the synthetic Texas model before asking about a component failure.", availability: controlRoomRegion === "texas" ? "available" : "unavailable" },
+    ],
+    onPromptSelect: (prompt) => {
+      if (prompt.id === "open-texas-model" && controlRoomRegion === "texas") setSceneMode("texas_model");
+      if (!chatOpen) toggleChat("toggle");
+    },
+  });
+
+  const texasModelScene: TexasModelScene = {
+    availability: "unavailable",
+    topologyLabel: "synthetic (ACTIVSg2000)",
+    synthetic: true,
+    elementIds: [],
+    limitations: ["The independently keyed synthetic model visual and qualified browser cascade readback are not supplied by this build."],
+  };
+
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
     const identity: RunIdentity = { attemptId, contextRevision };
     setChatStatus("streaming");
@@ -554,6 +669,64 @@ export function App() {
       })
       .catch(() => setChatStatus("error"));
   }, [attemptId, contextRevision]);
+
+  return <main data-source-status="unavailable" data-primary-demo="true">
+    <nav>
+      <div className="brand"><b>FLUX</b><span>Energy system desk</span></div>
+      <div className="live"><i />Source state is named on every active scene</div>
+    </nav>
+    <PrimaryDemo
+      controlRoom={primaryControlRoomProps}
+      sceneMode={sceneMode}
+      onSceneModeChange={setSceneMode}
+      texasModelScene={texasModelScene}
+      spatialStage={<GridInventoryPanel
+        load={gridLoad}
+        state={gridState}
+        layers={gridLayers}
+        query={gridQuery}
+        selected={gridSelected}
+        onStateChange={(next) => { setGridState(next); setGridLayers(GRID_LAYERS[next]); setGridSelected(null); }}
+        onLayersChange={setGridLayers}
+        onQueryChange={setGridQuery}
+        onSelect={setGridSelected}
+        onRetry={() => setGridAttempt((value) => value + 1)}
+      />}
+      inspectorSlot={<><Inspector asset={inspectorAsset} className="asset-inspector" title="Evidence availability" /><HistoricalForecastPanel forecast={historicalForecast} /></>}
+      chatSlot={<ChatDockView
+        open={chatOpen}
+        onToggle={() => toggleChat("toggle")}
+        collapsedLabel={askAvailable ? "Copilot endpoint reachable" : OFFLINE_DOCK_LABEL}
+      >
+        <ChatDock
+          contextRevision={contextRevision}
+          context={sceneContext}
+          attemptId={attemptId}
+          sourceLabel="Selected evidence context"
+          sourceStatus="unavailable"
+          status={chatStatus}
+          error={chatError}
+          messages={messages}
+          onContextChange={setSceneContext}
+          onSend={askAvailable ? sendAsk : undefined}
+          onRetry={() => setAttemptId(newAttemptId())}
+        />
+        <RunTrace state={runState} />
+        <ResultCards results={askResults} />
+        {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
+      </ChatDockView>}
+      legacyFixture={<section>
+        <p className="control-room__eyebrow">Retired fixture</p>
+        <h3>Synthetic five-bus comparison</h3>
+        <p>This fixture is not Texas, Minnesota, a physical inventory, or the synthetic ACTIVSg2000 model scene.</p>
+        <CompareRail selected={selected} onSelect={select} />
+        <article className="map">
+          <div className="map-head"><p className="eyebrow">FIXTURE NETWORK · {scenario.label.toUpperCase()}</p></div>
+          <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />
+        </article>
+      </section>}
+    />
+  </main>;
 
   return (
     // `data-source-status` publishes the derived IA token to the DOM so a browser
@@ -656,9 +829,9 @@ export function App() {
 
           {candidate ? (
             <div className="insight">
-              <p className="eyebrow">{candidate.name} · +{candidate.capacityMw} MW AT {BUSES[candidate.busId].name.toUpperCase()}</p>
-              <h2>{candidate.description}</h2>
-              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
+              <p className="eyebrow">{candidate!.name} · +{candidate!.capacityMw} MW AT {BUSES[candidate!.busId].name.toUpperCase()}</p>
+              <h2>{candidate!.description}</h2>
+              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate!.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
               <ul className="relief">
                 {relieved.slice(0, 3).map(({ line, delta }) => (
                   <li key={line.id}>
@@ -728,7 +901,7 @@ export function App() {
         />
         <RunTrace state={runState} />
         <ResultCards results={askResults} />
-        {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
+        {apiFailure ? <FailureState state={apiFailure!} onRetry={() => setAttemptId(newAttemptId())} /> : null}
       </ChatDockView>
 
       {detail && (

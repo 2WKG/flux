@@ -55,8 +55,6 @@ test("every landed panel is mounted in the one App", () => {
     "run trace phase": /data-run-phase="idle"/,
     "run trace": /class="run-trace"/,
     "failure state": /class="failure-state"/,
-    "layer controls": /class="layer-controls"/,
-    "layer status legend": /aria-label="Layer status legend"/,
     "inspector": /class="asset-inspector"/,
     "physical inventory panel": /aria-label="Source-backed physical inventory"/,
     "inventory coverage disclosure": /aria-label="Coverage and geometry availability"/,
@@ -66,32 +64,23 @@ test("every landed panel is mounted in the one App", () => {
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);
 });
 
-test("the inspector is composed without borrowing the shell's own column class", () => {
-  // `.inspector` is the shell's flex column (`styles.css`), written for its own
-  // metric stack. Handing it to `Inspector` inherits rules meant for something
-  // else, so exactly one element may carry it: the shell's own aside.
+test("the inspector is composed in the primary support slot without borrowing the retired shell class", () => {
   const inspectorClasses = [...markup.matchAll(/class="([^"]*)"/g)]
     .map((match) => match[1].split(/\s+/))
     .filter((classes) => classes.includes("inspector"));
-  assert.equal(inspectorClasses.length, 1, "exactly one element may carry the shell's own .inspector class");
-  assert.match(markup, /<aside class="inspector" aria-label="Scenario inspector">/);
+  assert.equal(inspectorClasses.length, 0, "the retired shell inspector class must not survive the primary route");
+  assert.match(markup, /<aside class="primary-demo__inspector" aria-label="Evidence inspector">/);
   assert.match(markup, /class="asset-inspector"/, "the composed inspector must carry its own class");
 });
 
-test("the composed shell publishes the machine provenance token, not prose", () => {
-  assert.match(markup, /<main data-source-status="synthetic">/);
+test("the composed primary route does not label a mixed source surface as a synthetic fixture", () => {
+  assert.match(markup, /<main data-source-status="unavailable" data-primary-demo="true">/);
 });
 
-test("every layer renders unavailable with a named producer reason before any route answers", () => {
-  // The first render has asked for nothing yet, so nothing may be shown as
-  // available. `buildRegistrySnapshots({})` is the honest state and the rows
-  // must show it: six rows, every one `unavailable`, every one with a reason.
-  const rows = [...markup.matchAll(/<li class="layer-row"[^>]*data-status="([^"]*)"/g)].map((match) => match[1]);
-  assert.equal(rows.length, app.LAYER_REGISTRY.length, "one row per registered layer");
-  assert.deepEqual([...new Set(rows)], ["unavailable"], "no layer may be available before a route answered");
-  const reasons = [...markup.matchAll(/class="layer-reason" role="note">([^<]*)</g)].map((match) => match[1]);
-  assert.equal(reasons.length, app.LAYER_REGISTRY.length, "every unavailable layer must carry the producer's reason");
-  for (const reason of reasons) assert.ok(reason.trim().length > 0);
+test("the primary route puts physical inventory and its source boundary in the spatial stage", () => {
+  assert.match(markup, /aria-label="Primary spatial stage"/);
+  assert.match(markup, /aria-label="Source-backed physical inventory"/);
+  assert.match(markup, /Physical inventory only; electrical model: none/);
 });
 
 test("the composed screen renders no status label but the ones its data supports", () => {

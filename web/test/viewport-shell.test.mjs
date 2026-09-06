@@ -53,7 +53,7 @@ const markup = shell.renderApp();
 /** Rendered text only: tag names are not the claim under test. */
 const text = markup.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-const styles = await readFile(new URL("src/styles.css", webRoot), "utf8");
+const styles = `${await readFile(new URL("src/styles.css", webRoot), "utf8")}\n${await readFile(new URL("src/demo/ControlRoom.css", webRoot), "utf8")}`;
 const bundle = JSON.parse(await readFile(new URL("../data/demo/bundle.json", webRoot), "utf8"));
 
 /**
@@ -110,22 +110,12 @@ function declarations(selector, context = "") {
 const declared = (selector, declaration, context = "") =>
   declarations(selector, context).some((entry) => entry.replace(/:\s*/, ": ") === declaration);
 
-test("the workspace renders as a grid whose scene column is the primary surface", () => {
-  assert.match(markup, /<section class="workspace" aria-label="Viewport-first scenario workspace">/);
-  const workspace = markup.slice(markup.indexOf('class="workspace"'));
-  assert.match(workspace, /<article class="map scene-viewport">/);
-  assert.match(workspace, /<aside class="inspector" aria-label="Scenario inspector">/);
-
-  // The layout itself, read off the cascade rather than off the file's text.
-  assert.ok(declared(".workspace", "display: grid"), ".workspace must be a grid");
-  assert.ok(
-    declared(".workspace", "grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)"),
-    ".workspace must give the scene the flexible column and the inspector a bounded one",
-  );
-  assert.ok(
-    declared(".scene-viewport", "min-height: clamp(500px, 64vh, 700px)"),
-    ".scene-viewport must hold a viewport-first height",
-  );
+test("the primary runtime puts ControlRoom before its one spatial stage", () => {
+  assert.match(markup, /data-demo-runtime="primary"/);
+  assert.match(markup, /aria-label="Flux control room"[\s\S]*aria-label="Primary spatial stage"/);
+  assert.match(markup, /aria-label="Scene mode"/);
+  assert.ok(declared(".primary-demo", "display: grid"));
+  assert.ok(declared(".primary-demo__support", "display: grid"));
 });
 
 test("the compact and stacked breakpoints carry real declarations, not just a prelude", () => {
@@ -143,12 +133,11 @@ test("the compact and stacked breakpoints carry real declarations, not just a pr
   assert.ok(declared(".scene-viewport", "min-height: auto", stacked), "a stacked scene must release its min-height");
 });
 
-test("the timeline strip renders inside the scene and states that playback is not available", () => {
-  const scene = markup.slice(markup.indexOf('class="map scene-viewport"'), markup.indexOf('class="inspector"'));
-  assert.match(scene, /<section class="timeline" aria-label="Scenario timeline">/);
-  assert.match(scene, /class="timeline-track"/);
-  assert.match(text, /Bundled output · playback unavailable/);
-  assert.ok(declarations(".timeline").length > 0, ".timeline must be styled");
+test("the primary scene has explicit inventory and synthetic-model modes", () => {
+  assert.match(markup, /Asset inventory/);
+  assert.match(markup, /Texas grid model/);
+  assert.match(text, /Cascade playback unavailable/);
+  assert.ok(declarations(".primary-demo__scene-controls").length > 0);
 });
 
 test("no class reaches the DOM without a rule that can style it", () => {
@@ -240,17 +229,10 @@ function findByProp(node, prop, value) {
   return findByProp(node.props?.children, prop, value);
 }
 
-test("the five-bus screen labels itself synthetic, derived from the bundle's provenance", () => {
-  assert.match(text, new RegExp(shell.STATUS_COPY.synthetic));
-  assert.match(text, /fixture source/);
-  assert.match(text, /no asserted topology/);
-  assert.match(text, /not Minnesota data/);
-  assert.match(text, /no API required/);
-
-  // The relabelling this screen must never survive.
-  for (const forbidden of [/Source supported/i, /source-supported/i, /Minnesota coverage/i, /source_backed/]) {
-    assert.doesNotMatch(text, forbidden, `the synthetic fixture must not render ${forbidden}`);
-  }
+test("the five-bus fixture is absent until the explicit legacy trigger is used", () => {
+  assert.match(text, /Show legacy synthetic fixture/);
+  assert.doesNotMatch(text, /Synthetic five-bus comparison/);
+  assert.match(text, /synthetic \(ACTIVSg2000\)/);
 });
 
 test("source truth is derived by explicit rule, and never defaults to a plausible label", () => {
@@ -259,8 +241,8 @@ test("source truth is derived by explicit rule, and never defaults to a plausibl
     sourceKind: "fixture",
     topology: null,
   });
-  // The five-bus preview is not the Texas synthetic case and must not claim it.
-  assert.doesNotMatch(text, new RegExp(escapeRegExp(shell.SYNTHETIC_TOPOLOGY_LABEL)));
+  // The primary Texas model mode is explicitly synthetic; the legacy preview is hidden.
+  assert.match(text, new RegExp(escapeRegExp(shell.SYNTHETIC_TOPOLOGY_LABEL)));
 
   // An ACTIVSg-derived source is the one topology this repository can assert.
   assert.deepEqual(
