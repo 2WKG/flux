@@ -1256,10 +1256,36 @@
           "title": "Chunk Id",
           "type": "string"
         },
+        "content_kind": {
+          "enum": [
+            "fixture",
+            "source"
+          ],
+          "title": "Content Kind",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Date"
+        },
         "doc": {
           "maxLength": 256,
           "minLength": 1,
           "title": "Doc",
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Locator",
           "type": "string"
         },
         "page": {
@@ -1267,9 +1293,28 @@
           "title": "Page",
           "type": "integer"
         },
+        "provenance": {
+          "additionalProperties": {
+            "maxLength": 2048,
+            "minLength": 1,
+            "type": "string"
+          },
+          "propertyNames": {
+            "maxLength": 128,
+            "minLength": 1
+          },
+          "title": "Provenance",
+          "type": "object"
+        },
         "score": {
           "title": "Score",
           "type": "number"
+        },
+        "source": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Source",
+          "type": "string"
         },
         "text": {
           "maxLength": 1200,
@@ -1282,15 +1327,27 @@
           "minLength": 1,
           "title": "Title",
           "type": "string"
+        },
+        "version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
         }
       },
       "required": [
+        "content_kind",
+        "date",
         "doc",
+        "locator",
+        "provenance",
+        "source",
         "title",
         "page",
         "chunk_id",
         "score",
-        "text"
+        "text",
+        "version"
       ],
       "title": "RetrievalHit",
       "type": "object"
