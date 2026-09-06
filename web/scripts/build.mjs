@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { cp, mkdir, readFile, rm } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertBrowserBundle } from "./assert-browser-bundle.mjs";
@@ -23,7 +23,14 @@ const result = await build({
   format: "esm",
   platform: "browser",
   target: "es2020",
-  outfile: path.join(dist, "assets", "app.js"),
+  // Code splitting, not a single file: each page is a dynamic import in
+  // src/shell/SiteShell.tsx, and esbuild emits one chunk per page so a visitor
+  // downloads the entry plus their own page. `entryNames` keeps the entry at the
+  // `assets/app.js` path index.html, the harness pages, and the runbooks name.
+  outdir: path.join(dist, "assets"),
+  entryNames: "app",
+  chunkNames: "chunk-[hash]",
+  splitting: true,
   sourcemap: true,
   metafile: true,
   // Metafile input keys are relative to absWorkingDir; pin it to web/ so the boundary
@@ -37,7 +44,16 @@ const result = await build({
 // needs both files beside app.js -- and an entry that does not must not carry
 // half a megabyte of dead weight. The bundle itself decides, by whether the
 // worker URL survived into it.
-const bundledApp = await readFile(path.join(dist, "assets", "app.js"), "utf8");
+// The entry and every chunk beside it are one bundle for this purpose: the
+// worker URL may survive into whichever chunk the map code landed in.
+const built = await readdir(path.join(dist, "assets"));
+const bundledApp = (
+  await Promise.all(
+    built
+      .filter((name) => name.endsWith(".js"))
+      .map((name) => readFile(path.join(dist, "assets", name), "utf8")),
+  )
+).join("\n");
 if (bundledApp.includes("maplibre-gl-worker.mjs")) {
   for (const name of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
     await cp(
