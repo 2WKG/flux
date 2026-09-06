@@ -28,12 +28,35 @@ def test_parse_states_rejects_non_postal_values() -> None:
         parse_states(["Texas"])
 
 
-def test_fetch_context_writes_one_dod_artifact_per_requested_state(tmp_path: Path, monkeypatch) -> None:
+def test_fetch_context_writes_one_dod_artifact_per_requested_state(
+    tmp_path: Path, monkeypatch
+) -> None:
     fetch_context = _fetch_context_module()
     calls: list[tuple[str, Path, str]] = []
-    monkeypatch.setattr(fetch_context, "save", lambda url, path, user_agent: calls.append((url, path, user_agent)))
-    monkeypatch.setattr(sys, "argv", ["fetch_context.py", "--raw-dir", str(tmp_path), "--states", "TX,OK", "--dod"])
+    monkeypatch.setattr(
+        fetch_context,
+        "save",
+        lambda url, path, user_agent: calls.append((url, path, user_agent)),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["fetch_context.py", "--raw-dir", str(tmp_path), "--states", "TX,OK", "--dod"],
+    )
 
     assert fetch_context.main() == 0
     assert [path.name for _, path, _ in calls] == ["TX.geojson", "OK.geojson"]
-    assert all("stateNameCode%3D%27" + state.lower() + "%27" in url for (url, _, _), state in zip(calls, ("TX", "OK"), strict=True))
+    assert all(
+        "stateNameCode%3D%27" + state.lower() + "%27" in url
+        for (url, _, _), state in zip(calls, ("TX", "OK"), strict=True)
+    )
+
+
+def test_fetch_context_rejects_conflicting_state_flags(monkeypatch):
+    fetch_context = _fetch_context_module()
+    monkeypatch.setattr(
+        sys, "argv", ["fetch_context.py", "--state", "MN", "--states", "WI", "--dod"]
+    )
+    with pytest.raises(SystemExit) as error:
+        fetch_context.main()
+    assert error.value.code == 2
