@@ -326,22 +326,6 @@ def _populate(database: Path) -> None:
                 "critical_loads_lost": ["cl-1"],
             },
         )
-        has_buses = connection.execute(
-            "SELECT 1 FROM information_schema.tables WHERE table_name = 'buses'"
-        ).fetchone()
-        if has_buses is None:
-            connection.execute(
-                "CREATE TABLE buses(bus_id BIGINT, lon DOUBLE, lat DOUBLE, coord_source TEXT)"
-            )
-            connection.execute(
-                "CREATE TABLE lines(line_id BIGINT, from_bus BIGINT, to_bus BIGINT, is_transformer BOOLEAN)"
-            )
-            connection.execute("CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT)")
-            connection.execute("CREATE TABLE loads(load_id BIGINT, bus_id BIGINT)")
-            connection.execute(
-                "INSERT INTO buses VALUES (1, -97.0, 30.0, 'tamu_aux'), (2, -96.0, 31.0, 'tamu_aux')"
-            )
-            connection.execute("INSERT INTO lines VALUES (1, 1, 2, false)")
         _add_score_artifact(
             connection,
             COMPARISON_ARTIFACT,
