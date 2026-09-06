@@ -49,7 +49,14 @@
       "grid_index_mapping": "No grid index; NCEI zone 093 FREEBORN.",
       "gaps": [
         "Raw gzip and canonical filtered row remain outside Git."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2020-42547894-20201110t120000-20201110t180000",
@@ -71,7 +78,28 @@
         "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
         "No total_customers field; no population proxy."
       ],
-      "acquisition":{"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547894","source_file":"eaglei_outages_2020.csv","source_file_id":42547894,"source_file_bytes":1170699724,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv","raw_artifact_sha256":"2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json","source_sidecar_sha256":"6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9","filtered_artifact_uri":"data/raw/event-baseline/mn-2020-11-10-ice-27047-20201110120000_eaglei_2020_20201110T120000_20201110T180000.csv","filtered_artifact_sha256":"667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"}
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547894",
+        "source_file": "eaglei_outages_2020.csv",
+        "source_file_id": 42547894,
+        "source_file_bytes": 1170699724,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+        "raw_artifact_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+        "source_sidecar_sha256": "6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2020-11-10-ice-27047-20201110120000_eaglei_2020_20201110T120000_20201110T180000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -119,10 +147,37 @@
         "coverage": "UncoveredLabel",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-2020-42547894-20201110t120000-20201110t180000"],
+        "source_receipt_ids": [
+          "eaglei-2020-42547894-20201110t120000-20201110t180000"
+        ],
         "expected_samples": 24,
         "observed_samples": 0,
-        "missing_timestamps": ["2020-11-10T12:00:00Z","2020-11-10T12:15:00Z","2020-11-10T12:30:00Z","2020-11-10T12:45:00Z","2020-11-10T13:00:00Z","2020-11-10T13:15:00Z","2020-11-10T13:30:00Z","2020-11-10T13:45:00Z","2020-11-10T14:00:00Z","2020-11-10T14:15:00Z","2020-11-10T14:30:00Z","2020-11-10T14:45:00Z","2020-11-10T15:00:00Z","2020-11-10T15:15:00Z","2020-11-10T15:30:00Z","2020-11-10T15:45:00Z","2020-11-10T16:00:00Z","2020-11-10T16:15:00Z","2020-11-10T16:30:00Z","2020-11-10T16:45:00Z","2020-11-10T17:00:00Z","2020-11-10T17:15:00Z","2020-11-10T17:30:00Z","2020-11-10T17:45:00Z"],
+        "missing_timestamps": [
+          "2020-11-10T12:00:00Z",
+          "2020-11-10T12:15:00Z",
+          "2020-11-10T12:30:00Z",
+          "2020-11-10T12:45:00Z",
+          "2020-11-10T13:00:00Z",
+          "2020-11-10T13:15:00Z",
+          "2020-11-10T13:30:00Z",
+          "2020-11-10T13:45:00Z",
+          "2020-11-10T14:00:00Z",
+          "2020-11-10T14:15:00Z",
+          "2020-11-10T14:30:00Z",
+          "2020-11-10T14:45:00Z",
+          "2020-11-10T15:00:00Z",
+          "2020-11-10T15:15:00Z",
+          "2020-11-10T15:30:00Z",
+          "2020-11-10T15:45:00Z",
+          "2020-11-10T16:00:00Z",
+          "2020-11-10T16:15:00Z",
+          "2020-11-10T16:30:00Z",
+          "2020-11-10T16:45:00Z",
+          "2020-11-10T17:00:00Z",
+          "2020-11-10T17:15:00Z",
+          "2020-11-10T17:30:00Z",
+          "2020-11-10T17:45:00Z"
+        ],
         "event_report": null,
         "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
       },
@@ -136,7 +191,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

@@ -52,7 +52,14 @@
       "grid_index_mapping": "No grid index; NCEI zone 012 NORTHERN COOK / NORTHERN LAKE.",
       "gaps": [
         "Raw gzip and canonical filtered row remain outside Git."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2022-42547897-20221110t180000-20221111t000000",
@@ -88,7 +95,14 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-11-10-ice-27031-20221110180000_eaglei_2022_20221110T180000_20221111T000000.csv",
         "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -180,7 +194,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
