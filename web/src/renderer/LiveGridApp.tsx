@@ -13,13 +13,14 @@ const LAYERS = { tx: ["line", "generation", "storage"], mn: ["line", "substation
 type State = keyof typeof LAYERS;
 type Load = { kind: "loading" } | { kind: "ready"; pages: readonly SpatialPage[] } | { kind: "failure"; message: string };
 
-async function getAllPages(state: State, layer: string): Promise<readonly SpatialPage[]> {
+async function getAllPages(state: State, layer: string, bbox: string | null, signal: AbortSignal): Promise<readonly SpatialPage[]> {
   const pages: SpatialPage[] = [];
   let cursor: string | null = null;
   do {
     const query = new URLSearchParams({ state, version: "1.1.0", limit: "100" });
     if (cursor) query.set("cursor", cursor);
-    const response = await fetch(`/api/v1/grid/layers/${encodeURIComponent(layer)}?${query}`);
+    if (bbox) query.set("bbox", bbox);
+    const response = await fetch(`/api/v1/grid/layers/${encodeURIComponent(layer)}?${query}`, { signal });
     const payload = pageFrom(await response.json());
     if (!response.ok || payload === null || "status" in payload) throw new Error(payload && "status" in payload ? payload.error.message : `Grid API returned ${response.status}.`);
     pages.push(payload);
@@ -49,13 +50,17 @@ function LiveGridApp() {
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [selected, setSelected] = useState<SpatialItem | null>(null);
   const [query, setQuery] = useState("");
+  const [bbox, setBbox] = useState<string | null>(null);
   useEffect(() => { setLayers(LAYERS[state]); setSelected(null); }, [state]);
   useEffect(() => {
     let current = true;
+    const controller = new AbortController();
     setLoad({ kind: "loading" });
-    Promise.all(layers.map((layer) => getAllPages(state, layer))).then((pages) => current && setLoad({ kind: "ready", pages: pages.flat() })).catch((error) => current && setLoad({ kind: "failure", message: error instanceof Error ? error.message : String(error) }));
-    return () => { current = false; };
-  }, [state, layers]);
+    Promise.all(layers.map((layer) => getAllPages(state, layer, bbox, controller.signal))).then((pages) => current && setLoad({ kind: "ready", pages: pages.flat() })).catch((error) => {
+      if (current && !(error instanceof DOMException && error.name === "AbortError")) setLoad({ kind: "failure", message: error instanceof Error ? error.message : String(error) });
+    });
+    return () => { current = false; controller.abort(); };
+  }, [state, layers, bbox]);
   const items = useMemo(() => load.kind === "ready" ? load.pages.flatMap((page) => page.items) : [], [load]);
   const filtered = useMemo(() => query.trim() ? items.filter((item) => item.asset_id.toLowerCase().includes(query.trim().toLowerCase()) || item.asset_kind.toLowerCase().includes(query.trim().toLowerCase())) : items, [items, query]);
   const features = useMemo(() => renderableFeatures(filtered), [filtered]);
@@ -71,8 +76,8 @@ function LiveGridApp() {
     <section className="grid-controls" aria-label="Map controls"><label>State <select value={state} onChange={(event) => setState(event.target.value as State)}><option value="tx">Texas</option><option value="mn">Minnesota</option></select></label>
       <fieldset><legend>Layers</legend>{LAYERS[state].map((layer) => <label key={layer}><input type="checkbox" checked={layers.includes(layer)} onChange={(event) => updateLayer(layer, event.target.checked)} /> {layer}</label>)}</fieldset>
       <label>Search rendered inventory <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Asset ID or kind" /></label></section>
-    <section className="grid-map" aria-label="Source-backed physical inventory map"><Map initialViewState={state === "tx" ? { longitude: -99, latitude: 31, zoom: 5 } : { longitude: -94, latitude: 46, zoom: 5.6 }} mapStyle={OFFLINE_BASEMAP_STYLE}><DeckOverlay layers={deckLayers} /></Map>
-      <div className="grid-map-note" role="status">{load.kind === "loading" ? "Loading source-backed inventory…" : load.kind === "failure" ? `Unavailable: ${load.message}` : <><strong>{release?.artifact_id} · {release?.artifact_version}</strong><span>{accounting.renderable} rendered from {accounting.totalLoaded} loaded records; {accounting.unavailableGeometry} records have unavailable geometry and no marker was created.</span><span>Release SHA-256: {release?.release_sha256}; coverage rows remain available in the response.</span></>}</div></section>
+    <section className="grid-map" aria-label="Source-backed physical inventory map"><Map initialViewState={state === "tx" ? { longitude: -99, latitude: 31, zoom: 5 } : { longitude: -94, latitude: 46, zoom: 5.6 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMoveEnd={(event) => { const b = event.target.getBounds(); setBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",")); }}><DeckOverlay layers={deckLayers} /></Map>
+      <div className="grid-map-note" role="status">{load.kind === "loading" ? "Loading source-backed inventory…" : load.kind === "failure" ? `Unavailable: ${load.message}` : <><strong>{release?.artifact_id} · {release?.artifact_version}</strong><span>{accounting.renderable} rendered from {accounting.totalLoaded} loaded {bbox ? "viewport" : "state"} records; {accounting.unavailableGeometry} loaded records have unavailable geometry and no marker was created.</span><span>Release SHA-256: {release?.release_sha256}; coverage rows remain available in the response.</span></>}</div></section>
     <Inspector item={selected} />
   </main>;
 }
