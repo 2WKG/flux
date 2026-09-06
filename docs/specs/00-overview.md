@@ -264,10 +264,10 @@ GET  /layers/{name}?scenario_id=&hour=&run_id=&unit_mw=&tech=&res=
                line_upgrades, storm, national_hex, eaglei}          (GeoJSON / Arrow IPC / JSON — see 05)
 POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
 GET  /cascade?scenario_id=&run_id=                    → one qualified persisted cascade_runs run, unwrapped {run_id, scenario_id, artifact_id, model_mode, geography_id, hours:[{hour, lost_load_mw (MW), …}], provenance:[…], limitations:[…], source_kind, topology, attributes} (05 §Routes, 2WKG-104)
-POST /site-score   {site_id, unit_mw, scenario_id}    → score_site(...) dict
+POST /site-score   {site_id, unit_mw, scenario_id}    → one persisted site_scores row, unwrapped {site_id, …, artifact_id, model_mode, limitations, source_kind, topology, provenance} — model metadata joined from mn_artifact_manifests, not from site_scores (05 §Routes, 2WKG-172)
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows, filtered in SQL before LIMIT (05 §Routes, 2WKG-104)
-GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
+GET  /lines/top?region=&tech=any&limit=50&offset=0    → one bounded deterministic page of the persisted line-upgrade ranking as the top_lines dict; limit is capped at TOP_LINES_MAX_LIMIT (50) and the frozen tool input top_lines(region, tech, n) stays unpaginated (05 §Routes, 2WKG-172)
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
 GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
