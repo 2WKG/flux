@@ -257,6 +257,9 @@ def search_locations(
                 "safety_flags": _get(
                     candidate, "safety_flags", "safety_flags_json", default=[]
                 ),
+                "candidate_provenance": _get(
+                    candidate, "candidate_provenance", default=[]
+                ),
                 "balance": row["balance"],
                 "analysis_label": SCREENING_LABEL,
                 "model_mode": "synthetic",
@@ -320,6 +323,16 @@ def _candidate_rows(
         source = _invoke(net.search_candidates, kind=kind)  # type: ignore[union-attr]
     elif kind == "producer":
         source = _get(net, "site_candidates", "producer_candidates", default=None)
+        if source is None:
+            try:
+                from siting.candidate_source import (
+                    SyntheticCandidateSourceUnavailable,
+                    producer_candidates,
+                )
+
+                source = producer_candidates(net)
+            except SyntheticCandidateSourceUnavailable as exc:
+                raise SearchUnavailable(str(exc)) from exc
     else:
         source = _get(net, "consumer_candidates", "load_buses", "loads", default=None)
     if source is None:
