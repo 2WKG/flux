@@ -13,7 +13,6 @@ from models.outage.contracts import (
 )
 from models.outage.predict import heuristic_prediction, trained_prediction
 
-
 H = "a" * 64
 KEY = WindowKey(
     county_fips="48453",
@@ -65,7 +64,12 @@ def test_heuristic_path_carries_rule_provenance():
         key=KEY,
         feature_set_version="features-1",
         source_input_sha256=H,
-        features=(("gust_max", FeatureValue(value=20.0, status=FeatureStatus.PRESENT, unit="m_s")),),
+        features=(
+            (
+                "gust_max",
+                FeatureValue(value=20.0, status=FeatureStatus.PRESENT, unit="m_s"),
+            ),
+        ),
     )
     record = heuristic_prediction(
         features=features,
