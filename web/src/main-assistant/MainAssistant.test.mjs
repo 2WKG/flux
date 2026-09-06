@@ -121,3 +121,38 @@ test("does not fabricate a protocol error into a server terminal payload", () =>
   assert.match(markup, /did not supply a terminal error event/);
   assert.match(markup, /Expected event 2, received 3/);
 });
+
+test("reads its argument: the declared scene_action envelope decides availability", () => {
+  const sceneAction = (fields) => state([
+    event("lifecycle", 1, { status: "started" }),
+    event("tool_call", 2, { call_id: "cascade-call", tool: "cascade", input: {} }),
+    event("tool_result", 3, {
+      call_id: "cascade-call",
+      tool: "cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: { scene_action: { action_id: "action-7", kind: "cascade", tool_call_id: "cascade-call", reversible: true, status: "available", ...fields } },
+    }),
+    event("done", 4, { status: "completed", verified: true, unverified_numbers: [] }),
+  ]);
+
+  // With its own run identity the action is available, and the helper says which kind.
+  const withIdentity = sceneAction({ cascade_id: "cascade-1" });
+  const available = api.sceneActionAvailability(withIdentity);
+  assert.equal(available.availability, "available");
+  assert.equal(available.action.kind, "cascade");
+  assert.equal(available.result.call_id, "cascade-call");
+  const availableMarkup = api.render(props(withIdentity));
+  assert.match(availableMarkup, /data-scene-action-availability="available"/);
+  assert.match(availableMarkup, /cascade action supplied by tool result cascade-call/);
+
+  // The same envelope without the identity its kind requires stays unavailable, so the
+  // two states are distinguishable and neither is hardcoded.
+  const withoutIdentity = sceneAction({ edit_hash: "an-edit-is-not-a-run" });
+  assert.deepEqual(api.sceneActionAvailability(withoutIdentity), { availability: "unavailable", reason: "absent_from_received_ask_event_data" });
+  const refusedMarkup = api.render(props(withoutIdentity));
+  assert.match(refusedMarkup, /data-scene-action-availability="unavailable"/);
+  // The raw trace still shows the received payload; the scene-action section must not
+  // turn that edit hash into an available cascade.
+  assert.doesNotMatch(refusedMarkup, /cascade action supplied by tool result/);
+});
