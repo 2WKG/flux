@@ -1,10 +1,13 @@
 import json
+import shutil
+from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
+from pipelines.build import P0_RAW_INPUTS_CATALOG
 from pipelines.counties import load_counties
 from pipelines.db import connect, replace_frame
 from pipelines.eaglei import load_eaglei
@@ -359,3 +362,115 @@ def test_coverage_invalid_year_preserves_existing_scope(tmp_path):
         assert con.execute("SELECT * FROM eaglei_coverage").fetchall() == before
     finally:
         con.close()
+
+
+def test_context_cli_publishes_storm_events_and_denominators_for_a_context_state(
+    tmp_path,
+):
+    """The context CLI reaches the same county-grain relations the Texas P0 fills."""
+    from pipelines.build_state_context import main
+
+    live = tmp_path / "grid.duckdb"
+    con = connect(live)
+    seed(con)
+    con.close()
+    raw = tmp_path / "raw"
+    releases = json.loads(P0_RAW_INPUTS_CATALOG.read_text(encoding="utf-8"))[
+        "nws_crosswalk_releases"
+    ]
+    for entry in releases:
+        target = raw.joinpath(*entry["path"])
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(Path("data/raw").joinpath(*entry["path"]), target)
+    details = tmp_path / "storm.csv.gz"
+    frame = pd.DataFrame(
+        [
+            {
+                "EVENT_ID": 1,
+                "STATE": "MINNESOTA",
+                "STATE_FIPS": 27,
+                "CZ_TYPE": "C",
+                "CZ_FIPS": 1,
+                "EVENT_TYPE": "Winter Storm",
+                "BEGIN_DATE_TIME": "01-JAN-21 06:00:00",
+                "END_DATE_TIME": "01-JAN-21 12:00:00",
+                "CZ_TIMEZONE": "CST-6",
+                "MAGNITUDE": None,
+            }
+        ]
+    )
+    frame.to_csv(details, index=False, compression="gzip")
+    mcc = tmp_path / "MCC.csv"
+    mcc.write_text("County_FIPS,Customers\n27001,1234\n55001,99\n")
+    coverage = tmp_path / "coverage.csv"
+    coverage.write_text(
+        "year,state,total_customers,min_covered,max_covered,min_pct_covered,max_pct_covered\n"
+        "2021-01-01,MN,10,5,10,0.5,1.0\n2021-01-01,WI,10,5,10,0.5,1.0\n"
+    )
+    assert (
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--parquet-dir",
+                str(tmp_path / "parquet"),
+                "--raw-dir",
+                str(raw),
+                "--storm-events",
+                f"2021={details}",
+                "--mcc",
+                str(mcc),
+                "--coverage",
+                str(coverage),
+            ]
+        )
+        == 0
+    )
+    con = connect(live)
+    try:
+        assert con.execute("SELECT county_fips FROM storm_events").fetchall() == [
+            ("27001",)
+        ]
+        assert con.execute(
+            "SELECT county_fips, customers FROM county_customers WHERE source = 'mcc_2022'"
+        ).fetchall() == [("27001", 1234)]
+        assert con.execute("SELECT state FROM eaglei_coverage").fetchall() == [("MN",)]
+    finally:
+        con.close()
+
+
+def test_context_cli_requires_counties_before_storm_events(tmp_path, capsys):
+    from pipelines.build_state_context import main
+
+    details = tmp_path / "storm.csv.gz"
+    pd.DataFrame(
+        [
+            {
+                "EVENT_ID": 1,
+                "STATE": "MINNESOTA",
+                "STATE_FIPS": 27,
+                "CZ_TYPE": "C",
+                "CZ_FIPS": 1,
+                "EVENT_TYPE": "Winter Storm",
+                "BEGIN_DATE_TIME": "01-JAN-21 06:00:00",
+                "END_DATE_TIME": "01-JAN-21 12:00:00",
+                "CZ_TIMEZONE": "CST-6",
+                "MAGNITUDE": None,
+            }
+        ]
+    ).to_csv(details, index=False, compression="gzip")
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--storm-events",
+                f"2021={details}",
+            ]
+        )
+    assert error.value.code == 2
+    assert "requires loaded counties for MN" in capsys.readouterr().err

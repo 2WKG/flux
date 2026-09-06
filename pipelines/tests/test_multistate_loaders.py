@@ -535,3 +535,65 @@ def test_scope_with_no_source_rows_is_reported_in_ingest_warnings(tmp_path):
         ),
     ]
     assert replayed == warnings
+
+
+def test_eia860_plant_evidence_is_scope_keyed_per_state(tmp_path):
+    """A second state's plant load must not take the first state's log row."""
+    from pipelines.db import connect
+    from pipelines.eia860 import load_eia860_plants
+
+    plants = pd.DataFrame(
+        [
+            {
+                "plant_id_eia": 1,
+                "plant_name_eia": "Alpha",
+                "report_date": "2024-01-01",
+                "latitude": 31.0,
+                "longitude": -97.0,
+                "state": "TX",
+                "county_id_fips": "48001",
+            },
+            {
+                "plant_id_eia": 2,
+                "plant_name_eia": "Beta",
+                "report_date": "2024-01-01",
+                "latitude": 46.0,
+                "longitude": -94.0,
+                "state": "MN",
+                "county_id_fips": "27001",
+            },
+        ]
+    )
+    generators = pd.DataFrame(
+        [
+            {
+                "plant_id_eia": plant_id,
+                "generator_id": "G1",
+                "report_date": "2024-01-01",
+                "capacity_mw": 10.0,
+                "fuel_type_code_pudl": "gas",
+                "retirement_date": None,
+                "planned_retirement_date": None,
+            }
+            for plant_id in (1, 2)
+        ]
+    )
+    plants_path = tmp_path / "plants.parquet"
+    generators_path = tmp_path / "generators.parquet"
+    plants.to_parquet(plants_path)
+    generators.to_parquet(generators_path)
+    con = connect(tmp_path / "grid.duckdb")
+    try:
+        load_eia860_plants(con, plants_path, generators_path, states="TX")
+        load_eia860_plants(con, plants_path, generators_path, states="MN")
+        releases = con.execute(
+            """SELECT source_release, rows_loaded FROM ingest_log
+               WHERE source = 'pudl_eia860' AND source_file = 'plants.parquet'
+               ORDER BY source_release"""
+        ).fetchall()
+        assert releases == [("v2026.2.0;scope=mn", 1), ("v2026.2.0;scope=tx", 1)]
+        assert con.execute(
+            "SELECT state, count(*) FROM eia_plants GROUP BY 1 ORDER BY 1"
+        ).fetchall() == [("MN", 1), ("TX", 1)]
+    finally:
+        con.close()
