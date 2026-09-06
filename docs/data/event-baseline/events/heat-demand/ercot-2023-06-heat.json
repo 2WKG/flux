@@ -126,7 +126,7 @@
           "2023-07-19T03:15:00Z",
           "2023-07-19T03:30:00Z"
         ],
-        "notes": "Fixed acquisition: 22/24 observed 15-minute values; missing rows cannot be treated as zero.",
+        "notes": "Selected EAGLE-I observation sample contains 22 of 24 expected timestamps; it is not an exhaustive annual scan and cannot establish a source-wide gap. Missing rows are UncoveredLabel.",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
