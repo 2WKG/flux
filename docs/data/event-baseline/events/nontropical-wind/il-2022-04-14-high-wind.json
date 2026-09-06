@@ -1,0 +1,241 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "nontropical-wind",
+  "event": {
+    "event_id": "il-2022-04-14-high-wind",
+    "parent_system_id": "sys-2022-04-14-great-lakes-low",
+    "primary_hazard": "non-tropical high wind",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2022-04-14T00:00:00Z",
+      "end_utc": "2022-04-16T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-04-14T12:00:00Z",
+      "end_utc": "2022-04-15T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-04-15T00:00:00Z",
+      "end_utc": "2022-04-16T00:00:00Z"
+    },
+    "disposition": "accepted",
+    "selection_basis": "NWS Chicago annual summary identifies strong non-thunderstorm winds with isolated damage on April 14.",
+    "uncertainties": [
+      "Outside initial Minnesota focus; no matched coverage evidence."
+    ],
+    "source_event_ids": [
+      "1015187"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-lot-annual-2022",
+      "provider": "NOAA National Weather Service Chicago",
+      "url": "https://www.weather.gov/lot/Annual2022",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS annual summary; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Narrative summary.",
+      "timezone_conversion": "No source timestamp conversion asserted.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "Detailed event/coverage receipts pending."
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
+      "filters": "EVENT_ID=1015187; STATE=ILLINOIS; CZ_TYPE=Z; CZ_NAME=CENTRAL COOK COUNTY; EVENT_TYPE=High Wind.",
+      "grid_index_mapping": "Zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220414t180000-20220415t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:13:50.557332Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "2b57373fb81608a2f6f48b920ad97046613d31ea7a00ed47a08e6f5e872c9885",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"17031\"], \"states\": [\"Illinois\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/il-2022-04-14-high-wind-17031-20220414180000_eaglei_2022_20220414T180000_20220415T000000.csv",
+        "filtered_artifact_sha256": "2b57373fb81608a2f6f48b920ad97046613d31ea7a00ed47a08e6f5e872c9885"
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "il-2022-04-14-high-wind-17031-1800",
+      "county_fips": "17031",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "il-2022-04-14-high-wind-replay",
+      "window_start_utc": "2022-04-14T18:00:00Z",
+      "window_end_utc": "2022-04-15T00:00:00Z",
+      "disposition": "accepted",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-stormevents-2022",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000"
+      ],
+      "weather": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "ncei-stormevents-2022"
+        ],
+        "notes": "NCEI Central Cook County zone high-wind report 1015187 intersects this canonical window; its zone scope is documented and no weather time series is asserted.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1015187"
+          ],
+          "source_window": {
+            "start_utc": "2022-04-14T20:40:00Z",
+            "end_utc": "2022-04-14T21:13:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "IL Central Cook County zone",
+          "limitations": "Zone report establishes occurrence for the named zone only; it is not a countywide measurement or a time series."
+        }
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20220414t180000-20220415t000000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan returned all 24 expected 15-minute observations for FIPS 17031. Customer denominator is unavailable, so no outage rate or positive label is computed.",
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 18:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 18:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 18:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 18:45:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 19:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 19:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 19:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 19:45:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 20:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 20:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 20:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 20:45:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 21:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 21:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 21:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 21:45:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 22:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 22:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 22:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 22:45:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 23:00:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 23:15:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 23:30:00Z",
+        "eaglei-2022-42547897-20220414t180000-20220415t000000:17031:2022-04-14 23:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2022-42547897-20220414t180000-20220415t000000",
+          "county_fips": "17031",
+          "start_utc": "2022-04-14T18:00:00Z",
+          "end_utc": "2022-04-15T00:00:00Z"
+        }
+      ]
+    }
+  ]
+}
