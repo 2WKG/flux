@@ -120,9 +120,7 @@ def _serialized_statement(query: str) -> tuple[str, list[object]]:
     if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
         raise SqlRejected("only one SELECT statement is permitted")
     if statements[0].named_parameters:
-        raise SqlRejected(
-            "SQL parameters are not available in the fixed query-only tool contract"
-        )
+        raise SqlRejected("SQL parameters are not available in the fixed tool contract")
     try:
         serialized = duckdb.sql(
             "SELECT json_serialize_sql(?)", params=[statements[0].query]
@@ -405,8 +403,15 @@ class MinnesotaSqlExecutor:
             return self._unavailable(
                 "unsupported_request", "SQL query is outside the fixed input contract"
             )
+        # ``SqlInput`` already enforces exactly one of ``query``/``template_id``;
+        # this guard keeps the executor fail-closed if a caller bypasses it.
+        if (payload.query is None) == (payload.template_id is None):
+            return self._unavailable(
+                "unsupported_request",
+                "SQL accepts exactly one of query or template_id",
+            )
         if self._queries:
-            if payload.template_id is None or payload.query is not None:
+            if payload.template_id is None:
                 return self._unavailable(
                     "unsupported_request", "SQL requires one registered template_id"
                 )
@@ -416,12 +421,14 @@ class MinnesotaSqlExecutor:
                     "unsupported_request", "SQL template is not registered"
                 )
             query = template.sql
-        elif payload.query is not None:
-            query = payload.query
-        else:
+        elif payload.template_id is not None:
             return self._unavailable(
-                "unsupported_request", "SQL query is outside the fixed input contract"
+                "unsupported_request",
+                "SQL template registry is not configured for this deployment",
             )
+        else:
+            assert payload.query is not None
+            query = payload.query
         if not self._database_path.is_file():
             return self._unavailable(
                 "artifact_unavailable",

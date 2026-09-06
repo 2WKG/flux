@@ -144,13 +144,16 @@ def causal_query(...) -> dict                                                   
 # helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
 ```
 
-SQL deployments may register fixed, deployment-owned templates. In registry
+SQL deployments may register fixed, deployment-owned templates. Every `sql`
+call supplies exactly one of `query` or `template_id`; the input boundary
+rejects an empty call and a call carrying both. In registry
 mode, the caller supplies one advertised `template_id` matching
 `^[a-z][a-z0-9_]{0,63}$`; raw `query` text is rejected before database access.
 Each template declares its complete approved-view relation set, which is
 validated against the parsed statement at registry construction. A deployment
-without a registry retains legacy `query` input. Bound values are not yet a
-public SQL input surface.
+without a registry retains legacy `query` input and answers a `template_id`
+with an explicit unavailable result naming the missing registry. Bound values
+are not yet a public SQL input surface.
 
 `cite` corpus (in `data/raw/regs/`, chunked by spec 05): 10 CFR Part 100; DOE coal-to-nuclear reports
 (Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed rule
@@ -468,7 +471,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     | `compare_interventions(scenario, intervention_ids)` | `compare_interventions(scenario_id, intervention_ids)` | **new**, below |
     | `top_critical_elements(region, count)` | `top_critical_elements(region, n)` | **new**, below |
     | `top_line_upgrades(region, technology, count)` | `top_lines(region, tech, n)` | rename only |
-    | `sql(query)` | `sql(query | template_id)` | Legacy query text or a deployment-owned registered template. |
+    | `sql(query)` | `sql(query | template_id)` | Exactly one of legacy query text or a deployment-owned registered template. |
     | — | `cite(query, k)` | contract-only (retrieval) |
     | — | `causal_query(...)` | contract-only; spec 07 owns the signature and implementation; registered here so the tool count is consistent |
 
