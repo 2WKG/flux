@@ -1,5 +1,15 @@
 import type { ClientState, NetworkFailureReason } from "../data/client-state";
-import { failureStatusFor, type FailureKind, type FailureStateInput, type FailureStatus } from "./types";
+import {
+  STREAM_CLOSE_MESSAGE,
+  STREAM_ENDED_WITHOUT_TERMINAL,
+  failureStatusFor,
+  type FailureKind,
+  type FailureStateInput,
+  type FailureStatus,
+  type StreamCloseReason,
+} from "./types";
+
+export type { StreamCloseReason };
 
 const NETWORK_REASON_KIND = {
   unreachable: "network_failure",
@@ -77,6 +87,27 @@ export function fromSseTerminalError(
     message: error.message,
     retryAfterSeconds: error.retryAfterSeconds,
     code: error.code,
+    retainedContext,
+  };
+}
+
+/**
+ * OQ-1, decided: a stream that closes with neither a terminal `done` nor a
+ * terminal `error` is `request_failed`.
+ *
+ * The kind is `failed` (not `unavailable`: nothing told us a dependency was
+ * missing) and the code is the named `stream_ended_without_terminal`, so the
+ * screen shows the frozen token plus the cause rather than a prose apology.
+ * `retryAfterSeconds` is deliberately absent -- the server supplied no advice.
+ */
+export function fromStreamClose(
+  close: { reason?: StreamCloseReason; message?: string } = {},
+  retainedContext?: FailureStateInput["retainedContext"],
+): FailureStateInput {
+  return {
+    kind: "failed",
+    message: close.message ?? STREAM_CLOSE_MESSAGE[close.reason ?? "eof"],
+    code: STREAM_ENDED_WITHOUT_TERMINAL,
     retainedContext,
   };
 }

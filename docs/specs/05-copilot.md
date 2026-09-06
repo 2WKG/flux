@@ -14,7 +14,7 @@ Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.du
 
 ## Purpose
 
-A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling Claude copilot behind `POST /ask`.
+A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling copilot behind `POST /ask`, running on either Claude or Gemini (§Providers; Gemini is the default).
 
 The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
@@ -77,17 +77,82 @@ copilot/
 
 One process, one DuckDB connection (read-only), async FastAPI; blocking DuckDB and engine calls run in `asyncio.to_thread`.
 
-### Model and SDK
+### Providers (2WKG-481)
 
-- SDK: `anthropic` (Python; installed 1.4.0, introspected 2026-09-05). Client: `anthropic.AsyncAnthropic()` (reads `ANTHROPIC_API_KEY`).
-- Model: `claude-opus-5` (default; `COPILOT_MODEL` env can override, e.g. `claude-sonnet-5` for cheaper eval runs). Ids match the Anthropic `claude-api` skill model table (cached 2026-06-24); not confirmed against the live Models API this session (no key in the checkout) — the `/health` startup check must call `client.models.retrieve(COPILOT_MODEL)` and fail loud. Adaptive thinking is on by default on Opus 5; we set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
+The tool loop, the grounding rules, and the SSE contract are **provider-agnostic
+and written once**. Two adapters sit behind them, selected by configuration:
+
+| provider | SDK (verified) | client | default model | verified where |
+| --- | --- | --- | --- | --- |
+| `gemini` (**default**) | `google-genai` 2.22.0, introspected 2026-09-06; `pyproject.toml` floors at `>=2.22`, the version whose streaming surface was actually checked | `google.genai.Client(api_key=…)`, `client.aio.models.generate_content_stream(model=…, contents=…, config=GenerateContentConfig(system_instruction=…, max_output_tokens=…))` → `AsyncIterator[GenerateContentResponse]`, `chunk.text` | `gemini-3.8-flash` | published at <https://ai.google.dev/gemini-api/docs/models> (fetched 2026-09-06) as the current stable Flash id, and returned by `client.models.list()` against this checkout's developer key |
+| `claude` | `anthropic` 1.4.0, introspected 2026-09-05 | `anthropic.AsyncAnthropic(api_key=…)`, `client.messages.stream(...)`, `stream.text_stream` | `claude-sonnet-5` (00-overview §"LLM") | the `claude-api` skill model table; **not** exercised live in this checkout — no Anthropic key here |
+
+Rules that hold for both:
+
+- **The SSE event vocabulary does not change.** `text`, `tool_call`,
+  `tool_result`, `citation`, `done`, `error` are emitted by `copilot/runtime.py`
+  from the adapter's text deltas, so the browser cannot tell which provider
+  answered. Ordering, verification, and every terminal event stay shared.
+- **Tool schemas are one contract in two renderings.**
+  `copilot/tools/schemas.py:TOOL_SCHEMAS` is the contract; `providers/tool_schemas.py`
+  renders it as Anthropic strict tools and as Gemini `FunctionDeclaration`s
+  (`parameters_json_schema`). Names, descriptions, and parameter schemas are
+  identical — that is asserted in `copilot/providers/test_providers.py`.
+- **Grounding is written once** in `providers/grounding.py` (`SYSTEM_PROMPT` and
+  `narration_prompt`). An adapter must not add, relax, or restate a rule.
+- **No automatic cross-provider fallback.** Each provider reports ready or
+  unavailable independently; an unconfigured active provider yields the
+  documented unavailable terminal rather than being answered by the other one,
+  so a reader can always say which model produced an answer. An explicit,
+  labelled fallback would be a separate, labelled feature.
+- **Server-side only.** Both adapters run in the FastAPI host; no key reaches
+  the client, and the page cannot reach an external origin under the CSP.
+- Run metadata: `POST /ask` answers with `X-Flux-Copilot-Provider` and
+  `X-Flux-Copilot-Model`, and `GET /health`'s `model` component carries
+  `provider` and `model`. Those headers are deliberately **not** in the CORS
+  expose list, so they inform an operator without letting the page branch on
+  the provider. A configured credential still never means "verified".
+- **The adapter is constructed by the app, not by a deployment.** Provider
+  selection is fully determined by `COPILOT_PROVIDER` and its credential, so
+  `copilot/app.py:create_app` calls `providers.build_narration_provider` once at
+  startup and stores it on `app.state.narration_provider`. Construction opens no
+  connection. Tool orchestration stays deployment-injected (`ask_backend`); a
+  backend that carries its own `provider` outranks the configured one, and
+  `/ask` uses exactly one resolved provider for both the stream and its headers.
+- **Run metadata names the provider that answered.** The
+  `X-Flux-Copilot-Provider` / `X-Flux-Copilot-Model` headers are read from that
+  resolved provider, never from `Settings`, and are **omitted** when no provider
+  answered. Stamping the configured name onto an answer produced by something
+  else would be a plausible default in run metadata, which this contract forbids.
+- **Both adapters are bounded in time.** Each SDK client is built with the shared
+  `providers/grounding.py:REQUEST_TIMEOUT_SECONDS` (60 s) — `HttpOptions(timeout=…)`
+  in milliseconds for `google-genai`, `AsyncAnthropic(timeout=…)` in seconds —
+  and `copilot/runtime.py` separately bounds the gap between two streamed deltas
+  (`PROVIDER_DELTA_TIMEOUT_SECONDS`). A stream that stays open but stops
+  producing text therefore reaches the `deadline` terminal in `copilot/sse.py`
+  instead of heartbeating forever.
+- **The wire is tested without a key.** `providers/test_provider_transport.py`
+  drives each real SDK over an httpx mock transport that replays a recorded
+  response body from `copilot/providers/fixtures/`, so the SDK parser, the
+  adapter, `stream_turn`, and `/ask` all execute for both providers. The fixtures
+  contain no credential and no test makes a paid API call. The remaining
+  configuration tests prove ready/unavailable behaviour and schema translation.
+
+### Model and SDK (Claude path)
+
+This section plans the **not-yet-built** Claude tool-use loop. Where it once
+stated a default model and a startup check, §Providers above is the authority
+and this text now agrees with it (2WKG-481).
+
+- SDK: `anthropic` (Python; installed 1.4.0, introspected 2026-09-05). Client: `anthropic.AsyncAnthropic(api_key=…, timeout=REQUEST_TIMEOUT_SECONDS)` — the key is passed explicitly from `Settings`, never read from the ambient environment by the SDK, and the timeout is the shared bound in §Providers.
+- Model: `claude-sonnet-5` (the default in §Providers and 00-overview §"LLM"; `COPILOT_MODEL` overrides **only the active provider**). Ids match the Anthropic `claude-api` skill model table (cached 2026-06-24) and are not confirmed against the live Models API — there is no Anthropic key in this checkout. There is deliberately **no** `client.models.retrieve(COPILOT_MODEL)` startup check: `/health` reports a configured credential as `not_verified` (`copilot/routes/health.py`), because a credential is not evidence that a model answers, and a startup call to a paid API would make the health check itself the thing that fails. Adaptive thinking would be on by default on an Opus-class model; the loop would set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
 
 ```python
 thinking={"type": "adaptive"},
 output_config={"effort": "medium"},
 ```
 
-  (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus 5 per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
+  (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus-class models per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
 - Streaming: `client.messages.stream(...)` on every model turn (long outputs, tool chains). Verified signature (`AsyncMessages.stream`): keyword-only `max_tokens, messages, model, system, tools, tool_choice, thinking, output_config, cache_control, …`; returns an async context manager whose stream yields typed events (`TextEvent{type:"text", text, snapshot}`, `InputJsonEvent`, `ThinkingEvent`, raw `RawContentBlockDeltaEvent`…) and exposes `get_final_message()` / `get_final_text()`. `max_tokens=8000` per turn (answers are short; tool inputs are tiny).
 - Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None`). Emit a terminal `error` using the canonical `refusal` code and a safe user-facing message; do not expose provider category or explanation unless it has been explicitly classified safe. Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
 - Prompt caching: `system` is a single frozen text block with `cache_control: {"type": "ephemeral"}` (`CacheControlEphemeralParam{type, ttl?: "5m"|"1h"}`); tools list is a module constant in fixed order; volatile UI context goes in the first **user** message, never in `system`. Verify `usage.cache_read_input_tokens > 0` on the second demo question (`Usage` fields verified: `input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, …`).
@@ -337,9 +402,11 @@ def resolve_site(lat: float, lon: float) -> dict: ...        # helper, not in TO
 
 | var | required | default | meaning |
 | --- | --- | --- | --- |
-| `ANTHROPIC_API_KEY` | yes | — | SDK reads it; startup fails loud if missing |
+| `COPILOT_PROVIDER` | no | `gemini` | `gemini` or `claude`; selects the adapter (2WKG-481) |
+| `GEMINI_API_KEY` | when `COPILOT_PROVIDER=gemini` | — | Gemini credential (the hyphenated `gemini-api-key` spelling found in local `.env` files is accepted as an alias) |
+| `ANTHROPIC_API_KEY` | when `COPILOT_PROVIDER=claude` | — | Claude credential; the unselected provider's key is never used as a fallback |
 | `DUCKDB_PATH` | yes | `data/duck/grid.duckdb` | opened read-only |
-| `COPILOT_MODEL` | no | `claude-opus-5` | model id |
+| `COPILOT_MODEL` | no | per provider (`gemini-3.8-flash` / `claude-sonnet-5`) | model id; overrides **only the active provider** |
 | `COPILOT_EFFORT` | no | `medium` | `output_config.effort` |
 | `VOYAGE_API_KEY` | no | unset | enables dense retrieval |
 | `CORPUS_DIR` | no | `copilot/corpus` | |
