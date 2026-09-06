@@ -36,9 +36,20 @@ _EXEMPT_SPANS = (
     re.compile(r"\b(?:p\.|page)\s?\d+\b", re.IGNORECASE),
     re.compile(r"\b\d{4}-\d{2}-\d{2}\b"),
     re.compile(r"\bFIPS\s+\d{5}\b", re.IGNORECASE),
+    # Bare calendar years (spec 05 s164 exempts "Years in citations (2021)").
+    # A year identifies a source or an event, it does not state a quantity, so
+    # it is stripped before the number trace runs -- unless a unit follows it,
+    # in which case it is a quantity that happens to look like a year
+    # ("2021 MW") and must still be traced.
+    re.compile(
+        r"(?<![\w.$])(?:19|20)\d{2}(?:s|-\d{2})?"
+        r"(?!\w|\.\d|\s*%|\s*(?:MW|MWh|GW|GWh|kW|kWh|kV|MVA|MMBtu)\b)"
+    ),
 )
 _NUMERAL = re.compile(
-    r"(?<![\w.])\$?(?P<digits>\d{1,3}(?:,\d{3})+|\d+)(?P<fraction>\.\d+)?"
+    # ``_`` is a boundary, not a digit prefix: a scenario id like ``uri_2021``
+    # carries the numeral 2021 and must ground it.
+    r"(?<![^\W_])(?<![.])\$?(?P<digits>\d{1,3}(?:,\d{3})+|\d+)(?P<fraction>\.\d+)?"
     r"(?P<multiplier>[kMB])?(?=\b|[^\w.])"
 )
 _CITATION_MARKER = re.compile(r"\[(?P<doc>[^\]\s]+)\s+p\.\s?(?P<page>\d+)\]")

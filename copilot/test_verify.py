@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+import json
 from types import MappingProxyType
 
 import pytest
@@ -136,12 +138,14 @@ def test_report_is_a_label_not_an_edit() -> None:
     text = "reduces loss-of-load by 999 MWh"
     report = verify(text, [], [])
 
-    assert report.unverified_numbers == ("999",)
-    # No field of the report contains rewritten answer text.
-    assert all(
-        not isinstance(value, str) or value == REGULATORY_CLAIM_WITHOUT_CITE
-        for value in (report.reason,)
-    )
+    # The report is exactly the three traces: it names the numeral it could not
+    # trace and carries no rewritten copy of the answer text anywhere.
+    assert dataclasses.asdict(report) == {
+        "unverified_numbers": ("999",),
+        "unverified_citations": (),
+        "reason": None,
+    }
+    assert text not in json.dumps(dataclasses.asdict(report))
 
 
 def test_citation_hit_identity_is_validated() -> None:
@@ -149,3 +153,44 @@ def test_citation_hit_identity_is_validated() -> None:
         verify("x", [], [{"doc": "", "page": 1}])
     with pytest.raises(ValueError, match="positive integer page"):
         verify("x", [], [{"doc": "d", "page": "1"}])
+
+
+def test_a_bare_year_is_exempt_from_the_number_trace() -> None:
+    """spec 05 s164: "Years in citations (2021) ... are exempted"."""
+    report = verify("The 2021 winter storm caused rolling outages.", [{"x": 5}], [])
+
+    assert report.unverified_numbers == ()
+    assert report.verified is True
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Growth stalled through the 2010s.",
+        "The 2021-22 winter season.",
+        "Winter Storm Uri hit in 2021.",
+    ],
+)
+def test_year_forms_are_exempt(text: str) -> None:
+    assert verify(text, [{"x": 5}], []).unverified_numbers == ()
+
+
+def test_a_unit_bearing_number_that_looks_like_a_year_is_still_traced() -> None:
+    report = verify("The site adds 2021 MW of firm capacity.", [{"x": 5}], [])
+
+    assert report.unverified_numbers == ("2021",)
+    assert report.verified is False
+
+
+def test_a_year_shaped_quantity_with_a_currency_or_percent_is_still_traced() -> None:
+    assert verify("Costs rose $2021 per acre.", [], []).unverified_numbers == ("2021",)
+    assert verify("Output fell 2021%.", [], []).unverified_numbers == ("2021",)
+
+
+def test_an_underscore_is_a_numeral_boundary_so_a_scenario_id_grounds() -> None:
+    """``uri_2021`` in a tool result grounds a printed ``2021``."""
+    grounded = verify("The scenario adds 2021 MW.", [{"scenario_id": "uri_2021"}], [])
+    ungrounded = verify("The scenario adds 2021 MW.", [{"scenario_id": "uri"}], [])
+
+    assert grounded.unverified_numbers == ()
+    assert ungrounded.unverified_numbers == ("2021",)
