@@ -1,0 +1,129 @@
+{
+  "archetype_id": "school_emergency_services",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "triangles_lod0": 9524,
+  "triangles_lod1": 1448,
+  "triangles_lod2": 320,
+  "footprint_m": {
+    "length": 100,
+    "width": 70
+  },
+  "connectors": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        31.4,
+        1.48,
+        37.15
+      ]
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "bounds_m": {
+    "min": [
+      -34.0,
+      0.0,
+      -48.0
+    ],
+    "max": [
+      34.0,
+      15.278722763061523,
+      48.0
+    ]
+  },
+  "bounds_blender_m": {
+    "min": [
+      -34.0,
+      -48.0,
+      0.0
+    ],
+    "max": [
+      34.0,
+      48.0,
+      15.278722763061523
+    ],
+    "size": [
+      68.0,
+      96.0,
+      15.278722763061523
+    ]
+  },
+  "lod_bounds_blender_m": [
+    {
+      "min": [
+        -34.0,
+        -48.0,
+        0.0
+      ],
+      "max": [
+        34.0,
+        48.0,
+        15.278722763061523
+      ],
+      "size": [
+        68.0,
+        96.0,
+        15.278722763061523
+      ]
+    },
+    {
+      "min": [
+        -34.0,
+        -48.0,
+        0.0
+      ],
+      "max": [
+        34.0,
+        48.0,
+        15.278722763061523
+      ],
+      "size": [
+        68.0,
+        96.0,
+        15.278722763061523
+      ]
+    },
+    {
+      "min": [
+        -34.0,
+        -48.0,
+        0.0
+      ],
+      "max": [
+        34.0,
+        48.0,
+        15.149999618530273
+      ],
+      "size": [
+        68.0,
+        96.0,
+        15.149999618530273
+      ]
+    }
+  ],
+  "geometry_limit": "Depicts no shelter designation, capacity, or emergency role; those are artifact attributes.",
+  "materials": {
+    "status": "MAT_STATUS",
+    "decorative_accent": "MAT_ACCENT",
+    "status_tint_baked": false
+  },
+  "preview": "school_emergency_services.preview.png",
+  "lod_files": {
+    "lod0": "school_emergency_services.glb",
+    "lod1": "school_emergency_services.lod1.glb",
+    "lod2": "school_emergency_services.lod2.glb"
+  }
+}

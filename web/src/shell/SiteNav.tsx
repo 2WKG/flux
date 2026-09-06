@@ -36,6 +36,9 @@ export function SiteNav({ current, onNavigate }: { current: Route; onNavigate: (
             </li>
           );
         })}
+        <li>
+          <a className="site-link" href="/asset-lab/">Asset lab</a>
+        </li>
       </ul>
     </nav>
   );

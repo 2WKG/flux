@@ -68,13 +68,22 @@ test("the rehearsal static origin serves the demo but never substitutes an API o
   assert.ok(served.join("\n").includes(fixture.fixtureHash), "the served bundle must identify its checked-in fixture");
 
   const staleDemoRoute = await response(base, "/api/demo");
-  assert.equal(staleDemoRoute.status, 200);
+  assert.equal(staleDemoRoute.status, 503);
   assert.doesNotMatch(staleDemoRoute.type, /json/);
-  assert.equal(staleDemoRoute.body, root.body);
+  assert.match(staleDemoRoute.body, /does not serve API routes/i);
 
+  // `/ask` is on `server.mjs`'s allowlist, so with no upstream configured it
+  // now refuses by name instead of 404ing off the end of the router. That is a
+  // stronger refusal, not a weaker one, and this test's actual subject is
+  // unchanged: the origin must never *substitute* an API. So: no SSE, no
+  // invented answer, no payload -- just the named unavailable envelope.
   const ask = await response(base, "/ask", { method: "POST", body: "{}" });
-  assert.equal(ask.status, 404);
+  assert.equal(ask.status, 503);
   assert.doesNotMatch(ask.type, /text\/event-stream/);
-  assert.doesNotMatch(ask.type, /json/);
-  assert.equal(ask.body.includes("answer"), false);
+  const refusal = JSON.parse(ask.body);
+  assert.equal(refusal.status, "unavailable");
+  assert.equal(refusal.data, null, "a refusal must carry no payload");
+  assert.equal(refusal.error.details.reason, "no_api_origin_configured");
+  assert.ok(refusal.error.message.trim().length > 0);
+  assert.equal(ask.body.includes("answer"), false, "the refusal must not contain an answer");
 });

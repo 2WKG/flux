@@ -1,0 +1,164 @@
+{
+  "transmission_line_segment": {
+    "x": 0,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "substation_transformer_yard": {
+    "x": 64,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "military_base": {
+    "x": 128,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "hospital": {
+    "x": 192,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "water_treatment_plant": {
+    "x": 256,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "coal_plant_retiring_site": {
+    "x": 320,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "nuclear_smr_module": {
+    "x": 0,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "data_center_campus": {
+    "x": 64,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "residential_neighborhood": {
+    "x": 128,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "commercial_buildings": {
+    "x": 192,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "factory_industrial_facility": {
+    "x": 256,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "natural_gas_plant": {
+    "x": 320,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "wind_turbine": {
+    "x": 0,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "solar_array": {
+    "x": 64,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "battery_storage": {
+    "x": 128,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "warehouse_logistics_center": {
+    "x": 192,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "ev_charging_station": {
+    "x": 256,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  },
+  "school_emergency_services": {
+    "x": 320,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "anchorX": 32,
+    "anchorY": 32,
+    "mask": true
+  }
+}

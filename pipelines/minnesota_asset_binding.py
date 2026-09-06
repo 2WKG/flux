@@ -34,6 +34,20 @@ import duckdb
 CONTRACT_ID = "flux:3d-asset-archetypes:v1"
 MATERIAL_SLOT = "MAT_STATUS"
 
+# Gate 6 is deliberately a closed pack rather than a loose collection of
+# models.  This makes a missing or substituted city-essential archetype a
+# validation error at the binding boundary, before a scene can consume it.
+CITY_ESSENTIALS_FORMAT = "flux:minnesota-city-essentials-binding:v1"
+CITY_ESSENTIAL_ARCHETYPE_IDS = (
+    "data_center_campus",
+    "residential_neighborhood",
+    "commercial_buildings",
+    "factory_industrial_facility",
+    "natural_gas_plant",
+    "wind_turbine",
+    "solar_array",
+)
+
 #: The coordinate reference every placement declares. `docs/specs/00-overview.md`
 #: and `docs/specs/10-duckdb-contract.md`: all geometry is EPSG:4326 lon/lat.
 PLACEMENT_CRS = "EPSG:4326"
@@ -41,6 +55,15 @@ PLACEMENT_CRS = "EPSG:4326"
 #: `mn_score_results.regulatory_label` values that may position geometry, from
 #: the status-label table in `docs/design/minnesota-demo-narrative-ia.md`.
 ACCEPTED_REGULATORY_LABELS = frozenset({"source_supported", "source_screened"})
+
+#: The published GLB pack the committed Minnesota requests draw their
+#: `glb_uri` values from. Its `publication_status` / `download_url` decide
+#: whether those URIs resolve to a binary anyone can fetch, so the binder reads
+#: them from the pack itself and carries them into every binding instead of
+#: letting a consumer assume the geometry is present.
+PACK_ARCHIVE_PATH = (
+    Path(__file__).resolve().parents[1] / "data/3d/packs/flux-grid-v1/archive.json"
+)
 
 #: EPSG:4326 axis ranges, matching `_coordinate_contract_error` in
 #: `pipelines/consumer_contracts.py`.
@@ -293,6 +316,28 @@ def _validated_truth_label(
         )
 
 
+def load_pack_binaries(archive_path: Path) -> dict[str, Any]:
+    """Read whether a pack's GLB binaries are actually published.
+
+    `data/3d/packs/flux-grid-v1/archive.json` is the only place that records
+    it. A pack whose `download_url` is null is *not* fetchable no matter how
+    well-formed the `glb_uri` values in a request are, and a consumer must be
+    able to see that from the binding rather than discovering it as a 404.
+    """
+    archive = _read_json(archive_path)
+    publication_status = archive.get("publication_status")
+    if not isinstance(publication_status, str) or not publication_status:
+        raise AssetBindingError("pack archive publication_status is required")
+    download_url = archive.get("download_url")
+    if download_url is not None and not isinstance(download_url, str):
+        raise AssetBindingError("pack archive download_url must be a string or null")
+    return {
+        "publication_status": publication_status,
+        "download_url": download_url,
+        "fetchable": bool(download_url),
+    }
+
+
 def bind_asset(
     con: duckdb.DuckDBPyConnection,
     catalog: dict[str, Any],
@@ -358,13 +403,106 @@ def bind_asset(
     }
 
 
+def bind_city_essentials(
+    con: duckdb.DuckDBPyConnection,
+    catalog: dict[str, Any],
+    inventory: dict[str, Any],
+    request: dict[str, Any],
+    *,
+    binaries: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind the complete Gate 6 city-essential pack.
+
+    The pack is intentionally all-or-nothing: the seven archetypes are the
+    Gate 6 contract, so a caller cannot silently render a partial city scene.
+    Each member still goes through :func:`bind_asset`, which means an absent or
+    ineligible Minnesota artifact remains a non-geographic catalogue preview.
+
+    ``binaries`` is the pack publication record from :func:`load_pack_binaries`.
+    It is required, not defaulted: every binding carries its asset's `glb_uri`
+    next to the status of the pack that URI lives in, so a consumer of an
+    unpublished pack sees `fetchable: false` instead of inferring that seven
+    resolvable binaries exist.
+    """
+    if request.get("format") != CITY_ESSENTIALS_FORMAT:
+        raise AssetBindingError("city-essentials request has an unsupported format")
+    if request.get("contract_id") != CONTRACT_ID:
+        raise AssetBindingError(
+            "city-essentials request contract_id does not match the shared contract"
+        )
+    assets = request.get("assets")
+    if not isinstance(assets, list):
+        raise AssetBindingError("city-essentials request.assets must be an array")
+
+    by_archetype: dict[str, dict[str, Any]] = {}
+    for asset in assets:
+        if not isinstance(asset, dict) or not isinstance(asset.get("model"), dict):
+            raise AssetBindingError(
+                "each city-essentials asset must contain a model object"
+            )
+        archetype_id = asset["model"].get("archetype_id")
+        if not isinstance(archetype_id, str):
+            raise AssetBindingError(
+                "each city-essentials model.archetype_id must be a string"
+            )
+        if archetype_id in by_archetype:
+            raise AssetBindingError(
+                f"city-essentials request duplicates archetype {archetype_id!r}"
+            )
+        by_archetype[archetype_id] = asset
+
+    actual_ids = set(by_archetype)
+    expected_ids = set(CITY_ESSENTIAL_ARCHETYPE_IDS)
+    if actual_ids != expected_ids:
+        missing = sorted(expected_ids - actual_ids)
+        unexpected = sorted(actual_ids - expected_ids)
+        raise AssetBindingError(
+            "city-essentials request must contain exactly the seven Gate 6 "
+            f"archetypes; missing={missing!r}, unexpected={unexpected!r}"
+        )
+
+    bindings = []
+    for archetype_id in CITY_ESSENTIAL_ARCHETYPE_IDS:
+        model = by_archetype[archetype_id]["model"]
+        binding = bind_asset(
+            con,
+            catalog,
+            inventory,
+            model,
+            by_archetype[archetype_id].get("placement"),
+        )
+        # The binary the request names is a separate fact from the placement:
+        # the geometry can be absent while the evidence is accepted, and both
+        # states have to survive to the consumer under their own names.
+        binding["glb_binary"] = {"uri": model["glb_uri"], **binaries}
+        bindings.append(binding)
+    return {
+        "format": CITY_ESSENTIALS_FORMAT,
+        "contract_id": CONTRACT_ID,
+        "binaries": binaries,
+        "assets": bindings,
+        "summary": {
+            "total": len(bindings),
+            "placed": sum(binding["render_mode"] == "placed" for binding in bindings),
+            "catalog_previews": sum(
+                binding["render_mode"] == "catalog_preview" for binding in bindings
+            ),
+        },
+    }
+
+
 def bind_from_files(
     catalog_path: Path,
     inventory_path: Path,
     request_path: Path,
     db_path: Path,
+    pack_archive_path: Path | None = None,
 ) -> dict[str, Any]:
     """Load one import request and return its render-safe binding payload.
+
+    This is the file entry point for *every* committed request shape, so a
+    request declaring :data:`CITY_ESSENTIALS_FORMAT` is dispatched to
+    :func:`bind_city_essentials` here rather than needing its own caller.
 
     ``db_path`` is the Minnesota DuckDB database that supplies acceptance; it is
     opened read-only because binding never writes evidence.
@@ -374,6 +512,14 @@ def bind_from_files(
     inventory = load_inventory(inventory_path)
     con = duckdb.connect(str(db_path), read_only=True)
     try:
+        if request.get("format") == CITY_ESSENTIALS_FORMAT:
+            return bind_city_essentials(
+                con,
+                catalog,
+                inventory,
+                request,
+                binaries=load_pack_binaries(pack_archive_path or PACK_ARCHIVE_PATH),
+            )
         return bind_asset(
             con,
             catalog,
@@ -381,5 +527,24 @@ def bind_from_files(
             request.get("model", {}),
             request.get("placement"),
         )
+    finally:
+        con.close()
+
+
+def bind_city_essentials_from_files(
+    catalog_path: Path,
+    inventory_path: Path,
+    request_path: Path,
+    db_path: Path,
+    pack_archive_path: Path | None = None,
+) -> dict[str, Any]:
+    """Load and bind the versioned Gate 6 city-essential request pack."""
+    request = _read_json(request_path)
+    catalog = load_catalog(catalog_path)
+    inventory = load_inventory(inventory_path)
+    binaries = load_pack_binaries(pack_archive_path or PACK_ARCHIVE_PATH)
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        return bind_city_essentials(con, catalog, inventory, request, binaries=binaries)
     finally:
         con.close()

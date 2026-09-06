@@ -6,9 +6,36 @@
  * shell owns the site navigation and the truth-label legend; this module owns
  * only the page.
  */
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import fixture from "../../../data/demo/bundle.json";
 import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "../source-truth";
+import { ChatDock, type ChatError, type ChatMessage, type ChatStatus } from "../chat/ChatDock";
+import { EMPTY_SCENE_CONTEXT, type SceneContext } from "../chat/ask-contract";
+import { RunTrace } from "../ask/run-state/RunTrace";
+import { createRunState } from "../ask/run-state/reducer";
+import type { RunIdentity, RunState } from "../ask/run-state/types";
+import { ResultCards } from "../ask/results";
+import type { AskResult } from "../ask/results/types";
+import { FailureState } from "../failure-states/FailureState";
+import { fromClientState } from "../failure-states/adapters";
+import type { FailureStateInput } from "../failure-states/types";
+import { Inspector } from "../inspector/Inspector";
+import type { InspectorAsset } from "../inspector/types";
+import { LayerControls } from "../layers/LayerControls";
+import { descriptorsFor } from "../layers/descriptor-adapter";
+import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "../layers/registry";
+import type { AssetStatus } from "../labels";
+import { legendForLayer } from "../layers/legend";
+import { applyFilters, suppressesUncertainty, uncertainSuppressions } from "../layers/filters";
+import { createReadApiClient } from "../data/client-state";
+import { loadRegistryDataStatuses } from "../data/layer-status";
+import { loadScenarioAsset } from "../data/scenario-asset";
+import { runAsk } from "../data/ask-stream";
+import { resultsFromRun } from "../data/ask-result";
+import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
+import type { SpatialItem } from "../data/grid-inventory";
+import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
 type View = "load" | "delta";
@@ -41,6 +68,23 @@ const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shed
  * provenance by src/source-truth.ts. No surface writes its own status text.
  */
 const SOURCE_TRUTH = deriveSourceTruth(data.execution.provenance);
+
+/**
+ * The dock's collapsed claim while no Copilot stream has been established.
+ * `web/server.mjs` serves this artifact from a static origin with
+ * `connect-src 'self'` and mounts no API of its own, so on the shipped demo it
+ * stays true; behind an origin that does serve `/ask` it is replaced the moment
+ * a stream returns.
+ */
+const OFFLINE_DOCK_LABEL = "Not available in this offline build";
+
+/** `ASK_LIMITS.attemptIdPattern` is `^[A-Za-z0-9_-]{16,128}$`; this satisfies it. */
+function newAttemptId(): string {
+  const random = Math.random().toString(36).slice(2).padEnd(12, "0").slice(0, 12);
+  return `attempt-${random}-${Date.now().toString(36)}`.replace(/[^A-Za-z0-9_-]/g, "-").slice(0, 128);
+}
+
+const READ_CLIENT = createReadApiClient();
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -242,7 +286,22 @@ export function chatReducer(open: boolean, action: ChatAction): boolean {
  * The dock's markup as a pure function of its open state. The body is always
  * rendered (hidden while collapsed) so `aria-controls` names a real element.
  */
-export function ChatDockView({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+export function ChatDockView({ open, onToggle, collapsedLabel = OFFLINE_DOCK_LABEL, children }: {
+  open: boolean;
+  onToggle: () => void;
+  /**
+   * What the collapsed dock says about its own availability. It defaults to
+   * the offline claim and is only replaced once a request has actually shown
+   * otherwise: "not available" is the honest state until proven wrong.
+   */
+  collapsedLabel?: string;
+  /**
+   * The evidence surface the dock hosts. When no children are supplied — the
+   * dock rendered on its own, with nothing mounted in it — it states that,
+   * which is the state its own copy describes.
+   */
+  children?: ReactNode;
+}) {
   return (
     <section className={`chat-dock ${open ? "expanded" : "collapsed"}`} aria-label="Evidence chat dock">
       <button className="chat-toggle" onClick={onToggle} aria-expanded={open} aria-controls="chat-dock-body">
@@ -250,19 +309,16 @@ export function ChatDockView({ open, onToggle }: { open: boolean; onToggle: () =
           <span className="eyebrow">Evidence chat</span>
           <strong>{open ? "Chat contract and limits" : "Ask about visible evidence"}</strong>
         </span>
-        <span className="chat-state">{open ? "Collapse" : "Not available in this offline build"}</span>
+        <span className="chat-state">{open ? "Collapse" : collapsedLabel}</span>
       </button>
       <div id="chat-dock-body" className="chat-body" hidden={!open}>
-        <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
-        <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
+        {children ?? <>
+          <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
+          <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
+        </>}
       </div>
     </section>
   );
-}
-
-function ChatDock() {
-  const [open, toggle] = useReducer(chatReducer, false);
-  return <ChatDockView open={open} onToggle={() => toggle("toggle")} />;
 }
 
 export function App() {
@@ -270,6 +326,44 @@ export function App() {
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
+  const [chatOpen, toggleChat] = useReducer(chatReducer, false);
+
+  // --- Server-backed state. All of it lives in this shell; every panel below is
+  // presentational and is handed the result of a real request or the named
+  // reason there is none. Nothing here falls back to a plausible value.
+  const [dataStatuses, setDataStatuses] = useState<Readonly<Record<string, DataStatus>>>({});
+  const [visibleLayerIds, setVisibleLayerIds] = useState<readonly string[]>([]);
+  const [inspectorAsset, setInspectorAsset] = useState<InspectorAsset>({
+    status: "unavailable", artifactLabel: "unavailable",
+    message: "The scenario read route has not answered yet.",
+  });
+  const [apiFailure, setApiFailure] = useState<FailureStateInput | null>({
+    kind: "loading",
+    message: "Checking the evidence API for this scene.",
+  });
+  const [sceneContext, setSceneContext] = useState<SceneContext>(EMPTY_SCENE_CONTEXT);
+  const [initialAttemptId] = useState<string>(() => newAttemptId());
+  const [attemptId, setAttemptId] = useState<string>(initialAttemptId);
+  const [chatStatus, setChatStatus] = useState<ChatStatus>("idle");
+  const [chatError, setChatError] = useState<ChatError | undefined>(undefined);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // The trace is mounted from the first paint with an idle run: "no run yet" is a
+  // real state of the run surface, and a trace that only appears once a stream
+  // succeeds cannot show a stream that failed to start.
+  const [runState, setRunState] = useState<RunState>(() =>
+    createRunState({ attemptId: initialAttemptId, contextRevision: `baseline:${initialAttemptId}` }, SOURCE_TRUTH.status));
+  const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
+  const [askAvailable, setAskAvailable] = useState(false);
+
+  const [gridState, setGridState] = useState<GridState>("mn");
+  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.mn);
+  const [gridQuery, setGridQuery] = useState("");
+  const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
+  const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
+  const [gridAttempt, setGridAttempt] = useState(0);
+  const [texasModel, setTexasModel] = useState<TexasModelPayload>({ status: "unavailable", reason: "Loading the synthetic Texas model." });
+
+  const contextRevision = `${selected}:${attemptId}`;
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -308,6 +402,130 @@ export function App() {
 
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
 
+  // Ask the layer routes what each registry class's status is. The answer today
+  // is "unavailable, with the adapter's own named reason", because no Minnesota
+  // read route is bound -- but it is a real answer to a real request.
+  useEffect(() => {
+    const controller = new AbortController();
+    loadRegistryDataStatuses(READ_CLIENT, { signal: controller.signal })
+      .then((statuses) => setDataStatuses(statuses))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  // The inspector reads the scenario the shell has selected.
+  useEffect(() => {
+    const controller = new AbortController();
+    loadScenarioAsset(selected, READ_CLIENT, { signal: controller.signal })
+      .then((asset) => setInspectorAsset(asset))
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [selected]);
+
+  // One probe decides what the dock is allowed to claim about itself. A health
+  // route that does not answer is a named failure state, never a quiet default.
+  useEffect(() => {
+    const controller = new AbortController();
+    READ_CLIENT.get(
+      "/health",
+      (value): value is Record<string, unknown> => typeof value === "object" && value !== null,
+      () => false,
+      { signal: controller.signal, retries: 0 },
+    ).then((state) => {
+      setAskAvailable(state.kind === "ready");
+      setApiFailure(fromClientState(state, "The bundled synthetic scene above is unaffected and remains readable."));
+    }).catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  // The physical-inventory release, bounded by the page cap and by the layers
+  // the viewer asked for. Every layer is requested once per selection change,
+  // not once per pan.
+  useEffect(() => {
+    const controller = new AbortController();
+    setGridLoad({ kind: "loading" });
+    // `loadGridInventory` bounds each layer read by its state's documented
+    // extent (`GRID_STATE_BBOX`) and lets the first refusal win, so this call
+    // site never downloads a state to filter it here.
+    loadGridInventory({ state: gridState, layers: gridLayers, signal: controller.signal })
+      .then((load) => {
+        if (controller.signal.aborted) return;
+        setGridLoad(load);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [gridState, gridLayers, gridAttempt]);
+
+  // This is a separate, explicitly synthetic topology surface. It never uses
+  // physical-inventory coordinates or the 3D asset-placement feed.
+  useEffect(() => {
+    const controller = new AbortController();
+    READ_CLIENT.get<TexasModelPayload>("/demo/model", isTexasModelPayload, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        setTexasModel(state.kind === "ready" ? state.data : {
+          status: "unavailable",
+          reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The model route returned no topology.",
+        });
+      })
+      .catch(() => { if (!controller.signal.aborted) setTexasModel({ status: "unavailable", reason: "The model topology could not be read." }); });
+    return () => controller.abort();
+  }, []);
+
+  const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
+  // No producer supplies an evidence disclosure yet, so every layer that would
+  // need one is refused by name rather than given a default evidence class.
+  const { layers: layerDescriptors, refusals: layerRefusals } = useMemo(
+    () => descriptorsFor(LAYER_REGISTRY, layerSnapshots),
+    [layerSnapshots],
+  );
+  const layerLegends = useMemo(() => layerSnapshots.map(legendForLayer), [layerSnapshots]);
+
+  // The visibility state the panel writes is the filter, and it runs through
+  // `applyFilters` (spec §C.2) rather than being applied by a bare `.includes`
+  // in the renderer. That is the whole point of the module: a layer removed
+  // from the visible set is never simply gone -- it comes back in `suppressed`
+  // with its own status and its producer's own reason, and the disclosure
+  // below renders that half. Dropping the disclosure is what turns a filter
+  // into a silent erasure of uncertainty.
+  const layerFilter = useMemo(() => ({
+    hiddenLayerIds: new Set(layerSnapshots.filter((snapshot) => !visibleLayerIds.includes(snapshot.id)).map((snapshot) => snapshot.id)),
+    excludedStatuses: new Set<AssetStatus>(),
+  }), [layerSnapshots, visibleLayerIds]);
+  const layerFilterResult = useMemo(() => applyFilters(layerSnapshots, layerFilter), [layerSnapshots, layerFilter]);
+  const hiddenUncertainty = uncertainSuppressions(layerFilterResult);
+
+  const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
+    const identity: RunIdentity = { attemptId, contextRevision };
+    setChatStatus("streaming");
+    setChatError(undefined);
+    setMessages((current) => [...current, { id: `${identity.attemptId}-${current.length}`, role: "user", content: body.question }]);
+    const initial = createRunState(identity, SOURCE_TRUTH.status);
+    setRunState(initial);
+    runAsk(body, identity, initial, { onState: setRunState })
+      .then(({ state, connection }) => {
+        setRunState(state);
+        setAskResults(resultsFromRun(state));
+        if (connection) {
+          setChatStatus("error");
+          setChatError({ code: "unavailable", message: connection.kind === "unavailable" || connection.kind === "failed" || connection.kind === "invalid" ? connection.message : "The stream did not open." });
+          setApiFailure(fromClientState(connection));
+          return;
+        }
+        const terminal = state.terminal;
+        if (terminal?.type === "done") {
+          setChatStatus("done");
+          setMessages((current) => state.text ? [...current, { id: `${identity.attemptId}-answer`, role: "assistant", content: state.text }] : current);
+          return;
+        }
+        setChatStatus("error");
+        setChatError(terminal?.type === "error"
+          ? { code: terminal.error.code, message: terminal.error.message, retryable: terminal.error.retryable }
+          : { code: "protocol_error", message: state.issues[state.issues.length - 1]?.message ?? "The stream ended without a terminal event." });
+      })
+      .catch(() => setChatStatus("error"));
+  }, [attemptId, contextRevision]);
+
   return (
     // `data-source-status` publishes the derived IA token to the DOM so a browser
     // proof can pin the machine label, not the prose around it. It is written from
@@ -315,7 +533,7 @@ export function App() {
     <main data-source-status={SOURCE_TRUTH.status}>
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
-        <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required</div>
+        <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required for this scene</div>
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
@@ -352,13 +570,48 @@ export function App() {
             </div>
           </div>
 
-          <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />
+          {texasModel.status === "available" || texasModel.status === "partial"
+            ? <TexasTopologyMap payload={texasModel} />
+            : <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />}
 
           <div className="legend">
             {view === "load"
               ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
+          <LayerControls
+            layers={layerDescriptors}
+            visibleLayerIds={visibleLayerIds}
+            onVisibleLayerIdsChange={setVisibleLayerIds}
+          />
+          <ul className="layer-list" aria-label="Layer status legend">
+            {layerLegends.map((legend) => {
+              const entry = legend.entries.find((item) => item.status === legend.currentStatus);
+              return (
+                <li className="layer-legend" key={legend.layerId}>
+                  <span className="layer-legend-glyph" aria-hidden="true">{entry?.glyph}</span>
+                  <b>{legend.layerLabel}</b>{" "}{entry?.label}{" \u00b7 "}{entry?.description}
+                  {legend.currentReason ? <> {legend.currentReason}</> : null}
+                  {legend.currentRequestId ? <> Request {legend.currentRequestId}.</> : null}
+                </li>
+              );
+            })}
+            {layerRefusals.map((refusal) => (
+              <li className="layer-refusal" key={refusal.message} role="note">{refusal.message}</li>
+            ))}
+          </ul>
+          {suppressesUncertainty(layerFilterResult) ? (
+            <ul className="layer-suppressions" aria-label="Hidden layer disclosures">
+              <li className="layer-suppression-note" role="note">
+                {hiddenUncertainty.length} of {layerSnapshots.length} layers are not shown. Nothing uncertain is hidden without its reason.
+              </li>
+              {hiddenUncertainty.map((entry) => (
+                <li className="layer-suppression" key={entry.layerId}>
+                  <b>{entry.label}</b>{" "}{STATUS_COPY[entry.status]}{" \u00b7 "}{entry.reason}{" Cause: "}{entry.cause}{"."}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <section className="timeline" aria-label="Scenario timeline">
             <div>
               <p className="eyebrow">Timeline</p>
@@ -407,8 +660,23 @@ export function App() {
               <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
             </div>
           )}
+
+          <Inspector asset={inspectorAsset} className="asset-inspector" title="Scenario provenance" />
         </aside>
       </section>
+
+      <GridInventoryPanel
+        load={gridLoad}
+        state={gridState}
+        layers={gridLayers}
+        query={gridQuery}
+        selected={gridSelected}
+        onStateChange={(next) => { setGridState(next); setGridLayers(GRID_LAYERS[next]); setGridSelected(null); }}
+        onLayersChange={setGridLayers}
+        onQueryChange={setGridQuery}
+        onSelect={setGridSelected}
+        onRetry={() => setGridAttempt((value) => value + 1)}
+      />
 
       <section className="pipeline">
         <div>
@@ -423,7 +691,28 @@ export function App() {
         </p>
       </section>
 
-      <ChatDock />
+      <ChatDockView
+        open={chatOpen}
+        onToggle={() => toggleChat("toggle")}
+        collapsedLabel={askAvailable ? "Copilot endpoint reachable" : OFFLINE_DOCK_LABEL}
+      >
+        <ChatDock
+          contextRevision={contextRevision}
+          context={sceneContext}
+          attemptId={attemptId}
+          sourceLabel="Bundled synthetic scene"
+          sourceStatus={SOURCE_TRUTH.status}
+          status={chatStatus}
+          error={chatError}
+          messages={messages}
+          onContextChange={setSceneContext}
+          onSend={askAvailable ? sendAsk : undefined}
+          onRetry={() => setAttemptId(newAttemptId())}
+        />
+        <RunTrace state={runState} />
+        <ResultCards results={askResults} />
+        {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
+      </ChatDockView>
 
       {detail && (
         <div className="overlay" onMouseDown={() => setDetail(false)}>
