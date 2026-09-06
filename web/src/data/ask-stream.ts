@@ -79,7 +79,18 @@ export async function runAsk(
   body: AskRequestBody,
   identity: RunIdentity,
   initial: RunState,
-  options: { client?: SseClient; signal?: AbortSignal; onState?: (state: RunState) => void } = {},
+  options: {
+    client?: SseClient;
+    signal?: AbortSignal;
+    onState?: (state: RunState) => void;
+    /**
+     * Each decoded v1 event, in arrival order, before it is reduced. A surface
+     * that must decide something about the raw contract events (which published
+     * tool was named, which artifact the result is attributed to) reads these;
+     * the reduced state deliberately does not carry them.
+     */
+    onEvent?: (event: RunEvent) => void;
+  } = {},
 ): Promise<AskStreamOutcome> {
   const client = options.client ?? createSseClient();
   let state = initial;
@@ -131,6 +142,7 @@ export async function runAsk(
           dispatch({ type: "malformed", identity, message: "A stream frame was not a v1 event and was not applied." });
           continue;
         }
+        options.onEvent?.(event);
         dispatch({ type: "event", identity, event });
       }
     }
