@@ -260,9 +260,7 @@ def ask(
         if isinstance(dispatcher, ToolDispatcher) and tool_provider is not None:
             content = _stream_dispatcher(dispatcher, tool_provider, payload)
         else:
-            events = _unavailable_events(
-                "The local Copilot backend is not configured."
-            )
+            events = _unavailable_events("The local Copilot backend is not configured.")
             content = _encoded_events(events)
     # Run metadata, not stream data: the SSE event vocabulary stays identical
     # across providers, and these headers are deliberately absent from the CORS

@@ -3,12 +3,9 @@ from __future__ import annotations
 import asyncio
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
-
-from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 from copilot.app import create_app
 from copilot.config import Settings
@@ -25,6 +22,7 @@ from copilot.non_interactive_tool_handlers import (
     non_interactive_tool_handlers,
 )
 from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output, validate_tool_input
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 
 def _handlers(calls: list[tuple[str, object]]):
@@ -361,9 +359,7 @@ def test_the_tool_loop_is_bounded_by_max_turns() -> None:
         interactive_tool_handlers(_InteractiveService()), max_turns=3
     )
     with pytest.raises(ToolLoopOverrun, match="3 turns"):
-        asyncio.run(
-            dispatcher.run(provider, question="Edit", history=(), context={})
-        )
+        asyncio.run(dispatcher.run(provider, question="Edit", history=(), context={}))
     assert provider.turns == 3
 
 
@@ -371,9 +367,7 @@ def test_the_default_tool_loop_bound_is_max_tool_turns() -> None:
     provider = _LoopingProvider()
     dispatcher = ToolDispatcher(interactive_tool_handlers(_InteractiveService()))
     with pytest.raises(ToolLoopOverrun):
-        asyncio.run(
-            dispatcher.run(provider, question="Edit", history=(), context={})
-        )
+        asyncio.run(dispatcher.run(provider, question="Edit", history=(), context={}))
     assert provider.turns == MAX_TOOL_TURNS
 
 
@@ -393,7 +387,11 @@ def test_a_loop_overrun_is_distinguishable_from_an_invalid_tool_action() -> None
     events = _events(
         client.post(
             "/ask",
-            json={"attempt_id": "loop_overrun_attempt_1", "question": "Edit", "history": []},
+            json={
+                "attempt_id": "loop_overrun_attempt_1",
+                "question": "Edit",
+                "history": [],
+            },
         )
     )
     assert events[-1][0] == "error"

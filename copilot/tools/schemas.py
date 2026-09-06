@@ -15,8 +15,6 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
-
 type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
 type UnavailableCode = Literal[

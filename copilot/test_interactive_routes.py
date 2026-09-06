@@ -8,11 +8,10 @@ from types import ModuleType
 
 from fastapi.testclient import TestClient
 
-from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
-
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.interactive_routes import INTERACTIVE_LIMITATIONS
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 
 def _client(monkeypatch) -> TestClient:
@@ -61,7 +60,9 @@ def _assert_envelope(body: dict) -> None:
     assert body["limitations"]
 
 
-def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(monkeypatch) -> None:
+def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(
+    monkeypatch,
+) -> None:
     client = _client(monkeypatch)
     edit = client.post(
         "/interactive/scenario/edit",
@@ -83,9 +84,12 @@ def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(monkeypa
                 "edit_hash": edit_hash,
             },
         ),
-        client.get("/interactive/balance", params={"scope": "edit", "edit_hash": edit_hash}),
         client.get(
-            "/interactive/redundancy", params={"bus_id": 7, "scenario_id": "interactive", "hour": 0}
+            "/interactive/balance", params={"scope": "edit", "edit_hash": edit_hash}
+        ),
+        client.get(
+            "/interactive/redundancy",
+            params={"bus_id": 7, "scenario_id": "interactive", "hour": 0},
         ),
         client.post(
             "/interactive/siting/search",
@@ -119,11 +123,14 @@ def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(monkeypa
 
 def test_unknown_and_malformed_edits_fail_explicitly(monkeypatch) -> None:
     client = _client(monkeypatch)
-    missing = client.get("/interactive/balance", params={"scope": "edit", "edit_hash": "f" * 16})
+    missing = client.get(
+        "/interactive/balance", params={"scope": "edit", "edit_hash": "f" * 16}
+    )
     assert missing.status_code == 404
     assert missing.json()["error"]["code"] == "not_found"
     malformed = client.post(
-        "/interactive/scenario/edit", json={"base_scenario_id": "interactive", "ops": []}
+        "/interactive/scenario/edit",
+        json={"base_scenario_id": "interactive", "ops": []},
     )
     assert malformed.status_code == 422
     assert malformed.json()["error"]["code"] == "invalid_input"
