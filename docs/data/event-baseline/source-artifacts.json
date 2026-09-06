@@ -1041,7 +1041,7 @@
       "verification_status": "verified_sha256"
     }
   ],
-  "corpus_path": "/private/tmp/flux-473-final-combined/docs/data/event-baseline/events",
+  "corpus_path": "docs/data/event-baseline/events",
   "generated_at_utc": "2026-09-06",
   "missing_or_unverifiable_receipts": [
     {
@@ -1479,6 +1479,8 @@
   ],
   "schema_version": "flux-460/source-artifacts/v1",
   "scope": "Non-EAGLE source receipts only.",
+  "source_registry_sha256": "7d46806e3351566257ca447f552006ed3edfd674f98b127ad2c9dfec7b6b07ce",
+  "source_snapshot_commit": "32d006c0114836fcadc1abeca3908ff39ebc08cf",
   "summary": {
     "accepted_events_missing_hashed_non_eagle_weather_receipt": 0,
     "accepted_events_with_linked_hashed_weather_receipt": 13,
