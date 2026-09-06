@@ -74,15 +74,18 @@ test("the built demo ships the current fixture and asks for nothing off-origin",
   assert.ok(app.includes(fixture.execution.provenance.artifactId));
 });
 
-test("the UI does not claim an API connection it does not have", async () => {
+test("the UI requires the model API and names its unavailable state", async () => {
   const [source, app] = await files();
   for (const text of [source, app]) {
     assert.ok(!text.includes("API connected"), "static build must not say it is connected to an API");
     assert.ok(!/GET \/api\/demo/.test(text), "static build must not describe consuming GET /api/demo");
   }
-  // The scenario explorer is still bundled: it needs no API to paint, which is
-  // what this claim is scoped to.
-  assert.ok(app.includes("no API required"));
+  // The default Texas topology is read from the model route. A static origin
+  // must state that dependency and render a named unavailable state instead of
+  // substituting the old five-bus lesson.
+  assert.ok(app.includes("model API required"));
+  assert.ok(app.includes("Texas model topology unavailable"));
+  assert.ok(!app.includes("no API required"));
 });
 
 /**

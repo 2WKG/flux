@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 EditKind = Literal["outage", "remove", "add_gen", "add_load", "add_line"]
 

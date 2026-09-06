@@ -89,8 +89,15 @@ def build_node_annotation_document() -> dict[str, Any]:
     """The vocabularies `GET /layers/buses` annotations use, for the browser.
 
     `docs/specs/05-copilot.md` declares them; `pipelines/labels.py` holds them.
-    Browser code imports this file instead of restating the strings, so a fork
-    is a `gate/contract-drift` failure rather than a silent divergence.
+
+    Note what `gate/contract-drift` does and does not prove.  It regenerates
+    this file *from* `pipelines/labels.py` and requires no diff, so it proves
+    only that the export was re-run.  It cannot see a vocabulary that has forked
+    from reality (a role nothing emits stays green), and it cannot see a browser
+    module that restates the strings by hand instead of importing this file --
+    the gate diffs `web/src/contracts/` alone.  The closure assertions in
+    `pipelines/tests/test_label_vocabulary.py` are what actually pin these
+    vocabularies to what the producer emits.
     """
     return {
         "$id": "flux://layers/node-annotations",

@@ -1,0 +1,1 @@
+{"candidates": [{"content": {"parts": [{"text": "No supplied tool can answer that with the arguments given."}], "role": "model"}, "finishReason": "STOP", "index": 0}], "usageMetadata": {"promptTokenCount": 512, "candidatesTokenCount": 14, "totalTokenCount": 526}, "modelVersion": "gemini-3.8-flash", "responseId": "recorded-fixture-gemini-tool-2"}

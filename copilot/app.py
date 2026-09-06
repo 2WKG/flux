@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from copilot.agent import build_ask_backend
 from copilot.api import (
     API_VERSION,
     API_VERSION_HEADER,
@@ -19,6 +20,19 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
+from copilot.dispatcher import (
+    ToolCallingProvider,
+    ToolDispatcher,
+    interactive_tool_handlers,
+)
+from copilot.interactive_routes import (
+    create_interactive_router,
+    create_interactive_service,
+)
+from copilot.non_interactive_tool_handlers import (
+    NonInteractiveToolServices,
+    non_interactive_tool_handlers,
+)
 from copilot.providers import build_narration_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
@@ -42,17 +56,16 @@ _UNSET: object = object()
 def create_app(
     settings: Settings | None = None,
     *,
-    ask_backend: AskBackend | None = None,
+    ask_backend: AskBackend | None | object = _UNSET,
     narration_provider: AsyncNarrationProvider | None | object = _UNSET,
+    tool_provider: ToolCallingProvider | None = None,
+    tool_dispatcher: ToolDispatcher | None = None,
 ) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings if settings is not None else load_settings()
-    # Tool orchestration stays deployment-injected: there is no default plan, so
-    # an unconfigured deployment answers `unavailable` rather than guessing.
-    app.state.ask_backend = ask_backend
-    # The narration provider, by contrast, *is* configuration: `COPILOT_PROVIDER`
-    # plus its credential fully determine it, so the app constructs it here.
+    # The narration provider *is* configuration: `COPILOT_PROVIDER` plus its
+    # credential fully determine it, so the app constructs it here.
     # Construction opens no connection; an unconfigured provider is `None` and
     # `/ask` emits the documented unavailable terminal.  Tests may pass an
     # explicit provider (including `None`) to bypass local configuration.
@@ -61,6 +74,21 @@ def create_app(
         if narration_provider is _UNSET
         else narration_provider
     )
+    # Tool orchestration is configuration too, and is built from the provider
+    # above so the planner and the narrator are always the same model.  It is
+    # `None` exactly when this deployment cannot ground an answer -- no
+    # provider, or a provider that cannot plan a tool call -- and `/ask` then
+    # emits the same documented unavailable terminal rather than guessing.  A
+    # deployment or a test may still inject its own backend (including `None`).
+    app.state.ask_backend = (
+        build_ask_backend(app.state.settings, app.state.narration_provider)
+        if ask_backend is _UNSET
+        else ask_backend
+    )
+    # The tool-calling transport is deployment-injected for the same reason the
+    # ask backend is: there is no configured default, so an uninjected
+    # deployment keeps the documented unavailable terminal rather than guessing.
+    app.state.tool_provider = tool_provider
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
@@ -85,6 +113,18 @@ def create_app(
             )
         return await http_exception_handler(request, exc)
 
+    app.state.interactive_service = create_interactive_service(
+        duckdb_path=app.state.settings.duckdb_path
+    )
+    app.state.tool_dispatcher = tool_dispatcher or ToolDispatcher(
+        interactive_tool_handlers(
+            app.state.interactive_service,
+            historical_handlers=non_interactive_tool_handlers(
+                NonInteractiveToolServices(database_path=app.state.settings.duckdb_path)
+            ),
+        )
+    )
+
     app.include_router(health_router)
     app.include_router(assets_router)
     app.include_router(placements_router)
@@ -98,6 +138,7 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 
 
