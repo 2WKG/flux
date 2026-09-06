@@ -53,11 +53,13 @@ const site = await import(compiled.href);
 const route = (id) => site.ROUTES.find((entry) => entry.id === id);
 
 test("each page has its own path, and an unmatched path falls back to the explorer", () => {
-  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer"]);
+  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer", "/minnesota"]);
   assert.equal(site.routeForPath("/").id, "main");
   assert.equal(site.routeForPath("/explainer").id, "explainer");
+  assert.equal(site.routeForPath("/minnesota").id, "minnesota");
   // A deep link with a trailing slash is the same page, not a miss.
   assert.equal(site.routeForPath("/explainer/").id, "explainer");
+  assert.equal(site.routeForPath("/minnesota/").id, "minnesota");
   // The static origin answers every path with the shell, so an unknown path is
   // the explorer rather than a blank screen.
   assert.equal(site.routeForPath("/api/demo").id, "main");

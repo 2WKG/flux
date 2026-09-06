@@ -17,6 +17,7 @@ import { TruthLegend } from "./TruthLegend";
 const PAGES: Record<RouteId, ComponentType> = {
   main: lazy(() => import("../pages/MainPage").then((module) => ({ default: module.App }))),
   explainer: lazy(() => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage }))),
+  minnesota: lazy(() => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom }))),
 };
 
 /** The one mounted root: shared navigation, the routed page, the shared legend. */
