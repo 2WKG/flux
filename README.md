@@ -14,7 +14,7 @@ npm --prefix web install
 npm --prefix web run dev
 ```
 
-Open `http://localhost:4173`. The React client reads `GET /api/demo`; the Node server currently returns `data/demo/bundle.json`. Ingestion jobs can validate and publish the same versioned contract without changing the client.
+Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request; `web/server.mjs` still exposes `GET /api/demo` (validating `?scenario=`) over the same file for the recorded 2WKG-296 question above. Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
 ## Repository context
 

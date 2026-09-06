@@ -25,7 +25,10 @@ Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the natio
 
 ## Outputs
 
-- SSE stream on `POST /ask` with `text`, `tool_call`, `tool_result`, `citation`, `done`, `error` events (exact shapes under Interfaces).
+- SSE stream on `POST /ask`. Its complete v1 event list, envelopes, ordering,
+  terminal behavior, heartbeats, and resume semantics are defined by the
+  [SSE event schema](../research/sse-event-schema.md); this service and the web
+  client implement that one transport contract.
 - JSON on the engine routes and GeoJSON / Arrow IPC on `GET /layers/{name}`.
 - A structured `answer` record appended to `copilot/logs/asks.jsonl` per question: question, ordered tool calls with inputs/outputs (truncated to the cap), citations, final text, `usage` tokens, wall time. This is the eval artifact.
 
@@ -78,7 +81,7 @@ output_config={"effort": "medium"},
 
   (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus 5 per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
 - Streaming: `client.messages.stream(...)` on every model turn (long outputs, tool chains). Verified signature (`AsyncMessages.stream`): keyword-only `max_tokens, messages, model, system, tools, tool_choice, thinking, output_config, cache_control, …`; returns an async context manager whose stream yields typed events (`TextEvent{type:"text", text, snapshot}`, `InputJsonEvent`, `ThinkingEvent`, raw `RawContentBlockDeltaEvent`…) and exposes `get_final_message()` / `get_final_text()`. `max_tokens=8000` per turn (answers are short; tool inputs are tiny).
-- Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None` — read `category`/`explanation` into the error event); emit an `error` SSE event. Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
+- Refusal handling: check `stop_reason == "refusal"` before reading content (`StopReason` literal in 1.4.0: `end_turn|max_tokens|stop_sequence|tool_use|pause_turn|refusal|model_context_window_exceeded`; `Message.stop_details: RefusalStopDetails | None`). Emit a terminal `error` using the canonical `refusal` code and a safe user-facing message; do not expose provider category or explanation unless it has been explicitly classified safe. Server-side `fallbacks` is a `client.beta.messages.create/stream` parameter only (verified: present on the beta signature, absent on non-beta `messages.stream`); the `claude-api` skill recommends enabling it by default on Opus 5, but we do not need it for this corpus — energy siting questions do not trip classifiers. Leave a TODO.
 - Prompt caching: `system` is a single frozen text block with `cache_control: {"type": "ephemeral"}` (`CacheControlEphemeralParam{type, ttl?: "5m"|"1h"}`); tools list is a module constant in fixed order; volatile UI context goes in the first **user** message, never in `system`. Verify `usage.cache_read_input_tokens > 0` on the second demo question (`Usage` fields verified: `input_tokens, output_tokens, cache_creation_input_tokens, cache_read_input_tokens, …`).
 
 ### Tool-use loop (`agent/loop.py`)
@@ -94,7 +97,7 @@ for iteration in range(MAX_ITER=8):
         async for event in stream:
             if event.type == "text": yield SSE text(delta=event.text)   # TextEvent; .snapshot is the running text
         msg = await stream.get_final_message()
-    if msg.stop_reason == "refusal": yield SSE error; return
+    if msg.stop_reason == "refusal": yield terminal SSE error(code="refusal", retryable=false); return
     messages.append({"role":"assistant","content": msg.content})
     tool_uses = [b for b in msg.content if b.type == "tool_use"]
     if not tool_uses:  break                      # end_turn
@@ -102,7 +105,7 @@ for iteration in range(MAX_ITER=8):
     for tu, res in zip(tool_uses, results): yield SSE tool_call / tool_result
     messages.append({"role":"user","content":[tool_result blocks, ALL in one message]})
 else:
-    yield SSE error("max_iterations")
+    yield terminal SSE error(code="deadline", message="The answer reached its iteration limit.", retryable=false)
 verify(final_text, tool_results, citations) -> yield SSE done{verified:…}
 ```
 
@@ -113,7 +116,7 @@ Rules:
 - Tool exceptions → `is_error: true` with the exception message (no traceback). Never dropped.
 - Result size cap: each `tool_result` content is JSON-serialized and truncated to **8 KB** (`sql` rows capped at 200 before serialization; `cite` chunks capped at 1,200 chars each). Truncation appends `{"truncated": true, "omitted_rows": n}`.
 - Parallel tool calls are executed concurrently and returned in a single user message (splitting them degrades parallel calling).
-- Whole `/ask` wall-clock budget 90 s; exceeded → `error` event `{"code":"deadline"}`.
+- Whole `/ask` wall-clock budget 90 s; exceeded → terminal `error` using the canonical `deadline` code.
 - `json.loads` on `tool_use.input` is not needed (SDK gives a dict) but every input is re-validated with the pydantic model for the tool before execution.
 
 ### Tool schemas (`tools/schemas.py`)
@@ -215,6 +218,7 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 
 ```json
 {
+  "attempt_id": "client-generated-opaque-id",
   "question": "Why this site over the one near Houston?",
   "context": {
     "scenario_id": "uri_2021", "hour": 3,
@@ -225,20 +229,26 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 }
 ```
 
-`history` is optional prior Q/A text only (no tool blocks) — max 6 turns; the server re-injects it as plain messages before the new question.
+`attempt_id` is required: the client creates it, sends it on the initial and any
+resume POST, and verifies the matching `X-Flux-Attempt-Id` response header.
+`history` is optional prior Q/A text only (no tool blocks) — max 6 turns; the
+server re-injects it as plain messages before the new question.
 
-SSE events (each `event: <type>` + `data: <json>`; `id` is a monotonic counter):
+SSE events (each `event: <type>` + `data: <json>`) use the complete v1 schema
+in [`sse-event-schema.md`](../research/sse-event-schema.md). In particular,
+`lifecycle` is first; every payload has `v` and `seq` equal to its monotonic
+SSE `id`; `tool_call`/`tool_result` use `call_id`, `tool`, and `elapsed_ms`; and
+exactly one `done` or nested-envelope `error` is terminal. A `citation` is
+emitted for each `cite` hit after its tool result so the UI can render
+footnotes. Producers and clients must not add local event shapes or codes.
 
-| event | data |
-| --- | --- |
-| `text` | `{"delta": "…"}` |
-| `tool_call` | `{"id","name","input"}` |
-| `tool_result` | `{"id","name","ok":bool,"ms":int,"result":<capped dict>}` |
-| `citation` | `{"doc","title","page","chunk_id","text"}` — one per `cite` hit, emitted right after that tool_result so the UI can render footnotes |
-| `done` | `{"verified":bool,"unverified_numbers":[…],"unverified_citations":[…],"tools_used":[…],"usage":{input_tokens,output_tokens,cache_read_input_tokens},"ms":int}` |
-| `error` | `{"code":"refusal"\|"max_iterations"\|"deadline"\|"api_error"\|"bad_request","message"}` |
-
-Because it is a POST, the client uses `fetch` + `ReadableStream`, not `EventSource` (spec 06). Transport: `sse_starlette.sse.EventSourceResponse(gen, ping=10)` yielding `ServerSentEvent(data=json, event=type, id=str(n))` (sse-starlette 3.4.11 verified: `EventSourceResponse(content, ping: float|None = None, ping_message_factory=…, sep=…)`, default ping interval 15 s, default ping is the comment line `: ping - <utc timestamp>`). Heartbeat every 10 s so proxies keep the stream open; the client must ignore **any** line starting with `:` (not just the literal `: ping`) unless we pass `ping_message_factory=lambda: ServerSentEvent(comment="ping")`.
+Because it is a POST, the client uses `fetch` + `ReadableStream`, not
+`EventSource` (spec 06). Transport uses
+`sse_starlette.sse.EventSourceResponse(gen, ping=15,
+ping_message_factory=lambda: ServerSentEvent(comment="keepalive"))`, yielding
+`ServerSentEvent(data=json, event=type, id=str(n))`. Clients ignore every
+comment line beginning with `:`; heartbeats do not advance the application
+sequence.
 
 ### Python signatures (`tools/impl.py`) — the shared contract
 
