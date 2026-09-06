@@ -1,0 +1,230 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "convective-wind",
+  "event": {
+    "event_id": "midwest-2021-12-15-serial-derecho",
+    "parent_system_id": "sys-2021-12-15-central-plains-low",
+    "primary_hazard": "convective wind",
+    "secondary_hazards": [
+      "tornado",
+      "non-tropical high wind",
+      "winter weather"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2021-12-15T00:00:00Z",
+      "end_utc": "2021-12-17T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-12-15T18:00:00Z",
+      "end_utc": "2021-12-16T12:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-12-16T12:00:00Z",
+      "end_utc": "2021-12-17T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS MPX documents a serial derecho and linked tornadoes across Minnesota and Wisconsin; components are one compound parent system.",
+    "uncertainties": [
+      "County outage match pending EAGLE-I extraction.",
+      "Gradient winds after convection are a component, not an independent high-wind event."
+    ],
+    "source_event_ids": [
+      "989994",
+      "994707"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-mpx-dec-2021",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "url": "https://www.weather.gov/mpx/HistoricStormDecember2021",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS event page; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Narrative and observed wind gusts in mph.",
+      "timezone_conversion": "Page tornado times are local; event envelope is declared UTC separately.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping; county matching is pending.",
+      "gaps": [
+        "No retained page-body hash or source-event export."
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
+    },
+    {
+      "receipt_id": "ncei-stormevents-2021",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2021_c20260323",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "filtered_sha256": null,
+      "bytes": 10563953,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
+      "filters": "EVENT_ID=989994,994707; STATE=MINNESOTA; CZ_NAME=FARIBAULT; EVENT_TYPE=High Wind or Tornado.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-20211216t000000-20211216t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:09:32.968309Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"27043\"], \"states\": [\"Minnesota\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/midwest-2021-12-15-serial-derecho-27043-20211216000000_eaglei_2021_20211216T000000_20211216T060000.csv",
+        "filtered_artifact_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3"
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "midwest-2021-12-15-serial-derecho-27043-0000",
+      "county_fips": "27043",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "midwest-2021-12-15-serial-derecho-replay",
+      "window_start_utc": "2021-12-16T00:00:00Z",
+      "window_end_utc": "2021-12-16T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "ncei-stormevents-2021"
+        ],
+        "notes": "NCEI county event report 994707 intersects this canonical window; no sampled weather time series is asserted.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "994707"
+          ],
+          "source_window": {
+            "start_utc": "2021-12-16T00:50:00Z",
+            "end_utc": "2021-12-16T00:51:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "MN Faribault County",
+          "limitations": "County tornado report establishes a path occurrence only; it is not countywide damage or a time series."
+        }
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-20211216t000000-20211216t060000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 7 of 24 expected 15-minute observations for FIPS 27043. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 7,
+        "missing_timestamps": [
+          "2021-12-16T00:00:00Z",
+          "2021-12-16T00:15:00Z",
+          "2021-12-16T00:30:00Z",
+          "2021-12-16T00:45:00Z",
+          "2021-12-16T01:00:00Z",
+          "2021-12-16T01:15:00Z",
+          "2021-12-16T01:30:00Z",
+          "2021-12-16T01:45:00Z",
+          "2021-12-16T02:00:00Z",
+          "2021-12-16T02:15:00Z",
+          "2021-12-16T02:30:00Z",
+          "2021-12-16T02:45:00Z",
+          "2021-12-16T03:00:00Z",
+          "2021-12-16T03:15:00Z",
+          "2021-12-16T03:30:00Z",
+          "2021-12-16T03:45:00Z",
+          "2021-12-16T04:00:00Z"
+        ],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}

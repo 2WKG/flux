@@ -1,0 +1,231 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "convective-wind",
+  "event": {
+    "event_id": "midwest-2022-05-12-derecho",
+    "parent_system_id": "sys-2022-05-12-midwest-derecho",
+    "primary_hazard": "convective wind",
+    "secondary_hazards": [
+      "tornado"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2022-05-12T12:00:00Z",
+      "end_utc": "2022-05-14T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-05-12T21:00:00Z",
+      "end_utc": "2022-05-13T09:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-05-13T09:00:00Z",
+      "end_utc": "2022-05-14T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS MPX documents a derecho across western Minnesota with embedded tornadoes; tornadoes are compound tags.",
+    "uncertainties": [
+      "County weather/outage coverage remains pending.",
+      "The May 13 gradient-wind phase shares this parent system and is not independent."
+    ],
+    "source_event_ids": [
+      "1033188"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-mpx-may-2022",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "url": "https://www.weather.gov/mpx/May12th2022DerechoSummary",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS event page; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Observed wind gusts in mph and narrative damage assessment.",
+      "timezone_conversion": "Page tornado times are local; event envelope is declared UTC separately.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping; county matching is pending.",
+      "gaps": [
+        "No retained page-body hash or source-event export."
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events wind magnitudes in source units; event 1033188 is a county Thunderstorm Wind report.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
+      "filters": "EVENT_ID=1033188; STATE=MINNESOTA; CZ_TYPE=C; CZ_NAME=LAC QUI PARLE; EVENT_TYPE=Thunderstorm Wind.",
+      "grid_index_mapping": "County report is evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes a county weather occurrence but does not supply a weather time series."
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220512t180000-20220513t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:13:55.783979Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "7dc1682b8866767bc2c24e6655f6daf7686bf5872ccb1979b2637b30f0ac9f77",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"27073\"], \"states\": [\"Minnesota\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/midwest-2022-05-12-derecho-27073-20220512180000_eaglei_2022_20220512T180000_20220513T000000.csv",
+        "filtered_artifact_sha256": "7dc1682b8866767bc2c24e6655f6daf7686bf5872ccb1979b2637b30f0ac9f77"
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "midwest-2022-05-12-derecho-27073-0000",
+      "county_fips": "27073",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "midwest-2022-05-12-derecho-replay",
+      "window_start_utc": "2022-05-12T18:00:00Z",
+      "window_end_utc": "2022-05-13T00:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "ncei-stormevents-2022"
+        ],
+        "notes": "NCEI county report 1033188 is temporally intersected authoritative event evidence; no sampled weather time series is asserted.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1033188"
+          ],
+          "source_window": {
+            "start_utc": "2022-05-12T23:11:00Z",
+            "end_utc": "2022-05-12T23:17:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "MN Lac qui Parle County",
+          "limitations": "County event report establishes occurrence and interval only; it is not a weather time series or countywide measurement."
+        }
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20220512t180000-20220513t000000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 3 of 24 expected 15-minute observations for FIPS 27073. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 3,
+        "missing_timestamps": [
+          "2022-05-12T18:00:00Z",
+          "2022-05-12T18:15:00Z",
+          "2022-05-12T18:30:00Z",
+          "2022-05-12T18:45:00Z",
+          "2022-05-12T19:00:00Z",
+          "2022-05-12T19:15:00Z",
+          "2022-05-12T19:30:00Z",
+          "2022-05-12T19:45:00Z",
+          "2022-05-12T20:00:00Z",
+          "2022-05-12T20:15:00Z",
+          "2022-05-12T20:30:00Z",
+          "2022-05-12T20:45:00Z",
+          "2022-05-12T21:00:00Z",
+          "2022-05-12T21:15:00Z",
+          "2022-05-12T21:30:00Z",
+          "2022-05-12T21:45:00Z",
+          "2022-05-12T22:00:00Z",
+          "2022-05-12T22:15:00Z",
+          "2022-05-12T22:30:00Z",
+          "2022-05-12T22:45:00Z",
+          "2022-05-12T23:00:00Z"
+        ],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}
