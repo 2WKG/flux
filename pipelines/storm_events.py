@@ -258,17 +258,18 @@ def load_storm_events(
             )
         finally:
             con.unregister("_storm_events_incoming")
+        warning_prefix = f"{year}:scope:{selected_scope.slug}:"
         con.execute(
             "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
-            ["noaa_storm_events", f"{year}:zone:%"],
+            ["noaa_storm_events", f"{warning_prefix}zone:%"],
         )
         con.execute(
             "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
-            ["noaa_storm_events", f"{year}:interval:%"],
+            ["noaa_storm_events", f"{warning_prefix}interval:%"],
         )
         con.execute(
-            "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
-            ["noaa_storm_events", f"{year}:scope:%"],
+            "DELETE FROM ingest_warnings WHERE source = ? AND source_key = ?",
+            ["noaa_storm_events", f"{year}:scope:{selected_scope.slug}"],
         )
         if selected.empty:
             # A scope with no rows is reported, never recorded as a clean load.
@@ -290,7 +291,7 @@ def load_storm_events(
                 "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
                 [
                     "noaa_storm_events",
-                    f"{year}:zone:{zone}",
+                    f"{warning_prefix}zone:{zone}",
                     f"{count} {scope_label} zone-type Storm Events had no county crosswalk mapping",
                 ],
             )
@@ -299,7 +300,7 @@ def load_storm_events(
                 "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
                 [
                     "noaa_storm_events",
-                    f"{year}:interval:{zone}",
+                    f"{warning_prefix}interval:{zone}",
                     (
                         f"{count} {scope_label} zone-type Storm Events had no "
                         "explicitly valid NWS crosswalk release"
@@ -317,6 +318,7 @@ def load_storm_events(
         path=path,
         rows_loaded=rows,
         schema_fingerprint="event id,time,type,county/zone,magnitude",
+        scope_key=selected_scope.slug,
     )
     for release in releases:
         if release.release in used_releases:
@@ -331,5 +333,8 @@ def load_storm_events(
                     f"valid=[{release.valid_from.isoformat()},"
                     f"{release.valid_until.isoformat()}); url={release.source_url}"
                 ),
+                # _zone_crosswalk filters the release to this state's rows, so
+                # its evidence must not overwrite another scope's record.
+                scope_key=selected_scope.slug,
             )
     return rows

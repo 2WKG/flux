@@ -1,0 +1,209 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "convective-wind",
+  "event": {
+    "event_id": "minnesota-2022-05-30-severe",
+    "parent_system_id": "sys-2022-05-30-mn-severe",
+    "primary_hazard": "convective wind",
+    "secondary_hazards": [
+      "tornado"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2022-05-30T12:00:00Z",
+      "end_utc": "2022-06-01T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-05-30T18:00:00Z",
+      "end_utc": "2022-05-31T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-05-31T06:00:00Z",
+      "end_utc": "2022-06-01T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS MPX archive describes a bowing line with damaging winds and tornadoes in western and central Minnesota.",
+    "uncertainties": [
+      "Archived summary must be supplemented by NCEI source IDs before acceptance.",
+      "No matched county outage evidence yet.",
+      "Record county corrected from 27121 (Pope) to 27145 (Stearns): both cited events, 1031070 and 1031071, are NCEI CZ_FIPS 145 STEARNS rows and the attached county report is MN Stearns County."
+    ],
+    "source_event_ids": [
+      "1031070",
+      "1031071"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-mpx-events",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "url": "https://www.weather.gov/mpx/events",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS archive index; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Archive index; no county label units.",
+      "timezone_conversion": "No source timestamp conversion asserted.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "Detailed event record and coverage receipt are pending."
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
+      "filters": "EVENT_ID=1031070,1031071; STATE=MINNESOTA; CZ_NAME=STEARNS; EVENT_TYPE=Thunderstorm Wind.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220530t180000-20220531t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:13:58.185505Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "ad094077d40b0ef5b44c998c799560b37b544d1cf87e1deb242232c0e1bab0f6",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"27121\"], \"states\": [\"Minnesota\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/minnesota-2022-05-30-severe-27121-20220530180000_eaglei_2022_20220530T180000_20220531T000000.csv",
+        "filtered_artifact_sha256": "ad094077d40b0ef5b44c998c799560b37b544d1cf87e1deb242232c0e1bab0f6"
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "minnesota-2022-05-30-severe-27145-1800",
+      "county_fips": "27145",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "minnesota-2022-05-30-severe-replay",
+      "window_start_utc": "2022-05-30T18:00:00Z",
+      "window_end_utc": "2022-05-31T00:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "ncei-stormevents-2022"
+        ],
+        "notes": "NCEI county event report 1031070 intersects this canonical window; no sampled weather time series is asserted.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1031070"
+          ],
+          "source_window": {
+            "start_utc": "2022-05-30T23:40:00Z",
+            "end_utc": "2022-05-30T23:41:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "MN Stearns County",
+          "limitations": "County thunderstorm-wind report establishes occurrence and interval only; it is not a time series. NCEI 1031070 is an instantaneous report (BEGIN == END at 17:40 CZ_TIMEZONE CST-6 = 2022-05-30T23:40Z); the source_window end is widened by one minute so that end > start, and the widening carries no claim of duration."
+        }
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "The committed EAGLE-I capture covers FIPS 27121 (Pope), which is not this record's county after the correction to 27145 (Stearns), so no outage evidence has been collected for this county-window. The superseded capture is kept in source_receipts as eaglei-2022-42547897-20220530t180000-20220531t000000 so the record of what was fetched survives, but it is not cited as this record's outage evidence and no sample count is asserted here.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}

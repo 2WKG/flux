@@ -611,17 +611,29 @@ def acquire_exhaustive(
                 "none; EAGLE-I rows are keyed by county FIPS, not a model grid index"
             ),
             "gaps": _gap_entries(coverage),
-        },
-        "capture_method": "exhaustive_annual_stream",
-        "verification": {
-            "streamed_this_run": streamed,
-            "streamed_bytes_matched_source_size": streamed or None,
-            "cached_bytes_rehashed_against_manifest": True,
-            "manifest_etag_matched_requested_etag": expected_etag is not None,
-            "etag_reported_is_the_etag_the_bytes_were_fetched_under": True,
-            "content_range_matched_request": None,
-            "sha256_computed_from_stored_bytes": True,
-            "bytes_transferred_over_the_wire": (int(file["size"]) if streamed else 0),
+            "capture_method": "exhaustive_annual_stream",
+            "verification": {
+                "sha256_computed_from_response_body": True,
+                "content_range_matched_request": False,
+                "decoded_field_identity_checked": True,
+                "row_count_checked": True,
+                "notes": (
+                    "streamed_this_run="
+                    f"{streamed}; cached bytes were rehashed against the Figshare manifest; "
+                    "the manifest ETag "
+                    f"{'matched the requested ETag' if expected_etag is not None else 'was not pinned by a requested ETag'}"
+                    "; the reported etag is the one the bytes were fetched under; "
+                    "bytes_transferred_over_the_wire="
+                    f"{int(file['size']) if streamed else 0}. No byte range was requested, so "
+                    "content_range_matched_request is false rather than unknown."
+                ),
+            },
+            "files": {},
+            "uncertainty": (
+                "Establishes the selected county/window EAGLE-I rows and their coverage against "
+                "the expected 15-minute cadence. Establishes no customer denominator unless one "
+                "is retained, and no weather coverage."
+            ),
         },
         "eaglei": detail,
     }
@@ -1016,17 +1028,25 @@ def acquire(
                     "was read, so this receipt cannot establish source-wide coverage"
                 )
             ],
-        },
-        "capture_method": "bounded_http_range_binary_search",
-        "verification": {
-            "content_range_matched_request": True,
-            "sha256_computed_from_response_body": True,
-            "etag_pinned_across_every_range": True,
-            "range_probe_count": len(start_probes) + len(end_probes),
-            "bytes_transferred_over_the_wire": budget.spent,
-            "byte_ceiling": budget.limit,
-            "requested_window_bracketed_by_retrieved_rows": True,
-            "full_annual_file_streamed": False,
+            "capture_method": "bounded_http_range_binary_search",
+            "verification": {
+                "sha256_computed_from_response_body": True,
+                "content_range_matched_request": True,
+                "decoded_field_identity_checked": True,
+                "row_count_checked": True,
+                "notes": (
+                    "The ETag was pinned across every range request; "
+                    f"range_probe_count={len(start_probes) + len(end_probes)}; "
+                    f"bytes_transferred_over_the_wire={budget.spent} against a "
+                    f"byte_ceiling of {budget.limit}; the requested window is bracketed by "
+                    "retrieved rows; the full annual file was not streamed."
+                ),
+            },
+            "files": {},
+            "uncertainty": (
+                "Establishes the rows inside the bracketed byte range only. It cannot establish "
+                "source-wide coverage, a customer denominator, or any weather coverage."
+            ),
         },
         "eaglei": detail,
     }

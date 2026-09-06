@@ -5,9 +5,12 @@ import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
+from pipelines.build import _nws_crosswalk_releases
+from pipelines.common import sha256_file
 from pipelines.counties import load_counties
 from pipelines.db import connect, replace_frame
 from pipelines.eaglei import load_eaglei
+from pipelines.manifest import build_manifest, store_manifest, write_manifest
 from pipelines.nri import load_nri
 
 
@@ -253,6 +256,31 @@ def test_context_cli_reports_missing_counties(tmp_path, capsys):
     assert "requires loaded counties for MN" in capsys.readouterr().err
 
 
+def test_context_cli_requires_counties_before_pudl_plants(tmp_path, capsys):
+    """Plant point-to-county assignment cannot run without canonical counties."""
+    from pipelines.build_state_context import main
+
+    plants, generators = tmp_path / "plants.parquet", tmp_path / "generators.parquet"
+    plants.write_bytes(b"fixture")
+    generators.write_bytes(b"fixture")
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--pudl-plants",
+                str(plants),
+                "--pudl-generators",
+                str(generators),
+            ]
+        )
+    assert error.value.code == 2
+    assert "--pudl-plants requires loaded counties for MN" in capsys.readouterr().err
+    assert not (tmp_path / "grid.duckdb").exists()
+
+
 def test_context_build_late_failure_preserves_database_and_parquet(
     tmp_path, monkeypatch
 ):
@@ -343,6 +371,89 @@ def test_context_build_publishes_scoped_outages_and_preserves_other_tables(tmp_p
         con.close()
 
 
+def test_context_publish_rebuilds_full_store_manifest_for_combined_tx_mn_scope(
+    tmp_path,
+):
+    """Both promoted manifest copies describe the post-context full store."""
+    from pipelines.build_state_context import main
+
+    live = tmp_path / "grid.duckdb"
+    parquet = tmp_path / "parquet"
+    con = connect(live)
+    frame = pd.DataFrame(
+        [
+            {
+                "county_fips": "27001",
+                "name": "Aitkin",
+                "state": "MN",
+                "pop": 10,
+                "geom_wkb": b"fixture",
+            },
+            {
+                "county_fips": "48001",
+                "name": "Anderson",
+                "state": "TX",
+                "pop": 20,
+                "geom_wkb": b"fixture",
+            },
+        ]
+    )
+    replace_frame(
+        con,
+        "counties",
+        frame,
+        source_name="test",
+        source_ref="fixture",
+        fixture_batch_id="test",
+    )
+    # Seed the exact stale release metadata that a context publication used to
+    # preserve, including a deliberately wrong contract-table digest.
+    stale = build_manifest(con, state_scope="tx")
+    stale["tables"]["counties"]["content_sha256"] = "0" * 64
+    store_manifest(con, stale)
+    con.close()
+    write_manifest(stale, parquet / "manifest.json")
+
+    coverage = tmp_path / "coverage.csv"
+    coverage.write_text(
+        "year,state,total_customers,min_covered,max_covered,min_pct_covered,max_pct_covered\n"
+        "2021-01-01,MN,10,5,10,0.5,1.0\n"
+        "2021-01-01,TX,20,10,20,0.5,1.0\n"
+    )
+    assert (
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--parquet-dir",
+                str(parquet),
+                "--coverage",
+                str(coverage),
+            ]
+        )
+        == 0
+    )
+
+    con = connect(live, read_only=True)
+    try:
+        stored = json.loads(
+            con.execute(
+                "SELECT value FROM schema_meta WHERE key = 'manifest'"
+            ).fetchone()[0]
+        )
+        expected = build_manifest(con, state_scope="mn-tx")
+    finally:
+        con.close()
+    parquet_manifest = json.loads((parquet / "manifest.json").read_text())
+
+    assert stored == expected
+    assert parquet_manifest == expected
+    assert stored["state_scope"] == "mn-tx"
+    assert stored["tables"]["counties"]["content_sha256"] != "0" * 64
+
+
 def test_coverage_invalid_year_preserves_existing_scope(tmp_path):
     from pipelines.eaglei import load_coverage_history
 
@@ -359,3 +470,141 @@ def test_coverage_invalid_year_preserves_existing_scope(tmp_path):
         assert con.execute("SELECT * FROM eaglei_coverage").fetchall() == before
     finally:
         con.close()
+
+
+def test_context_cli_publishes_storm_events_and_denominators_for_a_context_state(
+    tmp_path, monkeypatch
+):
+    """The context CLI reaches the same county-grain relations the Texas P0 fills."""
+    from pipelines import build_state_context
+    from pipelines.build_state_context import main
+
+    live = tmp_path / "grid.duckdb"
+    con = connect(live)
+    seed(con)
+    con.close()
+    # The pinned crosswalk editions live in gitignored raw data, so this builds
+    # its own catalog over fixture .dbx bytes and their real digests.
+    raw = tmp_path / "raw"
+    entries = []
+    for release, valid_from, valid_until in (
+        ("edition-a", "2021-01-01T00:00:00", "2021-06-01T00:00:00"),
+        ("edition-b", "2024-01-01T00:00:00", "2024-06-01T00:00:00"),
+    ):
+        target = raw / "nws_zone_county" / release / f"{release}.dbx"
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(
+            f"MN|001|MPX|Fixture Zone {release}|MN001|Aitkin|27001|C||46.0|-93.0\n",
+            encoding="utf-8",
+        )
+        entries.append(
+            {
+                "release": release,
+                "path": ["nws_zone_county", release, f"{release}.dbx"],
+                "valid_from": valid_from,
+                "valid_until": valid_until,
+                "source_url": f"https://example.invalid/{release}.dbx",
+                "sha256": sha256_file(target),
+            }
+        )
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        json.dumps({"nws_crosswalk_releases": entries}), encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        build_state_context,
+        "_nws_crosswalk_releases",
+        lambda root, catalog_path=catalog: _nws_crosswalk_releases(root, catalog_path),
+    )
+    details = tmp_path / "storm.csv.gz"
+    frame = pd.DataFrame(
+        [
+            {
+                "EVENT_ID": 1,
+                "STATE": "MINNESOTA",
+                "STATE_FIPS": 27,
+                "CZ_TYPE": "C",
+                "CZ_FIPS": 1,
+                "EVENT_TYPE": "Winter Storm",
+                "BEGIN_DATE_TIME": "01-JAN-21 06:00:00",
+                "END_DATE_TIME": "01-JAN-21 12:00:00",
+                "CZ_TIMEZONE": "CST-6",
+                "MAGNITUDE": None,
+            }
+        ]
+    )
+    frame.to_csv(details, index=False, compression="gzip")
+    mcc = tmp_path / "MCC.csv"
+    mcc.write_text("County_FIPS,Customers\n27001,1234\n55001,99\n")
+    coverage = tmp_path / "coverage.csv"
+    coverage.write_text(
+        "year,state,total_customers,min_covered,max_covered,min_pct_covered,max_pct_covered\n"
+        "2021-01-01,MN,10,5,10,0.5,1.0\n2021-01-01,WI,10,5,10,0.5,1.0\n"
+    )
+    assert (
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--parquet-dir",
+                str(tmp_path / "parquet"),
+                "--raw-dir",
+                str(raw),
+                "--storm-events",
+                f"2021={details}",
+                "--mcc",
+                str(mcc),
+                "--coverage",
+                str(coverage),
+            ]
+        )
+        == 0
+    )
+    con = connect(live)
+    try:
+        assert con.execute("SELECT county_fips FROM storm_events").fetchall() == [
+            ("27001",)
+        ]
+        assert con.execute(
+            "SELECT county_fips, customers FROM county_customers WHERE source = 'mcc_2022'"
+        ).fetchall() == [("27001", 1234)]
+        assert con.execute("SELECT state FROM eaglei_coverage").fetchall() == [("MN",)]
+    finally:
+        con.close()
+
+
+def test_context_cli_requires_counties_before_storm_events(tmp_path, capsys):
+    from pipelines.build_state_context import main
+
+    details = tmp_path / "storm.csv.gz"
+    pd.DataFrame(
+        [
+            {
+                "EVENT_ID": 1,
+                "STATE": "MINNESOTA",
+                "STATE_FIPS": 27,
+                "CZ_TYPE": "C",
+                "CZ_FIPS": 1,
+                "EVENT_TYPE": "Winter Storm",
+                "BEGIN_DATE_TIME": "01-JAN-21 06:00:00",
+                "END_DATE_TIME": "01-JAN-21 12:00:00",
+                "CZ_TIMEZONE": "CST-6",
+                "MAGNITUDE": None,
+            }
+        ]
+    ).to_csv(details, index=False, compression="gzip")
+    with pytest.raises(SystemExit) as error:
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--storm-events",
+                f"2021={details}",
+            ]
+        )
+    assert error.value.code == 2
+    assert "requires loaded counties for MN" in capsys.readouterr().err

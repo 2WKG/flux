@@ -30,7 +30,13 @@ Preview the two regional demo bundles:
 ```powershell
 py datasets/download.py --group demo-ny --dry-run
 py datasets/download.py --group demo-tx --dry-run
+py datasets/download.py --group demo-mn --dry-run
 ```
+
+Where each loaded source came from, per state, is recorded in
+`docs/data/texas-p0-curated-source-receipts.md` and
+`docs/data/minnesota-p0-curated-source-receipts.md`, with per-source digests
+under `data/sources/`.
 
 Acquire `core` and `national` first, then the appropriate regional bundle. The
 regional groups contain state-specific additions rather than duplicating the
