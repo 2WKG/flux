@@ -1,0 +1,69 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2019-10-09-pge-psps",
+    "parent_system_id": "ca-2019-10-offshore-wind",
+    "primary_hazard": "planned_psps",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": ["pge-2019-10-09-12-amended-post-event-report"],
+    "context_window": {"start_utc": "2019-10-08T00:00:00Z", "end_utc": "2019-10-15T00:00:00Z"},
+    "event_window": {"start_utc": "2019-10-09T07:09:00Z", "end_utc": "2019-10-13T00:41:00Z"},
+    "recovery_window": {"start_utc": "2019-10-13T00:41:00Z", "end_utc": "2019-10-14T00:00:00Z"},
+    "disposition": "candidate_only",
+    "selection_basis": "PG&E's amended CPUC-filed post-event report says the first circuit was de-energized at 2019-10-09 00:09 PDT, lists Napa among the first-phase counties, and describes a forecast offshore-wind event. This is planned de-energization evidence only.",
+    "exclusions": ["No matched EAGLE-I county-time-series receipt has been collected."],
+    "uncertainties": ["The 00:09 PDT start is the report's first circuit system-wide, not a Napa-specific circuit activation time.", "The report's PG&E/CPUC account is not independent verification of wildfire causation or a county outage label.", "Reported wind-related damage/hazards are retained separately from this planned-PSPS candidate and are not represented as fire occurrence or verified wildfire damage."]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "cpuc-pge-2019-10-09-12-amended-pdf",
+      "provider": "California Public Utilities Commission; filing by Pacific Gas and Electric Company",
+      "url": "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2019-and-earlier/pge-public-safety-power-shutoff-oct-912-reportamended.pdf",
+      "release": "Amended PG&E Public Safety Power Shutoff Report to the CPUC, October 9-12 2019 De-Energization Event; dated 2019-11-08",
+      "retrieved_at_utc": "2026-09-06T07:26:50Z",
+      "license_or_access": "Public CPUC-hosted filing; no explicit reuse license was identified in the retrieved PDF.",
+      "raw_sha256": "b6ed0ae54352a34967ddc019a8690f89166fce99d518ef096065fc5e67cfd55d",
+      "filtered_sha256": null,
+      "bytes": 5850090,
+      "etag": null,
+      "units": "Reported local Pacific time, customer counts, wind speed, and narrative; no county six-hour EAGLE-I outage units supplied.",
+      "timezone_conversion": "Report's 2019 local operational times are treated as PDT (UTC-07:00): 2019-10-09 00:09 PDT = 2019-10-09T07:09:00Z; 2019-10-12 17:41 PDT = 2019-10-13T00:41:00Z.",
+      "filters": "Retrieved amended PDF only; candidate record selects Napa County (FIPS 06055) and the UTC six-hour interval containing the system-wide first-circuit start.",
+      "grid_index_mapping": "No EAGLE-I county rows or gridded weather values mapped; report lists Napa as an affected first-phase county but does not establish a Napa-specific start time for this canonical window.",
+      "gaps": ["HTTP HEAD returned Content-Length and Last-Modified but no ETag.", "PDF is retained in ignored data/raw/psps, not Git.", "No matched weather time series or EAGLE-I outage label receipt is present."]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2019-10-09-pge-psps-napa-06055-20191009t0600z",
+      "county_fips": "06055",
+      "boundary_vintage": "US Census TIGER/Line 2023 county FIPS reference; geometry not used",
+      "scenario_id": "ca_2019_10_pge_psps",
+      "window_start_utc": "2019-10-09T06:00:00Z",
+      "window_end_utc": "2019-10-09T12:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": ["cpuc-pge-2019-10-09-12-amended-pdf"],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["cpuc-pge-2019-10-09-12-amended-pdf"],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {"source_event_ids": ["pge-2019-10-09-12-amended-post-event-report"], "source_window": {"start_utc": "2019-10-09T07:09:00Z", "end_utc": "2019-10-13T00:41:00Z"}, "spatial_scope": "county", "scope_identifier": "Napa County, California (FIPS 06055), named among first-phase counties", "limitations": "The report documents planned PSPS conditions and regional/offshore-wind rationale, but no complete county six-hour weather series."},
+        "notes": "Report evidence intersects this window at the system-wide start; it is not sampled county weather coverage."
+      },
+      "outage": {"coverage": "UncoveredLabel", "evidence_kind": "not_assessed", "observation_kind": "not_applicable", "source_receipt_ids": [], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": null, "notes": "No EAGLE-I county outage series was fetched; planned de-energization is not substituted for an observed outage label."},
+      "matched_coverage_decision": "unavailable",
+      "label": {"rule_version": "county_outage_5pct_v1", "status": "UncoveredLabel", "observed_outage_customers": null, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null},
+      "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}
+    }
+  ]
+}

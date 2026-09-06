@@ -1,0 +1,69 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2021-08-17-pge-psps",
+    "parent_system_id": "ca-2021-08-northern-california-fire-weather",
+    "primary_hazard": "planned_psps",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": ["pge-2021-08-17-19-post-event-report"],
+    "context_window": {"start_utc": "2021-08-16T00:00:00Z", "end_utc": "2021-08-22T00:00:00Z"},
+    "event_window": {"start_utc": "2021-08-18T00:00:00Z", "end_utc": "2021-08-20T07:00:00Z"},
+    "recovery_window": {"start_utc": "2021-08-20T07:00:00Z", "end_utc": "2021-08-21T00:00:00Z"},
+    "disposition": "candidate_only",
+    "selection_basis": "PG&E's CPUC-hosted post-event report states it began de-energizing at 2021-08-17 17:00 PDT, identifies Shasta among counties with de-energized time-places, and reports a Shasta weather-station maximum gust. This is planned de-energization evidence only.",
+    "exclusions": ["No matched EAGLE-I county-time-series receipt has been collected."],
+    "uncertainties": ["The report-wide 17:00 PDT start is not a Shasta-specific activation; Appendix B lists individual Shasta circuit starts later that evening.", "The reported maximum gust is a county-scope station summary, not a complete six-hour county weather series.", "The utility report is not independent verification of wildfire causation, fire occurrence, or a county outage label."]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "cpuc-pge-2021-08-17-19-pdf",
+      "provider": "California Public Utilities Commission; filing by Pacific Gas and Electric Company",
+      "url": "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2021/pspsreportletter081721.pdf?hash=40C00AEF46FB34D8E3EDE5AC4F604A99&sc_lang=en",
+      "release": "PG&E PSPS Post Event Report, August 17-19 2021 De-Energization Event",
+      "retrieved_at_utc": "2026-09-06T07:26:50Z",
+      "license_or_access": "Public CPUC-hosted filing; no explicit reuse license was identified in the retrieved PDF.",
+      "raw_sha256": "fd57b5031c7c62412e6867dbe61ffbb50fc9a1999a4670bdc1c79ce24691f3bf",
+      "filtered_sha256": null,
+      "bytes": 6928573,
+      "etag": null,
+      "units": "Reported local Pacific time, customers, and weather-station maximum gusts in mph; no county six-hour EAGLE-I outage units supplied.",
+      "timezone_conversion": "Report's 2021 local operational times are PDT (UTC-07:00): 2021-08-17 17:00 PDT = 2021-08-18T00:00:00Z. Appendix B identifies Shasta circuit starts in PDT.",
+      "filters": "Retrieved post-event PDF only; candidate record selects Shasta County (FIPS 06089) and the UTC six-hour interval beginning at the report-wide planned activation.",
+      "grid_index_mapping": "No EAGLE-I county rows or gridded weather values mapped; Appendix B provides circuit-level Shasta planned de-energization timing but no EAGLE-I label series.",
+      "gaps": ["HTTP HEAD returned Content-Length and Last-Modified but no ETag.", "PDF is retained in ignored data/raw/psps, not Git.", "No matched weather time series or EAGLE-I outage label receipt is present."]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2021-08-17-pge-psps-shasta-06089-20210818t0000z",
+      "county_fips": "06089",
+      "boundary_vintage": "US Census TIGER/Line 2023 county FIPS reference; geometry not used",
+      "scenario_id": "ca_2021_08_pge_psps",
+      "window_start_utc": "2021-08-18T00:00:00Z",
+      "window_end_utc": "2021-08-18T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": ["cpuc-pge-2021-08-17-19-pdf"],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["cpuc-pge-2021-08-17-19-pdf"],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {"source_event_ids": ["pge-2021-08-17-19-post-event-report"], "source_window": {"start_utc": "2021-08-18T00:00:00Z", "end_utc": "2021-08-20T07:00:00Z"}, "spatial_scope": "county", "scope_identifier": "Shasta County, California (FIPS 06089); Appendix B circuit list and Table 20 county weather station", "limitations": "The report's 48 mph Shasta station maximum is not a complete county six-hour series and does not establish full-county weather coverage."},
+        "notes": "Authoritative post-event report supports planned activation and a county weather summary only."
+      },
+      "outage": {"coverage": "UncoveredLabel", "evidence_kind": "not_assessed", "observation_kind": "not_applicable", "source_receipt_ids": [], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": null, "notes": "No EAGLE-I county outage series was fetched; PG&E de-energized-customer reporting is not used as an observed EAGLE-I label."},
+      "matched_coverage_decision": "unavailable",
+      "label": {"rule_version": "county_outage_5pct_v1", "status": "UncoveredLabel", "observed_outage_customers": null, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null},
+      "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}
+    }
+  ]
+}

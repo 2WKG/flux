@@ -1,0 +1,69 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2023-09-20-pge-psps",
+    "parent_system_id": "ca-2023-09-northern-sacramento-valley-wind",
+    "primary_hazard": "planned_psps",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": ["pge-2023-09-20-21-post-event-report"],
+    "context_window": {"start_utc": "2023-09-19T00:00:00Z", "end_utc": "2023-09-23T00:00:00Z"},
+    "event_window": {"start_utc": "2023-09-21T06:19:00Z", "end_utc": "2023-09-22T00:05:00Z"},
+    "recovery_window": {"start_utc": "2023-09-22T00:05:00Z", "end_utc": "2023-09-22T12:00:00Z"},
+    "disposition": "candidate_only",
+    "selection_basis": "PG&E's CPUC-hosted report lists Tehama among the three affected counties and gives a Tehama CORNING circuit planned de-energization at 2023-09-20 23:19 PDT; it also reports a Tehama station maximum gust. This is planned de-energization evidence only.",
+    "exclusions": ["No matched EAGLE-I county-time-series receipt has been collected."],
+    "uncertainties": ["The canonical interval contains Tehama CORNING circuit activation, but a circuit footprint is not a whole-county outage observation.", "The reported 36 mph Tehama maximum gust is a county-scope station summary, not a complete six-hour county weather series.", "The utility report is not independent verification of wildfire causation, fire occurrence, or a county outage label."]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "cpuc-pge-2023-09-20-21-pdf",
+      "provider": "California Public Utilities Commission; filing by Pacific Gas and Electric Company",
+      "url": "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2023/pge-post-event-report-9-20-2023.pdf",
+      "release": "PG&E PSPS Post-Event Report, September 20-21 2023 De-Energization Event",
+      "retrieved_at_utc": "2026-09-06T07:26:50Z",
+      "license_or_access": "Public CPUC-hosted filing; no explicit reuse license was identified in the retrieved PDF.",
+      "raw_sha256": "3bbd9a51717669387b8a51596189879bb6f5843c35cbf804039fada9a96c2de3",
+      "filtered_sha256": null,
+      "bytes": 3070897,
+      "etag": null,
+      "units": "Reported local Pacific time, customers, and weather-station maximum gusts in mph; no county six-hour EAGLE-I outage units supplied.",
+      "timezone_conversion": "Report's 2023 local operational times are PDT (UTC-07:00): 2023-09-20 23:19 PDT = 2023-09-21T06:19:00Z; final restoration 2023-09-21 17:05 PDT = 2023-09-22T00:05:00Z.",
+      "filters": "Retrieved post-event PDF only; candidate record selects Tehama County (FIPS 06103) and the UTC six-hour interval containing the CORNING 1101 first-customer de-energization.",
+      "grid_index_mapping": "No EAGLE-I county rows or gridded weather values mapped; Appendix B lists CORNING circuits in Tehama and their planned de-energization/restoration times.",
+      "gaps": ["HTTP HEAD returned Content-Length and Last-Modified but no ETag.", "PDF is retained in ignored data/raw/psps, not Git.", "No matched weather time series or EAGLE-I outage label receipt is present."]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2023-09-20-pge-psps-tehama-06103-20230921t0600z",
+      "county_fips": "06103",
+      "boundary_vintage": "US Census TIGER/Line 2023 county FIPS reference; geometry not used",
+      "scenario_id": "ca_2023_09_pge_psps",
+      "window_start_utc": "2023-09-21T06:00:00Z",
+      "window_end_utc": "2023-09-21T12:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": ["cpuc-pge-2023-09-20-21-pdf"],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["cpuc-pge-2023-09-20-21-pdf"],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {"source_event_ids": ["pge-2023-09-20-21-post-event-report"], "source_window": {"start_utc": "2023-09-21T06:19:00Z", "end_utc": "2023-09-22T00:05:00Z"}, "spatial_scope": "county", "scope_identifier": "Tehama County, California (FIPS 06103); CORNING circuits in Appendix B and Table 20 county weather station", "limitations": "The report's 36 mph Tehama station maximum is not a complete county six-hour weather series and report circuit scope is not a county-wide weather observation."},
+        "notes": "Authoritative report supports a Tehama planned circuit activation and county station summary only."
+      },
+      "outage": {"coverage": "UncoveredLabel", "evidence_kind": "not_assessed", "observation_kind": "not_applicable", "source_receipt_ids": [], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": null, "notes": "No EAGLE-I county outage series was fetched; planned circuit de-energization and PG&E customer counts are not substituted for an observed county label."},
+      "matched_coverage_decision": "unavailable",
+      "label": {"rule_version": "county_outage_5pct_v1", "status": "UncoveredLabel", "observed_outage_customers": null, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null},
+      "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}
+    }
+  ]
+}
