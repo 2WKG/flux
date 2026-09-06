@@ -90,9 +90,16 @@ def test_valid_registered_artifact_is_read_without_estimation(tmp_path: Path) ->
     assert result.answer_numbers == {"effect": 1.5}
     assert result.method == "twfe_only"
     assert result.provenance[0].artifact_id == "causal-effect-test"
+    assert result.question.treatment.definition == "hours without service"
+    assert result.sources[0].coverage == "test period"
+    assert result.sample.n_total == 2
+    assert result.diagnostics[0].status == "pass"
+    assert result.citations[0].locator == "table-1"
+    assert result.evidence_rows == []
+
     evidence = evidence_from_artifact(_artifact())
-    assert evidence.sample["n_total"] == 2
-    assert evidence.citations[0]["locator"] == "table-1"
+    assert evidence.sample.n_total == 2
+    assert evidence.citations[0].locator == "table-1"
 
 
 def test_fixture_and_malformed_artifacts_cannot_yield_an_effect(tmp_path: Path) -> None:
