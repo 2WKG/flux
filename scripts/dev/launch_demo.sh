@@ -14,6 +14,7 @@ Usage:
   scripts/dev/launch_demo.sh [--offline | --live --duckdb PATH]
                              [--api-port PORT] [--web-port PORT]
                              [--run-dir PATH] [--skip-install] [--stop]
+                             [--persist | --remove-persist]
 
 Modes:
   --offline                 Build and start the web app alone (default). The
@@ -21,6 +22,11 @@ Modes:
   --live --duckdb PATH      Require an existing readable DuckDB file, start the
                             local API and same-origin web proxy, then verify
                             health and an allowlisted proxy response.
+  --persist                 Install and start the explicit macOS user LaunchAgent
+                            `com.fluxdemo.local` for a live launch. It owns only
+                            the selected Flux API and web ports.
+  --remove-persist          Unload and remove that LaunchAgent; it does not touch
+                            any other local process or service.
 
 The helper does not create a database, contact a provider, expose a public URL,
 or change Cloudflare. --stop only terminates PIDs previously recorded by this
@@ -35,6 +41,8 @@ web_port=4317
 run_dir="${TMPDIR:-/tmp}/flux-demo-launch-${USER:-user}"
 skip_install=0
 stop_only=0
+persist=0
+remove_persist=0
 
 while (($#)); do
   case "$1" in
@@ -46,6 +54,8 @@ while (($#)); do
     --run-dir) run_dir="${2:?--run-dir requires a path}"; shift ;;
     --skip-install) skip_install=1 ;;
     --stop) stop_only=1 ;;
+    --persist) persist=1 ;;
+    --remove-persist) remove_persist=1 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
   esac
@@ -55,6 +65,14 @@ done
 case "$api_port:$web_port" in
   *[!0-9:]*|:*|*::*) echo "Ports must be numeric." >&2; exit 2 ;;
 esac
+if ((persist && remove_persist)); then
+  echo "Choose only one of --persist and --remove-persist." >&2
+  exit 2
+fi
+if ((persist)) && [[ "$mode" != "live" ]]; then
+  echo "--persist requires --live --duckdb PATH." >&2
+  exit 2
+fi
 if [[ "$mode" == "offline" && -n "$duckdb_path" ]]; then
   echo "--duckdb is only valid with --live." >&2
   exit 2
@@ -72,6 +90,12 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 run_dir="$(mkdir -p "$run_dir" && cd "$run_dir" && pwd)"
 api_pid_file="$run_dir/api.pid"
 web_pid_file="$run_dir/web.pid"
+flux_user_home="${HOME:?HOME is required for user LaunchAgent installation}"
+launch_agents_dir="$flux_user_home/Library/LaunchAgents"
+launch_logs_dir="$flux_user_home/Library/Logs/FluxDemo"
+launch_label="com.fluxdemo.local"
+launch_plist="$launch_agents_dir/$launch_label.plist"
+launch_domain="gui/$(id -u)"
 
 stop_pid_file() {
   local file="$1"
@@ -84,6 +108,52 @@ stop_pid_file() {
   fi
   rm -f "$file"
 }
+
+remove_persistent_service() {
+  command -v launchctl >/dev/null || { echo "launchctl is required on macOS." >&2; exit 1; }
+  launchctl bootout "$launch_domain/$launch_label" 2>/dev/null || true
+  rm -f "$launch_plist"
+  echo "Removed user-owned $launch_label LaunchAgent."
+}
+
+install_persistent_service() {
+  command -v launchctl >/dev/null || { echo "launchctl is required on macOS." >&2; exit 1; }
+  local uv_bin node_bin
+  uv_bin="$(command -v uv)"
+  node_bin="$(command -v node)"
+  mkdir -p "$launch_agents_dir" "$launch_logs_dir"
+  cat >"$launch_plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>$launch_label</string>
+  <key>ProgramArguments</key><array><string>$repo/scripts/dev/flux_demo_service.sh</string></array>
+  <key>WorkingDirectory</key><string>$repo</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
+  <key>EnvironmentVariables</key><dict>
+    <key>FLUX_DEMO_DUCKDB_PATH</key><string>$duckdb_path</string>
+    <key>FLUX_DEMO_API_PORT</key><string>$api_port</string>
+    <key>FLUX_DEMO_WEB_PORT</key><string>$web_port</string>
+    <key>FLUX_DEMO_LOG_DIR</key><string>$launch_logs_dir</string>
+    <key>FLUX_DEMO_UV_BIN</key><string>$uv_bin</string>
+    <key>FLUX_DEMO_NODE_BIN</key><string>$node_bin</string>
+  </dict>
+  <key>StandardOutPath</key><string>$launch_logs_dir/launchd.out.log</string>
+  <key>StandardErrorPath</key><string>$launch_logs_dir/launchd.err.log</string>
+</dict></plist>
+EOF
+  plutil -lint "$launch_plist" >/dev/null
+  launchctl bootout "$launch_domain/$launch_label" 2>/dev/null || true
+  launchctl bootstrap "$launch_domain" "$launch_plist"
+  launchctl kickstart -k "$launch_domain/$launch_label"
+  echo "Installed $launch_label. Logs: $launch_logs_dir"
+}
+
+if ((remove_persist)); then
+  remove_persistent_service
+  exit 0
+fi
 
 if ((stop_only)); then
   stop_pid_file "$api_pid_file"
@@ -112,6 +182,12 @@ if (( ! skip_install )); then
   npm --prefix "$repo/web" ci
 fi
 npm --prefix "$repo/web" run build
+
+if ((persist)); then
+  install_persistent_service
+  echo "Verify independently: curl --fail http://127.0.0.1:$api_port/health"
+  exit 0
+fi
 
 wait_for_http() {
   local url="$1"

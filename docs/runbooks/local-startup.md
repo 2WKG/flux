@@ -66,6 +66,35 @@ builds the web app. The helper refuses occupied ports and leaves logs/PIDs in
 the selected run directory. It does not change Cloudflare or expose an external
 URL.
 
+### Keep the local demo running after the terminal exits (macOS)
+
+For an explicit, user-owned morning service, install the labeled LaunchAgent
+only after the live command has passed its checks:
+
+```bash
+scripts/dev/launch_demo.sh --live \
+  --duckdb /Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb \
+  --persist
+```
+
+This installs `~/Library/LaunchAgents/com.fluxdemo.local.plist`, runs only the
+Flux demo API on `127.0.0.1:8031` and web app on `127.0.0.1:4317`, and writes
+service logs/PIDs to `~/Library/Logs/FluxDemo/`. It uses the injected local
+`copilot.demo_app:app` demo backend; it does not change the provider-neutral
+default API, other projects, Cloudflare, or external networking. Verify from a
+new shell after the installer returns:
+
+```bash
+curl --fail http://127.0.0.1:8031/health
+curl --fail http://127.0.0.1:4317/
+```
+
+Remove the service explicitly when the demo window ends:
+
+```bash
+scripts/dev/launch_demo.sh --remove-persist
+```
+
 ## Static demo
 
 `web/server.mjs` is a Node/Express server. It serves the built React client
