@@ -1,1 +1,200 @@
-{"schema_version":"event-baseline/v1","hazard":"snow-blizzard","event":{"event_id":"mn-2019-02-24-blizzard","parent_system_id":"upper_midwest_2019-02-23_cyclone","primary_hazard":"blizzard","secondary_hazards":["heavy_snow","strong_wind"],"compound":true,"source_event_ids":["NCEI:StormEvents:803577"],"context_window":{"start_utc":"2019-02-23T00:00:00Z","end_utc":"2019-02-26T00:00:00Z"},"event_window":{"start_utc":"2019-02-24T15:00:00Z","end_utc":"2019-02-25T00:00:00Z"},"recovery_window":{"start_utc":"2019-02-25T00:00:00Z","end_utc":"2019-02-26T00:00:00Z"},"disposition":"candidate_only","selection_basis":"NCEI documents blizzard conditions in the Dakota forecast zone.","exclusions":["An exhaustive EAGLE-I county-window scan is pending."],"uncertainties":["Weather is a Dakota forecast-zone report, not a station time series.","No outage coverage or rate is claimed."]},"source_receipts":[{"receipt_id":"ncei-stormevents-2019","provider":"NOAA NCEI","url":"https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz","release":"c20260323","retrieved_at_utc":"2026-09-06T07:19:43Z","license_or_access":"Public NOAA access; license not independently verified in this collection pass.","raw_sha256":"f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b","filtered_sha256":null,"bytes":11602648,"etag":null,"units":"Storm Events local standard-time event interval and hazard classification.","timezone_conversion":"CZ_TIMEZONE=CST-6: EVENT_ID 803577 maps 24-FEB-19 09:00–18:00 to [2019-02-24T15:00:00Z,2019-02-25T00:00:00Z).","filters":"STATE=MINNESOTA; EPISODE_ID=133446; EVENT_ID=803577; CZ_NAME=DAKOTA.","grid_index_mapping":"No grid index; forecast zone MNZ070 retained.","gaps":["Raw annual file is in approved ignored storage."]}],"records":[{"record_id":"mn-2019-02-24-blizzard-27037-20190224t1200z","county_fips":"27037","boundary_vintage":"Census TIGER/Line 2024","scenario_id":"mn-2019-02-24-blizzard-replay","window_start_utc":"2019-02-24T12:00:00Z","window_end_utc":"2019-02-24T18:00:00Z","disposition":"candidate_only","mode":"replay","provenance_receipt_ids":["ncei-stormevents-2019"],"source_evidence_status":"unavailable","source_row_keys":[],"source_slices":[],"weather":{"coverage":"covered","evidence_kind":"authoritative_event_report","observation_kind":"observed","source_receipt_ids":["ncei-stormevents-2019"],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":{"source_event_ids":["NCEI:StormEvents:803577"],"source_window":{"start_utc":"2019-02-24T15:00:00Z","end_utc":"2019-02-25T00:00:00Z"},"spatial_scope":"zone","scope_identifier":"MNZ070 (Dakota)","limitations":"Zone report is not a county time series."},"notes":"NCEI event intersects the canonical window."},"outage":{"coverage":"UncoveredLabel","evidence_kind":"not_assessed","observation_kind":"not_applicable","source_receipt_ids":[],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":null,"notes":"Exhaustive annual EAGLE-I scan pending; absence is not zero."},"matched_coverage_decision":"unavailable","label":{"rule_version":"county_outage_5pct_v1","status":"UncoveredLabel","observed_outage_customers":null,"customer_denominator":{"status":"unavailable","value":null},"outage_rate":null,"positive":null},"forecast":{"prediction_cutoff_utc":null,"forecast_evaluation":"not_forecast_scored","inputs":[]}}]}
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "snow-blizzard",
+  "event": {
+    "event_id": "mn-2019-02-24-blizzard",
+    "parent_system_id": "upper_midwest_2019-02-23_cyclone",
+    "primary_hazard": "blizzard",
+    "secondary_hazards": [
+      "heavy_snow",
+      "strong_wind"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "NCEI:StormEvents:803577"
+    ],
+    "context_window": {
+      "start_utc": "2019-02-23T00:00:00Z",
+      "end_utc": "2019-02-26T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-02-24T15:00:00Z",
+      "end_utc": "2019-02-25T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-02-25T00:00:00Z",
+      "end_utc": "2019-02-26T00:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "NCEI documents blizzard conditions in the Dakota forecast zone; exhaustive EAGLE-I acquisition found partial, not complete, county-window coverage.",
+    "exclusions": [
+      "EAGLE-I 27037 observation window has 20 of 24 expected 15-minute rows and cannot be accepted."
+    ],
+    "uncertainties": [
+      "Weather is a Dakota forecast-zone report, not a station time series.",
+      "Missing EAGLE-I rows are UncoveredLabel, never zero."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei-stormevents-2019",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+      "release": "c20260323",
+      "retrieved_at_utc": "2026-09-06T07:19:43Z",
+      "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
+      "raw_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+      "filtered_sha256": null,
+      "bytes": 11602648,
+      "etag": null,
+      "units": "Storm Events local standard-time event interval and hazard classification.",
+      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 803577 maps 24-FEB-19 09:00–18:00 to [2019-02-24T15:00:00Z,2019-02-25T00:00:00Z).",
+      "filters": "STATE=MINNESOTA; EPISODE_ID=133446; EVENT_ID=803577; CZ_NAME=DAKOTA.",
+      "grid_index_mapping": "No grid index; forecast zone MNZ070 retained.",
+      "gaps": [
+        "Raw annual file is in approved ignored storage."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:00:54.365528Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "filtered_sha256": "dc3f5829a9a9e2a299540bd88570b28d9fa354b7c88bca9e47efa3bbf1f58ba2",
+      "bytes": 1102778792,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=Minnesota; county_fips=27037; window=UTC half-open [2019-02-24T12:00:00Z,2019-02-24T18:00:00Z)",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "gaps": [
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "27037: partial_15_min_observation; missing 4 of 24 15-minute intervals."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547885",
+        "source_file": "eaglei_outages_2019.csv",
+        "source_file_id": 42547885,
+        "source_file_bytes": 1102778792,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+        "raw_artifact_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+        "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2019-02-24-blizzard-27037-20190224120000_eaglei_2019_20190224T120000_20190224T180000.csv",
+        "filtered_artifact_sha256": "dc3f5829a9a9e2a299540bd88570b28d9fa354b7c88bca9e47efa3bbf1f58ba2"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2019-02-24-blizzard-27037-20190224t1200z",
+      "county_fips": "27037",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2019-02-24-blizzard-replay",
+      "window_start_utc": "2019-02-24T12:00:00Z",
+      "window_end_utc": "2019-02-24T18:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-stormevents-2019",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T12:00:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T12:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T12:30:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T12:45:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T13:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T13:30:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T13:45:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T14:00:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T14:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T15:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T15:30:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T15:45:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T16:00:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T16:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T16:30:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T16:45:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T17:00:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T17:15:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T17:30:00Z",
+        "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000:27037:2019-02-24T17:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000",
+          "county_fips": "27037",
+          "start_utc": "2019-02-24T12:00:00Z",
+          "end_utc": "2019-02-24T18:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei-stormevents-2019"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "NCEI:StormEvents:803577"
+          ],
+          "source_window": {
+            "start_utc": "2019-02-24T15:00:00Z",
+            "end_utc": "2019-02-25T00:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "MNZ070 (Dakota)",
+          "limitations": "Zone report is not a county time series."
+        },
+        "notes": "NCEI event intersects the canonical window."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 20,
+        "missing_timestamps": [
+          "2019-02-24T13:00:00Z",
+          "2019-02-24T14:30:00Z",
+          "2019-02-24T14:45:00Z",
+          "2019-02-24T15:00:00Z"
+        ],
+        "event_report": null,
+        "notes": "Definitive exhaustive annual EAGLE-I receipt found 20/24 valid 15-minute observations, zero duplicate or invalid rows. Missing timestamps are retained; no zero imputation."
+      },
+      "matched_coverage_decision": "not_matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
