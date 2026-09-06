@@ -1,0 +1,114 @@
+{
+  "artifact": {
+    "artifact_id": "mn:physical-inventory:1.1.0",
+    "artifact_version": "1.1.0",
+    "content_sha256": "1ea4272d60cdbf9072764749446b9677114c883c78e39f20e48a7d8873dc1728",
+    "contract_version": "1.0.0",
+    "electrical_model_mode": "none",
+    "inventory_mode": "physical_observed",
+    "published_compressed_sha256": "538855318e181264e734798e5fa78e6539fb98f072c61fb2485fc6002a1edf48",
+    "published_path": "data/artifacts/physical_inventory/mn/physical-inventory-1.1.0.json.gz",
+    "sources": [
+      {
+        "authority": "U.S. Energy Information Administration",
+        "content_sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+        "source_id": "eia860_2025er",
+        "source_ref": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
+        "source_version": "2025 early release"
+      },
+      {
+        "authority": "Mille Lacs County GIS public Utilities MapServer layer 0 (Substations); county-scoped source only. Service copyrightText: Mille Lacs County MN.",
+        "content_sha256": "57fb1a4267b8b657da4bcf0bc7d12251b19d396396237f4eacc7bd24218b9481",
+        "source_id": "mille_lacs_county_utilities_mapserver_2026:substations-layer-0",
+        "source_ref": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+        "source_version": "live MapServer layer 0 query captured 2026-09-06T07:05:03Z"
+      },
+      {
+        "authority": "Mille Lacs County GIS public Utilities MapServer layer 2 (Transmission Lines); county-scoped source only. Service copyrightText: Mille Lacs County MN.",
+        "content_sha256": "f8ca26cb493124c72dacefba9c282a79280cbf44926474102ea3c3943b55a583",
+        "source_id": "mille_lacs_county_utilities_mapserver_2026:transmission-lines-layer-2",
+        "source_ref": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+        "source_version": "live MapServer layer 2 query captured 2026-09-06T07:05:03Z"
+      }
+    ]
+  },
+  "completion_claim": "No parent or state acceptance issue is complete from this offline receipt alone.",
+  "connectivity": {
+    "edge_source_ids": [],
+    "source_backed_edge_count": 0,
+    "source_backed_terminal_count": 0,
+    "terminal_source_ids": []
+  },
+  "coverage": [
+    {
+      "asset_class": "generation",
+      "authoritative_state_class_denominator": null,
+      "coverage_status": "partial",
+      "denominator_evidence": "source_local_or_unknown",
+      "normalized_asset_count": 2394,
+      "reason": "EIA-860 2025 Early Release Schedule 2 plants and Schedule 3.1 generator rows excluding units represented once as Schedule 3.4 storage; EIA warns the early release excludes pending-validation records and is not a statewide completeness claim. Generator-unit coordinates are not published.",
+      "source_geometry_count": 850,
+      "source_returned_count": 2394,
+      "source_scope": "EIA-860 2025 Early Release reporting scope; excludes records pending validation and does not establish statewide completeness.",
+      "unavailable_count": 1544,
+      "unavailable_geometry_count": 1544,
+      "unknown_or_unreported_count": 0
+    },
+    {
+      "asset_class": "line",
+      "authoritative_state_class_denominator": null,
+      "coverage_status": "partial",
+      "denominator_evidence": "source_local_or_unknown",
+      "normalized_asset_count": 31,
+      "reason": "No source-backed statewide line denominator or connectivity is available.",
+      "source_geometry_count": 31,
+      "source_returned_count": 31,
+      "source_scope": "Mille Lacs County Utilities MapServer layer 2 only; not countywide or statewide completeness",
+      "unavailable_count": null,
+      "unavailable_geometry_count": 0,
+      "unknown_or_unreported_count": null
+    },
+    {
+      "asset_class": "storage",
+      "authoritative_state_class_denominator": null,
+      "coverage_status": "partial",
+      "denominator_evidence": "source_local_or_unknown",
+      "normalized_asset_count": 11,
+      "reason": "EIA-860 2025 Early Release Schedule 3.4 storage rows; plant association does not supply storage-unit geometry, duration, state of charge, or electrical connectivity.",
+      "source_geometry_count": 0,
+      "source_returned_count": 11,
+      "source_scope": "EIA-860 2025 Early Release reporting scope; excludes records pending validation and does not establish statewide completeness.",
+      "unavailable_count": 11,
+      "unavailable_geometry_count": 11,
+      "unknown_or_unreported_count": 0
+    },
+    {
+      "asset_class": "substation",
+      "authoritative_state_class_denominator": null,
+      "coverage_status": "partial",
+      "denominator_evidence": "source_local_or_unknown",
+      "normalized_asset_count": 11,
+      "reason": "No source-backed statewide substation denominator or terminals are available.",
+      "source_geometry_count": 11,
+      "source_returned_count": 11,
+      "source_scope": "Mille Lacs County Utilities MapServer layer 0 only; not countywide or statewide completeness",
+      "unavailable_count": null,
+      "unavailable_geometry_count": 0,
+      "unknown_or_unreported_count": null
+    }
+  ],
+  "end_to_end_result": "NOT VERIFIED",
+  "errors": [],
+  "offline_result": "VERIFIED",
+  "receipt_kind": "physical_inventory_offline_acceptance",
+  "receipt_version": "1.0.0",
+  "stages": {
+    "artifact_to_normalized_inventory": "VERIFIED",
+    "browser_interaction": "NOT VERIFIED",
+    "inspector": "NOT VERIFIED",
+    "selection": "NOT VERIFIED",
+    "spatial_api_transport": "NOT VERIFIED",
+    "viewport_render": "NOT VERIFIED"
+  },
+  "state": "mn"
+}
