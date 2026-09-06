@@ -40,7 +40,9 @@ test("the main route renders the checked-in synthetic scenario with its limits",
   assert.match(markup, /data-source-status="synthetic"/);
   assert.match(markup, /Synthetic five-bus preview · not Minnesota data/);
   assert.match(markup, /Every figure is read from a checked-in synthetic artifact — no runtime request, and no claim about a real grid\./);
-  assert.doesNotMatch(markup, /data-request-state=/);
+  // Child surfaces can independently disclose unavailable server data. The
+  // fixture route itself must not pose as a loading primary simulation.
+  assert.doesNotMatch(markup, /data-request-state="loading"/);
   assert.doesNotMatch(markup, /Loading the primary simulation layer\./);
 });
 
