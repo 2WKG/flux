@@ -11,7 +11,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/dev/launch_demo.sh [--offline | --live --duckdb PATH --case PATH]
+  scripts/dev/launch_demo.sh [--offline | --live --duckdb PATH [--case PATH]]
                              [--api-port PORT] [--web-port PORT]
                              [--run-dir PATH] [--skip-install] [--stop]
                              [--persist | --remove-persist]
@@ -22,6 +22,9 @@ Modes:
   --live --duckdb PATH      Require an existing readable DuckDB file, start the
                             local API and same-origin web proxy, then verify
                             health and an allowlisted proxy response.
+  --case PATH               Read a current ACTIVSg2000 RAW case for the optional
+                            synthetic Texas model and cascade routes. Required
+                            with --persist; it is never copied or generated.
   --persist                 Install and start the explicit macOS user LaunchAgent
                             `com.fluxdemo.local` for a live launch. It owns only
                             the selected Flux API and web ports.
@@ -36,7 +39,7 @@ EOF
 
 mode="offline"
 duckdb_path=""
-case_path="${FLUX_CASE_PATH:-}"
+case_path=""
 api_port=8031
 web_port=4317
 run_dir="${TMPDIR:-/tmp}/flux-demo-launch-${USER:-user}"
@@ -72,11 +75,15 @@ if ((persist && remove_persist)); then
   exit 2
 fi
 if ((persist)) && [[ "$mode" != "live" ]]; then
-  echo "--persist requires --live --duckdb PATH." >&2
+  echo "--persist requires --live --duckdb PATH --case PATH." >&2
   exit 2
 fi
 if [[ "$mode" == "offline" && -n "$duckdb_path" ]]; then
   echo "--duckdb is only valid with --live." >&2
+  exit 2
+fi
+if [[ "$mode" == "offline" && -n "$case_path" ]]; then
+  echo "--case is only valid with --live." >&2
   exit 2
 fi
 if [[ "$mode" == "live" && -z "$duckdb_path" ]]; then
@@ -87,8 +94,13 @@ if [[ "$mode" == "live" && (! -f "$duckdb_path" || ! -r "$duckdb_path") ]]; then
   echo "Live database is not a readable file: $duckdb_path" >&2
   exit 2
 fi
-if [[ "$mode" == "live" && (! -f "$case_path" || ! -r "$case_path") ]]; then
-  echo "Live synthetic case is not a readable file: ${case_path:-unset}; use --case PATH." >&2; exit 2
+if [[ "$mode" == "live" && -n "$case_path" && (! -f "$case_path" || ! -r "$case_path") ]]; then
+  echo "Synthetic case is not a readable file: $case_path" >&2
+  exit 2
+fi
+if ((persist)) && [[ -z "$case_path" ]]; then
+  echo "--persist requires --case PATH so the durable demo can serve its labeled Texas model." >&2
+  exit 2
 fi
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
