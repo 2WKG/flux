@@ -605,72 +605,15 @@ export function App() {
           </section>
         </article>
 
-        <aside className="inspector" aria-label="Scenario inspector">
-          <div className="outcome">
-            <p className="eyebrow">MODELED UNMET DEMAND</p>
-            <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
-            <p>{shedHours} {scenario.units.shedMwh} across the {data.execution.assumptions.durationHours}-hour window</p>
-            <div className={selected === "baseline" ? "delta flat" : "delta"}>
-              {selected === "baseline"
-                ? "Baseline reference"
-                : `−${scenario.metrics.improvementMw} ${scenario.units.improvementMw} vs baseline`}
-            </div>
-          </div>
-
-          <div className="stats">
-            <div><span>Demand</span><b>{scenario.metrics.demandMw} {scenario.units.demandMw}</b></div>
-            <div><span>Available supply</span><b>{supply} {scenario.units.availableGenerationMw}</b></div>
-          </div>
-
-          {candidate ? (
-            <div className="insight">
-              <p className="eyebrow">{candidate.name} · +{candidate.capacityMw} MW AT {BUSES[candidate.busId].name.toUpperCase()}</p>
-              <h2>{candidate.description}</h2>
-              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
-              <ul className="relief">
-                {relieved.slice(0, 3).map(({ line, delta }) => (
-                  <li key={line.id}>
-                    <span>{BUSES[line.from].name} → {BUSES[line.to].name}</span>
-                    <em>{signed(delta)} pts</em>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="insight">
-              <p className="eyebrow">NO CAPACITY ADDED</p>
-              <h2>This is the reference run every candidate is measured against.</h2>
-              <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
-            </div>
-          )}
-
-          <Inspector asset={inspectorAsset} className="asset-inspector" title="Scenario provenance" />
-        </aside>
       </section>
-
-      {false && <GridInventoryPanel
-        load={gridLoad}
-        state={gridState}
-        layers={gridLayers}
-        query={gridQuery}
-        selected={gridSelected}
-        onStateChange={(next) => { setGridState(next); setGridLayers(GRID_LAYERS[next]); setGridSelected(null); }}
-        onLayersChange={setGridLayers}
-        onQueryChange={setGridQuery}
-        onSelect={setGridSelected}
-        onRetry={() => setGridAttempt((value) => value + 1)}
-      />}
 
       <section className="pipeline">
         <div>
-          <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
-          <h2>Same assumptions. Traceable synthetic output.</h2>
+          <p className="eyebrow">MODEL CONTRACT</p>
+          <h2>Static synthetic network geometry.</h2>
         </div>
         <p>
-          {sameAssumptions
-            ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
-            : "Comparison unavailable: scenario assumptions differ."}{" "}
-          Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
+          The read-only model route supplies the synthetic ACTIVSg2000 artifact. It describes topology and mapped coordinates only: no power flow, contingency result, or physical-inventory equivalence is asserted.
         </p>
       </section>
 

@@ -24,6 +24,7 @@ export type TexasModelPayload = Readonly<{
   reason?: string;
   data?: Readonly<{
     topology?: Readonly<{ label?: string; synthetic?: boolean; solver?: string }>;
+    counts?: Readonly<{ buses?: number; branches?: number; generators?: number; loads?: number }>;
     elements?: readonly TexasModelElement[];
   }>;
 }>;
@@ -73,6 +74,9 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const buses = useMemo(() => points.filter((point) => point.role === "bus"), [points]);
   const generators = useMemo(() => points.filter((point) => point.role === "generator"), [points]);
   const loads = useMemo(() => points.filter((point) => point.role === "load"), [points]);
+  const declared = payload.data?.counts;
+  const count = (value: number | undefined, fallback: number) =>
+    typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : fallback;
   const bounds = useMemo(() => boundsOf(points, lines), [points, lines]);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(5.4);
@@ -118,6 +122,6 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
     <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
       <DeckOverlay layers={layers} />
     </Map>
-    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {buses.length} resolved buses · {lines.length} resolved branches · {generators.length} generators · {loads.length} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
+    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
   </section>;
 }
