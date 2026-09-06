@@ -10,6 +10,7 @@ export type FailureKind =
   | "partial"
   | "unavailable"
   | "malformed"
+  | "version_mismatch"
   | "network_failure"
   | "cancelled"
   | "failed";

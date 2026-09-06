@@ -11,7 +11,7 @@ export function fromClientState<T>(state: ClientState<T>, retainedContext?: Fail
     case "unavailable":
       return { kind: "unavailable", message: state.message, retryAfterSeconds: state.retryAfterSeconds, retainedContext };
     case "invalid":
-      return { kind: "malformed", message: state.message, retainedContext };
+      return { kind: state.reason === "version_mismatch" ? "version_mismatch" : "malformed", message: state.message, retainedContext };
     case "failed":
       return { kind: state.source === "network" ? "network_failure" : "failed", message: state.message, retainedContext };
     case "ready":

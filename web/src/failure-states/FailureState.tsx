@@ -6,12 +6,13 @@ const copy = {
   partial: ["Partial result", "Only the source-provided portion of this view is available."],
   unavailable: ["Unavailable", "This source is currently unavailable."],
   malformed: ["Response could not be used", "The response did not match the expected contract."],
+  version_mismatch: ["Version mismatch", "The source response uses an incompatible API version."],
   network_failure: ["Connection failed", "The service could not be reached."],
   cancelled: ["Request cancelled", "The request stopped before it returned a complete answer."],
   failed: ["Request failed", "The service did not return a usable result."],
 } as const;
 
-const retryable = new Set(["unavailable", "network_failure", "cancelled", "failed", "malformed"]);
+const retryable = new Set(["unavailable", "network_failure", "cancelled", "failed", "malformed", "version_mismatch"]);
 
 /**
  * Reusable, source-neutral recovery surface. It displays supplied context but

@@ -6,7 +6,9 @@ import type { FailureStateInput } from "./types";
 const states: readonly FailureStateInput[] = [
   { kind: "network_failure", message: "Offline. No source result was created.", retainedContext: <p>Retained scene: Minnesota overview</p> },
   { kind: "malformed", message: "The source response was malformed; detail was withheld.", retainedContext: <p>Retained scene: Minnesota overview</p> },
+  { kind: "version_mismatch", message: "The source uses an incompatible API version.", retainedContext: <p>Retained scene: Minnesota overview</p> },
   { kind: "cancelled", retainedContext: <p>Retained scene: Minnesota overview</p> },
+  { kind: "partial", message: "Only the source-provided portion is available.", retainedContext: <p>Retained scene: Minnesota overview</p> },
 ];
 
 function Trace() {
