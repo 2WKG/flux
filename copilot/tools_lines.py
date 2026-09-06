@@ -6,6 +6,7 @@ from pathlib import Path
 
 import duckdb
 
+from copilot.api.pagination import DeterministicOrder, PageRequest, SortTerm
 from copilot.config import Settings
 from copilot.tools.schemas import (
     ArtifactRef,
@@ -32,7 +33,27 @@ class TopLinesReader:
             return unavailable_output(
                 "unsupported_request", "top_lines filters are invalid"
             )
-        region, tech, n = request.region, request.tech, request.n
+        return self.top_lines_page(
+            request.region, request.tech, PageRequest(limit=request.n)
+        )
+
+    def top_lines_page(
+        self, region: str, tech: str, page: PageRequest
+    ) -> LinesData | UnavailableOutput:
+        """Read one deterministic page of a persisted line-ranking artifact.
+
+        The model-facing ``top_lines`` method above retains its frozen ``n``
+        signature. HTTP reads use this method so their explicit page request
+        shares the same evidence checks, rows, and ordering rather than
+        recreating a second line-ranking query.
+        """
+        try:
+            request = TopLinesInput(region=region, tech=tech)
+        except ValueError:
+            return unavailable_output(
+                "unsupported_request", "top_lines filters are invalid"
+            )
+        region, tech = request.region, request.tech
         if not self._database_path.is_file():
             return unavailable_output(
                 "artifact_unavailable", "line-ranking database is unavailable"
@@ -70,21 +91,29 @@ class TopLinesReader:
                 params: list[object] = [region, scenario_id]
                 if tech != "any":
                     params.append(tech)
-                params.append(n)
+                order = DeterministicOrder(
+                    primary=(
+                        SortTerm("mw_per_musd", "DESC"),
+                        SortTerm("winning_cost_usd", "ASC"),
+                    ),
+                    tie_breaker=SortTerm("line_id", "ASC"),
+                )
+                page_clause, page_params = order.clause(page)
                 rows = con.execute(
                     f"""SELECT s.line_id, s.congestion_usd_yr, s.dlr_uplift_mw,
                                s.reconductor_uplift_mw, s.dlr_cost_usd, s.reconductor_cost_usd,
                                s.mw_per_musd, s.ferc_screen_pass, s.spark_eligible,
                                s.simulation_run_id,
                                d.best_tech, d.congestion_method, d.region,
-                               line.from_bus, line.to_bus, line.base_kv
+                               line.from_bus, line.to_bus, line.base_kv,
+                               CASE WHEN d.best_tech = 'dlr' THEN s.dlr_cost_usd
+                                    ELSE s.reconductor_cost_usd END AS winning_cost_usd
                         FROM line_upgrade_scores AS s
                         JOIN line_upgrade_detail AS d USING (line_id, scenario_id)
                         JOIN lines AS line ON line.line_id = s.line_id
                         WHERE d.region = ? AND s.scenario_id = ? {where_tech}
-                        ORDER BY s.mw_per_musd DESC, CASE WHEN d.best_tech = 'dlr' THEN s.dlr_cost_usd ELSE s.reconductor_cost_usd END ASC, s.line_id ASC
-                        LIMIT ?""",
-                    params,
+                        {page_clause}""",
+                    [*params, *page_params],
                 ).fetchall()
         except duckdb.Error:
             return unavailable_output(
@@ -111,6 +140,7 @@ class TopLinesReader:
                 from_bus,
                 to_bus,
                 kv,
+                _winning_cost,
             ) = row
             uplift, cost = (
                 (dlr_uplift, dlr_cost) if best == "dlr" else (recon_uplift, recon_cost)
