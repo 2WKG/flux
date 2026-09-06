@@ -19,6 +19,7 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
+from copilot.demo.data import create_demo_data_router
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.comparisons import router as comparisons_router
@@ -75,6 +76,7 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(create_demo_data_router(duckdb_path=app.state.settings.duckdb_path))
     return app
 
 
