@@ -303,7 +303,10 @@ export function App() {
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
 
   return (
-    <main>
+    // `data-source-status` publishes the derived IA token to the DOM so a browser
+    // proof can pin the machine label, not the prose around it. It is written from
+    // SOURCE_TRUTH, which src/source-truth.ts derives from the bundle's provenance.
+    <main data-source-status={SOURCE_TRUTH.status}>
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
         <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required</div>
