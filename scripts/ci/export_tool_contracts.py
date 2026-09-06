@@ -88,6 +88,11 @@ def ts_literal(value: Any) -> str:
 def ts_type(schema: dict[str, Any]) -> str:
     if "$ref" in schema:
         return schema["$ref"].rsplit("/", 1)[-1]
+    if "oneOf" in schema:
+        variants = " | ".join(ts_type(item) for item in schema["oneOf"])
+        if schema.get("type") == "object" or "properties" in schema:
+            return f"{ts_object(schema)} & ({variants})"
+        return variants
     if "const" in schema:
         return ts_literal(schema["const"])
     if "enum" in schema:
@@ -95,6 +100,8 @@ def ts_type(schema: dict[str, Any]) -> str:
     if "anyOf" in schema:
         members = [ts_type(item) for item in schema["anyOf"]]
         return " | ".join(dict.fromkeys(members))  # dedupe, keep order
+    if "properties" in schema:
+        return ts_object(schema)
     kind = schema.get("type")
     if kind is None:
         return "unknown"
@@ -115,8 +122,6 @@ def ts_type(schema: dict[str, Any]) -> str:
         inner = ts_type(items)
         return f"Array<{inner}>" if " " in inner else f"{inner}[]"
     if kind == "object":
-        if "properties" in schema:
-            return "{ " + " ".join(ts_members(schema)) + " }"
         extra = schema.get("additionalProperties", True)
         return (
             "Record<string, unknown>"
@@ -124,6 +129,10 @@ def ts_type(schema: dict[str, Any]) -> str:
             else f"Record<string, {ts_type(extra)}>"
         )
     raise SystemExit(f"unsupported JSON Schema type: {kind!r}")
+
+
+def ts_object(schema: dict[str, Any]) -> str:
+    return "{ " + " ".join(ts_members(schema)) + " }"
 
 
 def ts_members(schema: dict[str, Any]) -> list[str]:
@@ -143,7 +152,11 @@ def render_ts(document: dict[str, Any]) -> str:
     ]
     for name in sorted(document["$defs"]):
         definition = document["$defs"][name]
-        if definition.get("type") == "object" and "properties" in definition:
+        if (
+            definition.get("type") == "object"
+            and "properties" in definition
+            and "oneOf" not in definition
+        ):
             lines.append(f"export interface {name} {{")
             lines.extend(f"  {member}" for member in ts_members(definition))
             lines.append("}")
