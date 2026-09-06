@@ -213,3 +213,72 @@ test("the SSE terminal-error codes are the server's list, stated once in the sam
     }
   }
 });
+
+/**
+ * The prohibited decorative status word, spelled once here so the guarantee can
+ * be stated without seeding the term into the documents under test. Three frozen
+ * contracts refuse it: `docs/design/3d-asset-contract.md` ("no decorative or
+ * ... state"), `docs/design/texas-demo-narrative-ia.md` ("prohibited
+ * browser-invented status ... Do not display or synthesize it"), and
+ * `docs/design/minnesota-gate-0-approval.md` ("not approved").
+ *
+ * `scripts/validate_asset_archetypes.py` enforces that for `data/3d/**` catalogs
+ * only. Prose was unguarded: a design document could tell an implementer to
+ * render the word and every gate stayed green.
+ */
+const PROHIBITED_STATUS_WORD = ["illus", "trative"].join("");
+
+/** The documents that define the prohibition, and so must name the word. */
+const PROHIBITION_CONTRACTS = new Set([
+  "3d-asset-contract.md",
+  "minnesota-demo-narrative-ia.md",
+  "minnesota-gate-0-approval.md",
+  "texas-demo-narrative-ia.md",
+]);
+
+async function designDocuments() {
+  const root = path.join(repoRoot.pathname, "docs", "design");
+  const found = [];
+  const walk = async (dir) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      const file = path.join(dir, entry.name);
+      if (entry.isDirectory()) await walk(file);
+      else if ([".md", ".css", ".html"].includes(path.extname(entry.name))) found.push(file);
+    }
+  };
+  await walk(root);
+  return found.sort();
+}
+
+test("no design document outside the prohibition contracts carries the prohibited status word", async () => {
+  const documents = await designDocuments();
+  assert.ok(
+    documents.some((file) => path.basename(file) === "ui-style-guide.md"),
+    "the walk did not reach docs/design/ui-style-guide.md, so it proves nothing",
+  );
+  for (const name of PROHIBITION_CONTRACTS) {
+    const contract = documents.find((file) => path.basename(file) === name);
+    assert.ok(contract, `docs/design/${name} is missing; the exemption list is stale`);
+    const text = await readFile(contract, "utf8");
+    assert.ok(
+      text.toLowerCase().includes(PROHIBITED_STATUS_WORD),
+      `docs/design/${name} no longer states the prohibition it is exempted for`,
+    );
+  }
+
+  const offenders = [];
+  for (const file of documents) {
+    if (PROHIBITION_CONTRACTS.has(path.basename(file))) continue;
+    const lines = (await readFile(file, "utf8")).split("\n");
+    for (const [index, line] of lines.entries()) {
+      if (line.toLowerCase().includes(PROHIBITED_STATUS_WORD)) {
+        offenders.push(`${path.relative(repoRoot.pathname, file)}:${index + 1}: ${line.trim()}`);
+      }
+    }
+  }
+  assert.deepEqual(
+    offenders,
+    [],
+    "a design document reintroduced the prohibited status word; the frozen contracts refuse it",
+  );
+});

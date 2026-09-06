@@ -6,7 +6,7 @@ Flux should feel like a clear, welcoming workspace surrounding a luminous infras
 
 > **Scope.** This guide is Flux's current visual and interaction direction. It does not alter the API, data, geography, scenario, or provenance contracts, which are governed by the [shared overview](../specs/00-overview.md) and its superseding specifications. The evidence discussion below uses existing status and truth vocabularies as display guidance; it introduces no values or mappings.
 
-The defining experience is **Explore → Try a change → Compare**. A person should understand where they are, what they selected, and what they can do next without learning a specialist console. This guide proposes a visual and interaction contract; any companion visual preview is illustrative styling, not a working power-system simulation.
+The defining experience is **Explore → Try a change → Compare**. A person should understand where they are, what they selected, and what they can do next without learning a specialist console. This guide proposes a visual and interaction contract; any companion visual preview is styling only, not a working power-system simulation.
 
 ## Reference interpretation
 
@@ -52,7 +52,7 @@ These are proposed Flux colors, not measured Palantir or Air Force brand values.
 
 Keep action, selection, and operational status as independent channels. A selected facility gets a cyan contour; its amber warning remains an amber badge and symbol. A proposal gets a dashed footprint plus the word “Proposal.” Selection must never make a warning disappear. Pale scene colors are not suitable as small text on white; the CSS provides darker status inks for the light shell.
 
-Use Inter if already available, otherwise the system sans-serif stack. Default controls to 14px/20px, body copy to 16px/24px, and panel headings to 24px/30px. Use 12px captions only for secondary information. Use tabular numerals for comparisons and reserve monospace for identifiers. Prefer sentence case and medium weights.
+Use the platform’s own fonts: `ui-sans-serif, system-ui, sans-serif` for the interface and `ui-monospace, monospace` for data, exactly as [`texas-workspace-prototype.html`](texas-workspace-prototype.html) already ships them. [`ui-tokens.css`](ui-tokens.css) adds older-browser fallbacks after those first entries and changes no leading family. Name no downloadable family first — a face that is installed on one machine and missing on another makes metrics machine-dependent, and Flux loads zero third-party font requests. The `fonts.googleapis.com` import that `web/src/styles.css` still carries on `master` (Manrope, DM Mono) is superseded by this stack; its removal belongs to #252, which owns that file. Default controls to 14px/20px, body copy to 16px/24px, and panel headings to 24px/30px. Use 12px captions only for secondary information. Use tabular numerals for comparisons and reserve monospace for identifiers. Prefer sentence case and medium weights.
 
 Use a 4, 8, 12, 16, 24, 32px spacing scale; 10px control corners; 14px panel corners; and 44px interactive targets. An inspector generally needs 24px padding and 16px between related sections. Use restrained shadows and separators. Decorative separators may be subtle; boundaries required to identify controls need stronger dedicated tokens.
 
@@ -75,7 +75,7 @@ Use shallow highlights to reveal shape, with stronger edges facing the viewer. K
 
 A focus action can provide a labeled cutaway or isolated asset view. Otherwise respect normal depth and occlusion. If a selected asset is hidden, provide an indicator and “Bring into view”; do not silently turn the scene into an X-ray. Material opacity expresses visual hierarchy, never source confidence or numerical uncertainty.
 
-Asset archetypes should include substation, tower, hospital, military base, water plant, and proposed SMR. Give each a distinct silhouette and a text label. Use generic facility forms when geometry is illustrative. Avoid borrowed logos, aircraft replicas, weapon imagery, and tactical jargon. A military base remains a critical facility within the grid story.
+Asset archetypes should include substation, tower, hospital, military base, water plant, and proposed SMR. Give each a distinct silhouette and a text label. Use generic facility forms when geometry is synthetic rather than source-supported. Avoid borrowed logos, aircraft replicas, weapon imagery, and tactical jargon. A military base remains a critical facility within the grid story.
 
 ## Detail across scale
 
@@ -104,23 +104,27 @@ Keep the baseline available throughout the workflow. A change first creates a pr
 | Failed | Preserve inputs and previous valid view; explicit failure message | “We couldn't finish this comparison.” / “Try again” |
 | Stale | Retain old results with an unmistakable stale label | “These results are from your previous setup.” / “Run again” |
 
+This is the run lifecycle, not the status axis, and the two are not interchangeable. The **Failed** row renders the IA’s `request_failed` status with its required display copy (“Request failed”) and its accompanying detail; the friendly sentence here is supporting copy beside that label, never the label itself and never a bare sentence on its own.
+
 Do not replace numerical values with guessed progress or animate invented intermediate results. Use a spinner only where work is pending, with an accessible text status; do not claim a percentage unless supplied meaningfully. If a run is canceled or returns out of order, keep the current selection and scenario version intact.
 
 Prefer “Try a change,” “Show connections,” “Back to region,” and “What changed?” Make error messages state what happened, what remains available, and the next action. “Coverage is not available here yet. Explore available areas” is more useful than an empty canvas. Explain “small modular reactor” before using “SMR” with unfamiliar users.
 
 ## Evidence and truthful presentation
 
-Keep provenance separate from operational status. Use the existing two axes, not a new unified badge vocabulary: browser-result status uses the six `AssetStatus` values in [`web/src/labels.ts`](../../web/src/labels.ts), while artifact truth remains `source_backed`, `synthetic`, or `unavailable` as defined by the [shared overview’s truth-vocabulary section](../specs/00-overview.md#43-truth-vocabularies--two-axes-not-one-d-7). Do not mechanically map `source_backed` to `source_supported`. “Illustrative concept” describes a design preview only, not a status token. Use the [narrative IA’s existing display copy](minnesota-demo-narrative-ia.md) for any implemented label, and explain its meaning on demand; a green badge must not imply a source was independently verified.
+Keep provenance separate from operational status. Use the existing two axes, not a new unified badge vocabulary: browser-result status uses the six `AssetStatus` values in [`web/src/labels.ts`](../../web/src/labels.ts), while artifact truth remains `source_backed`, `synthetic`, or `unavailable` as defined by the [shared overview’s truth-vocabulary section](../specs/00-overview.md#43-truth-vocabularies--two-axes-not-one-d-7). Do not mechanically map `source_backed` to `source_supported`. A design preview is a preview, not a status: describe it as one, and never invent a status word for it. Use the [narrative IA’s existing display copy](minnesota-demo-narrative-ia.md) for any implemented label, and explain its meaning on demand; a green badge must not imply a source was independently verified.
 
-Geometry, identity, placement, and scenario values can have different provenance. A sourced facility location may use an illustrative building model. The inspector should disclose that distinction and provide source title, source date when known, and coverage limits. Show “Live” only when a source supports that claim and freshness is visible.
+Geometry, identity, placement, and scenario values can have different provenance. A sourced facility location may use a synthetic building model. The inspector should disclose that distinction and provide source title, source date when known, and coverage limits. Show “Live” only when a source supports that claim and freshness is visible.
 
-When the abstract five-bus fixture is used, present it as an offline example, not Texas, Minnesota, ERCOT, MISO, or a real interconnection. Never place it over a real basemap as if it were accepted regional topology. A style preview should prominently state “Illustrative scene · No live grid data.” The browser presents server geometry and solved results; it does not generate simulation values, scores, or invented network connections.
+When the abstract five-bus fixture is used, present it as an offline example, not Texas, Minnesota, ERCOT, MISO, or a real interconnection. Never place it over a real basemap as if it were accepted regional topology. A style preview should prominently state “Synthetic · No live grid data.” — “Synthetic” is the IA’s own display copy for the `synthetic` token (`web/src/source-truth.ts` `STATUS_COPY`, the [narrative IA](minnesota-demo-narrative-ia.md) “Synthetic” row), so the preview names an approved state instead of inventing one. The browser presents server geometry and solved results; it does not generate simulation values, scores, or invented network connections.
+
+The decorative status word that [`3d-asset-contract.md`](3d-asset-contract.md) refuses (“There is deliberately no decorative … state”), that [`texas-demo-narrative-ia.md`](texas-demo-narrative-ia.md) marks prohibited, and that [`minnesota-gate-0-approval.md`](minnesota-gate-0-approval.md) records as not approved must never appear in this guide or in any design document that is not one of those contracts — not as a label, not beside one, and not as prose. `web/src/status-vocabulary.test.mjs` scans `docs/design/**` and fails if it comes back.
 
 ## Accessibility, motion, and rendering
 
 Target at least 4.5:1 contrast for ordinary text and 3:1 for large text. Required control boundaries and meaningful graphics need 3:1 against adjacent colors; keep focus clearly visible. Check composited scenes as well as swatches, and pair color with text, shapes, patterns, or icons. [W3C text contrast](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html), [non-text contrast](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 
-Token checks found 13.55:1 for light primary text, 5.45:1 for light secondary text, 14.07:1 for dark primary text, and 5.17:1 for white on the blue action. Control borders exceed 3:1 on their intended surfaces. These checks verify color pairs, not complete interface accessibility. Cyan on chalk is only 1.52:1; keep it out of light-shell text.
+Token checks found 13.55:1 for ink `#182B37` on the light chalk ground `#F4F7F8`, 5.45:1 for secondary `#536778` on that same ground, 14.07:1 for pale ink `#EAF2F5` on the dark slate panel `#17232E` (16.34:1 on the darker midnight scene ground `#0B141E`), and 5.17:1 for white on the blue action `#2563EB`. Control borders exceed 3:1 on their intended surfaces. These checks verify color pairs, not complete interface accessibility. Cyan on chalk is only 1.52:1; keep it out of light-shell text.
 
 Offer a keyboard-operable facility list synchronized with scene selection and an accessible scene synopsis. Essential details must not depend on hover or orbiting a model. Maintain visible focus, predictable tab order, explicit button names, and screen-reader announcements for new results. Announce changes, not every rendered frame.
 
