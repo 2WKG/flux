@@ -115,6 +115,12 @@ needs:
 is true when the rate is at least `0.05`. Only `label.status="computed"` may
 carry a rate or `positive` value.
 
+When native customer denominators vary by observation, retain their
+`denominator_observations` summary (`present_rows`, `missing_rows`, `min`,
+`max`) and mark the scalar label unavailable with
+`unavailability_reason="dynamic_denominator_unsupported"`; coverage acceptance
+does not depend on deriving a five-percent label.
+
 ## Provenance and source starter receipts
 
 Every bundle identifies source receipts by ID. The receipt follows the repo's
