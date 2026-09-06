@@ -10,7 +10,7 @@ import pandas as pd
 
 from pipelines.common import sha256_file, utc_now
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 CONTRACT_TABLES = (
     "buses",
     "lines",
