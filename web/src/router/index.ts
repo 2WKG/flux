@@ -49,8 +49,8 @@ export const ROUTES: readonly Route[] = [
     path: "/explainer",
     label: "How the math works",
     title: "Flux | How the math works",
-    truthLabels: ["synthetic"],
-    truthNote: "This page describes the method only; no model runs in this build.",
+    truthLabels: ["synthetic", "hypothetical", "unavailable"],
+    truthNote: "This page combines synthetic teaching models, one hypothetical recorded experiment, and explicit unavailable states; no model runs in this build.",
   },
   {
     id: "minnesota",

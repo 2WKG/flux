@@ -1,5 +1,8 @@
-import { useMemo, useState } from "react";
+import { Component, useMemo, useState, type ReactNode } from "react";
 
+import { CausalSection } from "../explainer/causal";
+import { GnnSection } from "../explainer/gnn";
+import { JepaSection } from "../explainer/jepa";
 import { FailureState } from "../failure-states/FailureState";
 import { STATUS_COPY } from "../source-truth";
 import { runToyCascade, TOY_BUSES, TOY_LINES, type CascadeStage, type SolvedLine } from "./toyCascade";
@@ -19,6 +22,36 @@ function busAction(stage: CascadeStage, busId: string) {
 function lineStroke(line: SolvedLine, active: boolean) {
   if (!active) return "#3d5f7c";
   return line.utilizationPct > 100 ? "#ff7d68" : line.utilizationPct > 80 ? "#ffcc66" : "#46d7b0";
+}
+
+/** A teaching section may fail without making the rest of the method page unusable. */
+class ExplainerSectionBoundary extends Component<
+  { readonly label: string; readonly children: ReactNode },
+  { readonly error: Error | null }
+> {
+  state = { error: null as Error | null };
+
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <section aria-label={`${this.props.label} unavailable`} data-source-status="unavailable">
+          <FailureState
+            state={{
+              kind: "unavailable",
+              code: "explainer_section_unavailable",
+              message: `${this.props.label} could not be rendered. No substitute values are shown.`,
+            }}
+            onRetry={() => this.setState({ error: null })}
+          />
+        </section>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 function NetworkDiagram({ stage }: { stage: CascadeStage }) {
@@ -48,5 +81,8 @@ export function ExplainerPage() {
     <section className="pipeline" aria-label="Cascade controls"><div><p className="eyebrow">STEP THROUGH THE TOY CASCADE</p><h2>{stage.title}</h2><p>Choose a stage to inspect the recalculated bus balances and every active line’s arithmetic.</p></div><div role="group" aria-label="Cascade stage"><button type="button" onClick={() => setStageIndex(Math.max(0, stageIndex - 1))} disabled={stageIndex === 0}>Previous</button>{" "}<button type="button" onClick={() => setStageIndex(Math.min(result.stages.length - 1, stageIndex + 1))} disabled={stageIndex === result.stages.length - 1}>Next</button><p aria-live="polite">Stage {stageIndex + 1} of {result.stages.length}</p></div></section>
     <NetworkDiagram stage={stage} /><Arithmetic stage={stage} />
     <section className="pipeline" aria-label="Simplifications"><div><p className="eyebrow">WHAT THIS LEAVES OUT</p><h2>A DC screening lesson, not an operational grid model.</h2></div><ul><li>No reactive power or voltage constraints.</li><li>No dynamics, stability, or restoration timeline.</li><li>No protection settings or relay behavior; the toy rule trips one most-overloaded line.</li><li>Islands balance through proportional load shedding or generation curtailment.</li><li>All topology, ratings, and injections here are synthetic teaching inputs.</li></ul></section>
+    <ExplainerSectionBoundary label="Causal teaching section"><CausalSection /></ExplainerSectionBoundary>
+    <ExplainerSectionBoundary label="JEPA recorded evaluation"><JepaSection /></ExplainerSectionBoundary>
+    <ExplainerSectionBoundary label="GNN teaching section"><GnnSection /></ExplainerSectionBoundary>
   </main>;
 }
