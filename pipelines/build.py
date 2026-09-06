@@ -73,14 +73,16 @@ def _missing_p0_inputs(
 ) -> list[str]:
     """Return P0 inputs handled by this builder that are absent or not promotable."""
     selected_scope = scope(states)
+    inputs = _p0_raw_inputs()
+    has_dod_input = any(label.startswith("ntad_military_bases/") for label, _ in inputs)
     missing = [
         label
-        for label, alternatives in _p0_raw_inputs()
+        for label, alternatives in inputs
         if not label.startswith("ntad_military_bases/")
         if not any(raw.joinpath(*parts).exists() for parts in alternatives)
     ]
     dod_parts = ("ntad_military_bases", "fy2024", _dod_filename(selected_scope))
-    if not raw.joinpath(*dod_parts).exists():
+    if has_dod_input and not raw.joinpath(*dod_parts).exists():
         missing.append("/".join(dod_parts))
     if not eaglei_source_tz:
         missing.append("--eaglei-source-tz (required to promote EAGLE-I)")
