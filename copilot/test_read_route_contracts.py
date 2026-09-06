@@ -124,37 +124,66 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
     ),
     ("POST", "/site-score"): RouteContract(
         success=Cell(
-            "copilot/test_interventions.py::test_site_and_comparison_reads_are_server_side",
+            "copilot/test_interventions.py::test_site_read_is_server_side_and_unqualified_comparison_is_unavailable",
             200,
         ),
         invalid=Cell(
-            "copilot/test_interventions.py::test_invalid_capacity_and_identifiers_are_validation_errors",
+            "copilot/test_interventions.py::test_site_score_capacity_bound_is_a_validation_error",
             422,
         ),
         unavailable=Cell(
-            "copilot/test_interventions.py::test_missing_artifact_is_unavailable", 503
+            "copilot/test_interventions.py::test_site_score_missing_database_is_unavailable",
+            503,
         ),
-        not_found=Gap(
-            "2WKG-422: copilot/routes/interventions.py:53 raises NotFoundError for an "
-            "absent site score, but no test pins that 404 envelope."
+        not_found=Cell(
+            "copilot/test_interventions.py::test_unknown_site_is_not_found_rather_than_retryable",
+            404,
         ),
     ),
     ("POST", "/compare"): RouteContract(
         success=Cell(
-            "copilot/test_interventions.py::test_site_and_comparison_reads_are_server_side",
+            "copilot/test_interventions.py::test_comparison_reads_a_qualified_persisted_score_without_deriving_a_delta",
             200,
         ),
         invalid=Cell(
-            "copilot/test_interventions.py::test_invalid_capacity_and_identifiers_are_validation_errors",
+            "copilot/test_interventions.py::test_missing_and_invalid_comparison_inputs_are_not_empty_successes",
             422,
         ),
         unavailable=Cell(
-            "copilot/test_interventions.py::test_missing_artifact_is_unavailable", 503
+            "copilot/test_interventions.py::test_site_read_is_server_side_and_unqualified_comparison_is_unavailable",
+            503,
         ),
-        not_found=Gap(
-            "2WKG-422: copilot/routes/interventions.py:53 raises NotFoundError for an "
-            "absent intervention, but no test pins that 404 envelope."
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/lines/top"): RouteContract(
+        success=Cell(
+            "copilot/test_lines.py::test_top_lines_reads_a_deterministic_persisted_page",
+            200,
         ),
+        invalid=Cell(
+            "copilot/test_lines.py::test_top_lines_rejects_invalid_page_bounds", 422
+        ),
+        unavailable=Cell(
+            "copilot/test_lines.py::test_top_lines_reports_unavailable_artifact_states",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/elements/critical"): RouteContract(
+        success=Cell(
+            "copilot/test_interventions.py::test_critical_elements_use_persisted_values_with_stable_paging",
+            200,
+        ),
+        invalid=Gap(
+            "2WKG-422: region/n/offset are bounded by Query constraints "
+            "(copilot/routes/comparisons.py:571), but no test pins the 422 envelope "
+            "for an out-of-bounds page."
+        ),
+        unavailable=Cell(
+            "copilot/test_interventions.py::test_canonical_unavailable_critical_manifest_needs_no_domain_row",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
     ),
     ("GET", "/scenarios"): RouteContract(
         success=Cell(
@@ -324,8 +353,7 @@ def test_every_contract_gap_cites_a_tracking_key() -> None:
     for route, state, slot in gaps:
         assert "2WKG-" in slot.reason, (route, state)
     assert {(route, state) for route, state, _ in gaps} == {
-        (("POST", "/site-score"), "not_found"),
-        (("POST", "/compare"), "not_found"),
+        (("GET", "/elements/critical"), "invalid"),
     }
 
 
