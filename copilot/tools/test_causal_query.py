@@ -181,6 +181,25 @@ def test_fixture_and_malformed_artifacts_cannot_yield_an_effect(tmp_path: Path) 
     assert structured_result.unavailable.code == "insufficient_evidence"
 
 
+def test_interface_only_fixture_cannot_yield_an_effect_claim() -> None:
+    fixture = (
+        Path(__file__).resolve().parents[2]
+        / "causal"
+        / "fixtures"
+        / "interface_only_causal_fixture.json"
+    )
+
+    result = _reader(fixture).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "insufficient_evidence"
+    # The code alone cannot distinguish the interface-fixture refusal from the six
+    # other reasons that map to insufficient_evidence; pin the reason.
+    assert "FIXTURE_NOT_ESTIMABLE" in result.unavailable.reason
+    assert not hasattr(result, "answer_numbers")
+    assert not hasattr(result, "interval")
+
+
 def test_non_utf8_artifact_bytes_are_unavailable_not_raised(tmp_path: Path) -> None:
     path = tmp_path / "effect.json"
     path.write_bytes(b"\xff\xfe" + json.dumps(_artifact()).encode("utf-8"))
