@@ -1,0 +1,1 @@
+{"candidates": [{"content": {"parts": [{"functionCall": {"name": "top_lines", "args": {"region": "MN", "tech": "any", "n": 3}}}], "role": "model"}, "finishReason": "STOP", "index": 0}], "usageMetadata": {"promptTokenCount": 512, "candidatesTokenCount": 42, "totalTokenCount": 554}, "modelVersion": "gemini-3.8-flash", "responseId": "recorded-fixture-gemini-tool-1"}
