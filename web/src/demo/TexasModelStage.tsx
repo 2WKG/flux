@@ -73,7 +73,7 @@ export function TexasModelStage({ scene }: { scene: TexasModelScene }) {
       {scene.visual ? <div className="texas-model-stage__visual" aria-label="Synthetic Texas model visual">{scene.visual}</div> : <p className="control-room__unavailable" role="status">Model visual unavailable: no independent synthetic-coordinate renderer has been supplied.</p>}
       {action ? <div className="texas-model-stage__action">
         <label>Selected model component
-          <select value={action.selectedElementId ?? ""} onChange={(event) => action.onSelectElement?.(event.target.value)} disabled={action.availability !== "available" || !action.onSelectElement}>
+          <select value={action.selectedElementId ?? ""} onChange={(event) => action.onSelectElement?.(event.target.value)} disabled={!action.onSelectElement}>
             <option value="">Choose a model ID</option>
             {scene.elementIds.map((id) => <option key={id} value={id}>{id}</option>)}
           </select>

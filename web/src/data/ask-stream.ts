@@ -26,6 +26,8 @@ import type { AskRequestBody } from "../chat/ask-contract";
 export const NO_TERMINAL_EVENT_CODE = "protocol_error";
 export const NO_TERMINAL_EVENT_MESSAGE =
   "The stream closed without a terminal done or error event, so the answer is not complete and no result is shown.";
+export const INTERRUPTED_STREAM_MESSAGE =
+  "The stream was interrupted before a terminal done or error event, so the answer is partial and no result is shown.";
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -120,12 +122,18 @@ export async function runAsk(
         dispatch({ type: "event", identity, event });
       }
     }
+  } catch {
+    // A reader rejection is a production transport interruption (abort,
+    // network close, or proxy reset), not a successful empty stream. Reduce it
+    // through the same terminal failure path as an EOF without `done`/`error`.
+    dispatch({ type: "malformed", identity, message: INTERRUPTED_STREAM_MESSAGE });
   } finally {
     connection.data.close();
   }
 
   if (state.terminal === undefined) {
-    dispatch({ type: "malformed", identity, message: NO_TERMINAL_EVENT_MESSAGE });
+    const alreadyInterrupted = state.issues.some((issue) => issue.message === INTERRUPTED_STREAM_MESSAGE);
+    if (!alreadyInterrupted) dispatch({ type: "malformed", identity, message: NO_TERMINAL_EVENT_MESSAGE });
   }
   return { state };
 }

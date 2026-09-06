@@ -36,6 +36,7 @@ import {
   historicalForecastFromPayload,
   texasModelSceneFromPayload,
   type HistoricalCountForecast,
+  type CascadePlayback,
   type ModelPayload,
   type PrimarySceneMode,
   type RegionId,
@@ -111,6 +112,54 @@ function isModelPayload(value: unknown): value is ModelPayload {
   if (!value || typeof value !== "object") return false;
   const status = (value as Record<string, unknown>).status;
   return status === "available" || status === "partial" || status === "unavailable";
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+}
+
+/**
+ * Applies only the bridge's explicit scene action. It deliberately ignores
+ * answer prose and raw solver-shaped objects: live runs are visualized only
+ * after the server marks the result as the current synthetic cascade action
+ * and the v1 stream finishes verified.
+ */
+function liveCascadeFromRun(state: RunState, context: SceneContext, region: RegionId): CascadePlayback | null {
+  if (region !== "texas" || state.terminal?.type !== "done" || state.terminal.verified !== true
+    || context.region !== "texas" || context.view_mode !== "texas_model"
+    || context.scenario_id !== "uri_2021" || context.hour === null) return null;
+  for (const trace of Object.values(state.tools)) {
+    if (trace.tool !== "synthetic_cascade" || trace.result?.ok !== true) continue;
+    const result = asRecord(trace.result.result);
+    const action = asRecord(result?.scene_action);
+    if (!action || action.kind !== "synthetic_cascade_current" || action.persisted !== false
+      || action.scenario_id !== context.scenario_id || action.hour !== context.hour
+      || action.topology !== "synthetic (ACTIVSg2000)" || action.synthetic !== true
+      || typeof action.run_id !== "string") continue;
+    const requested = Array.isArray(action.element_ids) ? action.element_ids.filter((item): item is string => typeof item === "string") : [];
+    if (context.selected_element_id && !requested.includes(context.selected_element_id)) continue;
+    const events = Array.isArray(action.timeline) ? action.timeline.flatMap((item, index) => {
+      const event = asRecord(item);
+      if (!event || typeof event.element_id !== "string") return [];
+      return [{
+        id: `live-${event.stage ?? 0}-${index}-${event.element_id}`,
+        elementId: event.element_id,
+        stageLabel: `Stage ${typeof event.stage === "number" ? event.stage : 0} · ${typeof event.kind === "string" ? event.kind : "element"}`,
+        summary: `${event.element_id} ${typeof event.cause === "string" ? event.cause : "event"}.`,
+        availability: "available" as const,
+      }];
+    }) : [];
+    if (events.length === 0) return null;
+    return {
+      availability: "available",
+      runId: action.run_id,
+      title: "Live synthetic Texas cascade",
+      events,
+      provenance: [{ label: "Verified current-run tool result", detail: "ephemeral write=false synthetic model result" }],
+      limitations: ["This is a live synthetic model computation, not persisted playback and not physical-inventory connectivity."],
+    };
+  }
+  return null;
 }
 
 function weatherSymbol(condition: string): "clear" | "cloudy" | "rain" | "snow" | "wind" | "storm" | "heat" | "unknown" {
@@ -373,6 +422,8 @@ export function App() {
     message: "Checking the evidence API for this scene.",
   });
   const [sceneContext, setSceneContext] = useState<SceneContext>(EMPTY_SCENE_CONTEXT);
+  const [sceneRevision, setSceneRevision] = useState(0);
+  const [chatPrefill, setChatPrefill] = useState<{ value: string; revision: number }>({ value: "", revision: 0 });
   const [initialAttemptId] = useState<string>(() => newAttemptId());
   const [attemptId, setAttemptId] = useState<string>(initialAttemptId);
   const [chatStatus, setChatStatus] = useState<ChatStatus>("idle");
@@ -396,11 +447,30 @@ export function App() {
   const [sceneMode, setSceneMode] = useState<PrimarySceneMode>("inventory");
   const [weatherFrames, setWeatherFrames] = useState<ReturnType<typeof createPrimaryDemoRuntime>["scenarios"][number]["weather"]>([]);
   const [historicalForecast, setHistoricalForecast] = useState<HistoricalCountForecast>({ availability: "unavailable", reason: "The historical trajectory has not been requested." });
+  const [forecastCountyFips, setForecastCountyFips] = useState("48201");
+  const [forecastCountyFipses, setForecastCountyFipses] = useState<readonly string[]>([]);
   const [modelPayload, setModelPayload] = useState<ModelPayload>({ status: "unavailable", reason: "The synthetic model geometry has not been requested." });
   const [cascadePayload, setCascadePayload] = useState<Parameters<typeof cascadePlaybackFromPayload>[0] | null>(null);
+  const [liveCascade, setLiveCascade] = useState<CascadePlayback | null>(null);
   const [selectedModelElementId, setSelectedModelElementId] = useState<string | undefined>();
+  const currentRegionRef = useRef<RegionId>("texas");
+  const currentSceneContextRef = useRef<SceneContext>(EMPTY_SCENE_CONTEXT);
+  const currentAttemptRef = useRef(initialAttemptId);
 
-  const contextRevision = `${selected}:${attemptId}`;
+  const contextRevision = `${controlRoomRegion}:${sceneRevision}:${attemptId}`;
+
+  const updateSceneContext = useCallback((next: SceneContext | ((current: SceneContext) => SceneContext)) => {
+    setSceneContext((current) => typeof next === "function" ? next(current) : next);
+    setSceneRevision((revision) => revision + 1);
+  }, []);
+
+  const prefillChat = useCallback((value: string) => {
+    setChatPrefill((current) => ({ value, revision: current.revision + 1 }));
+  }, []);
+
+  useEffect(() => { currentRegionRef.current = controlRoomRegion; }, [controlRoomRegion]);
+  useEffect(() => { currentSceneContextRef.current = sceneContext; }, [sceneContext]);
+  useEffect(() => { currentAttemptRef.current = attemptId; }, [attemptId]);
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -461,7 +531,7 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController();
     // These are server-verified canonical model IDs, not physical layer IDs.
-    READ_CLIENT.get<ModelPayload>("/demo/model?element_id=line%3A973&element_id=generator%3A1", isModelPayload, () => false, { signal: controller.signal, retries: 0 })
+    READ_CLIENT.get<ModelPayload>("/demo/model", isModelPayload, () => false, { signal: controller.signal, retries: 0 })
       .then((state) => setModelPayload(state.kind === "ready" ? state.data : { status: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The model geometry is unavailable." }))
       .catch(() => setModelPayload({ status: "unavailable", reason: "The model geometry could not be read." }));
     return () => controller.abort();
@@ -493,14 +563,23 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    const county = controlRoomRegion === "minnesota" ? "27053" : "48201";
-    READ_CLIENT.get<DemoForecastPayload>(`/demo/forecast?county_fips=${county}`, isDemoForecastPayload, () => false, { signal: controller.signal, retries: 0 })
-      .then((state) => setHistoricalForecast(state.kind === "ready"
-        ? historicalForecastFromPayload(state.data)
-        : { availability: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The historical trajectory is unavailable." }))
+    // Reset before every state/county read so a Texas trajectory is never shown
+    // while Minnesota is loading (or the reverse).
+    setHistoricalForecast({ availability: "unavailable", reason: "Loading the selected historical county trajectory." });
+    READ_CLIENT.get<DemoForecastPayload>(`/demo/forecast?county_fips=${forecastCountyFips}`, isDemoForecastPayload, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        if (state.kind !== "ready") {
+          setHistoricalForecast({ availability: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The historical trajectory is unavailable." });
+          return;
+        }
+        const scope = state.data.data?.scope?.observed_county_fips ?? [];
+        setForecastCountyFipses(scope);
+        setHistoricalForecast(historicalForecastFromPayload(state.data));
+      })
       .catch(() => setHistoricalForecast({ availability: "unavailable", reason: "The historical trajectory could not be read." }));
     return () => controller.abort();
-  }, [controlRoomRegion]);
+  }, [forecastCountyFips]);
 
   // One probe decides what the dock is allowed to claim about itself. A health
   // route that does not answer is a named failure state, never a quiet default.
@@ -549,6 +628,16 @@ export function App() {
     [layerSnapshots],
   );
   const layerLegends = useMemo(() => layerSnapshots.map(legendForLayer), [layerSnapshots]);
+  const persistedCascade = cascadePayload ? cascadePlaybackFromPayload(cascadePayload) : undefined;
+  const activeCascade = liveCascade ?? persistedCascade;
+  const modelElementsById = useMemo(() => new Map((modelPayload.data?.elements ?? [])
+    .flatMap((element) => element.element_id ? [[element.element_id, element] as const] : [])), [modelPayload]);
+  const selectedModelIsSlack = modelElementsById.get(selectedModelElementId ?? "")?.role === "grid_forming_slack";
+  const selectModelElement = useCallback((elementId: string) => {
+    setSelectedModelElementId(elementId || undefined);
+    updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region: "texas", county_fips: forecastCountyFips, view_mode: "texas_model", scenario_id: "uri_2021", hour: 0, selected_element_id: elementId || null });
+  }, [forecastCountyFips, updateSceneContext]);
+  const selectedCountyFipses = forecastCountyFipses.filter((countyFips) => controlRoomRegion === "texas" ? countyFips.startsWith("48") : countyFips.startsWith("27"));
   const controlRoomProps: ControlRoomProps = {
     regions: [
       {
@@ -618,8 +707,14 @@ export function App() {
     setGridState(nextGridState);
     setGridLayers(GRID_LAYERS[nextGridState]);
     setGridSelected(null);
+    setLiveCascade(null);
+    setSelectedModelElementId(undefined);
+    updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region, county_fips: region === "texas" ? "48201" : "27053", view_mode: "physical_inventory" });
+    // These initial FIPS selections are the reviewed records themselves; the
+    // selectable list is later read from `data.scope.observed_county_fips`.
+    setForecastCountyFips(region === "texas" ? "48201" : "27053");
     setSceneMode("inventory");
-  }, []);
+  }, [updateSceneContext]);
 
   const primaryControlRoomProps = createPrimaryDemoRuntime({
     regions: [
@@ -653,36 +748,46 @@ export function App() {
       provenance: historicalForecast.provenance ?? [],
       limitations: historicalForecast.limitations,
     },
-    cascade: cascadePayload ? cascadePlaybackFromPayload(cascadePayload) : undefined,
+    cascade: activeCascade,
     suggestedPrompts: [
       { id: "ask-evidence", prompt: "What evidence is available for this selected region?", availability: askAvailable ? "available" : "unavailable" },
       { id: "open-texas-model", prompt: "Open the synthetic Texas model before asking about a component failure.", availability: controlRoomRegion === "texas" ? "available" : "unavailable" },
     ],
     onPromptSelect: (prompt) => {
-      if (prompt.id === "open-texas-model" && controlRoomRegion === "texas") setSceneMode("texas_model");
+      const texasContext = controlRoomRegion === "texas";
+      if (prompt.id === "open-texas-model" && texasContext) setSceneMode("texas_model");
+      updateSceneContext(texasContext
+        ? { ...EMPTY_SCENE_CONTEXT, region: "texas", county_fips: forecastCountyFips, view_mode: prompt.id === "open-texas-model" || sceneMode === "texas_model" ? "texas_model" : "physical_inventory", scenario_id: "uri_2021", hour: 0, selected_element_id: selectedModelElementId ?? null }
+        : { ...EMPTY_SCENE_CONTEXT, region: "minnesota", county_fips: forecastCountyFips, view_mode: "physical_inventory" });
+      prefillChat(`${prompt.prompt}\n\nVisible context: ${controlRoomRegion === "texas" ? "Texas synthetic (ACTIVSg2000) model, Uri 2021 hour 0" : "Minnesota physical inventory / aggregate context"}; historical county ${historicalForecast.countyFips ?? "unavailable"}; selected model element ${selectedModelElementId ?? "none"}.`);
       if (!chatOpen) toggleChat("toggle");
     },
   });
 
   const texasModelSceneBase = texasModelSceneFromPayload(modelPayload, {
-    message: "Select a verified synthetic model ID, then ask the configured Copilot to run the component-failure scenario.",
+    availability: selectedModelIsSlack ? "unavailable" : "available",
+    message: selectedModelIsSlack
+      ? "Grid-forming slack is protected in this synthetic model and cannot be selected for a forced outage."
+      : "Select a verified synthetic model ID, then ask the configured Copilot to run the component-failure scenario.",
     selectedElementId: selectedModelElementId,
-    onSelectElement: (elementId) => {
-      setSelectedModelElementId(elementId);
-      setSceneContext((context) => ({ ...context, scenario_id: "uri_2021", hour: 0, selected_element_id: elementId }));
+    onSelectElement: selectModelElement,
+    onRequestFailure: () => {
+      if (!selectedModelElementId || selectedModelIsSlack) return;
+      updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region: "texas", county_fips: forecastCountyFips, view_mode: "texas_model", scenario_id: "uri_2021", hour: 0, selected_element_id: selectedModelElementId });
+      prefillChat(`Run a synthetic component-failure scenario for ${selectedModelElementId} in Uri 2021 at hour 0.\n\nVisible context: Texas synthetic (ACTIVSg2000) model; historical county ${historicalForecast.countyFips ?? "unavailable"}; selected model element ${selectedModelElementId}.`);
+      setSceneMode("texas_model");
+      if (!chatOpen) toggleChat("toggle");
     },
-    onRequestFailure: () => { if (!chatOpen) toggleChat("toggle"); },
   });
   const texasModelScene: TexasModelScene = texasModelSceneBase.availability !== "unavailable" ? {
     ...texasModelSceneBase,
-    visual: <SyntheticModelScene elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} highlightedElementIds={cascadePayload ? cascadePlaybackFromPayload(cascadePayload).events.map((event) => event.summary.split(" ")[0]) : []} onSelectElement={(elementId) => {
-      setSelectedModelElementId(elementId);
-      setSceneContext((context) => ({ ...context, scenario_id: "uri_2021", hour: 0, selected_element_id: elementId }));
-    }} fallback={<SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={(elementId) => setSelectedModelElementId(elementId)} />} />,
+    visual: <SyntheticModelScene elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} highlightedElementIds={activeCascade?.events.flatMap((event) => event.elementId ? [event.elementId] : []) ?? []} onSelectElement={selectModelElement} fallback={<SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={selectModelElement} />} />,
   } : texasModelSceneBase;
 
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
     const identity: RunIdentity = { attemptId, contextRevision };
+    const submittedContext: SceneContext = { ...EMPTY_SCENE_CONTEXT, ...body.context };
+    const submittedRegion = controlRoomRegion;
     setChatStatus("streaming");
     setChatError(undefined);
     setMessages((current) => [...current, { id: `${identity.attemptId}-${current.length}`, role: "user", content: body.question }]);
@@ -700,6 +805,19 @@ export function App() {
         }
         const terminal = state.terminal;
         if (terminal?.type === "done") {
+          const current = currentSceneContextRef.current;
+          const live = currentAttemptRef.current === identity.attemptId
+            && currentRegionRef.current === submittedRegion
+            && current.scenario_id === submittedContext.scenario_id
+            && current.hour === submittedContext.hour
+            && current.selected_element_id === submittedContext.selected_element_id
+            ? liveCascadeFromRun(state, submittedContext, submittedRegion)
+            : null;
+          if (live) {
+            setLiveCascade(live);
+            setSceneMode("texas_model");
+            if (submittedContext.selected_element_id) setSelectedModelElementId(submittedContext.selected_element_id);
+          }
           setChatStatus("done");
           setMessages((current) => state.text ? [...current, { id: `${identity.attemptId}-answer`, role: "assistant", content: state.text }] : current);
           return;
@@ -710,7 +828,7 @@ export function App() {
           : { code: "protocol_error", message: state.issues[state.issues.length - 1]?.message ?? "The stream ended without a terminal event." });
       })
       .catch(() => setChatStatus("error"));
-  }, [attemptId, contextRevision]);
+  }, [attemptId, contextRevision, controlRoomRegion]);
 
   return <main data-source-status="unavailable" data-primary-demo="true">
     <nav>
@@ -720,7 +838,15 @@ export function App() {
     <PrimaryDemo
       controlRoom={primaryControlRoomProps}
       sceneMode={sceneMode}
-      onSceneModeChange={setSceneMode}
+      onSceneModeChange={(mode) => {
+        setSceneMode(mode);
+        if (mode === "inventory") {
+          setSelectedModelElementId(undefined);
+          updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region: controlRoomRegion, county_fips: forecastCountyFips, view_mode: "physical_inventory" });
+        } else {
+          updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region: "texas", county_fips: forecastCountyFips, view_mode: "texas_model", scenario_id: "uri_2021", hour: 0, selected_element_id: selectedModelElementId ?? null });
+        }
+      }}
       texasModelScene={texasModelScene}
       spatialStage={<GridInventoryPanel
         load={gridLoad}
@@ -734,7 +860,7 @@ export function App() {
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
       />}
-      inspectorSlot={<><Inspector asset={inspectorAsset} className="asset-inspector" title="Evidence availability" /><HistoricalForecastPanel forecast={historicalForecast} /></>}
+      inspectorSlot={<><Inspector asset={inspectorAsset} className="asset-inspector" title="Evidence availability" /><HistoricalForecastPanel forecast={historicalForecast} countyFipses={selectedCountyFipses} selectedCountyFips={forecastCountyFips} onCountyChange={setForecastCountyFips} /></>}
       chatSlot={<ChatDockView
         open={chatOpen}
         onToggle={() => toggleChat("toggle")}
@@ -745,11 +871,12 @@ export function App() {
           context={sceneContext}
           attemptId={attemptId}
           sourceLabel="Selected evidence context"
-          sourceStatus="unavailable"
+          sourceStatus={controlRoomRegion === "texas" ? "synthetic" : "unavailable"}
           status={chatStatus}
           error={chatError}
           messages={messages}
-          onContextChange={setSceneContext}
+          prefill={chatPrefill}
+          onContextChange={updateSceneContext}
           onSend={askAvailable ? sendAsk : undefined}
           onRetry={() => setAttemptId(newAttemptId())}
         />

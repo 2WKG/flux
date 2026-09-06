@@ -78,12 +78,14 @@ export function cascadePlaybackFromPayload(payload: {
   const qualified = payload.playback_qualified === true && hour !== undefined;
   const events = qualified ? (hour.tripped_element_ids ?? []).flatMap((event, index) => event.element_id ? [{
     id: `${event.stage ?? 0}-${index}-${event.element_id}`,
+    elementId: event.element_id,
     stageLabel: `Stage ${event.stage ?? 0} · ${event.kind ?? "element"}`,
     summary: `${event.element_id} ${event.cause ?? "event"}${event.loading_percent === undefined ? "" : ` at ${event.loading_percent}% loading`}.`,
     availability: "available" as const,
   }] : []) : [];
   return {
     availability: qualified && events.length > 0 ? "available" : "unavailable",
+    runId: payload.run_id,
     title: "Synthetic Texas cascade playback",
     unavailableMessage: qualified ? "The qualified run contains no displayable event IDs." : "The cascade readback is not qualified for playback.",
     events,
@@ -150,7 +152,7 @@ export type ModelPayload = {
 };
 
 /** Converts only server-resolved canonical IDs into a Texas model scene. */
-export function texasModelSceneFromPayload(payload: ModelPayload, action?: Omit<ComponentFailureAction, "availability">): TexasModelScene {
+export function texasModelSceneFromPayload(payload: ModelPayload, action?: Omit<ComponentFailureAction, "availability"> & { readonly availability?: DemoAvailability }): TexasModelScene {
   const elements = payload.data?.elements ?? [];
   const resolved = elements.flatMap((element) => element.resolved && element.element_id ? [element.element_id] : []);
   const unresolved = elements.flatMap((element) => !element.resolved && element.element_id ? [element.element_id] : []);
@@ -163,7 +165,7 @@ export function texasModelSceneFromPayload(payload: ModelPayload, action?: Omit<
     solver: payload.data?.topology?.solver,
     elementIds: resolved,
     unresolvedElementIds: unresolved,
-    action: action ? { ...action, availability: canRequestFailure ? "available" : "unavailable" } : undefined,
+    action: action ? { ...action, availability: action.availability === "unavailable" || !canRequestFailure ? "unavailable" : "available" } : undefined,
     limitations: payload.status === "unavailable" ? [payload.reason ?? "The model endpoint returned unavailable."] : undefined,
   };
 }

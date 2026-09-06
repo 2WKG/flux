@@ -60,6 +60,7 @@ export interface DemoScenario {
 
 export interface CascadeEvent {
   readonly id: string;
+  readonly elementId?: string;
   readonly stageLabel: string;
   readonly summary: string;
   readonly availability: DemoAvailability;
@@ -68,6 +69,8 @@ export interface CascadeEvent {
 
 export interface CascadePlayback {
   readonly availability: DemoAvailability;
+  /** Opaque server run identity, when a readback or verified live tool supplied one. */
+  readonly runId?: string;
   readonly title?: string;
   readonly unavailableMessage?: string;
   /** Playback becomes enabled only when this parent-provided list contains usable events. */

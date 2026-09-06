@@ -1,4 +1,4 @@
-import { FormEvent, useId, useState } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import {
   ASK_LIMITS,
   EMPTY_SCENE_CONTEXT,
@@ -63,6 +63,8 @@ export type ChatDockProps = {
   /** Required when `status` is "error": the server's terminal error event. */
   error?: ChatError;
   messages?: ChatMessage[];
+  /** Parent-selected plain-English question. A new revision replaces only the editable question. */
+  prefill?: { readonly value: string; readonly revision: number };
   onSend?: (request: AskRequestBody) => void;
   onCancel?: () => void;
   onRetry?: () => void;
@@ -144,6 +146,7 @@ export function ChatDock({
   status,
   error,
   messages = [],
+  prefill,
   onSend,
   onCancel,
   onRetry,
@@ -153,6 +156,12 @@ export function ChatDock({
   const [prompt, setPrompt] = useState("");
   const [editing, setEditing] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
+  useEffect(() => {
+    if (prefill?.value.trim()) {
+      setPrompt(prefill.value);
+      setProblems([]);
+    }
+  }, [prefill?.revision, prefill?.value]);
   // The producer's own revision is the ONLY reset signal. Keying this on the
   // `context` object identity reset the draft on every re-render whose parent
   // rebuilt the object — which is every keystroke, because editing calls

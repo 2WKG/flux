@@ -10,6 +10,12 @@
 
 /** `AskContext` — copilot/routes/ask.py:24-41. Every field is optional server-side. */
 export type SceneContext = {
+  /** Current application region, supplied by the primary navigation. */
+  region: "texas" | "minnesota" | null;
+  /** Current reviewed historical county FIPS, when the selected artifact supplied one. */
+  county_fips: string | null;
+  /** Scene identity; model actions are valid only in the separate Texas model mode. */
+  view_mode: "physical_inventory" | "texas_model" | null;
   /** `scenario_id: str | None`, 1..128 chars. */
   scenario_id: string | null;
   /** `hour: int | None`, 0..167. */
@@ -54,6 +60,9 @@ export const ASK_LIMITS = {
 } as const;
 
 export const EMPTY_SCENE_CONTEXT: SceneContext = {
+  region: null,
+  county_fips: null,
+  view_mode: null,
   scenario_id: null,
   hour: null,
   selected_site_id: null,
@@ -64,6 +73,9 @@ export const EMPTY_SCENE_CONTEXT: SceneContext = {
 
 /** The scene-context field order the dock displays and edits. */
 export const SCENE_CONTEXT_FIELDS = [
+  ["region", "Region"],
+  ["county_fips", "County FIPS"],
+  ["view_mode", "View mode"],
   ["scenario_id", "Scenario"],
   ["hour", "Hour"],
   ["selected_site_id", "Selected site"],
@@ -124,6 +136,9 @@ export function buildAskRequest(input: {
   checkId(input.context.selected_site_id, "selected_site_id", problems);
   checkId(input.context.compare_site_id, "compare_site_id", problems);
   checkId(input.context.selected_element_id, "selected_element_id", problems);
+  if (input.context.county_fips !== null && !/^\d{5}$/.test(input.context.county_fips)) {
+    problems.push("county_fips must be exactly five digits");
+  }
 
   if (input.history.length > ASK_LIMITS.historyMax) {
     problems.push(`history must be at most ${ASK_LIMITS.historyMax} messages (it is ${input.history.length})`);
