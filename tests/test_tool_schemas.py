@@ -209,9 +209,20 @@ def test_consumer_shaped_outage_response_validates_with_top_level_payload() -> N
 def test_cite_hits_match_the_shared_retrieval_shape() -> None:
     hit = CiteData.model_fields["hits"].annotation
     assert hit is not None
-    assert {"doc", "title", "page", "chunk_id", "score", "text"} <= set(
-        CiteData.model_json_schema()["$defs"]["RetrievalHit"]["properties"]
-    )
+    assert {
+        "content_kind",
+        "date",
+        "doc",
+        "locator",
+        "provenance",
+        "source",
+        "title",
+        "page",
+        "chunk_id",
+        "score",
+        "text",
+        "version",
+    } <= set(CiteData.model_json_schema()["$defs"]["RetrievalHit"]["properties"])
 
 
 def test_consumer_shaped_cite_response_validates() -> None:
@@ -227,12 +238,18 @@ def test_consumer_shaped_cite_response_validates() -> None:
         ],
         hits=[
             {
+                "content_kind": "source",
+                "date": "2026-09-05",
                 "doc": "10cfr100",
+                "locator": "page 2; chunk 1",
+                "provenance": {"source_name": "NRC"},
+                "source": "https://example.test/10cfr100.pdf",
                 "title": "10 CFR Part 100",
                 "page": 2,
                 "chunk_id": "10cfr100-p2-c1",
                 "score": 0.9,
                 "text": "A bounded retrieval excerpt.",
+                "version": "2026-09-05",
             }
         ],
     )

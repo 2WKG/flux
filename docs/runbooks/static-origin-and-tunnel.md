@@ -26,7 +26,7 @@ public hostname-to-origin mapping is not.
 | Bind port | `PORT`, default `4173` (`server.mjs` calls `app.listen(port)`) |
 | Bind address | Not explicitly configured in source; Node's default listen host is used. Do not assume a loopback or LAN bind without checking the connector host. |
 | Static build | `web/dist/`, built by `npm --prefix web run build` |
-| Demo data | `data/demo/bundle.json`, read directly by the Express route |
+| Demo data | `data/demo/bundle.json`, bundled into `web/dist/assets/app.js` at build time. The origin serves no API route (2WKG-300), so regenerating the bundle requires a rebuild. |
 | Service owner | Not recorded in this checkout |
 
 The static server's only environment variable is `PORT`; no value is recorded
@@ -37,8 +37,8 @@ is no checked-in environment file or wrapper that overrides it.
 
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
-| local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified |
-| local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on the same Node/Express process | Verified; requires a built `web/dist/` |
+| local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
+| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. The origin serves static assets only; this path now falls back to the SPA shell like any unknown path. |
 | `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
 | optional `GET /health` | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
 | optional `POST /ask` (SSE) | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
@@ -61,25 +61,26 @@ $env:PORT = 4173 # omit to use the default
 npm --prefix web run start
 ```
 
-In another shell, verify the local data route and the SPA shell:
+In another shell, verify the SPA shell and the built client asset:
 
 ```powershell
-curl.exe -i http://127.0.0.1:4173/api/demo
 curl.exe -I http://127.0.0.1:4173/
+curl.exe -I http://127.0.0.1:4173/assets/app.js
 ```
 
-The first command should return JSON from `data/demo/bundle.json`; the second
-should return the built HTML. Restart the static origin by stopping that Node
-process and rerunning `npm --prefix web run start` with the intended `PORT`.
+Both should return `200`; the first is the built HTML and the second the bundled
+client, which already contains the demo fixture. Restart the static origin by
+stopping that Node process and rerunning `npm --prefix web run start` with the
+intended `PORT`.
 
 After the connector owner restores a mapping to this origin, verify the public
 route without exposing configuration values:
 
 ```powershell
-curl.exe -i https://bouncepulse.com/api/demo
+curl.exe -I https://bouncepulse.com/
 ```
 
-It should return the same JSON as the local route, not HTTP `530`. Do not restart
+It should return the same built HTML as the local root, not HTTP `530`. Do not restart
 or install `cloudflared` on this laptop as a substitute for the missing owner
 configuration.
 
