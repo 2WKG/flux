@@ -10,6 +10,7 @@ from pathlib import Path
 import duckdb
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 from pydantic import ValidationError
 
 from copilot.api import API_VERSION
@@ -31,6 +32,13 @@ except ConfigError as error:
 else:
     print("NO ERROR")
 """
+
+
+def _response_surface(response: Response) -> str:
+    """Every byte a client sees: `response.text` covers the body only, so a
+    credential shipped in a header would otherwise pass unnoticed."""
+    headers = "\n".join(f"{key}: {value}" for key, value in response.headers.items())
+    return f"{response.text}\n{headers}"
 
 
 def _fixture_database(path: Path, *, with_corpus: bool = True) -> None:
@@ -222,11 +230,19 @@ def test_health_reports_a_sparse_fixture_without_claiming_dense_retrieval(
 def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
     tmp_path: Path,
 ) -> None:
-    app = create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))
+    database = tmp_path / "missing.duckdb"
+    secret = "unavailable-but-configured"
+    app = create_app(Settings(duckdb_path=database, anthropic_api_key=secret))
+
+    # App construction must not eagerly open DuckDB and create an empty file.
+    # Redundant with the assertions below (they already catch an eager open); kept
+    # only to localise such a failure to the construction phase, not as coverage.
+    assert not database.exists()
 
     response = TestClient(app).get("/health", headers={"X-Request-ID": "health-2"})
 
     assert response.status_code == 503
+    assert secret not in _response_surface(response)
     assert response.json()["status"] == "unavailable"
     assert response.json()["data"] is None
     assert response.json()["error"] == {
@@ -236,7 +252,7 @@ def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
         "retry_after_s": 30,
         "details": {"artifact": "database", "model": "not_configured"},
     }
-    assert not (tmp_path / "missing.duckdb").exists()
+    assert not database.exists()
     assert response.headers["X-Request-ID"] == "health-2"
     assert response.headers["X-Flux-Api-Version"] == API_VERSION
     assert "X-Flux-Artifact" not in response.headers
@@ -284,17 +300,19 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
 ) -> None:
     database = tmp_path / "fixture.duckdb"
     _fixture_database(database)
+    secret = "configured-but-unchecked"
     app = create_app(
         Settings(
             duckdb_path=database,
             copilot_model="claude-sonnet-5",
-            anthropic_api_key="configured-but-unchecked",
+            anthropic_api_key=secret,
         )
     )
 
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
+    assert secret not in _response_surface(response)
     assert response.json()["ok"] is True
     assert response.json()["model"] == {
         "status": "not_verified",
