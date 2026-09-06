@@ -134,7 +134,14 @@ def test_minnesota_viewport_transforms_native_esri_geometry_to_wgs84() -> None:
     }
     assert item["native_geometry"] != item["display_geometry"]
     assert body["coverage"][0]["status"] == "partial"
-    assert body["coverage"][0]["denominator_count"] == 31
+    # The 31 returned features are an *observation*, not a denominator: the
+    # Mille Lacs MapServer publishes no authoritative count of in-scope lines,
+    # so the released coverage row carries `denominator_count: null` (see the
+    # mn 1.1.0 release artifact). The route must pass that through rather than
+    # promote the feature count into a completeness claim.
+    assert body["coverage"][0]["observed_count"] == 31
+    assert body["coverage"][0]["denominator_count"] is None
+    assert "unknown" in body["coverage"][0]["denominator_basis"]
 
 
 def test_unavailable_geometry_is_honest_and_never_viewport_co_located() -> None:
