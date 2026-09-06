@@ -1,0 +1,19 @@
+{
+  "retrieved_at": "2026-09-06T05:10:00Z",
+  "provider": "NOAA HRRR archive on AWS Open Data",
+  "source_url": "https://registry.opendata.aws/noaa-hrrr-pds/",
+  "license_access": "U.S. government public data",
+  "status": "feasibility_only_not_ingested",
+  "fixed_contract_windows": {
+    "uri_2021": "2021-02-11T00Z..2021-02-21T00Z",
+    "beryl_2024": "2024-07-07T00Z..2024-07-11T00Z"
+  },
+  "reproducible_manifest_rule": "For each valid hour, use that hour's f00 surface analysis for UGRD/VGRD 10 m, GUST, and TMP 2 m; use f01 initialized one hour earlier for APCP and FRZR 0-1 h accumulation. Preserve run initialization, lead, GRIB message metadata, and county-grid index version.",
+  "representative_range_probes": [
+    {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20210211/conus/hrrr.t00z.wrfsfcf00.grib2", "http_status": 206, "bytes": 138047317, "etag": "dfde65a5ae8031c8be2f03549c3ad0ca", "last_modified": "2021-02-11T00:54:39Z"},
+    {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20210210/conus/hrrr.t23z.wrfsfcf01.grib2", "http_status": 206, "bytes": 147850441, "etag": "42832b1d04dc46e847c4b09b89330951", "last_modified": "2021-02-11T00:00:30Z"},
+    {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20240707/conus/hrrr.t00z.wrfsfcf00.grib2", "http_status": 206, "bytes": 146603655, "etag": "3da03f42e5b22b4d9e16573a68651abc", "last_modified": "2024-07-07T00:50:07Z"},
+    {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20240706/conus/hrrr.t23z.wrfsfcf01.grib2", "http_status": 206, "bytes": 158505158, "etag": "8080b2e27c187d7d547413a47d2d424f", "last_modified": "2024-07-06T23:52:25Z"}
+  ],
+  "blocker": "The windows and source-run rule are sufficiently specified for a reproducible manifest. This clone has no HRRR loader, county-grid index, GRIB field-subsetting/aggregation transform, or weather_hourly validation artifact. Fetching or calling a complete weather input valid without those components would not meet the P0 provenance contract."
+}
