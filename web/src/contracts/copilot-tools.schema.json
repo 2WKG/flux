@@ -1318,7 +1318,7 @@
     },
     "TopLinesInput": {
       "additionalProperties": false,
-      "description": "Closed, bounded input for the persisted line-upgrade ranking read.\n\n``region`` and ``tech`` are the complete filter allowlist.  Results use\n:data:`TOP_LINES_DEFAULT_SORT`; that fixed order gives equal primary scores\na deterministic cost and line-id tie-breaker.  ``offset`` is zero-based and\nskips rows in that same order.  A page beyond the result set is empty rather\nthan wrapping or changing sort order.",
+      "description": "Closed, bounded input for the persisted line-upgrade ranking read.\n\n``region``, ``tech`` and ``n`` are the complete model-facing input: the\nfrozen contract signature ``top_lines(region, tech, n=10)`` from\n``docs/specs/00-overview.md`` \u00a72.4 and ``05-copilot.md``.  No pagination or\nsort parameter is exposed to the model; the result order is spec 08's\n``mw_per_musd`` descending and belongs to the ``top_lines`` implementation,\nwhich must pin it with a behavioural test when it lands.",
       "properties": {
         "n": {
           "default": 10,
@@ -1326,14 +1326,6 @@
           "maximum": 50,
           "minimum": 1,
           "title": "N",
-          "type": "integer"
-        },
-        "offset": {
-          "default": 0,
-          "description": "Zero-based number of rows to skip in the fixed ranking order.",
-          "maximum": 10000,
-          "minimum": 0,
-          "title": "Offset",
           "type": "integer"
         },
         "region": {
