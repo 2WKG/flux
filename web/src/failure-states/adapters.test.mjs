@@ -11,6 +11,7 @@ test("maps client outcomes without converting them to ready data", () => {
   assert.deepEqual(fromClientState({ kind: "empty" }, "Scene A"), { kind: "empty", retainedContext: "Scene A" });
   assert.deepEqual(fromClientState({ kind: "unavailable", source: "server", message: "Artifact is unavailable.", retryAfterSeconds: 30, requestId: "opaque" }), { kind: "unavailable", message: "Artifact is unavailable.", retryAfterSeconds: 30, retainedContext: undefined });
   assert.deepEqual(fromClientState({ kind: "invalid", reason: "malformed_response", message: "Response invalid." }), { kind: "malformed", message: "Response invalid.", retainedContext: undefined });
+  assert.deepEqual(fromClientState({ kind: "invalid", reason: "version_mismatch", message: "Version unsupported." }), { kind: "version_mismatch", message: "Version unsupported.", retainedContext: undefined });
   assert.deepEqual(fromClientState({ kind: "failed", source: "network", message: "Offline" }), { kind: "network_failure", message: "Offline", retainedContext: undefined });
 });
 
