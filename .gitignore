@@ -4,6 +4,7 @@ data/parquet/
 # Fresh rebuild output location used by the documented safe-rebuild runbook.
 run-artifacts/
 datasets/raw/
+data/graph/
 .venv/
 node_modules/
 web/node_modules/
@@ -29,13 +30,10 @@ data/eda-report.json
 data/eda-summary.md
 data/demo/*.local.json
 
-# 3D model binaries are never committed: docs/design/3d-asset-contract.md says
-# the asset pipeline (2WKG-374 / 2WKG-320) produces and stores them, not Git.
-# scripts/validate_asset_archetypes.py reports any that appear anyway.
+# Source-side 3D model binaries are build outputs. The checked-in browser
+# runtime pack is the explicit exception documented in 3d-asset-contract.md.
 data/3d/**/*.glb
 data/3d/**/*.gltf
-web/public/**/*.glb
-web/public/**/*.gltf
 
 # Cloudflare Tunnel credentials and the filled-in ingress config live on the
 # origin host, never in Git. deploy/cloudflared/config.example.yml is the
@@ -43,8 +41,5 @@ web/public/**/*.gltf
 .cloudflared/
 deploy/cloudflared/config.yml
 deploy/cloudflared/*.json
-# Build-copied Flux pack (models, previews, metadata and sprite rasters).
-web/public/assets/flux-grid/
-
 # Bulk physical-inventory artifacts produced by pipelines.texas_hifld_lines.
 data/physical-inventory/

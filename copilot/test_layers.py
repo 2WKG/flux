@@ -281,10 +281,21 @@ def test_annotated_bus_layer_scales_draw_and_marks_missing_ba_hour_unavailable(
     assert both["properties"]["draw_mw"] == 15
     assert both["properties"]["county_name"] == "Travis"
     assert both["properties"]["critical_loads"] == [
-        {"cl_id": 7, "name": "Central", "kind": "hospital"}
+        {
+            "id": 7,
+            "name": "Central",
+            "kind": "hospital",
+            "bus_id": 1,
+            "binding_method": "receipt_table_absent",
+            "binding_distance_km": None,
+        }
     ]
+    assert both["properties"]["topology"] == "synthetic (ACTIVSg2000)"
     assert both["properties"]["field_provenance"]["lon"] == "synthetic"
-    assert both["properties"]["field_provenance"]["county_name"] == "source_backed"
+    # The county binding is a spatial guess over synthetic coordinates, so the
+    # wire may not call it source-backed.
+    assert both["properties"]["field_provenance"]["county_name"] == "synthetic"
+    assert "source_backed" not in set(both["properties"]["field_provenance"].values())
     assert consumer["properties"]["draw_mw"] == 7.5
 
     con = duckdb.connect(str(database))

@@ -18,6 +18,7 @@ Two independent observations carry the property:
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -52,6 +53,24 @@ PHYSICAL_INVENTORY_ROOT = (
     Path(__file__).resolve().parents[1] / "data/artifacts/physical_inventory"
 )
 
+
+def _asset_pack(root: Path) -> Path:
+    """A read-only fixture pack for the routes that serve model bytes."""
+    pack = root / "flux-grid"
+    (pack / "line").mkdir(parents=True)
+    model = b"fixture-glb"
+    (pack / "line" / "line.glb").write_bytes(model)
+    resource = {
+        "path": "line/line.glb",
+        "sha256": hashlib.sha256(model).hexdigest(),
+        "bytes": len(model),
+    }
+    (pack / "manifest.json").write_text(
+        json.dumps({"assets": [{"lods": {"lod0": resource}}]}), encoding="utf-8"
+    )
+    return pack
+
+
 #: The geography ``persisted_read_route_database`` files its rows under.
 REGION = "mn"
 SITE_ID = 1
@@ -67,10 +86,26 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.get("/layers/buses"),
         200,
     ),
+    ("GET", "/demo/model"): (lambda client: client.get("/demo/model"), 200),
     ("GET", "/api/v1/grid/layers/{layer}"): (
         lambda client: client.get(
             "/api/v1/grid/layers/line", params={"state": "tx", "version": "1.1.0"}
         ),
+        200,
+    ),
+    ("GET", "/api/v1/grid/asset-placements"): (
+        lambda client: client.get(
+            "/api/v1/grid/asset-placements",
+            params={"state": "tx", "version": "1.1.0"},
+        ),
+        200,
+    ),
+    ("GET", "/assets/flux-grid/manifest.json"): (
+        lambda client: client.get("/assets/flux-grid/manifest.json"),
+        200,
+    ),
+    ("GET", "/assets/flux-grid/{asset_path}"): (
+        lambda client: client.get("/assets/flux-grid/line/line.glb"),
         200,
     ),
     ("POST", "/site-score"): (
@@ -204,6 +239,7 @@ def _populate(database: Path) -> None:
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))
     try:
+        connection.execute("UPDATE buses SET coord_source = 'tamu_aux'")
         _add_score_artifact(
             connection,
             CRITICAL_ARTIFACT,
@@ -260,6 +296,7 @@ def test_startup_and_every_registered_route_leave_the_working_tree_unchanged(
     monkeypatch.chdir(tmp_path)
     database = Path("fixture.duckdb")
     _populate(database)
+    asset_pack = _asset_pack(tmp_path)
     before = _tree(tmp_path)
     assert before, "the fixture database itself must be in the snapshot"
 
@@ -268,6 +305,7 @@ def test_startup_and_every_registered_route_leave_the_working_tree_unchanged(
             _env_file=None,
             duckdb_path=database,
             physical_inventory_root=PHYSICAL_INVENTORY_ROOT,
+            asset_pack_root=asset_pack,
         )
     )
     assert _tree(tmp_path) == before, "startup wrote to the working tree"
@@ -291,12 +329,14 @@ def test_the_fixture_drives_every_route_past_its_unavailable_guard(
     """
     database = tmp_path / "fixture.duckdb"
     _populate(database)
+    asset_pack = _asset_pack(tmp_path)
     client = TestClient(
         create_app(
             Settings(
                 _env_file=None,
                 duckdb_path=database,
                 physical_inventory_root=PHYSICAL_INVENTORY_ROOT,
+                asset_pack_root=asset_pack,
             )
         )
     )
@@ -306,6 +346,9 @@ def test_the_fixture_drives_every_route_past_its_unavailable_guard(
         if route == ("POST", "/ask"):
             # The stream starts, then reports the unconfigured local backend.
             assert "event: lifecycle" in response.text, route
+            continue
+        if route == ("GET", "/assets/flux-grid/{asset_path}"):
+            assert response.headers["content-type"] == "model/gltf-binary"
             continue
         body = response.json()
         assert not (isinstance(body, dict) and body.get("status") == "unavailable"), (

@@ -30,7 +30,8 @@
     "selection_basis": "NCEI episode 139802/event 840941 reports an Ice Storm in the Jackson forecast zone; the NWS Sioux Falls archive documents regional freezing rain, icing, and power outages.",
     "exclusions": [],
     "uncertainties": [
-      "NCEI CZ_TYPE=Z record is zone rather than county evidence.",
+      "NCEI CZ_TYPE=Z record: NWS zone MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the report is county-wide in extent; coverage is refused on temporal grounds, not spatial ones.",
+      "The NCEI Jackson report is a narrative event report, not a county time series, and its interval covers only 3 of the canonical window's 6 hours (2019-04-10T21:00:00Z onward), so it does not establish full county-window observed weather coverage.",
       "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
       "No native customer denominator is available."
     ]
@@ -151,28 +152,15 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei_stormevents_2019_c20260323"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "ncei:2019:139802:840941"
-          ],
-          "source_window": {
-            "start_utc": "2019-04-10T21:00:00Z",
-            "end_utc": "2019-04-11T21:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "NCEI MN zone 090 JACKSON",
-          "limitations": "Zone report intersects final three hours of the canonical bin; not a county time series."
-        },
-        "notes": "NCEI report; no fabricated weather sample count."
+        "event_report": null,
+        "notes": "NCEI zone event is retained as candidate context. MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the refusal is temporal: the report interval covers 3 of the window's 6 hours and is not a county time series."
       },
       "outage": {
         "coverage": "UncoveredLabel",

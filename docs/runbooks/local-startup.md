@@ -28,6 +28,78 @@ with a committed `package-lock.json`; pnpm is not used.
 
 The repo root is `flux/`. All paths below are relative to it.
 
+## Local demo launcher
+
+The portable launcher builds the web app, records the PIDs and logs it starts,
+and binds both servers to `127.0.0.1`. It never creates a DuckDB file, configures
+a provider, installs a service, configures a tunnel, or exposes a public URL.
+
+```bash
+# Bundled static demo only.
+scripts/dev/launch_demo.sh --offline
+
+# Optional local API; the DuckDB artifact must already exist and be readable.
+scripts/dev/launch_demo.sh --live --duckdb /absolute/path/to/grid.duckdb
+
+# Report the recorded processes and whether their ports are being answered.
+scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --status
+
+# Stop only the recorded processes from this invocation.
+scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --stop
+```
+
+`--live` starts `copilot.app:app` on `127.0.0.1:8031` and the web origin on
+`127.0.0.1:4317` by default. `--offline` starts only the web server. Use
+`--api-port`, `--web-port`, `--run-dir`, `--skip-install`, and `--skip-build`
+(reuse an existing `web/dist/`) to override the defaults. The launcher checks
+the local API health endpoint, shell, asset, and in live mode the API's
+`/layers/buses` JSON response. The static browser build does not require the
+API; a same-origin browser proxy is separate routing work.
+
+Loopback is the default bind, not a property of the code that cannot be
+changed: `--bind ADDR` passes the address to both `uvicorn --host` and
+`web/server.mjs`'s `HOST`, and any address other than `127.0.0.1` publishes this
+unauthenticated demo to that network. `web/server.mjs` previously called
+`listen(port)` with no host, which binds the unspecified address and answered on
+the LAN while this runbook claimed loopback only; it now defaults to `HOST` /
+`127.0.0.1`.
+
+Readiness is a real signal, not a status code. The API is considered up only
+when `/health` returns a body that parses as one of the two shapes
+`copilot/routes/health.py` produces (`{"ok": ...}` or the versioned unavailable
+envelope) — `scripts/dev/health_ready.mjs` — so an unrelated server answering
+`200` on that port is not mistaken for the API. The wait is `--ready-timeout`
+seconds, default 180, because `--skip-install` leaves `uv run` to create the
+venv and install inside the window; on timeout the launcher stops what it
+started and reports failure rather than stranding it.
+
+`--stop` terminates every recorded PID and its descendants (`uv run` execs
+uvicorn one level below the shell's `$!`), escalates to `SIGKILL`, confirms the
+recorded ports are released, and only then removes the PID files. It exits
+non-zero, and keeps the PID/port files, if anything outlived the stop; that
+breadcrumb is the only way to find an orphan holding the DuckDB read handle.
+`--status` exits 0 only when every recorded process is alive and every recorded
+port is being answered.
+
+Occupied ports are checked against the address the servers will actually bind
+and by connecting to loopback (`scripts/dev/port_free.mjs`): a guard that only
+tried to bind `127.0.0.1` reported "free" for a port an unrelated process on
+`::` was already answering, and the launcher then called that foreign response
+"demo ready".
+
+`web/test/launch-demo.test.mjs` exercises all of the above against real
+processes: start/status/stop, the loopback bind and its LAN control, the
+cross-family port guard, the asset check, readiness-timeout cleanup, the
+`/health` body predicate, and a wrapped listener one level below the recorded
+PID. `gate/web` runs it whenever `web/` changes. A launcher-only change does not
+yet run it: a dedicated `gate/launcher` job in `.github/workflows/pr-gates.yml`
+is still owed, and could not be added in the pull request that introduced this
+test because the push credential has no `workflow` scope.
+
+This establishes local readiness only. Minnesota coverage remains limited to
+the persisted artifact supplied to the API; it does not establish Minnesota
+topology, a model/provider result, an external tunnel, or public deployment.
+
 ## Static demo
 
 `web/server.mjs` is a Node/Express server. It serves the built React client
@@ -47,9 +119,10 @@ below.
 
 | Variable | Default | Used by |
 |---|---|---|
-| `PORT` | `4173` | `web/server.mjs` (`app.listen(port)`) |
+| `PORT` | `4173` | `web/server.mjs` (`app.listen(port, host)`) |
+| `HOST` | `127.0.0.1` | `web/server.mjs` bind address; anything else publishes the origin on that interface |
 
-This is the static server's only environment variable.
+Those are the static server's only environment variables.
 
 ### First-time setup
 

@@ -26,7 +26,8 @@
     "selection_basis": "NCEI event 1014369 in episode 167599 reports quarter-inch freezing rain in the Southern Lake forecast zone.",
     "exclusions": [],
     "uncertainties": [
-      "NCEI Southern Lake is a forecast zone rather than a county observation.",
+      "NWS zone MNZ020 (Southern Lake/North Shore) spans Lake County 27075 and St. Louis County 27137 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), and Lake County contains MNZ012 and MNZ020, so the report is sub-county rather than a county observation.",
+      "The NCEI MNZ020 report is sub-county for Lake 27075 and its interval covers only the final 2 of the canonical window's 6 hours (2022-03-30T04:00:00Z onward), so it does not establish full county-window observed weather coverage.",
       "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero."
     ]
   },
@@ -119,28 +120,15 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei_stormevents_2022_c20260625_mar"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "ncei:2022:167599:1014369"
-          ],
-          "source_window": {
-            "start_utc": "2022-03-30T04:00:00Z",
-            "end_utc": "2022-03-30T22:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "NCEI MN zone 020 SOUTHERN LAKE",
-          "limitations": "Zone report intersects the final two hours of the canonical bin; not a county time series."
-        },
-        "notes": "NCEI report; no fabricated weather sample count."
+        "event_report": null,
+        "notes": "NCEI zone event is retained as candidate context. MNZ020 spans Lake 27075 and St. Louis 27137, and Lake 27075 also contains MNZ012, in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24); the report is sub-county and covers 2 of the window's 6 hours, so county weather coverage is refused."
       },
       "outage": {
         "coverage": "UncoveredLabel",

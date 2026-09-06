@@ -26,7 +26,8 @@
     "selection_basis": "NCEI event 1065063 in episode 175528 records 0.20-0.35 inch freezing rain in the Northern Cook/Northern Lake forecast zone during a Colorado low.",
     "exclusions": [],
     "uncertainties": [
-      "NCEI zone 012 spans Northern Cook/Northern Lake, so it is retained as zone-scope weather evidence for the Cook County candidate.",
+      "NWS zone MNZ012 (Northern Cook/Northern Lake) spans Cook County 27031 and Lake County 27075 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), and Cook County contains MNZ012 and MNZ021, so the report is sub-county and is retained as candidate context, not county weather evidence.",
+      "The NCEI MNZ012 report covers only the Northern Cook portion of Cook County 27031 and is a narrative report rather than a county time series, so it does not establish full Cook County-window observed weather coverage.",
       "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
       "No native customer denominator is available."
     ]
@@ -120,28 +121,15 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei_stormevents_2022_c20260625_nov"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "ncei:2022:175528:1065063"
-          ],
-          "source_window": {
-            "start_utc": "2022-11-10T16:00:00Z",
-            "end_utc": "2022-11-11T03:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "NCEI MN zone 012 NORTHERN COOK / NORTHERN LAKE",
-          "limitations": "Zone report intersects the canonical bin but does not establish county-wide conditions."
-        },
-        "notes": "NCEI report; no fabricated weather sample count."
+        "event_report": null,
+        "notes": "NCEI zone event is retained as candidate context. MNZ012 spans Cook 27031 and Lake 27075, and Cook 27031 also contains MNZ021, in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24); the zone report is therefore sub-county and county weather coverage is refused."
       },
       "outage": {
         "coverage": "UncoveredLabel",
