@@ -1,4 +1,18 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap');
+/* The one stylesheet.
+ *
+ * `web/test/viewport-shell.test.mjs` reads this exact file and asserts that no
+ * class reaches the DOM without a rule here, so this is a single physical file
+ * and not a directory of partials.
+ *
+ * The one `@import` is MapLibre's own vendor sheet, resolved and inlined by
+ * esbuild at build time into `dist/assets/app.css`. It is a local package file,
+ * not a URL: the built page issues no stylesheet, font, or tile request of any
+ * kind, which `web/e2e/static-explorer.spec.ts` asserts as zero off-origin
+ * requests. The Google Fonts `@import` that used to sit on this line -- and the
+ * three third-party requests it made on every load -- is gone; the typography
+ * is now the system stack in `--font-sans` / `--font-mono` below.
+ */
+@import "maplibre-gl/dist/maplibre-gl.css";
 
 :root {
   --ink: #edf5ff;
@@ -11,7 +25,25 @@
   --mid: #ffcc66;
   --high: #ff7d68;
   --relief: #54dbb5;
-  font-family: Manrope, system-ui;
+  /* One panel background, one border, one ink. The five rival panel colours, five
+     rival borders and four rival inks that the chat dock, result cards, layer
+     controls and inspector each carried are collapsed onto these. */
+  --panel-solid: #0b1d2e;
+  --panel-raised: #10283b;
+  --panel-sunken: #071725;
+  --line-strong: #315673;
+  --line-soft: #23405a;
+  /* One amber for every "unavailable" state and one red for every failure state,
+     replacing #e8b45c/#e1ad55 and #ed7065/#ed6d67. */
+  --amber: #e1ad55;
+  --red: #ed6d67;
+  --green: #5fbf95;
+  /* Typography is the system stack the repo's own visual guide names:
+     docs/design/texas-workspace-prototype.html:9 (sans) and :17 (mono).
+     No web font is loaded, so no font family is declared that is not available. */
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, monospace;
+  font-family: var(--font-sans);
   background: #071221;
   color: var(--ink);
 }
@@ -21,7 +53,7 @@ body { margin: 0; background: radial-gradient(circle at 75% -20%, #173c5c 0, #07
 main { max-width: 1520px; margin: auto; padding: 20px 28px 36px }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px }
-code { font-family: 'DM Mono'; color: #8be2ff }
+code { font-family: var(--font-mono); color: #8be2ff }
 
 nav { height: 52px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line) }
 .brand { display: flex; gap: 12px; align-items: center }
@@ -29,19 +61,19 @@ nav { height: 52px; display: flex; align-items: center; justify-content: space-b
 .brand span, .live { color: #a8bfd2; font-size: .8rem }
 .live { display: flex; align-items: center; gap: 8px }
 .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--low); box-shadow: 0 0 12px var(--low) }
-.ghost { border: 1px solid #315673; padding: 8px 12px; border-radius: 6px; transition: background .18s, border-color .18s }
+.ghost { border: 1px solid var(--line-strong); padding: 8px 12px; border-radius: 6px; transition: background .18s, border-color .18s }
 .ghost:hover { background: #12293d; border-color: #4b7c9e }
 
 header { max-width: 860px; padding: 32px 0 18px }
 h1 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); line-height: 1.03; letter-spacing: -.055em; margin: 9px 0 20px }
 header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
-.eyebrow { color: var(--accent); font: 700 .7rem 'DM Mono', monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
+.eyebrow { color: var(--accent); font: 700 .7rem var(--font-mono); letter-spacing: .11em; margin: 0; text-transform: uppercase }
 
 /* The shell deliberately leaves its largest continuous area to the scene. */
 .shell-intro h1 { max-width: 760px }
 .shell-controls { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin: 0 0 12px }
 .shell-controls > div > p:last-child { color: var(--muted); font-size: .78rem; margin: 5px 0 0; max-width: 570px }
-.shell-status { flex: 0 0 auto; color: #d6b77a; border: 1px solid #694f2f; background: #251d13; border-radius: 999px; padding: 7px 10px; font: 700 .65rem 'DM Mono', monospace; letter-spacing: .04em }
+.shell-status { flex: 0 0 auto; color: #d6b77a; border: 1px solid #694f2f; background: #251d13; border-radius: 999px; padding: 7px 10px; font: 700 .65rem var(--font-mono); letter-spacing: .04em }
 
 /* Comparison rail — every option visible at once, so the judge never has to remember a number. */
 .rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px }
@@ -52,9 +84,9 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .card:hover { transform: translateY(-2px); border-color: #3d6b8d }
 .card.selected { border-color: var(--accent); background: #0e2438; box-shadow: 0 0 0 1px var(--accent), 0 18px 40px -28px var(--accent) }
 .card-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap }
-.card-head .key { font: 700 .68rem 'DM Mono', monospace; color: var(--accent); letter-spacing: .08em }
+.card-head .key { font: 700 .68rem var(--font-mono); color: var(--accent); letter-spacing: .08em }
 .card-head .name { font-weight: 700 }
-.badge { font: 700 .6rem 'DM Mono', monospace; letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
+.badge { font: 700 .6rem var(--font-mono); letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
 .card-figure { display: flex; align-items: baseline; gap: 7px }
 .card-figure strong { font-size: 2rem; letter-spacing: -.05em; line-height: 1 }
 .card-figure small { color: var(--dim); font-size: .78rem }
@@ -83,7 +115,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .corridor .hit { stroke: transparent; stroke-width: 26; stroke-linecap: round }
 .corridor .wire { stroke-linecap: round; transition: stroke .45s ease, stroke-width .45s cubic-bezier(.22, 1, .36, 1) }
 .corridor .reading rect { fill: #0a1c2c; stroke: #27506e }
-.corridor .reading text { fill: #cfe4f4; font: 700 11px 'DM Mono', monospace; text-anchor: middle; dominant-baseline: middle }
+.corridor .reading text { fill: #cfe4f4; font: 700 11px var(--font-mono); text-anchor: middle; dominant-baseline: middle }
 .corridor.active .wire { filter: brightness(1.25) }
 .corridor.active .reading rect { stroke: var(--accent) }
 .corridor:focus { outline: none }
@@ -106,7 +138,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .pin .halo { fill: none; stroke: var(--mid); stroke-width: 2; opacity: .85; animation: pulse 2.4s ease-out infinite }
 .pin.chosen .disc { fill: var(--mid) }
 .pin text { fill: #061525; font-weight: 800; font-size: 14px; text-anchor: middle }
-.pin .tag { fill: #9fc4dd; font: 700 10px 'DM Mono', monospace }
+.pin .tag { fill: #9fc4dd; font: 700 10px var(--font-mono) }
 @keyframes pulse { 0% { r: 21; opacity: .9 } 70% { r: 31; opacity: 0 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .pin .halo { animation: none } * { transition-duration: .01ms !important } }
 
@@ -121,7 +153,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .tip-row em.relief { color: var(--relief) }
 .tip-row em.tone-low { color: var(--low) } .tip-row em.tone-mid { color: var(--mid) } .tip-row em.tone-high { color: var(--high) }
 
-.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem 'DM Mono', monospace; color: #8ba8be; flex-wrap: wrap }
+.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem var(--font-mono); color: #8ba8be; flex-wrap: wrap }
 .legend i { width: 16px; height: 4px; border-radius: 3px; margin-left: 9px }
 .legend i:first-child { margin-left: 0 }
 .legend .tone-low { background: var(--low) } .legend .tone-mid { background: var(--mid) } .legend .tone-high { background: var(--high) }
@@ -132,7 +164,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .timeline strong { display: block; font-size: .78rem; margin-top: 4px }
 .timeline-track { height: 5px; background: #1c3a51; border-radius: 999px; overflow: hidden }
 .timeline-track i { display: block; width: 12%; height: 100%; border-radius: inherit; background: var(--accent) }
-.timeline > span { color: var(--dim); font: 700 .65rem 'DM Mono', monospace; text-align: right }
+.timeline > span { color: var(--dim); font: 700 .65rem var(--font-mono); text-align: right }
 
 .outcome { padding: 25px }
 .outcome > strong { font-size: 4.4rem; letter-spacing: -.08em; line-height: 1; display: block; font-variant-numeric: tabular-nums }
@@ -158,21 +190,185 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 /* In flow, not floating. A fixed dock parks itself over the inspector column and
    hides the headline metric while the page is scrolled, so the dock sits at the
    end of the document where the JSX already puts it. */
-.chat-dock { margin-top: 14px; border: 1px solid #315873; border-radius: 12px; background: #0b1d2e; overflow: hidden }
+.chat-dock { margin-top: 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--panel-solid); overflow: hidden }
 .chat-dock.collapsed { border-color: #294c69 }
 .chat-dock.expanded { border-color: #3d6b8d }
 .chat-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; text-align: left }
 .chat-toggle strong { display: block; font-size: .85rem; margin-top: 4px }
-.chat-state { color: #d6b77a; font: 700 .61rem 'DM Mono', monospace; line-height: 1.35; text-align: right }
+.chat-state { color: #d6b77a; font: 700 .61rem var(--font-mono); line-height: 1.35; text-align: right }
 .chat-body { border-top: 1px solid #264963; color: #bed0df; font-size: .8rem; line-height: 1.55; padding: 0 14px 12px }
 .chat-body p { margin: 11px 0 0 }
 
 .overlay { position: fixed; inset: 0; background: #020911cc; display: grid; place-items: center; padding: 20px; z-index: 9 }
 .modal { position: relative; width: min(570px, 100%); background: #10273a; border: 1px solid #4c7795; border-radius: 12px; padding: 30px; max-height: 86vh; overflow: auto }
 .modal button { position: absolute; right: 16px; top: 10px; font-size: 2rem; line-height: 1 }
-.modal dt { color: var(--accent); font: 700 .7rem 'DM Mono'; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
+.modal dt { color: var(--accent); font: 700 .7rem var(--font-mono); letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
 .modal dd { color: #c5dbea; line-height: 1.6; margin: 8px 0 0 }
 .modal li { color: #c5dbea; line-height: 1.6; margin: 8px 0 }
+
+
+/* ---------------------------------------------------------------------------
+   Adopted component blocks.
+
+   These four sheets used to live beside their components
+   (`chat/chat.css`, `ask/results/result-cards.css`, `layers/layer-controls.css`,
+   `renderer/renderer.css`) and three of them never reached the shipped artifact
+   at all. They are adopted here verbatim in their selectors, with every rival
+   panel background, border, ink, amber and red replaced by the `:root` token
+   that matches its role, and with their local font overrides deleted so they
+   inherit the page's one stack.
+   --------------------------------------------------------------------------- */
+
+/* Evidence chat dock — was chat/chat.css */
+.flux-chat { color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 12px; overflow: hidden }
+.flux-chat * { box-sizing: border-box }
+.flux-chat button, .flux-chat input, .flux-chat textarea, .flux-chat select { font: inherit }
+.flux-chat button { color: var(--ink); cursor: pointer; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--panel-raised); padding: 6px 9px }
+.flux-chat button:hover { border-color: var(--accent) }
+.flux-chat button:disabled { cursor: not-allowed; opacity: .5 }
+.flux-chat-header { display: flex; justify-content: space-between; gap: 12px; align-items: start; padding: 16px; border-bottom: 1px solid var(--line-strong) }
+.flux-chat-header p { margin: 0; color: var(--accent); font-size: 11px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase }
+.flux-chat-header h2 { margin: 2px 0 0; font-size: 18px }
+.flux-chat-state { border-radius: 99px; border: 1px solid var(--line-strong); color: var(--muted); font-size: 11px; font-weight: 700; padding: 3px 8px; text-transform: capitalize }
+.state-streaming { color: var(--mid); border-color: var(--mid) }
+.state-error { color: var(--red); border-color: var(--red) }
+.state-done { color: var(--green); border-color: var(--green) }
+.state-idle { color: var(--muted) }
+.state-cancelled { color: var(--muted) }
+.flux-chat-context { padding: 14px 16px; background: var(--panel-raised) }
+.flux-chat-context-head { display: flex; justify-content: space-between; gap: 10px; align-items: start }
+.flux-chat-context-head strong, .flux-chat-context-head span { display: block }
+.flux-chat-context-head span { color: var(--muted); font-size: 11px }
+.flux-chat-context-head > div:last-child { display: flex; gap: 6px }
+.flux-chat button.flux-chat-quiet { background: transparent; border-color: transparent; color: var(--muted) }
+.flux-chat-context dl { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 14px; margin: 14px 0 0 }
+.flux-chat-context dl div { min-width: 0 }
+.flux-chat-context dt { color: var(--muted); font-size: 11px }
+.flux-chat-context dd { margin: 1px 0 0; overflow-wrap: anywhere }
+.flux-chat-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin-top: 14px }
+.flux-chat-fields label { color: var(--muted); font-size: 11px }
+.flux-chat-fields input, .flux-chat-fields select { display: block; width: 100%; margin-top: 3px; padding: 7px; color: var(--ink); background: var(--panel-sunken); border: 1px solid var(--line-strong); border-radius: 5px }
+.flux-chat-notice { margin: 12px 16px 0; padding: 9px 10px; color: var(--ink); background: var(--panel-raised); border-left: 3px solid var(--line-strong); font-size: 12px }
+.flux-chat-notice strong { color: var(--ink) }
+.flux-chat-notice button { float: right; padding: 3px 6px; font-size: 12px }
+.flux-chat-notice.is-error { border-left-color: var(--red) }
+.flux-chat-notice.is-streaming { border-left-color: var(--mid) }
+.flux-chat-notice.is-unavailable { border-left-color: var(--amber) }
+.flux-chat-notice.is-done { border-left-color: var(--green) }
+.flux-chat-error-meta { color: var(--muted) }
+.flux-chat-problems { margin: 8px 0 0; padding-left: 18px; color: var(--red); font-size: 12px }
+.flux-chat-spinner { display: inline-block; width: 8px; height: 8px; margin-right: 6px; border: 2px solid var(--mid); border-right-color: transparent; border-radius: 50%; animation: flux-chat-spin .8s linear infinite }
+@keyframes flux-chat-spin { to { transform: rotate(360deg) } }
+.flux-chat-transcript { min-height: 132px; max-height: 310px; overflow: auto; padding: 16px }
+.flux-chat-empty { margin: 26px 0; color: var(--muted); text-align: center }
+.flux-chat-message { margin: 0 0 12px; padding: 9px 10px; border-radius: 8px; background: var(--panel-raised) }
+.flux-chat-message.role-user { background: #173b56 }
+.flux-chat-message span { color: var(--accent); font-size: 11px; font-weight: 700 }
+.flux-chat-message p { margin: 3px 0 0; white-space: pre-wrap }
+.flux-chat-compose { border-top: 1px solid var(--line-strong); padding: 14px 16px }
+.flux-chat-compose > label { display: block; margin-bottom: 5px; font-weight: 700 }
+.flux-chat-compose textarea { width: 100%; resize: vertical; min-height: 70px; padding: 8px; color: var(--ink); background: var(--panel-sunken); border: 1px solid var(--line-strong); border-radius: 6px }
+.flux-chat-compose > div { display: flex; align-items: center; justify-content: space-between; gap: 9px; margin-top: 7px }
+.flux-chat-compose span { color: var(--muted); font-size: 11px }
+.flux-chat-compose button { background: #276a8e; border-color: var(--accent); font-weight: 700 }
+.flux-chat :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+
+/* Ask result cards — was ask/results/result-cards.css */
+.ask-results { display: grid; gap: 12px; color: var(--ink) }
+.ask-result { border: 1px solid var(--line-strong); border-radius: 8px; padding: 14px; background: var(--panel-raised) }
+.ask-result h3, .ask-result h4 { margin: 0 0 7px }
+.ask-result h4 { font-size: .9rem }
+.ask-result section { margin-top: 12px }
+.ask-result__empty { margin: 12px 0; color: var(--muted) }
+.ask-result__eyebrow { margin: 0 0 4px; color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .07em }
+.ask-result__answer { white-space: pre-wrap; line-height: 1.45 }
+.ask-result__status, .ask-result__missing-citations, .ask-result__action-unavailable, .ask-result__caveat { padding: 7px; border-left: 3px solid var(--line-strong); background: var(--panel-solid) }
+.ask-result__status.is-verified { border-color: var(--green) }
+.ask-result__status.is-unavailable, .ask-result__status.is-unverified, .ask-result__missing-citations, .ask-result__action-unavailable, .ask-result__caveat { border-color: var(--amber) }
+.ask-result__status.is-failed { border-color: var(--red) }
+.ask-result__citations, .ask-result__provenance { padding-left: 20px }
+.ask-result__citations blockquote { margin: 6px 0; color: var(--muted) }
+.ask-result button { margin-top: 12px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 5px; color: #071827; background: #b9ddfa; cursor: pointer }
+.ask-result button:focus-visible { outline: 3px solid var(--mid); outline-offset: 2px }
+.ask-result__citation.is-fixture { border-left: 3px solid var(--amber); padding-left: 8px }
+.ask-result__fixture-marker { display: block; color: var(--amber); font-size: .74rem; text-transform: uppercase; letter-spacing: .06em }
+.ask-result__unverified-number { padding: 0 3px; border-radius: 3px; color: #2a1d02; background: var(--amber) }
+.ask-result__number { color: #b9ddfa }
+
+/* Layer visibility and evidence panel — was layers/layer-controls.css */
+.layer-controls { color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 12px; padding: 1rem }
+.layer-controls h2 { margin: 0; font-size: 1rem }
+.layer-controls header p { margin: .45rem 0 0; color: var(--muted) }
+.layer-list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .6rem }
+.layer-row { border-top: 1px solid var(--line-soft); padding-top: .6rem }
+.layer-main { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .6rem }
+.layer-main label { display: inline-flex; gap: .45rem; align-items: center; min-width: 12rem; font-weight: 650 }
+.layer-main input { inline-size: 1rem; block-size: 1rem; accent-color: var(--accent) }
+.layer-category, .layer-status, .layer-evidence-class { border: 1px solid var(--line-strong); border-radius: 999px; padding: .08rem .5rem; font-size: .76rem; white-space: nowrap }
+.layer-status { color: var(--mid); border-color: var(--mid) }
+[data-status="synthetic"] .layer-status { color: #d3b9ff; border-color: #795da5 }
+[data-status="unavailable"] .layer-status { color: var(--amber); border-color: var(--amber) }
+[data-status="request_failed"] .layer-status { color: var(--red); border-color: var(--red) }
+.layer-evidence-class { color: var(--muted) }
+.layer-reason, .layer-refusal { margin: .4rem 0 0 1.45rem; color: var(--red) }
+.layer-note { margin: .4rem 0 0 1.45rem; color: #d3b9ff }
+.layer-details { margin: .45rem 0 0 1.45rem; color: var(--muted) }
+.layer-details summary { cursor: pointer; width: fit-content }
+.layer-evidence { display: grid; grid-template-columns: minmax(6.5rem, auto) 1fr; gap: .25rem .65rem; margin: .5rem 0 0 }
+.layer-evidence div { display: contents }
+.layer-evidence dt { color: var(--muted) }
+.layer-evidence dd { margin: 0; overflow-wrap: anywhere }
+.layer-legend { margin: .5rem 0 0 1.45rem; color: var(--muted); font-size: .78rem }
+.layer-suppressions { list-style: none; margin: .6rem 0 0; padding: .5rem .6rem; border: 1px dashed var(--line-strong); border-radius: .35rem; background: var(--panel) }
+.layer-suppression-note { color: var(--ink); font: 700 .7rem var(--font-mono); letter-spacing: .03em; margin-bottom: .35rem }
+.layer-suppression { color: var(--muted); font-size: .78rem; margin: .3rem 0 0; line-height: 1.5 }
+.layer-legend-glyph { display: inline-block; min-width: 1.4rem; color: var(--ink); font: 700 .7rem var(--font-mono) }
+
+/* Provenance inspector — src/inspector/Inspector.tsx, which carried no sheet. */
+.asset-inspector { margin-top: 16px; padding: 18px; color: var(--ink); background: var(--panel-solid); border: 1px solid var(--line-strong); border-radius: 12px; min-width: 0 }
+.asset-inspector h2 { margin: 5px 0; font-size: 1.15rem }
+.asset-inspector dt { color: var(--muted); font-size: .78rem }
+.asset-inspector dd { margin: .15rem 0; overflow-wrap: anywhere }
+.asset-inspector code { overflow-wrap: anywhere }
+
+/* Run trace — src/ask/run-state/RunTrace.tsx, which carried no sheet. */
+.run-trace { margin-top: 12px; padding: 12px 14px; color: var(--ink); background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: 8px; font-size: .82rem }
+.run-trace p { margin: 6px 0 }
+.run-trace ol { margin: 6px 0; padding-left: 20px }
+.run-trace summary { cursor: pointer }
+.run-trace pre { overflow-x: auto; margin: 6px 0; padding: 8px; color: var(--muted); background: var(--panel-sunken); border-radius: 6px; font: 11px/1.45 var(--font-mono) }
+.run-trace [role="alert"] { color: var(--red) }
+
+/* Request-state surface — src/failure-states/FailureState.tsx, which carried no sheet. */
+.failure-state { margin-top: 12px; padding: 12px 14px; color: var(--ink); background: var(--panel-raised); border-left: 3px solid var(--amber); border-radius: 6px; font-size: .82rem }
+.failure-state h2 { margin: 0 0 6px; font-size: .95rem }
+.failure-state p { margin: 0; color: var(--muted); line-height: 1.5 }
+.failure-state button { margin-top: 10px; margin-right: 8px; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink) }
+.failure-state[data-request-status="request_failed"] { border-left-color: var(--red) }
+
+/* Physical-inventory map — was renderer/renderer.css, plus the source-backed
+   inventory panel salvaged from PR #245. */
+.map-foundation { position: relative; block-size: 100%; min-block-size: 28rem; border-radius: 12px; overflow: hidden }
+.map-foundation .maplibregl-map { block-size: 100%; min-block-size: 28rem }
+.map-foundation-notice { position: absolute; inset: auto .75rem .75rem .75rem; z-index: 2; display: grid; gap: .25rem; max-inline-size: 52rem; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: 13px; line-height: 1.35 }
+.map-foundation-notice strong { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase }
+.grid-inventory { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.grid-map { position: relative; margin-top: 12px; min-height: 28rem }
+.grid-map-note { display: grid; gap: .2rem; margin-top: 10px; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: var(--panel-solid); color: var(--ink); font-size: .8rem }
+.grid-map-note strong { font: 700 .72rem var(--font-mono); letter-spacing: .05em }
+.grid-map-note button { margin-top: 6px; width: fit-content; padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink) }
+.grid-controls { display: flex; flex-wrap: wrap; gap: 1rem; align-items: end; margin: 10px 0 }
+.grid-controls label, .grid-controls fieldset { display: grid; gap: .25rem; border: 0; padding: 0; margin: 0; color: var(--muted); font-size: .78rem }
+.grid-controls fieldset label { display: inline-flex; gap: .35rem; align-items: center; color: var(--ink) }
+.grid-controls input, .grid-controls select { padding: .4rem; color: var(--ink); background: var(--panel-sunken); border: 1px solid var(--line-strong); border-radius: 5px }
+.grid-coverage { display: grid; gap: .6rem; margin-top: 12px }
+.grid-coverage h2 { margin-bottom: 0; font-size: 1rem }
+.grid-coverage article { padding: .7rem; border: 1px solid var(--line-strong); border-radius: .4rem; background: var(--panel-solid) }
+.grid-coverage p { margin: .3rem 0; color: var(--muted) }
+.grid-results { margin-top: 12px }
+.grid-results h2 { font-size: 1rem }
+.grid-results button { margin: 0 .45rem .45rem 0; padding: .4rem .55rem; border: 1px solid var(--line-strong); border-radius: .3rem; background: var(--panel-raised); color: var(--ink); cursor: pointer }
+.grid-release { color: var(--muted); font: 700 .68rem var(--font-mono); overflow-wrap: anywhere }
 
 /* Site chrome shared by every page: the nav and the truth-label legend the shell
    renders around whichever page is routed (2WKG-478). Both sit outside `main`,
@@ -185,7 +381,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .page-pending { max-width: 1520px; margin: auto; padding: 28px; color: var(--muted) }
 .truth-legend { max-width: 1520px; margin: auto; padding: 4px 28px 32px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px }
 .truth-legend ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0 }
-.truth-legend li { color: var(--ink); border: 1px solid #315673; background: #0d2033; border-radius: 999px; padding: 4px 10px; font: 700 .65rem 'DM Mono', monospace; letter-spacing: .04em }
+.truth-legend li { color: var(--ink); border: 1px solid #315673; background: #0d2033; border-radius: 999px; padding: 4px 10px; font: 700 .65rem var(--font-mono); letter-spacing: .04em }
 .truth-note { color: var(--dim); font-size: .74rem; margin: 0 }
 
 /* Explainer page. The teaching content itself is 2WKG-482. */
@@ -225,4 +421,59 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
   .stats { grid-template-columns: 1fr }
   .timeline { grid-template-columns: 1fr }
 
+}
+
+/* Adopted narrow-viewport and reduced-motion tiers from the four merged sheets. */
+@media (prefers-reduced-motion: reduce) {
+  .flux-chat-spinner { animation: none }
+}
+@media (max-width: 480px) {
+  .flux-chat-context dl, .flux-chat-fields { grid-template-columns: 1fr }
+  .flux-chat-context-head { flex-direction: column }
+  .flux-chat-compose > div { align-items: start; flex-direction: column }
+  .layer-controls { padding: .75rem }
+  .layer-main label { min-width: 100% }
+  .layer-details, .layer-reason, .layer-refusal, .layer-note, .layer-legend { margin-left: 0 }
+  .layer-evidence { grid-template-columns: 1fr; gap: .1rem }
+  .layer-evidence dd { margin: 0 0 .35rem }
+  .map-foundation, .map-foundation .maplibregl-map { min-block-size: 20rem }
+  .map-foundation-notice { inset-inline: .5rem; inset-block-end: .5rem }
+  .grid-map { min-height: 20rem }
+}
+
+/* Main assistant (folded in from src/main-assistant/main-assistant.css:
+   `test/stylesheet-unification.test.mjs` requires one physical sheet). */
+.flux-main-assistant {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.flux-main-assistant__header p {
+  margin: 0;
+  color: var(--ink-muted, #627386);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flux-main-assistant__header h2,
+.flux-main-assistant__grounding,
+.flux-main-assistant__scene-action p {
+  margin: 0;
+}
+
+.flux-main-assistant__grounding,
+.flux-main-assistant__scene-action {
+  border: 1px solid var(--border-subtle, #b8c3cc);
+  border-radius: 0.4rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.flux-main-assistant__grounding {
+  color: var(--ink-muted, #425466);
+}
+
+.flux-main-assistant__scene-action {
+  background: var(--surface-subtle, #f5f7f8);
 }

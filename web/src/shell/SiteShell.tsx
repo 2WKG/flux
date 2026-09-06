@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, type ComponentType } from "react";
+import { Component, Suspense, lazy, useEffect, type ComponentType, type ReactNode } from "react";
 
 import { FailureState } from "../failure-states/FailureState";
 import type { RouteId } from "../router";
@@ -14,11 +14,58 @@ import { TruthLegend } from "./TruthLegend";
  * teaching bundle. That split is the reason the pages are separate modules; the
  * routing above it is only how a visitor gets between them.
  */
-const PAGES: Record<RouteId, ComponentType> = {
-  main: lazy(() => import("../pages/MainPage").then((module) => ({ default: module.App }))),
-  explainer: lazy(() => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage }))),
-  minnesota: lazy(() => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom }))),
+export type PageLoader = () => Promise<{ readonly default: ComponentType }>;
+
+/**
+ * The route-id -> page-module binding, exported so it can be resolved and
+ * rendered by a test. `test/routing.test.mjs` awaits each loader and asserts
+ * the page it returns is the one the route names, which is the only thing that
+ * distinguishes a route that reaches its page from a route that reaches
+ * another page's component and still typechecks.
+ */
+export const PAGE_LOADERS: Record<RouteId, PageLoader> = {
+  main: () => import("../pages/MainPage").then((module) => ({ default: module.App })),
+  explainer: () => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage })),
+  minnesota: () => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom })),
 };
+
+const PAGES: Record<RouteId, ComponentType> = {
+  main: lazy(PAGE_LOADERS.main),
+  explainer: lazy(PAGE_LOADERS.explainer),
+  minnesota: lazy(PAGE_LOADERS.minnesota),
+};
+
+/** Keep failed lazy page imports inside the shared shell and recovery surface. */
+class RouteFailureBoundary extends Component<
+  { readonly routeId: RouteId; readonly children: ReactNode },
+  { readonly failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidUpdate(previous: Readonly<{ routeId: RouteId }>) {
+    if (previous.routeId !== this.props.routeId && this.state.failed) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="page-pending">
+          <FailureState
+            state={{ kind: "failed", message: "This page could not be loaded. The rest of the site is still available." }}
+            onRetry={() => location.reload()}
+          />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /** The one mounted root: shared navigation, the routed page, the shared legend. */
 export function SiteShell() {
@@ -32,15 +79,17 @@ export function SiteShell() {
   return (
     <>
       <SiteNav current={route} onNavigate={navigate} />
-      <Suspense
-        fallback={
-          <div className="page-pending">
-            <FailureState state={{ kind: "loading", message: `Loading ${route.label}.` }} />
-          </div>
-        }
-      >
-        <Page />
-      </Suspense>
+      <RouteFailureBoundary routeId={route.id}>
+        <Suspense
+          fallback={
+            <div className="page-pending">
+              <FailureState state={{ kind: "loading", message: `Loading ${route.label}.` }} />
+            </div>
+          }
+        >
+          <Page />
+        </Suspense>
+      </RouteFailureBoundary>
       <TruthLegend statuses={route.truthLabels} note={route.truthNote} />
     </>
   );

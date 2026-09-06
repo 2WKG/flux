@@ -349,6 +349,27 @@ def test_critical_elements_use_persisted_values_with_stable_paging(
     assert walked == ["line-a", "line-b", "line-c"]
 
 
+def test_critical_elements_rejects_an_out_of_bounds_page_with_shared_envelope(
+    tmp_path: Path,
+) -> None:
+    """The bounded query contract fails before a persisted read can occur."""
+
+    path = tmp_path / "critical-invalid-page.duckdb"
+    db(path)
+
+    response = client(path).get("/elements/critical", params={"region": "mn", "n": 0})
+
+    assert response.status_code == 422
+    assert response.json()["status"] == "error"
+    assert response.json()["error"] == {
+        "code": "invalid_input",
+        "message": "Request parameters do not match the documented contract.",
+        "retryable": False,
+        "retry_after_s": None,
+        "details": {"field": "query.n"},
+    }
+
+
 def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
     tmp_path: Path,
 ) -> None:
