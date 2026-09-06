@@ -105,7 +105,7 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `outage_predictions` | `scenario_id, county_fips, ts, p_out, customers_at_risk, driver` | 02 | 03, 05, 06 |
 | `cascade_runs` | `run_id, scenario_id, hour, tripped_element_ids_json, lost_load_mw, counties_dark_json, critical_loads_lost_json` | 03 (and 04 for counterfactual runs) | 04, 05, 06 |
 | `site_scores` | `site_id, scenario_id, unit_mw, safety_score, safety_flags_json, grid_value_score, lol_reduction_mwh, congestion_relief_pct, blackstart_reach_mw` | 04 | 05, 06 |
-| `line_upgrade_scores` | `line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256` — key `(line_id, scenario_id)`, see A10 | 08 | 05, 06 |
+| `line_upgrade_scores` | `line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256, source_kind` — key `(line_id, scenario_id)`; `source_kind` is explicit fixture/observed/simulated/heuristic provenance and legacy NULL is unavailable, see A10 | 08 | 05, 06 |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
