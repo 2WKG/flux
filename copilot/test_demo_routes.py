@@ -55,7 +55,9 @@ def _client(bridge: _Bridge) -> TestClient:
     return TestClient(app)
 
 
-def test_brief_exposes_visible_truth_labels_without_a_primary_route_dependency() -> None:
+def test_brief_exposes_visible_truth_labels_without_a_primary_route_dependency() -> (
+    None
+):
     response = _client(_Bridge()).get("/demo/brief")
 
     assert response.status_code == 200
@@ -81,7 +83,9 @@ def test_texas_cascade_request_preserves_the_named_tool_result_without_math() ->
     body = response.json()
     card = body["cards"][0]
     assert body["mode"] == "planning_fallback"
-    assert bridge.calls == [("cascade", {"state": "tx", "scenario_id": "uri_2021", "hour": 4})]
+    assert bridge.calls == [
+        ("cascade", {"state": "tx", "scenario_id": "uri_2021", "hour": 4})
+    ]
     assert card["kind"] == "cascade"
     assert card["result"]["data"]["lost_load_mw"] == 12.5
     assert card["result"]["provenance"] == [
@@ -105,7 +109,9 @@ def test_minnesota_cascade_prompt_selects_availability_boundary() -> None:
     assert "no topology-backed cascade" in card["plain_english"]
 
 
-def test_forecast_prompt_keeps_experimental_result_labelled_and_unavailable_honest() -> None:
+def test_forecast_prompt_keeps_experimental_result_labelled_and_unavailable_honest() -> (
+    None
+):
     bridge = _Bridge(
         DemoToolResult(
             status="unavailable",

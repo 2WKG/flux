@@ -39,8 +39,12 @@ def _write(path: Path, value: dict[str, object]) -> Path:
     return path
 
 
-def test_loader_preserves_the_experimental_artifact_and_its_named_provenance(tmp_path: Path) -> None:
-    result = read_experimental_jepa_forecast(_write(tmp_path / "jepa.json", _artifact()))
+def test_loader_preserves_the_experimental_artifact_and_its_named_provenance(
+    tmp_path: Path,
+) -> None:
+    result = read_experimental_jepa_forecast(
+        _write(tmp_path / "jepa.json", _artifact())
+    )
 
     assert result.status == "available"
     assert result.label == "Experimental observed-count trajectory forecast"
@@ -58,10 +62,15 @@ def test_loader_rejects_county_outside_observed_coverage(tmp_path: Path) -> None
     )
 
     assert result.status == "unavailable"
-    assert result.reason == "No experimental JEPA forecast is available for the selected county."
+    assert (
+        result.reason
+        == "No experimental JEPA forecast is available for the selected county."
+    )
 
 
-def test_loader_selects_every_county_forecast_from_the_final_artifact_shape(tmp_path: Path) -> None:
+def test_loader_selects_every_county_forecast_from_the_final_artifact_shape(
+    tmp_path: Path,
+) -> None:
     artifact = _artifact()
     artifact["scope"] = {"observed_county_fips": ["27053", "48201", "48453"]}
     artifact["county_forecasts"] = [
@@ -84,7 +93,9 @@ def test_loader_selects_every_county_forecast_from_the_final_artifact_shape(tmp_
         assert result.data["forecast"]["county_fips"] == county_fips
 
 
-def test_loader_rejects_bad_artifact_instead_of_creating_a_forecast(tmp_path: Path) -> None:
+def test_loader_rejects_bad_artifact_instead_of_creating_a_forecast(
+    tmp_path: Path,
+) -> None:
     artifact = _artifact()
     artifact["forecast"] = {"county_fips": "27053", "predicted_counts": [1]}
     result = read_experimental_jepa_forecast(_write(tmp_path / "jepa.json", artifact))

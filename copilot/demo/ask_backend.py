@@ -97,7 +97,12 @@ class DemoAskBackend:
                 payload,
                 "Choose a supported scenario and hour before running a cascade.",
             )
-        if context.scenario_id not in {"uri_2021", "beryl_2024", "helene_2024", "forecast_72h"}:
+        if context.scenario_id not in {
+            "uri_2021",
+            "beryl_2024",
+            "helene_2024",
+            "forecast_72h",
+        }:
             return _unavailable_turn(
                 payload,
                 "This backend does not use the selected scenario as a Texas synthetic cascade input.",
@@ -169,12 +174,16 @@ def _unavailable_turn(payload: AskRequest, reason: str) -> ToolTurn:
 
 def _asks_for_cascade(question: str) -> bool:
     text = question.casefold()
-    return any(word in text for word in ("cascade", "outage", "trip", "fail", "redundan"))
+    return any(
+        word in text for word in ("cascade", "outage", "trip", "fail", "redundan")
+    )
 
 
 def _asks_for_experimental_forecast(question: str) -> bool:
     text = question.casefold()
-    return any(word in text for word in ("jepa", "trajectory forecast", "count forecast"))
+    return any(
+        word in text for word in ("jepa", "trajectory forecast", "count forecast")
+    )
 
 
 def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
@@ -184,7 +193,9 @@ def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
     county_fips = context.county_fips if context is not None else None
     if county_fips is None:
         return _forecast_unavailable_turn(
-            payload, path, "Select a county before requesting an experimental count forecast."
+            payload,
+            path,
+            "Select a county before requesting an experimental count forecast.",
         )
     result = read_experimental_jepa_forecast(path, county_fips=county_fips)
     if result.status == "unavailable":

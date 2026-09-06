@@ -64,7 +64,12 @@ class _CoreRunner:
                 "synthetic": True,
                 "topology": "synthetic (ACTIVSg2000)",
                 "tripped_element_ids": [
-                    {"element_id": element_ids[0], "kind": "impedance", "stage": 0, "cause": "forced"}
+                    {
+                        "element_id": element_ids[0],
+                        "kind": "impedance",
+                        "stage": 0,
+                        "cause": "forced",
+                    }
                 ],
                 "lost_load_mw": 12.5,
                 "counties_dark": [],
@@ -96,7 +101,9 @@ def _events(response) -> list[tuple[str, dict[str, object]]]:
     return result
 
 
-def _client(runner: _ActualRunner, *, jepa_artifact_path: Path | None = None) -> TestClient:
+def _client(
+    runner: _ActualRunner, *, jepa_artifact_path: Path | None = None
+) -> TestClient:
     backend = DemoAskBackend(
         runner,
         **({"jepa_artifact_path": jepa_artifact_path} if jepa_artifact_path else {}),
@@ -106,7 +113,9 @@ def _client(runner: _ActualRunner, *, jepa_artifact_path: Path | None = None) ->
     )
 
 
-def test_existing_ask_http_path_runs_a_provenanced_cascade_tool_and_streams_plain_text() -> None:
+def test_existing_ask_http_path_runs_a_provenanced_cascade_tool_and_streams_plain_text() -> (
+    None
+):
     runner = _ActualRunner()
     response = _client(runner).post(
         "/ask",
@@ -142,7 +151,9 @@ def test_existing_ask_http_path_runs_a_provenanced_cascade_tool_and_streams_plai
     assert "12.5" not in events[3][1]["delta"]
 
 
-def test_existing_ask_http_path_keeps_missing_selection_an_explicit_tool_unavailable() -> None:
+def test_existing_ask_http_path_keeps_missing_selection_an_explicit_tool_unavailable() -> (
+    None
+):
     runner = _ActualRunner()
     response = _client(runner).post(
         "/ask",
@@ -156,7 +167,12 @@ def test_existing_ask_http_path_keeps_missing_selection_an_explicit_tool_unavail
 
     assert runner.calls == []
     events = _events(response)
-    assert [event for event, _ in events] == ["lifecycle", "tool_call", "tool_result", "error"]
+    assert [event for event, _ in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "error",
+    ]
     assert events[2][1]["ok"] is False
     assert events[3][1]["error"]["code"] == "unavailable"
 
@@ -208,7 +224,9 @@ def test_existing_ask_http_path_exposes_jepa_as_an_explicitly_experimental_tool(
     assert "not a weather forecast" in events[3][1]["delta"]
 
 
-def test_existing_ask_http_path_preserves_real_core_event_vocabulary_without_relabelling() -> None:
+def test_existing_ask_http_path_preserves_real_core_event_vocabulary_without_relabelling() -> (
+    None
+):
     response = _client(_CoreRunner()).post(
         "/ask",
         json={
@@ -226,4 +244,9 @@ def test_existing_ask_http_path_preserves_real_core_event_vocabulary_without_rel
     events = _events(response)
     assert events[1][1]["tool"] == "synthetic_cascade"
     event = events[2][1]["result"]["tripped_element_ids"][0]
-    assert event == {"element_id": "impedance:1", "kind": "impedance", "stage": 0, "cause": "forced"}
+    assert event == {
+        "element_id": "impedance:1",
+        "kind": "impedance",
+        "stage": 0,
+        "cause": "forced",
+    }

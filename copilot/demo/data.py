@@ -26,10 +26,14 @@ def create_demo_data_router(
     ) -> dict[str, object]:
         if region == "mn":
             return {
-                "regions": [{"id": "mn", "mode": "aggregate", "availability": "unavailable"}],
+                "regions": [
+                    {"id": "mn", "mode": "aggregate", "availability": "unavailable"}
+                ],
                 "scenarios": [],
                 "topology": None,
-                "limitations": ["Minnesota has no topology-backed cascade in this demo."],
+                "limitations": [
+                    "Minnesota has no topology-backed cascade in this demo."
+                ],
             }
         scenario, weather = _weather_timeline(duckdb_path, scenario_id)
         return {
@@ -41,11 +45,15 @@ def create_demo_data_router(
                 "availability": "available",
                 "provenance": ["ACTIVSg2000 MATPOWER case", "current AUX coordinates"],
             },
-            "limitations": ["Synthetic topology is separate from the physical asset inventory."],
+            "limitations": [
+                "Synthetic topology is separate from the physical asset inventory."
+            ],
         }
 
     @router.get("/forecast")
-    async def forecast(county_fips: str | None = Query(default=None, pattern=r"^\d{5}$")) -> dict[str, object]:
+    async def forecast(
+        county_fips: str | None = Query(default=None, pattern=r"^\d{5}$"),
+    ) -> dict[str, object]:
         return read_experimental_jepa_forecast(
             jepa_artifact_path, county_fips=county_fips
         ).model_dump(mode="json")
@@ -53,14 +61,17 @@ def create_demo_data_router(
     return router
 
 
-def _weather_timeline(path: Path, scenario_id: str) -> tuple[dict[str, object], list[dict[str, object]]]:
+def _weather_timeline(
+    path: Path, scenario_id: str
+) -> tuple[dict[str, object], list[dict[str, object]]]:
     if not path.is_file():
         return ({"scenario_id": scenario_id, "availability": "unavailable"}, [])
     con = duckdb.connect(str(path), read_only=True)
     try:
         scenario = con.execute(
             "SELECT scenario_id, name, kind, ts_start, ts_end, source_name, source_ref, source_version "
-            "FROM scenarios WHERE scenario_id = ?", [scenario_id]
+            "FROM scenarios WHERE scenario_id = ?",
+            [scenario_id],
         ).fetchone()
         if scenario is None:
             return ({"scenario_id": scenario_id, "availability": "unavailable"}, [])
@@ -75,8 +86,11 @@ def _weather_timeline(path: Path, scenario_id: str) -> tuple[dict[str, object], 
     frames = [_frame(row) for row in rows]
     return (
         {
-            "scenario_id": scenario[0], "name": scenario[1], "kind": scenario[2],
-            "ts_start": _ts(scenario[3]), "ts_end": _ts(scenario[4]),
+            "scenario_id": scenario[0],
+            "name": scenario[1],
+            "kind": scenario[2],
+            "ts_start": _ts(scenario[3]),
+            "ts_end": _ts(scenario[4]),
             "provenance": [f"{scenario[5]}:{scenario[6]}", str(scenario[7])],
         },
         frames,
@@ -87,9 +101,15 @@ def _frame(row: tuple[object, ...]) -> dict[str, object]:
     ts, wind, gust, temp, ice, precip, source, ref, version = row
     condition, label = _condition(float(temp), float(gust), float(ice), float(precip))
     return {
-        "ts": _ts(ts), "condition": condition, "label": label,
-        "observed_or_forecast": "modeled", "wind_ms": wind, "gust_ms": gust,
-        "temp_c": temp, "ice_mm": ice, "precip_mm": precip,
+        "ts": _ts(ts),
+        "condition": condition,
+        "label": label,
+        "observed_or_forecast": "modeled",
+        "wind_ms": wind,
+        "gust_ms": gust,
+        "temp_c": temp,
+        "ice_mm": ice,
+        "precip_mm": precip,
         "provenance": [f"{source}:{ref}", str(version)],
         "rule": "ice>0=snow; precip>=2=rain; gust>=15=wind; temp<=0=cold; temp>=32=heat; else=cloudy",
     }

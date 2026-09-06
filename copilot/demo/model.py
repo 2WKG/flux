@@ -30,7 +30,10 @@ def create_demo_model_router(*, duckdb_path: Path, case_path: Path) -> APIRouter
         except Exception as exc:  # Core errors stay behind the named API boundary.
             raise UnavailableError(
                 "Synthetic model geometry is unavailable.",
-                details={"artifact": "synthetic_model_geometry", "reason": "unavailable"},
+                details={
+                    "artifact": "synthetic_model_geometry",
+                    "reason": "unavailable",
+                },
             ) from exc
 
     return router

@@ -50,7 +50,8 @@ class CoreCascadeRunner:
             )
         except SimulationInputError:
             return unavailable_output(
-                "invalid_prerequisite", "The selected synthetic grid element is invalid."
+                "invalid_prerequisite",
+                "The selected synthetic grid element is invalid.",
             )
         except SimulationUnavailableError:
             return unavailable_output(
@@ -58,11 +59,13 @@ class CoreCascadeRunner:
             )
         except SimulationSolveError:
             return unavailable_output(
-                "artifact_unavailable", "The synthetic cascade solver did not produce a result."
+                "artifact_unavailable",
+                "The synthetic cascade solver did not produce a result.",
             )
         if not isinstance(result, dict) or result.get("synthetic") is not True:
             return unavailable_output(
-                "invalid_prerequisite", "The cascade core returned an invalid synthetic result."
+                "invalid_prerequisite",
+                "The cascade core returned an invalid synthetic result.",
             )
         return CoreCascadeEvidence(
             result=result,
@@ -71,7 +74,9 @@ class CoreCascadeRunner:
                     artifact_id="tx:synthetic:activsg2000",
                     artifact_version="current",
                     source_kind="simulated",
-                    source_ref=str(self._case_path or "default ACTIVSg2000 MATPOWER case"),
+                    source_ref=str(
+                        self._case_path or "default ACTIVSg2000 MATPOWER case"
+                    ),
                 ),
                 ArtifactRef(
                     artifact_id="tx:context:grid-duckdb",

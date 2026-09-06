@@ -30,7 +30,9 @@ class InteractiveServiceBridge:
             )
         if not isinstance(response, dict):
             return InteractiveEvidence(
-                status="unavailable", result={}, reason="The interactive service returned an invalid result."
+                status="unavailable",
+                result={},
+                reason="The interactive service returned an invalid result.",
             )
         if intent == "cascade":
             response = dict(response)
@@ -45,7 +47,8 @@ class InteractiveServiceBridge:
                     "element_ids": [
                         item.get("element_id")
                         for item in data.get("tripped_element_ids", [])
-                        if isinstance(item, dict) and isinstance(item.get("element_id"), str)
+                        if isinstance(item, dict)
+                        and isinstance(item.get("element_id"), str)
                     ],
                     # Keep this exact ordered tool output for scene playback;
                     # it is a current write=False run, not persisted evidence.
@@ -71,7 +74,9 @@ class InteractiveServiceBridge:
             limitations=tuple(str(item) for item in response.get("limitations", ())),
         )
 
-    async def _call(self, intent: Intent, payload: Mapping[str, object]) -> dict[str, object]:
+    async def _call(
+        self, intent: Intent, payload: Mapping[str, object]
+    ) -> dict[str, object]:
         from copilot.interactive_routes import (
             CascadeRequest,
             EditOperation,
@@ -84,7 +89,9 @@ class InteractiveServiceBridge:
         selected = payload.get("selected_element_id")
         if intent == "scenario_edit":
             if not isinstance(selected, str):
-                raise ValueError("Select a canonical synthetic element before editing a scenario.")
+                raise ValueError(
+                    "Select a canonical synthetic element before editing a scenario."
+                )
             return await self._service.scenario_edit(
                 ScenarioEditRequest(
                     base_scenario_id=scenario_id,
@@ -94,9 +101,13 @@ class InteractiveServiceBridge:
             )
         if intent == "cascade":
             if not isinstance(selected, str):
-                raise ValueError("Select a canonical synthetic element before running a cascade.")
+                raise ValueError(
+                    "Select a canonical synthetic element before running a cascade."
+                )
             return await self._service.cascade(
-                CascadeRequest(element_ids=[selected], scenario_id=scenario_id, hour=hour)
+                CascadeRequest(
+                    element_ids=[selected], scenario_id=scenario_id, hour=hour
+                )
             )
         if intent == "balance":
             return await self._service.balance(scenario_id=scenario_id, hour=hour)
@@ -123,7 +134,9 @@ def _bus_id_from(payload: Mapping[str, object]) -> int:
     question = payload.get("question")
     match = _BUS_ID.search(question) if isinstance(question, str) else None
     if match is None:
-        raise ValueError("Name a canonical model bus, for example 'bus 42', to inspect redundancy.")
+        raise ValueError(
+            "Name a canonical model bus, for example 'bus 42', to inspect redundancy."
+        )
     return int(match.group(1))
 
 

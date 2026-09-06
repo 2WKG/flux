@@ -40,7 +40,9 @@ class InteractiveAskBackend:
     """Map plain English to one visible interactive tool operation."""
 
     def __init__(
-        self, bridge: InteractiveToolBridge, provider: AsyncNarrationProvider | None = None
+        self,
+        bridge: InteractiveToolBridge,
+        provider: AsyncNarrationProvider | None = None,
     ) -> None:
         self._bridge = bridge
         self.provider = provider or DeterministicNarrationProvider()
@@ -48,12 +50,21 @@ class InteractiveAskBackend:
     async def turn(self, payload: AskRequest) -> ToolTurn:
         intent = _intent(payload.question)
         if intent is None:
-            return _unavailable(payload, "This interactive agent supports balance, redundancy, placement search, scenario edits, and cascades.")
+            return _unavailable(
+                payload,
+                "This interactive agent supports balance, redundancy, placement search, scenario edits, and cascades.",
+            )
         evidence = await self._bridge.execute(intent, _context(payload))
         if evidence.status == "unavailable":
-            return _unavailable(payload, evidence.reason or "The requested interactive tool is unavailable.", intent)
+            return _unavailable(
+                payload,
+                evidence.reason or "The requested interactive tool is unavailable.",
+                intent,
+            )
         if not evidence.provenance:
-            return _unavailable(payload, "The interactive tool returned no provenance.", intent)
+            return _unavailable(
+                payload, "The interactive tool returned no provenance.", intent
+            )
         return ToolTurn(
             call_id=f"{intent}:{payload.attempt_id}",
             tool=intent,
@@ -96,10 +107,12 @@ def _intent(question: str) -> Intent | None:
         return "redundancy"
     if "site" in text or "place" in text or "counterfactual" in text:
         return "siting_search"
-    if "edit" in text or "scenario" in text or "remove" in text or "restore" in text:
+    if "edit" in text or "remove" in text or "restore" in text:
         return "scenario_edit"
     if any(term in text for term in _CASCADE_TERMS):
         return "cascade"
+    if "scenario" in text:
+        return "scenario_edit"
     return None
 
 
@@ -113,7 +126,9 @@ def _summary(intent: Intent) -> str:
     }[intent]
 
 
-def _unavailable(payload: AskRequest, reason: str, intent: Intent = "balance") -> ToolTurn:
+def _unavailable(
+    payload: AskRequest, reason: str, intent: Intent = "balance"
+) -> ToolTurn:
     unavailable = unavailable_output("unsupported_request", reason).unavailable
     assert isinstance(unavailable, Unavailable)
     return ToolTurn(

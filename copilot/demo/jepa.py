@@ -79,7 +79,9 @@ def _validate(value: dict[str, Any], county_fips: str | None) -> str | None:
     scope = value.get("scope")
     forecast = _selected_forecast(value, county_fips)
     limitations = value.get("limitations")
-    if not isinstance(source, dict) or not _SHA256.fullmatch(str(source.get("sha256", ""))):
+    if not isinstance(source, dict) or not _SHA256.fullmatch(
+        str(source.get("sha256", ""))
+    ):
         return "The JEPA artifact has no valid source SHA-256."
     if not isinstance(scope, dict) or not isinstance(forecast, dict):
         return "The JEPA artifact has no valid scope or forecast record."
@@ -93,17 +95,26 @@ def _validate(value: dict[str, Any], county_fips: str | None) -> str | None:
         return "No experimental JEPA forecast is available for the selected county."
     if not isinstance(value.get("model_version"), str) or not value["model_version"]:
         return "The JEPA artifact has no model version."
-    if not isinstance(limitations, list) or not limitations or not all(
-        isinstance(item, str) and item for item in limitations
+    if (
+        not isinstance(limitations, list)
+        or not limitations
+        or not all(isinstance(item, str) and item for item in limitations)
     ):
         return "The JEPA artifact has no usable limitations."
     predicted, actual = _count_arrays(forecast)
-    if predicted is None or actual is None or len(predicted) != len(actual) or not predicted:
+    if (
+        predicted is None
+        or actual is None
+        or len(predicted) != len(actual)
+        or not predicted
+    ):
         return "The JEPA artifact has invalid forecast count arrays."
     return None
 
 
-def _selected_forecast(value: dict[str, Any], county_fips: str | None) -> dict[str, Any]:
+def _selected_forecast(
+    value: dict[str, Any], county_fips: str | None
+) -> dict[str, Any]:
     forecasts = value.get("county_forecasts")
     if isinstance(forecasts, list):
         selected = next(
@@ -120,10 +131,14 @@ def _selected_forecast(value: dict[str, Any], county_fips: str | None) -> dict[s
     return forecast if isinstance(forecast, dict) else {}
 
 
-def _count_arrays(forecast: dict[str, Any]) -> tuple[list[Any] | None, list[Any] | None]:
+def _count_arrays(
+    forecast: dict[str, Any],
+) -> tuple[list[Any] | None, list[Any] | None]:
     """Accept the two explicit count-array spellings used by artifact revisions."""
 
-    predicted = forecast.get("predicted_customers_out", forecast.get("predicted_counts"))
+    predicted = forecast.get(
+        "predicted_customers_out", forecast.get("predicted_counts")
+    )
     actual = forecast.get("actual_customers_out", forecast.get("actual_counts"))
     return (
         predicted if isinstance(predicted, list) else None,
