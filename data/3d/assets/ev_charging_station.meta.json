@@ -1,0 +1,92 @@
+{
+  "archetype_id": "ev_charging_station",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "EV charging station",
+  "category": "load",
+  "minnesota_issue": "2WKG-392",
+  "catalog_limit": "Stall count implies no charger rating or utilisation.",
+  "container": "glb",
+  "model_filename": "ev_charging_station.glb",
+  "preview_filename": "ev_charging_station.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 40,
+    "width": 25
+  },
+  "connectors": [
+    "MV_FEED"
+  ],
+  "connector_geometry": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        0.0,
+        1.1,
+        17.8
+      ]
+    }
+  ],
+  "bounds_m": {
+    "min": [
+      -12.300000190734863,
+      0.0,
+      -19.799999237060547
+    ],
+    "max": [
+      12.300000190734863,
+      4.829999923706055,
+      19.799999237060547
+    ]
+  },
+  "lod_triangle_budget": {
+    "lod0": 14000,
+    "lod1": 5000,
+    "lod2": 1500
+  },
+  "triangles_lod0": 4068,
+  "triangles_lod1": 588,
+  "triangles_lod2": 168,
+  "lod_measurement_status": "Measured by data/3d/packs/flux-grid-v1/validation/validate_pack.py from the GLBs the Blender pipeline builds. Those GLBs are not committed and the prepared archive is not published, so these counts are not re-derivable from this repository; data/3d/packs/flux-grid-v1/manifest.json records the per-LOD sha256 each count was taken from. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+  "source_pack": {
+    "pack_id": "flux-grid-v1",
+    "manifest": "data/3d/packs/flux-grid-v1/manifest.json",
+    "lod_sha256": {
+      "lod0": "9169ee6ce6e7435601d97f07841f2439d3b47937b12c9c632456bed39d0cb918",
+      "lod1": "6099f44bff892da5f0219f9ee4b1e72f64630e434cc42d70cff92ea70781e7b7",
+      "lod2": "5215f933efc90c65dff06f8d9d336e25a97604f93c1836fc2f0ac04d30c51a1c"
+    }
+  },
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview \u2014 not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "ev_charging_station.glb",
+      "ev_charging_station.preview.png"
+    ],
+    "preview_renderer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "model_producer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "binary_policy": "No .glb and no .preview.png is committed by this change. Both are built by the pack's Blender pipeline, which needs Blender and is not part of this repository's toolchain; the prepared archive is unpublished (data/3d/packs/flux-grid-v1/archive.json has download_url null), so the binaries are declared, not delivered."
+  }
+}

@@ -40,3 +40,8 @@ web/public/**/*.gltf
 .cloudflared/
 deploy/cloudflared/config.yml
 deploy/cloudflared/*.json
+# Build-copied Flux pack (models, previews, metadata and sprite rasters).
+web/public/assets/flux-grid/
+
+# Bulk physical-inventory artifacts produced by pipelines.texas_hifld_lines.
+data/physical-inventory/
