@@ -18,7 +18,7 @@ from .contracts import (
     SplitManifest,
     WindowKey,
 )
-from .split import _verify_manifest_integrity
+from .split import verify_manifest_integrity
 
 MATERIAL_OUTAGE_FRACTION = 0.05
 """Spec 02 label: ``y_out = frac_out >= 0.05`` ("material outage", >=5% of customers)."""
@@ -136,7 +136,7 @@ def evaluate_holdout_predictions(
     """
     if model.split_id != split.split_id:
         raise EvaluationError("model split_id does not match evaluation split_id")
-    _verify_manifest_integrity(split)
+    verify_manifest_integrity(split)
 
     holdout_keys = {
         assignment.key
