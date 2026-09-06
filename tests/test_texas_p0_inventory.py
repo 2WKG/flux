@@ -32,11 +32,14 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
     }
     assert "synthetic" in report["synthetic_geometry_caveat"].lower()
     assert "not the real ercot" in report["synthetic_geometry_caveat"].lower()
+    # POSIX separators on every platform: the ledger is a published artifact, so a
+    # Windows-authored run must produce the same bytes as a Linux one.
     assert report["records"][0]["checked_in_receipt"] == {
-        "path": "data\\sources\\activsg2000.json",
+        "path": "data/sources/activsg2000.json",
         "passed": True,
         "mismatches": [],
     }
+    assert report["requested_raw_root"] == (tmp_path / "missing-raw").as_posix()
     assert all(
         record["license_access"]["access"] == "public" for record in report["records"]
     )

@@ -134,19 +134,23 @@ def _runtime_artifacts(record: dict[str, Any], raw_root: Path) -> list[dict[str,
 def _receipt_validation(
     record: dict[str, Any],
 ) -> tuple[dict[str, Any] | None, list[str]]:
-    """Match a validated record's declared hashes to its tracked receipt."""
+    """Match a validated record's declared hashes to its tracked receipt.
+
+    Paths are emitted with ``as_posix`` so the published ledger is identical on
+    every operating system; ``str(Path(...))`` would write Windows separators.
+    """
     receipt_name = record.get("checked_in_receipt")
     if receipt_name is None:
         return None, []
     receipt_path = Path(receipt_name)
     if not receipt_path.is_file():
-        return {"path": str(receipt_path), "passed": False}, [
+        return {"path": receipt_path.as_posix(), "passed": False}, [
             f"{record['id']} receipt is missing: {receipt_path}"
         ]
     try:
         receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as error:
-        return {"path": str(receipt_path), "passed": False}, [
+        return {"path": receipt_path.as_posix(), "passed": False}, [
             f"{record['id']} receipt is invalid JSON: {error.msg}"
         ]
     mismatches: list[str] = []
@@ -160,7 +164,7 @@ def _receipt_validation(
     if receipt.get("retrieved_at") != record["ingestion_timestamp"]:
         mismatches.append("retrieved_at")
     result = {
-        "path": str(receipt_path),
+        "path": receipt_path.as_posix(),
         "passed": not mismatches,
         "mismatches": mismatches,
     }
@@ -209,7 +213,7 @@ def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
         "summary": {
             status: counts.get(status, 0) for status in sorted(ALLOWED_STATUSES)
         },
-        "requested_raw_root": str(raw_root),
+        "requested_raw_root": raw_root.as_posix(),
         "synthetic_geometry_caveat": inventory.get("synthetic_geometry_caveat"),
         "records": records,
     }
