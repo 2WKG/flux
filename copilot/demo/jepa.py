@@ -41,7 +41,7 @@ def read_experimental_jepa_forecast(
         return _unavailable(issue)
 
     source = value["source"]
-    forecast = value["forecast"]
+    forecast = _selected_forecast(value, county_fips)
     assert isinstance(source, dict) and isinstance(forecast, dict)
     source_sha = str(source["sha256"])
     model_version = str(value["model_version"])
@@ -58,6 +58,7 @@ def read_experimental_jepa_forecast(
             "split": value["split"],
             "metrics": value["metrics"],
             "forecast": forecast,
+            "county_forecasts": value.get("county_forecasts", [forecast]),
             "limitations": list(limitations),
         },
         provenance=(
@@ -76,7 +77,7 @@ def _validate(value: dict[str, Any], county_fips: str | None) -> str | None:
         return "The JEPA artifact is not explicitly marked experimental."
     source = value.get("source")
     scope = value.get("scope")
-    forecast = value.get("forecast")
+    forecast = _selected_forecast(value, county_fips)
     limitations = value.get("limitations")
     if not isinstance(source, dict) or not _SHA256.fullmatch(str(source.get("sha256", ""))):
         return "The JEPA artifact has no valid source SHA-256."
@@ -100,6 +101,23 @@ def _validate(value: dict[str, Any], county_fips: str | None) -> str | None:
     if predicted is None or actual is None or len(predicted) != len(actual) or not predicted:
         return "The JEPA artifact has invalid forecast count arrays."
     return None
+
+
+def _selected_forecast(value: dict[str, Any], county_fips: str | None) -> dict[str, Any]:
+    forecasts = value.get("county_forecasts")
+    if isinstance(forecasts, list):
+        selected = next(
+            (
+                item
+                for item in forecasts
+                if isinstance(item, dict)
+                and (county_fips is None or item.get("county_fips") == county_fips)
+            ),
+            None,
+        )
+        return selected if isinstance(selected, dict) else {}
+    forecast = value.get("forecast")
+    return forecast if isinstance(forecast, dict) else {}
 
 
 def _count_arrays(forecast: dict[str, Any]) -> tuple[list[Any] | None, list[Any] | None]:
