@@ -68,7 +68,9 @@ class Session:
         )
 
 
-def test_selects_with_the_real_texas_polygon_and_records_partial_without_edges() -> None:
+def test_selects_with_the_real_texas_polygon_and_records_partial_without_edges() -> (
+    None
+):
     session = Session()
     artifact = fetch_texas_lines(_texas_boundary(), session)
 
