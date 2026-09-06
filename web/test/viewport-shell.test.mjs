@@ -35,7 +35,7 @@ const shell = await import(compiled.href);
 
 test("the main route initially reports loading instead of inventing a scene result", () => {
   const markup = shell.renderApp();
-  assert.match(markup, /GRID DIGITAL TWIN \/ PRIMARY SIMULATION/);
+  assert.match(markup, /SYSTEM RESILIENCE \/ SCENARIO EXPLORER/);
   assert.match(markup, /Loading the primary simulation layer\./);
   assert.match(markup, /data-request-state="loading"/);
   assert.match(markup, /data-source-status="unavailable"/);

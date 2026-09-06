@@ -53,10 +53,34 @@ test("solver stages are sorted by returned stage without deriving new events", (
 
 async function mount(props) {
   const dom = new JSDOM("<div id=app></div>", { url: "http://localhost" });
-  const previous = { window: globalThis.window, document: globalThis.document, navigator: globalThis.navigator, HTMLElement: globalThis.HTMLElement, IS_REACT_ACT_ENVIRONMENT: globalThis.IS_REACT_ACT_ENVIRONMENT };
-  Object.assign(globalThis, { window: dom.window, document: dom.window.document, navigator: dom.window.navigator, HTMLElement: dom.window.HTMLElement, IS_REACT_ACT_ENVIRONMENT: true });
-  const root = createRoot(dom.window.document.getElementById("app"));
-  await act(async () => root.render(createElement(CascadePlaybackPanel, props)));
+  const keys = ["window", "document", "navigator", "HTMLElement", "IS_REACT_ACT_ENVIRONMENT"];
+  const previous = new Map(keys.map((key) => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+  const restore = () => {
+    for (const [key, descriptor] of previous) {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else Reflect.deleteProperty(globalThis, key);
+    }
+  };
+  const install = (key, value) => Object.defineProperty(globalThis, key, {
+    value,
+    configurable: true,
+    enumerable: previous.get(key)?.enumerable ?? true,
+    writable: true,
+  });
+  let root;
+  try {
+    install("window", dom.window);
+    install("document", dom.window.document);
+    install("navigator", dom.window.navigator);
+    install("HTMLElement", dom.window.HTMLElement);
+    install("IS_REACT_ACT_ENVIRONMENT", true);
+    root = createRoot(dom.window.document.getElementById("app"));
+    await act(async () => root.render(createElement(CascadePlaybackPanel, props)));
+  } catch (error) {
+    restore();
+    dom.window.close();
+    throw error;
+  }
   return {
     dom,
     root,
@@ -67,9 +91,12 @@ async function mount(props) {
     },
     async flush() { await act(async () => {}); },
     async dispose() {
-      await act(async () => root.unmount());
-      Object.assign(globalThis, previous);
-      dom.window.close();
+      try {
+        await act(async () => root.unmount());
+      } finally {
+        restore();
+        dom.window.close();
+      }
     },
   };
 }
