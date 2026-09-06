@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import gzip
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -19,9 +20,11 @@ class AssemblyError(PhysicalInventoryError):
 
 
 def canonical_state_id(geography_id: str) -> str:
-    """Normalize only documented U.S. state aliases used by current producers."""
+    """Resolve a documented state-qualified producer geography to its state key."""
     if geography_id.startswith("us-") and len(geography_id) == 5:
         return geography_id[3:]
+    if re.fullmatch(r"[a-z]{2}:.+", geography_id):
+        return geography_id[:2]
     return geography_id
 
 
