@@ -1,7 +1,7 @@
 # 2WKG-87 freeze-readiness handoff — 2026-09-06
 
-**Snapshot candidate:** `405f3b9bf15b3e43527fb7f0de5f0c4d3be31a75` (`origin/master`,
-merged into this branch on 2026-09-06). It supersedes the earlier candidate
+**Snapshot candidate:** `e484b31` (`origin/master`, merged into this branch on
+2026-09-06). It supersedes the earlier candidate
 `f8a3cfb2288…`, which was 63 commits stale by the time this handoff was written;
 one SHA, and this is it. Every command below was re-run at this substrate. This
 is a readiness receipt, not a tag or a request to stop parallel feature work.
@@ -60,8 +60,8 @@ than a 3 a.m. commit nobody notices.
 <!-- freeze-manifest:begin -->
 ```
 7a59e2edc921aad536068bb62ab66c286e04aaea934b6115cccf6fa11378403a  data/demo/bundle.json
-5823a9c0b77adcdcc79e1c3e4adbb36424e937746b6874a20266deb6683d773b  README.md
-8cf0b9ed6e5a07558afac0cff7fd4efe6522594bf1d6e0350cbcdaf85d392430  web/server.mjs
+29c9305b903f59ff1a3642f58e8ae4f2055a334aa16962a32a9086ec5b8f4069  README.md
+246cb121e1605b5756c9c3e11eeb95c0640f689656a2378624c9d7ec2db941c7  web/server.mjs
 ```
 <!-- freeze-manifest:end -->
 
