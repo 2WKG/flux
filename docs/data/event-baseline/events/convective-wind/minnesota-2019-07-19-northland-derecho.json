@@ -1,0 +1,101 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "convective-wind",
+  "event": {
+    "event_id": "minnesota-2019-07-19-northland-derecho",
+    "parent_system_id": "sys-2019-07-19-northland-derecho",
+    "primary_hazard": "convective wind",
+    "secondary_hazards": [
+      "hail"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2019-07-19T12:00:00Z",
+      "end_utc": "2019-07-21T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-07-19T18:00:00Z",
+      "end_utc": "2019-07-20T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-07-20T06:00:00Z",
+      "end_utc": "2019-07-21T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS Duluth archive indexes a July 19 Northland derecho with significant hail and wind.",
+    "uncertainties": [
+      "Event timing and county source IDs require NCEI verification.",
+      "No matched county outage evidence yet."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-dlh-events",
+      "provider": "NOAA National Weather Service Duluth",
+      "url": "https://www.weather.gov/dlh/events",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS archive index; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Archive index; no county label units.",
+      "timezone_conversion": "No source timestamp conversion asserted.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "Detailed event record and coverage receipt are pending."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "minnesota-2019-07-19-northland-derecho-27115-1800",
+      "county_fips": "27115",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "minnesota-2019-07-19-northland-derecho-replay",
+      "window_start_utc": "2019-07-19T18:00:00Z",
+      "window_end_utc": "2019-07-20T00:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "notes": "No retained HRRR extraction receipt.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "No EAGLE-I range result is retained; absence is not zero.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}
