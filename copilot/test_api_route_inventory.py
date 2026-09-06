@@ -14,6 +14,7 @@ REGISTERED_MINNESOTA_SURFACE = frozenset(
         ("GET", "/scenarios/{scenario_id}"),
         ("GET", "/predictions"),
         ("GET", "/cascade"),
+        ("POST", "/ask"),
     }
 )
 
