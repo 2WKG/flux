@@ -255,3 +255,153 @@ def png_bytes(width: int, height: int, scanlines: bytes, color_type: int) -> byt
         + chunk(b"IDAT", zlib.compress(scanlines, 9))
         + chunk(b"IEND", b"")
     )
+
+
+def expected_transform(catalog: dict[str, Any]) -> dict[str, Any]:
+    """The delivery transform, spelled from the catalog rather than restated."""
+    block = require(catalog, "transform", "catalog")
+    return {
+        "length_unit": require(block, "lengthUnit", "catalog.transform"),
+        "unit_scale": require(block, "unitScale", "catalog.transform"),
+        "up_axis": require(block, "upAxis", "catalog.transform"),
+        "forward_axis": require(block, "forwardAxis", "catalog.transform"),
+        "handedness": require(block, "handedness", "catalog.transform"),
+        "pivot": require(block, "pivot", "catalog.transform"),
+    }
+
+
+def expected_material(catalog: dict[str, Any]) -> list[dict[str, str]]:
+    slot = require(catalog, "statusMaterials", "catalog")
+    return [
+        {
+            "name": require(slot, "slotName", "catalog.statusMaterials"),
+            "default": "neutral",
+            "binding": "server_asserted_status_label",
+        }
+    ]
+
+
+def _export_recipe_errors(
+    meta: dict[str, Any], catalog: dict[str, Any], archetype_id: str, root: Path
+) -> list[str]:
+    recipe = meta.get("export_recipe")
+    if not isinstance(recipe, dict):
+        return ["export_recipe must be an object"]
+    errors: list[str] = []
+    names = required_filenames(catalog, archetype_id)
+    wanted = [name for name in names if not name.endswith(".meta.json")]
+    if recipe.get("required_outputs") != wanted:
+        errors.append(f"export_recipe.required_outputs must be {wanted}")
+    renderer = recipe.get("preview_renderer")
+    if not isinstance(renderer, str) or not (root / renderer).is_file():
+        errors.append(
+            f"export_recipe.preview_renderer {renderer!r} is not a file in this repository"
+        )
+    producer = recipe.get("model_producer", "missing")
+    if producer == "missing":
+        errors.append(
+            "export_recipe must state model_producer, null when no producer exists"
+        )
+    elif producer is not None and not (root / str(producer)).is_file():
+        errors.append(
+            f"export_recipe.model_producer {producer!r} is not a file in this repository"
+        )
+    if not str(recipe.get("binary_policy") or "").strip():
+        errors.append("export_recipe.binary_policy must state the binary's real status")
+    return errors
+
+
+def validate_export_meta(
+    meta: Any,
+    catalog: dict[str, Any],
+    archetype_id: str,
+    root: Path = ROOT,
+) -> list[str]:
+    """Check a delivery's metadata against the catalog and the contract's own rules.
+
+    Every rule reads the catalog, so a rule that is removed loses a negative test
+    and a catalog that drifts is reported rather than silently re-anchored.
+    """
+    if not isinstance(meta, dict):
+        return ["metadata is not a JSON object"]
+    try:
+        entry = catalog_entry(catalog, archetype_id)
+    except AssetContractError:
+        return [f"{archetype_id} is missing from the shared catalog"]
+
+    errors: list[str] = []
+    if meta.get("archetype_id") != entry.get("id"):
+        errors.append("archetype_id does not match the shared archetype")
+    if meta.get("contract_id") != catalog.get("contractId"):
+        errors.append("contract_id does not match the shared catalog")
+
+    for field in ("semantic_name", "category", "footprint_m", "connectors"):
+        if field not in entry:
+            errors.append(f"catalog entry is missing {field}")
+        elif meta.get(field) != entry[field]:
+            errors.append(f"{field} does not match the shared archetype")
+    roles = connector_roles(catalog)
+    for role in meta.get("connectors") or []:
+        if role not in roles:
+            errors.append(f"connector role {role!r} is not in the shared vocabulary")
+
+    budget = meta.get("lod_triangle_budget")
+    if budget != entry.get("lod_triangles"):
+        errors.append("lod_triangle_budget does not match the shared archetype target")
+    errors.extend(
+        triangle_budget_errors(
+            budget if isinstance(budget, dict) else {}, catalog, "lod_triangle_budget"
+        )
+    )
+    errors.extend(
+        triangle_budget_errors(
+            {lod: meta.get(f"triangles_{lod}") for lod in ("lod0", "lod1", "lod2")},
+            catalog,
+            "triangles",
+        )
+    )
+    errors.extend(meta_field_errors(meta, catalog))
+
+    if meta.get("transform") != expected_transform(catalog):
+        errors.append("transform must match the catalog transform block")
+    runtime_container = require(catalog, "runtime", "catalog").get("container")
+    if meta.get("container") != runtime_container:
+        errors.append(
+            f"container must be the catalog runtime container {runtime_container!r}"
+        )
+    errors.extend(filename_errors(meta, catalog, archetype_id))
+    pixels = preview_pixels(catalog)
+    if meta.get("preview_size_px") != pixels:
+        errors.append(f"preview_size_px must be the catalog's {pixels}")
+    if meta.get("material_slots") != expected_material(catalog):
+        errors.append("asset must expose the neutral status slot only")
+    if (
+        not str(meta.get("license") or "").strip()
+        or not str(meta.get("source_of_shape") or "").strip()
+    ):
+        errors.append("license and source_of_shape are required")
+
+    if entry.get("limit") and meta.get("catalog_limit") != entry.get("limit"):
+        errors.append("catalog_limit must repeat the catalog's limit caveat verbatim")
+    if entry.get("minnesota_issue") and meta.get("minnesota_issue") != entry.get(
+        "minnesota_issue"
+    ):
+        errors.append("minnesota_issue must match the catalog's work item")
+
+    context = meta.get("minnesota_context")
+    if not isinstance(context, dict):
+        errors.append("minnesota_context must be an object")
+    else:
+        if context.get("render_mode") != "catalog_preview":
+            errors.append("render_mode must remain catalog_preview")
+        disclosure = str(context.get("disclosure") or "")
+        errors.extend(
+            label_vocabulary_errors(context.get("truth_label"), disclosure, catalog)
+        )
+        if "not minnesota infrastructure" not in disclosure.lower():
+            errors.append(
+                "disclosure must state the asset is not Minnesota infrastructure"
+            )
+
+    errors.extend(_export_recipe_errors(meta, catalog, archetype_id, root))
+    return errors
