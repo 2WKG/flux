@@ -8,6 +8,7 @@
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { STATUS_COPY } from "../../source-truth";
 import {
   runSchematicTraining,
   SCHEMATIC_DISCLAIMER,
@@ -288,10 +289,14 @@ export function JepaSection() {
   assertRecordedEvaluation(EVAL);
   const [county, setCounty] = useState(EVAL.county_forecasts[0]?.county_fips ?? "");
   return (
-    <section aria-labelledby="jepa-section-heading" data-experiment-status={EVAL.status}>
+    <section
+      aria-labelledby="jepa-section-heading"
+      data-experiment-status={EVAL.status}
+      data-source-status="hypothetical"
+    >
       <div className="pipeline">
         <div>
-          <p className="eyebrow">EXPERIMENTAL / JOINT-EMBEDDING PREDICTIVE ARCHITECTURE</p>
+          <p className="eyebrow">{STATUS_COPY.hypothetical} / EXPERIMENTAL / JOINT-EMBEDDING PREDICTIVE ARCHITECTURE</p>
           <h2 id="jepa-section-heading">Predicting an outage trajectory without predicting the numbers</h2>
           <p>
             County-level EAGLE-I customers-out counts are noisy: utilities report on their own cadence, a single
