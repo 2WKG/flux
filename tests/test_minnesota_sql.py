@@ -576,6 +576,46 @@ def test_read_only_execution_does_not_change_database(db_path: Path) -> None:
     assert hashlib.sha256(db_path.read_bytes()).hexdigest() == before
 
 
+def test_execution_records_are_safe_for_success_and_rejection(
+    db_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    records: list[object] = []
+    executor = MinnesotaSqlExecutor(db_path, [_view()], execution_logger=records.append)
+
+    with caplog.at_level("INFO", logger="copilot.sql"):
+        success = _execute(executor, "SELECT id FROM mn_summary LIMIT 1")
+        rejected = _execute(executor, "SELECT * FROM secret_rows")
+
+    assert success.status == "available"
+    assert rejected.status == "unavailable"
+    assert len(records) == 2
+    available, unavailable = records
+    assert available.outcome == "available"
+    assert available.template_id is None
+    assert available.parameter_count == 0
+    assert available.row_count == 1
+    assert available.provenance_artifact_ids == ("mn:fixture:0123456789abcdef",)
+    assert unavailable.outcome == "unavailable"
+    assert unavailable.row_count is None
+    messages = "\n".join(caplog.messages)
+    assert "sql_execution" in messages
+    assert "secret_rows" not in messages
+
+
+def test_execution_log_callback_failure_does_not_mask_tool_result(
+    db_path: Path,
+) -> None:
+    def broken_logger(_record: object) -> None:
+        raise RuntimeError("logger secret")
+
+    result = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()], execution_logger=broken_logger),
+        "SELECT id FROM mn_summary LIMIT 1",
+    )
+
+    assert result.status == "available"
+
+
 def test_timeout_interrupts_the_per_request_connection_and_closes_it(
     db_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -622,8 +662,14 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
 
     monkeypatch.setattr("copilot.tools.sql.duckdb.connect", connect)
 
+    records: list[object] = []
     result = _execute(
-        MinnesotaSqlExecutor(db_path, [_view()], timeout_seconds=0.01),
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            timeout_seconds=0.01,
+            execution_logger=records.append,
+        ),
         "SELECT * FROM mn_summary",
     )
 
@@ -638,3 +684,6 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
         "autoload_known_extensions": "false",
         "enable_external_access": "false",
     }
+    assert len(records) == 1
+    assert records[0].outcome == "unavailable"
+    assert records[0].row_count is None
