@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -9,10 +10,16 @@ from shapely.geometry import Polygon
 
 import pipelines.build as build_module
 from pipelines.build import _dod_filename, _missing_p0_inputs, build
+from pipelines.common import sha256_file
 from pipelines.db import connect, replace_frame
 from pipelines.eia860 import _scope_plants, load_eia860_plants, seed_site_candidates
 from pipelines.state_scope import StateScope, scope
-from pipelines.storm_events import _scope_events, _zone_crosswalk, load_storm_events
+from pipelines.storm_events import (
+    NwsCrosswalkRelease,
+    _scope_events,
+    _zone_crosswalk,
+    load_storm_events,
+)
 
 
 def test_minnesota_storm_event_and_zone_inputs_are_not_filtered_to_texas(tmp_path):
@@ -296,12 +303,21 @@ MASTER_TEXAS_SITE_CANDIDATES = [
 ]
 
 
-def _storm_inputs(tmp_path: Path) -> tuple[str, str]:
+def _storm_inputs(tmp_path: Path) -> tuple[str, list[NwsCrosswalkRelease]]:
     details = tmp_path / "details.csv.gz"
     pd.DataFrame(STORM_ROWS).to_csv(details, index=False, compression="gzip")
     crosswalk = tmp_path / "zones.dbx"
     crosswalk.write_text(ZONE_CROSSWALK)
-    return str(details), str(crosswalk)
+    return str(details), [
+        NwsCrosswalkRelease(
+            release="fixture",
+            path=crosswalk,
+            valid_from=datetime.fromisoformat("2021-01-01"),
+            valid_until=datetime.fromisoformat("2022-01-01"),
+            source_url="https://example.test/nws/fixture.dbx",
+            sha256=sha256_file(crosswalk),
+        )
+    ]
 
 
 def _eia_inputs(tmp_path: Path) -> tuple[str, str]:
@@ -395,7 +411,7 @@ def test_load_storm_events_minnesota_scope_loads_only_minnesota_rows(tmp_path):
     assert rows == [(2, "27001", "Hail"), (4, "27001", "Blizzard")]
     assert methods == [
         (2, "27001", 2021, None, None, "direct_county"),
-        (4, "27001", 2021, None, None, "nws_crosswalk"),
+        (4, "27001", 2021, None, None, "nws_crosswalk:fixture"),
     ]
     assert warnings == []
 
