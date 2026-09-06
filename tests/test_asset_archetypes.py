@@ -31,13 +31,7 @@ def _repo_root() -> Path:
 
 
 def _tracked_model_files() -> list[str]:
-    """Model binaries git actually tracks — the honest reading of "committed".
-
-    find_model_files() answers "is one present?", which is what the report
-    needs. "Is one committed?" is a question about the index, and only git can
-    answer it: data/3d and web/public binaries are ignored, so a locally
-    produced model is present but not committed.
-    """
+    """Model binaries git actually tracks — the honest packaging boundary."""
     root = _repo_root()
     if not (root / ".git").exists():
         pytest.skip("not a git checkout; the committed-binary boundary is unmeasurable")
@@ -49,6 +43,16 @@ def _tracked_model_files() -> list[str]:
         check=True,
     )
     return sorted(line for line in result.stdout.splitlines() if line)
+
+
+def _expected_runtime_model_files(catalog: dict) -> list[str]:
+    """Derive the complete checked-in Flux grid pack from catalog identities."""
+    return sorted(
+        "web/public/assets/flux-grid/"
+        f"{archetype_id}/{archetype_id}{lod_suffix}.glb"
+        for archetype_id in (entry["id"] for entry in catalog["archetypes"])
+        for lod_suffix in ("", ".lod1", ".lod2")
+    )
 
 
 def test_committed_catalog_conforms_and_covers_every_asset_work_item():
@@ -63,12 +67,13 @@ def test_committed_catalog_conforms_and_covers_every_asset_work_item():
     minnesota = [entry["minnesota_issue"] for entry in catalog["archetypes"]]
     assert len(set(texas)) == len(set(minnesota)) == EXPECTED_ARCHETYPES
     assert set(texas).isdisjoint(minnesota)
-    # No binary is COMMITTED; the contract governs shape, not hosting. That is a
-    # statement about the index, so it is measured against the index: data/3d
-    # and web/public binaries are git-ignored, so a model the asset pipeline
-    # writes locally must not turn this red while CI stays green. The
-    # working-tree walk still feeds the report, and the report stays derived.
-    assert _tracked_model_files() == []
+    # The published runtime pack has one base model and two LODs for each
+    # catalog identity. The expected paths come from the catalog, so an orphan,
+    # a missing LOD, a renamed directory, or any GLB/glTF outside this exact
+    # package (including data/3d) turns the index assertion red.
+    expected_runtime_files = _expected_runtime_model_files(catalog)
+    assert len(expected_runtime_files) == EXPECTED_ARCHETYPES * 3
+    assert _tracked_model_files() == expected_runtime_files
     assert report["modelFiles"] == find_model_files()
     assert report["modelFilesPresent"] == bool(report["modelFiles"])
 
