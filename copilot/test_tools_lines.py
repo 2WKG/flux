@@ -41,3 +41,18 @@ def test_input_values_are_bound_and_reader_never_writes(tmp_path):
     assert result.status == "unavailable"
     with duckdb.connect(str(path), read_only=True) as con:
         assert con.execute("SELECT count(*) FROM line_upgrade_scores").fetchone() == (1,)
+
+
+def test_invalid_direct_inputs_and_metadata_fail_closed(tmp_path):
+    path = tmp_path / "grid.duckdb"
+    _db(path)
+    reader = TopLinesReader(path)
+    assert reader.top_lines("ERCOT", "unknown").status == "unavailable"
+    assert reader.top_lines("ERCOT", "any", 51).status == "unavailable"
+    with duckdb.connect(str(path)) as con:
+        con.execute("UPDATE line_upgrade_detail SET congestion_method = NULL")
+    assert reader.top_lines("ERCOT", "any").status == "unavailable"
+    with duckdb.connect(str(path)) as con:
+        con.execute("UPDATE line_upgrade_detail SET congestion_method = 'exact'")
+        con.execute("UPDATE line_upgrade_scores SET source_name = 'observed-market'")
+    assert reader.top_lines("ERCOT", "any").status == "unavailable"
