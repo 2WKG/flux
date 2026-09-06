@@ -12,10 +12,12 @@ from fastapi import APIRouter, Query
 from copilot.api import UnavailableError
 
 router = APIRouter(prefix="/demo", tags=["synthetic-model"])
+_duckdb_path: Path | None = None
 
 
 def configure_model_geometry(*, duckdb_path: Path) -> None:
-    router.state.duckdb_path = duckdb_path
+    global _duckdb_path
+    _duckdb_path = duckdb_path
 
 
 @router.get("/model")
@@ -24,7 +26,9 @@ async def model(
 ) -> dict[str, object]:
     """Serve a static synthetic model projection; it does not run a solve."""
     try:
-        return await asyncio.to_thread(_read_model_geometry, router.state.duckdb_path, element_id)
+        if _duckdb_path is None:
+            raise RuntimeError("synthetic model geometry has no configured database")
+        return await asyncio.to_thread(_read_model_geometry, _duckdb_path, element_id)
     except Exception as exc:
         raise UnavailableError(
             "Synthetic model geometry is unavailable.",
