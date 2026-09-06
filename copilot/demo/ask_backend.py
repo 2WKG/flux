@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
+from time import perf_counter
 from types import MappingProxyType
 from typing import Protocol
 
@@ -102,6 +103,7 @@ class DemoAskBackend:
                 "This backend does not use the selected scenario as a Texas synthetic cascade input.",
             )
 
+        started = perf_counter()
         result = await self._cascade_runner.run(
             element_ids=[context.selected_element_id],
             scenario_id=context.scenario_id,
@@ -127,6 +129,7 @@ class DemoAskBackend:
                     citations=(),
                     limitations=result.limitations,
                 ),
+                elapsed_ms=round((perf_counter() - started) * 1_000),
             )
         # ``narrate`` checks the registered tool output shape again.  A core
         # adapter cannot slip arbitrary JSON or an unlabeled number into SSE.
@@ -140,6 +143,7 @@ class DemoAskBackend:
                 "hour": context.hour,
             },
             narration=narration,
+            elapsed_ms=round((perf_counter() - started) * 1_000),
         )
 
 
