@@ -28,9 +28,9 @@ Key imports pass. A DuckDB query passes, and a tiny LightGBM fit passes.
 - storage / geo: duckdb 1.5.5, pyarrow, polars, pandas, geopandas, shapely, pyproj, h3, networkx, xarray, netcdf4, cfgrib, herbie-data, gridstatus
 - physics: pandapower 3.5.3, lightsim2grid, pypsa, scipy, **matpower** (bundles `case_ACTIVSg2000.m`, 10k, 25k, 70k), **matpowercaseframes** (required by pandapower's `.m` importer)
 - ML / causal: lightgbm 4.7.0, scikit-learn, dowhy, econml, pgmpy
-- copilot: fastapi, uvicorn, sse-starlette, anthropic 1.4.0, pydantic, pypdf, rank-bm25, python-dotenv
-- installed extra: `dev` (pytest, ruff, jupyter); `stretch` (grid2op, torch,
-  torch-geometric) remains optional
+- copilot: fastapi, uvicorn, sse-starlette, anthropic 1.4.0, google-genai 2.22.0 (floored at >=2.22 in pyproject.toml -- the version whose streaming surface was introspected), pydantic, pypdf, rank-bm25, python-dotenv
+- installed extra: `dev` (pytest, ruff, jupyter); `stretch` (grid2op) and
+  `gnn` (torch, torch-geometric) remain optional
 
 Proof the twin dependency chain works end to end:
 

@@ -30,25 +30,65 @@ it.
 | **D-5b** | `minnesota-demo-narrative-ia.md:61-64` said `copilot/app.py` mounts "exactly five routers" and that "no `/ask` route exists on `master`"; `texas-demo-narrative-ia.md:201`, `:240` said `/ask` exists as a transport | **The Texas IA.** `copilot/app.py:68-75` mounts **eight** routers; `copilot/routes/ask.py:139` is `@router.post("/ask")`, transport-only — `AskBackend` is deployment-injected, nothing injects one, so the default stream is `lifecycle` then `unavailable` (`ask.py:76-86`) | The Minnesota IA paragraph corrected, keeping its real point (the dock is not live: an existing transport with no backend is not a live copilot). The Texas IA's own stale citation `copilot/app.py:71` corrected to `:75`. |
 | **D-6** | Three 3D "tiers" | **Docs and validator agree** ✅ — `3d-asset-contract.md:160-174` and `scripts/validate_asset_source.py:14-27`, `:56-60`, `:126-141` name the same three delivery tiers and the same `unknown_asset_tier` refusal. The drift is that the browser has no tier concept: `web/src/performance/archetype-catalog.ts:27`, `:236` knows only LOD levels and carries an unrelated nine-value rejection vocabulary (`:65-74`) | *Delivery tier* (Python, on disk, 3 values) and *LOD level* (TypeScript, `budgets.lodLevels`, 3 values) disambiguated in `3d-asset-contract.md`. **Correction to the plan this pass was written from:** the `lodRule` regex parse (`archetype-catalog.ts:106-124`) is not an unnoticed hazard to file as a bug — it is deliberate and **fails closed** (`invalid_lod_rule` is a named rejection, never a default). The real, unstated fact is that `data/3d/asset-archetypes-v1.json` → `budgets.lodRule` is a **load-bearing string**: changing the numbers inside that sentence changes the budget. That is now stated in the Budgets section, which is a doc fix, not a follow-up. |
 | **D-7** | Truth vocabularies: `labels.ts:5-6` says "there is no `source_backed` token anywhere in the vocabulary"; `minnesota-gate-0-approval.md:51-66` and `texas-demo-narrative-ia.md:77-82` freeze `source_backed·synthetic·unavailable` as a separate artifact axis; the inventory JSON adds a fourth value `illustrative` | **Both axes.** `TruthLabel` does not exist; the near-name is `SourceTruthLabel` (`ChatDock.tsx:45`). `web/src/ask/results/types.ts:73` (`geometry: "source_backed" \| "synthetic" \| "unavailable"`) is the **artifact axis, correctly spelled**. `illustrative` still ships in `data/sources/minnesota-accepted-artifact-inventory.json` and is the negative case in six pipeline tests. The binder **rejects** `source_supported` (`pipelines/tests/test_minnesota_asset_binding.py:53`, `:208-216`) | `00-overview.md` §4.3 names the two axes, their owners, and the consequence that `results/types.ts:73` must **not** be "fixed" to `source_supported`. Two follow-ups named, not done here: **FU-1** delete `illustrative` from the inventory JSON and its six tests (data + tests); **FU-2** reconcile the `source_backed` ↔ `source_supported` binder seam — a behavioural bug, not a naming one. |
-| **D-8** | `request_failed` sub-causes: no document enumerates any | `web/src/failure-states/types.ts:24-35` enumerates **eleven** `FailureKind`s, bound at `:42-54` — seven collapse to `request_failed`, `unavailable` maps to itself, `loading`/`empty`/`partial` map to `null`. The doc-enumerated reason vocabularies (7 layer reasons at `layers.py:98-112`, ~20 route reasons in spec 05) are all `unavailable`. The SSE eight-code terminal set agrees doc↔code ✅ | `00-overview.md` §4.4 documents `request_failed` as a **display token with an open cause set**, and names the three layers (closed four-code `FailureCode` / server `details.reason` / browser `FailureKind`). One rule is left undecided — **OQ-1**. |
+| **D-8** | `request_failed` sub-causes: no document enumerates any | `web/src/failure-states/types.ts:24-35` enumerates **eleven** `FailureKind`s, bound at `:42-54` — seven collapse to `request_failed`, `unavailable` maps to itself, `loading`/`empty`/`partial` map to `null`. The doc-enumerated reason vocabularies (7 layer reasons at `layers.py:98-112`, ~20 route reasons in spec 05) are all `unavailable`. The SSE eight-code terminal set agrees doc↔code ✅ | `00-overview.md` §4.4 documents `request_failed` as a **display token with an open cause set**, and names the three layers (closed four-code `FailureCode` / server `details.reason` / browser `FailureKind`). The one rule left undecided, **OQ-1**, is now decided: a terminal-less stream is `request_failed` with code `stream_ended_without_terminal`. |
 | **D-9** | Four work graphs: `swarm-plan.md` U1–U9 (one key: 2WKG-412 at `:23`), `team-work-plan.md`'s two waves, `10-minnesota-demo.md:171-190` MN01–MN11, and `:200-259`'s numbered list | n/a — prose. The only enforced tracker binding is `gate/linear-key` (`.github/workflows/pr-gates.yml`), which reads the branch name or PR title | Linear declared authoritative; the three prose graphs bannered **historical**. The tracker's own split is **OQ-2**. |
+| **D-10** | Copilot provider: `00-overview.md:64` and `05-copilot.md` named a single **Claude** tool loop (`claude-sonnet-5`), and nothing in the repository referenced Gemini | `copilot/config.py` selects a provider by `COPILOT_PROVIDER` (default `gemini`) and resolves per-provider credentials and model ids; `copilot/providers/` holds two adapters behind the one `AsyncNarrationProvider` protocol, with `grounding.py` (rules) and `tool_schemas.py` (one frozen contract, two renderings) shared. `copilot/runtime.py` still emits every SSE event, so the vocabulary is provider-independent | 2WKG-481: the contract is now **two supported providers, Gemini default**. Both report ready/unavailable independently; there is no automatic cross-provider fallback. Model ids are configuration, not invention: `gemini-3.8-flash` from <https://ai.google.dev/gemini-api/docs/models> (fetched 2026-09-06) and confirmed present in `client.models.list()`; `claude-sonnet-5` from 00-overview §"LLM". Spec 05 §Providers and the 00-overview LLM row were amended to match. |
 
 ---
 
 ## Open questions — decisions, not facts
 
-These two are genuinely product/owner calls. Both options are stated; neither is chosen here, and
-nothing above depends on the choice.
+These two are genuinely product/owner calls. Both options are stated. **OQ-1 is now decided**
+(2026-09-06, below); OQ-2 remains open.
 
-### OQ-1 — Is "a terminal-less stream is `request_failed`" normative?
+### OQ-1 — Is "a terminal-less stream is `request_failed`" normative? — **DECIDED: yes (Option A)**
 
-`docs/design/texas-demo-narrative-ia.md:98` states, in exactly one place and in no other document:
+**Decision.** Joshua, 2026-09-06: normative. A stream that ends without a terminal `done` **XOR**
+`error` is `request_failed` — the machine token, rendered as the Request-failed status with
+`STATUS_COPY`'s copy — never `unavailable`, and never a bare rendered sentence. The cause travels
+with the token as the named code `stream_ended_without_terminal`.
+
+**Shipped in** PR [#248](https://github.com/2WKG/flux/pull/248) (2WKG-405):
+
+- `web/src/failure-states/types.ts` — `STREAM_ENDED_WITHOUT_TERMINAL`, the code's single owner.
+- `web/src/ask/run-state/reducer.ts` — the `stream_closed` action. On EOF, abort, or network loss
+  with no terminal event the run moves to `failed` and keeps `failureCode`; a close *after* a real
+  terminal event changes nothing, so a normal end of stream is not reported as a failure.
+- `web/src/failure-states/adapters.ts` — `fromStreamClose()` → `kind: "failed"` → `request_failed`,
+  with the code preserved and no invented `retryAfterSeconds`.
+- Tests: `web/src/ask/run-state/terminal-less-stream.test.mjs` and the new case in
+  `web/src/failure-states/adapters.test.mjs`. Dropping the rule, re-pointing it at `unavailable`,
+  or dropping the code each turns those red.
+
+`docs/research/sse-event-schema.md` (§Completion) and `docs/design/texas-demo-narrative-ia.md`
+(the `request_failed` row) now state the rule as normative; the "undecided / nothing implements it"
+wording is gone from both. The original options are kept below as the record of the call.
+
+**Defined, not yet wired.** `stream_closed` has no production dispatcher. `RunTrace.tsx:44-49` is
+the only `useReducer(runReducer, …)` in the tree and dispatches `event` / `source_status` /
+`cancel_requested`, never a close; the live SSE reader closes its stream at
+`web/src/data/transport.ts:226-228` with no reducer attached. So a terminal-less stream still
+leaves the run in `active` in the shipped app, and will until the close is dispatched. Two
+follow-ups, named here and not done in #248:
+
+- **FU-4** — dispatch `stream_closed` from the live transport (`web/src/data/transport.ts:226-228`)
+  when the chat dock mounts the run reducer (PR [#252](https://github.com/2WKG/flux/pull/252)).
+- **FU-5** — server-side: `copilot/routes/ask.py:117-119` re-raises `asyncio.CancelledError` with no
+  terminal event, so once FU-4 lands a user Stop would read "Request failed" instead of
+  `ChatDock.tsx:128`'s stopped-on-purpose copy. The client must not guess — only a terminal `error`
+  with code `cancelled` may report a confirmed cancellation — so the server should emit that
+  terminal before re-raising. A client-initiated abort is an expected close, not a contract break;
+  an EOF or connection loss with the client still listening is.
+
+#### The question as it stood (historical — superseded by the decision above)
+
+At the time of writing, `docs/design/texas-demo-narrative-ia.md:98` stated, in exactly one place and in no other document:
 
 > a stream that ended without a terminal event is `request_failed`, not `unavailable`
 
-**Nothing implements it.** There is no such rule in `copilot/sse.py`,
+**Nothing implemented it.** There was no such rule in `copilot/sse.py`,
 `web/src/chat/ChatDock.tsx`, or `web/src/failure-states/adapters.ts`; `ChatDock.tsx:121-122`
-handles a missing terminal as a rendered sentence ("The server did not supply a terminal error
+handled a missing terminal as a rendered sentence ("The server did not supply a terminal error
 event…"), not as a status.
 
 - **Option A — normative.** Keep the sentence, and it becomes work: a browser rule that maps
@@ -78,6 +118,72 @@ have a Done Texas issue and a Backlog Minnesota issue).
 
 Reconciling a tracker is an owner decision, not a code unit; it is out of scope for this pass by
 construction.
+
+---
+
+## Decisions taken on 2026-09-06 (2WKG-355)
+
+Two of the open questions above were product calls, not facts, and Joshua made them. They are
+recorded here because each one **retired a landed assertion**, and a retired assertion is only
+honest when what replaced it is written down.
+
+### D-10 — the one App is server-backed
+
+*Decision:* "demo will be online". The one App composes the landed panels (`ChatDock`,
+`RunTrace`, `ResultCards`, `FailureState`, `Inspector`, `LayerControls` and the per-layer legend)
+and the physical-inventory map, and feeds them from real routes: `GET /health`,
+`GET /scenarios/{scenario_id}`, `GET /layers/{name}` through `src/scene/minnesota-adapter.ts`,
+`POST /ask` as SSE, and `GET /api/v1/grid/layers/{layer}` (2WKG-89). The bundled synthetic
+scenario explorer is unchanged and still needs no API to paint, which is what its
+"no API required for this scene" claim is now scoped to.
+
+*What was retired:* `web/test/static-demo.test.mjs` asserted
+`assert.doesNotMatch(source, /\bfetch\s*\(/)` and the same over the built bundle. That rule made
+an offline demo and a live evidence surface mutually exclusive in one esbuild entry — the whole
+`web/src/data/` layer exists to call `fetch` — so a server-backed App could not satisfy it.
+`00-overview.md` wins over a test's implied product claim, and the decision is the product claim.
+
+*What replaced it,* in the same file, so the file stays worth running:
+
+1. **No absolute URL is a request target anywhere in the bundle**, and the served shell's CSP is
+   `connect-src 'self'`. `web/e2e/static-explorer.spec.ts` asserts the browser-side half as
+   **zero off-origin requests**, with no sanctioned exception (it previously carried two, for the
+   Google Fonts hosts).
+2. **Every data path, driven against a transport that cannot connect, produces a named
+   `unavailable`/`request_failed` outcome with a reason, and never a ready one.** That is the
+   assertion a "fake-fine" offline state cannot pass, and it is the one the `fetch(` denial was
+   standing in for.
+
+*Consequences recorded elsewhere:* `05-copilot.md` §Routes gains a browser-consumer note;
+`STACK-LOCK.md` gains the `FLUX_API_ORIGIN` seam; `web/test/renderer-artifact.test.mjs`'s control
+for the conditional MapLibre copy moved from the demo build (which now does bundle MapLibre) to a
+purpose-built probe entry.
+
+*Not decided here:* whether `POST /ask` gets a backend injected. It does not have one
+(`ask.py:76-86`, D-5b), so the dock's collapsed label stays "Not available in this offline build"
+until a probe proves otherwise, and its Send button stays disabled.
+
+### D-11 — the webfonts are dropped for a system stack
+
+*Decision:* "use your own system font according to style guide". `web/src/styles.css:1`'s
+`@import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope…')` was the only
+off-origin dependency in the built artifact, and it made three third-party requests on a page that
+advertised itself as offline.
+
+*Resolution:* no prose style guide in `docs/design/` names a font stack. The repo's one checked-in
+visual guide does: `docs/design/texas-workspace-prototype.html:9` sets
+`font: 14px/1.4 ui-sans-serif, system-ui, sans-serif` and `:17` sets
+`font-family: ui-monospace, monospace`. Those two are used verbatim, as `--font-sans` and
+`--font-mono` in `:root`. `Manrope` and `'DM Mono'` appear nowhere in the sheet, and
+`web/test/stylesheet-unification.test.mjs` asserts the sheet declares no font family it does not
+load, plus `@font-face` and off-origin `@import`/`url()` absence.
+
+*Also landed with it (2WKG-366):* the four component stylesheets
+(`chat/chat.css`, `ask/results/result-cards.css`, `layers/layer-controls.css`,
+`renderer/renderer.css`) are merged into the single physical file `web/src/styles.css`, which is
+what `viewport-shell.test.mjs` reads. Five rival panel backgrounds, five rival borders and four
+rival inks collapse onto `:root` tokens. The one remaining `@import` is MapLibre's own vendor
+sheet, a local package file inlined by esbuild at build time — not a URL.
 
 ---
 
@@ -112,11 +218,16 @@ X=--exclude=spec-code-reconciliation.md
 # 6. D-3 — the stale route count in the runbook.
 ! grep -rn 'nine registered local routes' $X docs/
 
+# 8. OQ-1 — the "undecided, nothing implements it" hedge is retired from the IA and the schema.
+! grep -rn 'undecided whether this is normative' $X docs/
+grep -q 'stream_ended_without_terminal' docs/research/sse-event-schema.md docs/design/texas-demo-narrative-ia.md
+
 # 7. Positive checks: the code still says what the docs now claim.
 grep -q 'http_status = 503' copilot/api/errors.py                 # D-2
 grep -q 'extra="forbid"' copilot/api/envelope.py                  # D-1
 test "$(grep -c 'app.include_router' copilot/app.py)" = 8         # D-5b
 uv run --extra dev python -c "from copilot.app import app; assert len(app.openapi()['paths']) == 11"   # D-3
+grep -q 'STREAM_ENDED_WITHOUT_TERMINAL' web/src/failure-states/types.ts   # OQ-1
 ```
 
 **Proof the scan can fail.** Reintroducing one retired string makes exactly one command red and

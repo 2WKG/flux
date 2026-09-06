@@ -27,9 +27,14 @@ await build({
       import { createElement } from "react";
       import { renderToStaticMarkup } from "react-dom/server";
       import { ROUTES, routeForPath } from "./src/router";
+      import { PAGE_LOADERS } from "./src/shell/SiteShell";
       import { SiteNav } from "./src/shell/SiteNav";
       import { TruthLegend } from "./src/shell/TruthLegend";
       export { ROUTES, routeForPath };
+      export const renderPage = async (id) => {
+        const { default: Page } = await PAGE_LOADERS[id]();
+        return { name: Page.name, markup: renderToStaticMarkup(createElement(Page)) };
+      };
       export { STATUS_COPY } from "./src/source-truth";
       export const renderNav = (route) =>
         renderToStaticMarkup(createElement(SiteNav, { current: route, onNavigate: () => {} }));
@@ -53,15 +58,57 @@ const site = await import(compiled.href);
 const route = (id) => site.ROUTES.find((entry) => entry.id === id);
 
 test("each page has its own path, and an unmatched path falls back to the explorer", () => {
-  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer"]);
+  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer", "/minnesota"]);
   assert.equal(site.routeForPath("/").id, "main");
   assert.equal(site.routeForPath("/explainer").id, "explainer");
+  assert.equal(site.routeForPath("/minnesota").id, "minnesota");
   // A deep link with a trailing slash is the same page, not a miss.
   assert.equal(site.routeForPath("/explainer/").id, "explainer");
-  // The static origin answers every path with the shell, so an unknown path is
-  // the explorer rather than a blank screen.
-  assert.equal(site.routeForPath("/api/demo").id, "main");
+  assert.equal(site.routeForPath("/minnesota/").id, "minnesota");
+  // Page paths outside the route table are the explorer rather than a blank screen.
+  // `web/server.mjs` intercepts API-shaped requests before they reach this matcher.
   assert.equal(site.routeForPath("/nothing-here").id, "main");
+});
+
+/**
+ * The route table and the page binding are two different claims, and only the
+ * first was pinned before: `PAGES` is a `Record<RouteId, ComponentType>`, so
+ * pointing `minnesota` at `ExplainerPage` typechecks and every routing
+ * assertion stays green. This test resolves the loader each route id actually
+ * reaches and renders it, so the binding is asserted on the markup a visitor
+ * would see rather than on the shape of the table.
+ */
+test("each route id reaches its own page, asserted on what that page renders", async () => {
+  const fixture = JSON.parse(await readFile(new URL("../../data/demo/bundle.json", import.meta.url), "utf8"));
+  const signatures = {
+    // Unique to the scenario page's module graph: the checked-in fixture digest.
+    main: { component: "App", markers: [fixture.fixtureHash] },
+    explainer: { component: "ExplainerPage", markers: ["The teaching simulation is not part of this build."] },
+    minnesota: {
+      component: "MinnesotaControlRoom",
+      markers: ['data-scene-mode="aggregate"', "mn:aggregate:manifest:v1"],
+    },
+  };
+  assert.deepEqual(Object.keys(signatures).sort(), site.ROUTES.map((entry) => entry.id).sort());
+
+  const rendered = new Map();
+  for (const entry of site.ROUTES) {
+    const page = await site.renderPage(entry.id);
+    assert.equal(page.name, signatures[entry.id].component, `route ${entry.id} loads ${page.name}`);
+    for (const marker of signatures[entry.id].markers) {
+      assert.ok(page.markup.includes(marker), `route ${entry.id} does not render its own page (missing ${marker})`);
+    }
+    rendered.set(entry.id, page.markup);
+  }
+  // And no route renders another route's page: the markers are mutually exclusive.
+  for (const [id, markup] of rendered) {
+    for (const [other, signature] of Object.entries(signatures)) {
+      if (other === id) continue;
+      for (const marker of signature.markers) {
+        assert.ok(!markup.includes(marker), `route ${id} renders the ${other} page (found ${marker})`);
+      }
+    }
+  }
 });
 
 test("the shared navigation reaches every page and marks the current one", () => {

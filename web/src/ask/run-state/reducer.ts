@@ -1,10 +1,20 @@
 import {
   MAX_EVENTS_PER_ATTEMPT,
+  STREAM_CLOSE_MESSAGE,
+  STREAM_ENDED_WITHOUT_TERMINAL,
   SCHEMA_VERSION,
   TERMINAL_ERROR_CODES,
   TEXT_DELTA_MAX_BYTES,
 } from "./types";
-import type { ErrorEvent, RunAction, RunEvent, RunIdentity, RunState, SourceStatus, TraceIssue } from "./types";
+import type {
+  ErrorEvent,
+  RunAction,
+  RunEvent,
+  RunIdentity,
+  RunState,
+  SourceStatus,
+  TraceIssue,
+} from "./types";
 
 export function createRunState(identity: RunIdentity, sourceStatus: SourceStatus = "source_supported"): RunState {
   return { identity, sourceStatus, phase: "idle", expectedSeq: 1, text: "", trace: [], tools: {}, issues: [] };
@@ -126,6 +136,21 @@ export function runReducer(state: RunState, action: RunAction): RunState {
       ? { ...state, phase: "cancelling" }
       : state;
   }
+  if (action.type === "stream_closed") {
+    // OQ-1, decided: the schema guarantees exactly one terminal event per
+    // attempt, so a close with neither `done` nor `error` is a broken contract
+    // and the run is `failed` -> `request_failed`. A close *after* a terminal
+    // event is the normal end of a stream and changes nothing.
+    if (isTerminal(state)) return state;
+    return {
+      ...issue(
+        state,
+        { kind: "stream_ended_without_terminal", message: STREAM_CLOSE_MESSAGE[action.reason ?? "eof"] },
+        "failed",
+      ),
+      failureCode: STREAM_ENDED_WITHOUT_TERMINAL,
+    };
+  }
   if (action.type === "malformed") {
     return issue(state, { kind: "malformed", message: action.message }, "protocol_error");
   }
@@ -134,4 +159,13 @@ export function runReducer(state: RunState, action: RunAction): RunState {
 
 export function terminalError(state: RunState): ErrorEvent | undefined {
   return state.terminal?.type === "error" ? state.terminal : undefined;
+}
+
+/**
+ * The named cause of a failure the server never explained. `undefined` for
+ * every run that terminated normally, so a caller cannot mistake a silent
+ * close for a server-supplied error.
+ */
+export function streamFailureCode(state: RunState): RunState["failureCode"] {
+  return state.failureCode;
 }
