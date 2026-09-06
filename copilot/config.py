@@ -55,7 +55,11 @@ class Settings(BaseSettings):
     )
     copilot_provider: CopilotProvider = Field(default="claude")
     copilot_model: str | None = Field(default=None)
-    anthropic_api_key: SecretStr | None = Field(default=None, repr=False)
+    anthropic_api_key: SecretStr | None = Field(
+        default=None,
+        repr=False,
+        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "CLAUDE_API_KEY"),
+    )
     gemini_api_key: SecretStr | None = Field(
         default=None,
         repr=False,
@@ -136,8 +140,11 @@ class Settings(BaseSettings):
             raise ValueError(f"unknown copilot provider: {name!r}")
         model = self.model_for(name)
         if not self.credential_for(name):
+            credential_name = (
+                "ANTHROPIC_API_KEY" if name == "claude" else "GEMINI_API_KEY"
+            )
             return ProviderStatus(
-                name, model, False, f"{name.upper()}_API_KEY is not set"
+                name, model, False, f"{credential_name} is not set"
             )
         return ProviderStatus(name, model, True)
 

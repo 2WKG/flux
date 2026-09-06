@@ -28,7 +28,10 @@ def test_registry_has_all_nine_concrete_names() -> None:
         NonInteractiveToolServices(database_path=Path("missing.duckdb"))
     )
 
-    assert set(handlers) == {item.name for item in TOOL_REGISTRY}
+    interactive_names = {"scenario_edit", "cascade", "balance", "redundancy"}
+    assert set(handlers) == {
+        item.name for item in TOOL_REGISTRY if item.name not in interactive_names
+    }
     assert len({id(handler) for handler in handlers.values()}) == len(handlers)
 
 

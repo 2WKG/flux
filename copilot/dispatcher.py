@@ -180,12 +180,15 @@ def _scene_action(call: ToolCall, output: Mapping[str, object]) -> dict[str, obj
     return action
 
 
-def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
-    """Return all 13 handlers with live calls for the four interactive tools.
+def interactive_tool_handlers(
+    service: object, *, historical_handlers: Mapping[str, ToolHandler] | None = None
+) -> dict[str, ToolHandler]:
+    """Compose the nine persisted and four static-interactive tool bindings.
 
-    The historical nine-tool implementations are deployment-owned. Until a
-    deployment supplies them, they answer typed `unsupported_request` results
-    rather than guessing from the question or making a network call.
+    The production app supplies the concrete persisted handlers.  The optional
+    fallback keeps this helper usable in narrow interactive-only harnesses,
+    where an unregistered historical capability still reports typed
+    unavailability rather than inventing a result.
     """
 
     async def unavailable(
@@ -251,6 +254,17 @@ def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
             "redundancy": redundancy,
         }
     )
+    if historical_handlers is not None:
+        interactive_names = {"scenario_edit", "cascade", "balance", "redundancy"}
+        expected_historical = {item.name for item in TOOL_REGISTRY} - interactive_names
+        supplied = set(historical_handlers)
+        if supplied != expected_historical:
+            raise ValueError(
+                "historical handler registry must cover exactly the nine persisted "
+                f"tools; missing={sorted(expected_historical - supplied)!r}, "
+                f"extra={sorted(supplied - expected_historical)!r}"
+            )
+        handlers.update(historical_handlers)
     return handlers
 
 

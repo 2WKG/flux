@@ -23,6 +23,7 @@ _PROVIDER_ENV = (
     "COPILOT_PROVIDER",
     "COPILOT_MODEL",
     "ANTHROPIC_API_KEY",
+    "CLAUDE_API_KEY",
     "GEMINI_API_KEY",
     "gemini-api-key",
 )
@@ -52,7 +53,7 @@ def test_an_unconfigured_active_provider_is_reported_unavailable() -> None:
     status = settings.provider_status()
 
     assert status.ready is False
-    assert status.reason == "CLAUDE_API_KEY is not set"
+    assert status.reason == "ANTHROPIC_API_KEY is not set"
     assert settings.model_is_configured is False
     assert build_narration_provider(settings) is None
     assert build_tool_provider(settings) is None
@@ -150,6 +151,15 @@ def test_the_hyphenated_gemini_key_spelling_is_accepted(
     monkeypatch.setenv("gemini-api-key", "from-a-local-dotenv")
 
     assert _settings(copilot_provider="gemini").provider_status().ready is True
+
+
+def test_legacy_claude_key_alias_is_accepted_without_changing_the_canonical_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setenv("CLAUDE_API_KEY", "from-a-local-dotenv")
+
+    assert _settings().provider_status().ready is True
 
 
 def test_a_provider_status_never_carries_the_credential_value() -> None:

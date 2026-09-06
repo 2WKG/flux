@@ -16,8 +16,12 @@ from copilot.dispatcher import (
     ToolDispatcher,
     interactive_tool_handlers,
 )
+from copilot.non_interactive_tool_handlers import (
+    NonInteractiveToolServices,
+    non_interactive_tool_handlers,
+)
 from copilot.providers.claude import ClaudeNarrationProvider
-from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output
+from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output, validate_tool_input
 
 
 def _handlers(calls: list[tuple[str, object]]):
@@ -70,6 +74,31 @@ def test_dispatcher_fails_closed_on_invalid_provider_arguments() -> None:
                 BadProvider(), question="x", history=(), context={}
             )
         )
+
+
+def test_composed_handler_registry_uses_concrete_persisted_bindings(
+    tmp_path: Path,
+) -> None:
+    """A production registry does not replace the nine historic tools with a stub."""
+
+    handlers = interactive_tool_handlers(
+        _InteractiveService(),
+        historical_handlers=non_interactive_tool_handlers(
+            NonInteractiveToolServices(database_path=tmp_path / "missing.duckdb")
+        ),
+    )
+    result = asyncio.run(
+        handlers["predict_outage"](
+            validate_tool_input(
+                "predict_outage", {"county_fips": "48453", "scenario_id": "uri_2021"}
+            ),
+            {},
+        )
+    )
+
+    assert result["status"] == "unavailable"
+    assert result["unavailable"]["code"] == "artifact_unavailable"
+    assert "outage prediction database" in result["unavailable"]["reason"]
 
 
 class _InteractiveService:

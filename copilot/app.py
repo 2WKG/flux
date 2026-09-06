@@ -28,6 +28,10 @@ from copilot.interactive_routes import (
     create_interactive_router,
     create_interactive_service,
 )
+from copilot.non_interactive_tool_handlers import (
+    NonInteractiveToolServices,
+    non_interactive_tool_handlers,
+)
 from copilot.providers import build_tool_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
@@ -97,7 +101,12 @@ def create_app(
         duckdb_path=app.state.settings.duckdb_path
     )
     app.state.tool_dispatcher = tool_dispatcher or ToolDispatcher(
-        interactive_tool_handlers(app.state.interactive_service)
+        interactive_tool_handlers(
+            app.state.interactive_service,
+            historical_handlers=non_interactive_tool_handlers(
+                NonInteractiveToolServices(database_path=app.state.settings.duckdb_path)
+            ),
+        )
     )
 
     app.include_router(health_router)
