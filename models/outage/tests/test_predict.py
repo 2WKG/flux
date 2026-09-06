@@ -11,7 +11,7 @@ from models.outage.contracts import (
     UnavailablePrediction,
     WindowKey,
 )
-from models.outage.predict import heuristic_prediction, trained_prediction
+from models.outage.prediction_paths import heuristic_prediction, trained_prediction
 
 H = "a" * 64
 KEY = WindowKey(
@@ -28,10 +28,27 @@ ARTIFACT = ModelArtifact(
 )
 
 
+def _features(*, status: FeatureStatus = FeatureStatus.PRESENT) -> FeatureRow:
+    return FeatureRow(
+        key=KEY,
+        feature_set_version="features-1",
+        source_input_sha256=H,
+        features=(
+            (
+                "gust_max",
+                FeatureValue(
+                    value=20.0 if status is FeatureStatus.PRESENT else None,
+                    status=status,
+                    unit="m_s",
+                ),
+            ),
+        ),
+    )
+
+
 def test_trained_path_preserves_artifact_and_identity():
     record = trained_prediction(
-        key=KEY,
-        feature_values={"gust_max": 20.0},
+        features=_features(),
         artifact=ARTIFACT,
         scorer=lambda values: values["gust_max"] / 100,
         customers_at_risk=120,
@@ -46,8 +63,7 @@ def test_trained_path_preserves_artifact_and_identity():
 
 def test_missing_trained_model_never_falls_back_to_heuristic():
     record = trained_prediction(
-        key=KEY,
-        feature_values={"gust_max": 20.0},
+        features=_features(),
         artifact=None,
         scorer=lambda _: 0.2,
         customers_at_risk=120,
@@ -60,19 +76,8 @@ def test_missing_trained_model_never_falls_back_to_heuristic():
 
 
 def test_heuristic_path_carries_rule_provenance():
-    features = FeatureRow(
-        key=KEY,
-        feature_set_version="features-1",
-        source_input_sha256=H,
-        features=(
-            (
-                "gust_max",
-                FeatureValue(value=20.0, status=FeatureStatus.PRESENT, unit="m_s"),
-            ),
-        ),
-    )
     record = heuristic_prediction(
-        features=features,
+        features=_features(),
         rule=lambda _: 0.3,
         rule_id="wind-threshold",
         rule_version="2",
@@ -83,3 +88,42 @@ def test_heuristic_path_carries_rule_provenance():
     assert isinstance(record.prediction, HeuristicPrediction)
     assert record.prediction.rule_id == "wind-threshold"
     assert record.prediction.model_kind == "heuristic"
+
+
+def test_missing_features_never_produce_a_trained_or_heuristic_probability():
+    features = _features(status=FeatureStatus.MISSING_SOURCE)
+
+    trained = trained_prediction(
+        features=features,
+        artifact=ARTIFACT,
+        scorer=lambda _: 0.2,
+        customers_at_risk=120,
+        driver=Driver.WIND,
+    )
+    heuristic = heuristic_prediction(
+        features=features,
+        rule=lambda _: 0.3,
+        rule_id="wind-threshold",
+        rule_version="2",
+        customers_at_risk=120,
+        driver=Driver.WIND,
+    )
+
+    assert isinstance(trained.prediction, UnavailablePrediction)
+    assert isinstance(heuristic.prediction, UnavailablePrediction)
+    assert trained.prediction.reason == heuristic.prediction.reason == "missing_prediction_features"
+
+
+def test_trained_model_rejects_a_different_feature_set_version():
+    mismatched = ARTIFACT.model_copy(update={"feature_set_version": "features-2"})
+
+    record = trained_prediction(
+        features=_features(),
+        artifact=mismatched,
+        scorer=lambda _: 0.2,
+        customers_at_risk=120,
+        driver=Driver.WIND,
+    )
+
+    assert isinstance(record.prediction, UnavailablePrediction)
+    assert record.prediction.reason == "feature_set_version_mismatch"
