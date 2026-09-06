@@ -30,6 +30,8 @@ from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.model_geometry import configure_model_geometry
+from copilot.routes.model_geometry import router as model_geometry_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
@@ -91,6 +93,8 @@ def create_app(
     app.include_router(physical_layers_router)
     app.include_router(interventions_router)
     app.include_router(lines_router)
+    configure_model_geometry(duckdb_path=app.state.settings.duckdb_path)
+    app.include_router(model_geometry_router)
     app.include_router(comparisons_router)
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
