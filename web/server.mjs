@@ -1,11 +1,43 @@
-// Static origin for the frozen demo. STACK-LOCK.md is the runtime contract: the built
-// client bundles data/demo/bundle.json at build time and makes no runtime request, so this
-// process serves files and nothing else. It exposes no API route by design (2WKG-300); do
-// not add one here — the Copilot API is a separate FastAPI service (docs/specs/05-copilot.md).
+// The origin for the one App.
+//
+// It still hosts **no API of its own**: 2WKG-300 settled that, and the Copilot
+// API remains a separate FastAPI service (docs/specs/05-copilot.md). What it now
+// does, and only when `FLUX_API_ORIGIN` is set, is forward a fixed allowlist of
+// that service's read paths from this same origin. That is a deployment seam,
+// not an API: with the variable unset — which is the default, and the state of a
+// fresh clone — every one of those paths falls through to the SPA shell exactly
+// as before, and the page renders its named unavailable states.
+//
+// The seam exists because the page's own CSP is `connect-src 'self'`. A demo
+// served beside a live Copilot needs the API on this origin or the browser
+// blocks it; the alternative is a CORS exception and an off-origin CSP
+// allowance, which is strictly worse.
 import express from "express";
+import { Readable } from "node:stream";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
+
+/**
+ * The read paths that may be forwarded, and the methods each accepts. Nothing
+ * else is proxied — a path not in this table is served the SPA shell, so a new
+ * upstream route cannot be reached by accident.
+ */
+const PROXIED = [
+  { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/health$/, methods: ["GET"] },
+  { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/scenarios$/, methods: ["GET"] },
+  { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/ask$/, methods: ["POST"] },
+];
+
+/** Upstream deadline. An upstream that never answers must not hold a socket open. */
+export const PROXY_TIMEOUT_MS = 30_000;
+
+function proxied(pathname, method) {
+  return PROXIED.some((entry) => entry.pattern.test(pathname) && entry.methods.includes(method));
+}
 
 /**
  * The offline demo's policy, sent as a header as well as the `index.html` meta tag.
@@ -27,12 +59,59 @@ export const CONTENT_SECURITY_POLICY = [
   "base-uri 'none'",
 ].join("; ");
 
-export function createApp() {
+export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN } = {}) {
   const app = express();
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
     next();
   });
+  if (apiOrigin) {
+    const upstream = new URL(apiOrigin);
+    app.use((req, res, next) => {
+      const url = new URL(req.originalUrl, upstream);
+      if (!proxied(url.pathname, req.method)) return next();
+      // Only the path and query cross; the upstream origin is this process's,
+      // never the client's, so a caller cannot redirect the forward.
+      const target = new URL(url.pathname + url.search, upstream);
+      const headers = { accept: req.headers.accept ?? "application/json" };
+      if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"];
+      const body = req.method === "POST" ? req : undefined;
+      fetch(target, {
+        method: req.method,
+        headers,
+        body,
+        duplex: body ? "half" : undefined,
+        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+      }).then((response) => {
+        res.status(response.status);
+        const type = response.headers.get("content-type");
+        if (type) res.setHeader("content-type", type);
+        const retryAfter = response.headers.get("retry-after");
+        if (retryAfter) res.setHeader("retry-after", retryAfter);
+        if (!response.body) return res.end();
+        // Streamed, so a text/event-stream answer is not buffered to completion
+        // before the browser sees its first frame.
+        Readable.fromWeb(response.body).pipe(res);
+      }).catch((error) => {
+        // The upstream's absence is reported in the shape the browser's own
+        // validator reads, so it becomes a named unavailable state rather than
+        // an HTML error page parsed as a malformed response.
+        res.status(503).setHeader("content-type", "application/json");
+        res.end(JSON.stringify({
+          status: "unavailable",
+          data: null,
+          error: {
+            code: "unavailable",
+            message: `The configured API origin did not answer: ${error instanceof Error ? error.message : String(error)}`,
+            retryable: true,
+            retry_after_s: 30,
+            details: { reason: "upstream_unreachable" },
+          },
+          meta: { api_version: "v1", request_id: "proxy-upstream-unreachable", generated_at: new Date().toISOString() },
+        }));
+      });
+    });
+  }
   app.use(express.static(dist));
   // `root` + relative name, not an interpolated absolute path: under Express 5 on Windows
   // `res.sendFile("<abs>/index.html")` raises NotFoundError, which 404s every SPA client route.

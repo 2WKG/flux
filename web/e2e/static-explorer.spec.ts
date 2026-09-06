@@ -29,26 +29,23 @@ test.beforeEach(async ({ page }) => {
 });
 
 /**
- * The one off-origin dependency this build actually has: the Google Fonts
- * stylesheet `web/src/styles.css:1` imports, and the woff2 files it pulls.
- * It is listed here so the assertion states the exception instead of hiding
- * it behind a path pattern. Nothing else may leave the origin, and no request
- * may reach an `/ask` or `/api` path on any host.
+ * **There is no sanctioned off-origin host any more.** This used to carry a
+ * two-entry exception for `fonts.googleapis.com` and `fonts.gstatic.com`,
+ * because `web/src/styles.css:1` imported a Google Fonts stylesheet and the
+ * "offline" demo made three third-party requests on every load. Joshua's
+ * decision of 2026-09-06 dropped the webfonts for the system stack the repo's
+ * own visual guide names, so the exception is gone and the assertion is now
+ * simply: nothing leaves the origin.
+ *
+ * The App *is* server-backed and does call `/health`, `/scenarios/{id}`,
+ * `/layers/{name}` and `/api/v1/grid/layers/{layer}` — same-origin, every one,
+ * which is what `connect-src 'self'` permits and what this asserts.
  */
-const SANCTIONED_OFF_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
-
-/** Requests leave the page's origin only for the sanctioned font hosts. */
 async function expectSameOriginOnly(page: Page): Promise<void> {
   const baseOrigin = new URL(page.url()).origin;
   const requests = recorded.get(page) ?? [];
-  const unexpected = requests.filter((url) => {
-    const origin = new URL(url).origin;
-    return origin !== baseOrigin && !SANCTIONED_OFF_ORIGINS.includes(origin);
-  });
-  expect(unexpected).toEqual([]);
-  // No agent, model, or data endpoint is contacted on any host.
-  const api = requests.filter((url) => /^\/(ask|api)(\/|$)/.test(new URL(url).pathname));
-  expect(api).toEqual([]);
+  const offOrigin = requests.filter((url) => new URL(url).origin !== baseOrigin);
+  expect(offOrigin).toEqual([]);
 }
 
 /** The provenance tokens the product's honesty claim rests on. */
@@ -86,21 +83,67 @@ test("the static explorer selects scenarios and keeps its synthetic label throug
   await expectSameOriginOnly(page);
 });
 
-test("the chat dock states that it is unavailable rather than offering an answer", async ({ page }) => {
+test("the chat dock hosts the real evidence surface and states its own unavailability", async ({ page }) => {
   await page.goto("/");
   const dock = page.locator("section.chat-dock");
   await expect(dock).toHaveClass(/collapsed/);
   const toggle = dock.getByRole("button", { name: /Ask about visible evidence/i });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  // Nothing served this origin an API, so the dock says so rather than offering
+  // a Send button that would do nothing.
   await expect(dock.getByText(/Not available in this offline build/i)).toBeVisible();
 
   await toggle.click();
   await expect(dock).toHaveClass(/expanded/);
-  await expect(dock.getByText(/no Copilot endpoint, model result, or Minnesota artifact to query/i)).toBeVisible();
-  await expect(dock.getByText(/must show its tool trail, citations, status, and limitations instead of inventing an answer/i)).toBeVisible();
+  // The real dock, the real run trace, the real result surface, and the named
+  // failure state -- not the placeholder paragraphs this dock used to hold.
+  await expect(dock.locator("section.flux-chat")).toBeVisible();
+  await expect(dock.getByText(/No messages yet\. Your question will include the visible context above\./i)).toBeVisible();
+  await expect(dock.locator("section.run-trace")).toBeVisible();
+  await expect(dock.getByText(/No answer results are available\./i)).toBeVisible();
+  await expect(dock.locator("section.failure-state")).toBeVisible();
+  // The Send button is disabled while no endpoint has answered.
+  await expect(dock.getByRole("button", { name: "Send" })).toBeDisabled();
 
   await dock.getByRole("button", { name: /Collapse/i }).click();
   await expect(dock).toHaveClass(/collapsed/);
+  await expectSameOriginOnly(page);
+});
+
+test("the physical-inventory map is mounted inside the one App, with its disclosures", async ({ page }) => {
+  await page.goto("/");
+  const panel = page.getByLabel("Source-backed physical inventory");
+  await expect(panel).toBeVisible();
+  // The map is the merged #213 foundation, drawn once. It loads in the browser,
+  // so this waits for the real renderer rather than the server-rendered slot.
+  await expect(panel.getByLabel("Map and renderer status")).toBeVisible({ timeout: 20_000 });
+  await expect(panel.locator("canvas.maplibregl-canvas")).toBeVisible();
+  // And there is no second, mis-projected geometry surface over it.
+  await expect(panel.locator("svg.grid-geometry-overlay")).toHaveCount(0);
+
+  // The inventory API is not served by this origin, so the panel names the
+  // refusal instead of showing an empty map as if it were an empty state.
+  await expect(panel.getByLabel("Coverage and geometry availability")).toBeVisible();
+  await expect(panel.locator(".grid-map-note")).toContainText(/Unavailable|Request failed|Requesting the source-backed inventory release/);
+  await expectSameOriginOnly(page);
+});
+
+test("every layer is disclosed unavailable with the producer reason, never hidden", async ({ page }) => {
+  await page.goto("/");
+  const controls = page.locator("section.layer-controls");
+  await expect(controls).toBeVisible();
+  const rows = controls.locator("li.layer-row");
+  await expect(rows).toHaveCount(6);
+  for (const row of await rows.all()) {
+    // Nothing on this origin serves `/layers/{name}`, so the topology layer's
+    // request fails and the other five have no server layer bound at all. Both
+    // are frozen tokens, and neither may be shown as available or simply hidden.
+    const status = await row.getAttribute("data-status");
+    expect(["unavailable", "request_failed"]).toContain(status);
+    await expect(row.locator("p.layer-reason")).not.toBeEmpty();
+    await expect(row.locator("input[type=checkbox]")).toBeDisabled();
+  }
+  await expect(page.getByLabel("Layer status legend")).toBeVisible();
   await expectSameOriginOnly(page);
 });
 

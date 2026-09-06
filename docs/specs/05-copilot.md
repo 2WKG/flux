@@ -228,6 +228,24 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `GET /elements/critical` (A8; 2WKG-173 persisted-artifact read) | `region` (1–128), `n=10` (1–50), `offset=0` (0–10,000) | the `top_critical_elements` dict — `{status, provenance:[ArtifactRef], region, n, scenario_ids, elements:[{element_id, kind, lost_load_mw, critical_loads_lost, runs}], partial}` — **plus** two documented additions: `offset` (the page cursor) and `evidence` (the persisted score behind each element). The A8 fields validate against the frozen `CriticalElementsData`/`CriticalElement` models. `scenario_ids` is the sorted set of the served elements' persisted `scenario_id`s. `partial` is `true` when fewer than `n` elements have any persisted run — counted over the whole filtered relation, so a short last page under `offset` is **not** `partial`. The page is a total order (`score_value` desc, then the `mn_score_results.artifact_id` primary key asc) via `copilot.api.pagination.DeterministicOrder`, so paging cannot repeat or skip an element. Failure reasons are the same closed vocabulary as `POST /compare` |
 | `POST /ask` | see below | `text/event-stream` |
 
+**Browser consumer (D-10, 2WKG-355).** As of Joshua's 2026-09-06 decision the web App is a live
+consumer of five of these routes — `GET /health`, `GET /scenarios/{scenario_id}`,
+`GET /layers/{name}`, `POST /ask`, and the versioned `GET /api/v1/grid/layers/{layer}` (2WKG-89) —
+through `web/src/data/`. Three properties of that consumer are contractual, not incidental:
+
+- **Same-origin only.** The served shell's CSP is `connect-src 'self'`, so the browser requests
+  these paths on its own origin. `web/server.mjs` forwards a fixed allowlist of them to
+  `FLUX_API_ORIGIN` when that variable is set, and serves the SPA shell for all of them when it is
+  not; it still defines no route of its own (2WKG-300).
+- **A failure envelope keeps its named reason.** Every non-2xx answer reaches the screen as its
+  own `error.code` and `error.message` under the frozen `unavailable` / `request_failed` token —
+  never as a client-invented sentence, and never as an empty success.
+- **A stream with no terminal frame is a failed request.** `POST /ask` must emit exactly one
+  terminal `done` **or** `error` (`docs/research/sse-event-schema.md`). A stream that closes with
+  neither is reduced to a named protocol failure by `web/src/data/ask-stream.ts`, not treated as a
+  quiet end. (This implements what OQ-1 in `spec-code-reconciliation.md` left undecided on the
+  browser side; the server side is unchanged.)
+
 **Route inventory (D-3).** The eleven rows above are exactly what `copilot/app.py:68-75` mounts,
 regenerated from `app.openapi()['paths']` and matched against
 `copilot/test_read_route_contracts.py:95-250`. Two compute-style routes were listed here and
