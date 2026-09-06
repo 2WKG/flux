@@ -371,8 +371,12 @@ def test_label_aggregation_is_spec_02_max() -> None:
     """docs/specs/02-outage-model.md: max customers_out over the 15-min samples."""
     candidate = copy.deepcopy(bundle())
     candidate["records"][0]["label"]["aggregation"] = "mean_over_window_samples"
+    # the published schema pins the const ...
     with pytest.raises(validator.ValidationError, match="schema violation"):
         validator.validate_bundle(candidate)
+    # ... and the hand-written rule refuses it independently of the schema.
+    with pytest.raises(validator.ValidationError, match="aggregation"):
+        validator.validate_bundle_rules(candidate)
 
 
 def test_denominator_below_five_hundred_customers_is_unusable() -> None:
@@ -416,13 +420,22 @@ def test_source_row_key_must_name_a_slice_receipt() -> None:
 
 
 def test_accepted_requires_matched_covered_weather_and_outage() -> None:
-    candidate = copy.deepcopy(bundle())
-    candidate["records"][0]["weather"]["coverage"] = "uncovered"
+    for coverage_name in ("weather", "outage"):
+        candidate = copy.deepcopy(bundle())
+        candidate["records"][0][coverage_name]["coverage"] = "uncovered"
+        with pytest.raises(
+            validator.ValidationError,
+            match="accepted requires matched covered weather and outage evidence",
+        ):
+            validator.validate_bundle(candidate)
+
+    unmatched = copy.deepcopy(bundle())
+    unmatched["records"][0]["matched_coverage_decision"] = "not_matched"
     with pytest.raises(
         validator.ValidationError,
         match="accepted requires matched covered weather and outage evidence",
     ):
-        validator.validate_bundle(candidate)
+        validator.validate_bundle(unmatched)
 
 
 def test_accepted_requires_real_source_row_keys_and_slices() -> None:
