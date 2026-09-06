@@ -69,26 +69,6 @@
       "gaps": [
         "The report establishes a county weather occurrence but does not supply a weather time series."
       ]
-    },
-    {
-      "receipt_id": "eaglei-2022-may12-exact",
-      "provider": "Oak Ridge National Laboratory EAGLE-I via Figshare",
-      "url": "https://ndownloader.figshare.com/files/42547897",
-      "release": "Figshare article 24237376; 2022 annual CSV range extraction",
-      "retrieved_at_utc": "2026-09-06T07:17:05.759841Z",
-      "license_or_access": "Open EAGLE-I dataset; see Figshare article terms.",
-      "raw_sha256": "af6098581af6a696909dcd1ebf78c71ac120a9396ba190d37453dbed6971ae60",
-      "filtered_sha256": "7dc1682b8866767bc2c24e6655f6daf7686bf5872ccb1979b2637b30f0ac9f77",
-      "bytes": null,
-      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
-      "units": "customers_out at 15-minute UTC observations.",
-      "timezone_conversion": "run_start_time documented as UTC; retained times are UTC.",
-      "filters": "county_fips=27073; [2022-05-12T18:00Z,2022-05-13T00:00Z).",
-      "grid_index_mapping": "County FIPS 27073; no physical-grid mapping.",
-      "gaps": [
-        "Only 3 of 24 expected observations were present; missing observations are not zero outages.",
-        "No customer denominator was retrieved."
-      ]
     }
   ],
   "records": [
@@ -128,35 +108,11 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [
-          "eaglei-2022-may12-exact"
-        ],
-        "notes": "3 of 24 expected EAGLE-I observations, with max customers_out 1717; partial coverage remains UncoveredLabel.",
-        "expected_samples": 24,
-        "observed_samples": 3,
-        "missing_timestamps": [
-          "2022-05-12T18:00:00Z",
-          "2022-05-12T18:15:00Z",
-          "2022-05-12T18:30:00Z",
-          "2022-05-12T18:45:00Z",
-          "2022-05-12T19:00:00Z",
-          "2022-05-12T19:15:00Z",
-          "2022-05-12T19:30:00Z",
-          "2022-05-12T19:45:00Z",
-          "2022-05-12T20:00:00Z",
-          "2022-05-12T20:15:00Z",
-          "2022-05-12T20:30:00Z",
-          "2022-05-12T20:45:00Z",
-          "2022-05-12T21:00:00Z",
-          "2022-05-12T21:15:00Z",
-          "2022-05-12T21:30:00Z",
-          "2022-05-12T21:45:00Z",
-          "2022-05-12T22:00:00Z",
-          "2022-05-12T22:15:00Z",
-          "2022-05-12T22:30:00Z",
-          "2022-05-12T22:45:00Z",
-          "2022-05-12T23:00:00Z"
-        ],
+        "source_receipt_ids": [],
+        "notes": "Prior range-derived EAGLE-I count was invalidated because the acquisition path did not establish globally ordered full-year coverage; full-streaming scan pending. This remains UncoveredLabel, not zero.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
@@ -183,12 +139,6 @@
       "source_slices": [
         {
           "receipt_id": "ncei-stormevents-2022",
-          "county_fips": "27073",
-          "start_utc": "2022-05-12T18:00:00Z",
-          "end_utc": "2022-05-13T00:00:00Z"
-        },
-        {
-          "receipt_id": "eaglei-2022-may12-exact",
           "county_fips": "27073",
           "start_utc": "2022-05-12T18:00:00Z",
           "end_utc": "2022-05-13T00:00:00Z"
