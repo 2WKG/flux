@@ -1,0 +1,87 @@
+{
+  "format": "flux:3d-archetype-source:v1",
+  "archetype_id": "wind_turbine",
+  "author_orientation": "-Z forward, Y up, right-handed",
+  "pivot": "ground_center",
+  "geometry_note": "Every node fits inside the catalog footprint_m (20 x 20 m selection and collision proxy) and this file's bounds_m: a 20 m rotor on a 70 m tower. A wider swept rotor would require amending the wind_turbine footprint_m in data/3d/asset-archetypes-v1.json and these bounds_m together; this file must not exceed either silently.",
+  "bounds_m": {
+    "min": [
+      -10,
+      0,
+      -10
+    ],
+    "max": [
+      10,
+      80,
+      10
+    ]
+  },
+  "materials": [
+    {
+      "name": "MAT_STATUS",
+      "base_color": "neutral_gray",
+      "runtime_tinted": true
+    }
+  ],
+  "nodes": [
+    {
+      "name": "TOWER",
+      "primitive": "tapered_tower",
+      "position_m": [
+        0,
+        35,
+        0
+      ],
+      "size_m": [
+        5,
+        70,
+        5
+      ],
+      "material": "MAT_STATUS"
+    },
+    {
+      "name": "NACELLE",
+      "primitive": "box",
+      "position_m": [
+        0,
+        70,
+        0
+      ],
+      "size_m": [
+        6,
+        4,
+        10
+      ],
+      "material": "MAT_STATUS"
+    },
+    {
+      "name": "ROTOR",
+      "primitive": "three_blade_rotor",
+      "position_m": [
+        0,
+        70,
+        -6
+      ],
+      "size_m": [
+        20,
+        20,
+        1
+      ],
+      "material": "MAT_STATUS"
+    },
+    {
+      "name": "CONN_MV_FEED_0",
+      "primitive": "empty",
+      "position_m": [
+        0,
+        0,
+        8
+      ]
+    }
+  ],
+  "lods": {
+    "lod0": "tower, nacelle, and three blades within the 20 m footprint proxy",
+    "lod1": "tower, nacelle, and simplified rotor",
+    "lod2": "recognisable tower silhouette and feeder attachment"
+  }
+}
