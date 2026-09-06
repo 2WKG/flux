@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import fixture from "../../data/demo/bundle.json";
+import { ResultCards } from "./ask/results";
+import { RunTrace } from "./ask/run-state/RunTrace";
+import { createRunState } from "./ask/run-state/reducer";
+import { ChatDock } from "./chat/ChatDock";
+import { Inspector } from "./inspector/Inspector";
 import { AppShell } from "./shell/AppShell";
 import "./styles.css";
 
@@ -274,6 +279,42 @@ function App() {
   );
 
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
+  const contextRevision = `${data.fixtureHash}:${selected}`;
+  const fixtureInspector = {
+    status: "synthetic" as const,
+    artifactLabel: "synthetic" as const,
+    id: data.fixtureHash,
+    name: "Synthetic five-bus fixture",
+    kind: "Static topology fixture",
+    scenario: scenario.label,
+    readiness: "Bundled static demo",
+    coverage: "No Minnesota or Texas geography",
+    message: "This fixture is synthetic. Its labels and metrics do not identify real facilities, corridors, or grid operations.",
+    fields: [
+      { label: "Unmet demand", value: String(scenario.metrics.shedMw), unit: scenario.units.shedMw, uncertainty: "Fixture output" },
+      { label: "Available supply", value: String(scenario.metrics.availableGenerationMw), unit: scenario.units.availableGenerationMw, uncertainty: "Fixture output" },
+      { label: "Candidate capacity", value: candidate ? String(candidate.capacityMw) : undefined, unit: candidate ? "MW" : undefined, status: candidate ? "available" as const : "unavailable" as const, uncertainty: "No interconnection conclusion" },
+    ],
+    provenance: [{ sourceName: "Checked-in synthetic bundle", sourceRef: data.execution.provenance.sourceRef, sourceVersion: data.execution.provenance.sourceVersion, coverage: "Five-bus synthetic fixture" }],
+    caveats: data.execution.limitations,
+  };
+  const staticChatContext = {
+    geography: "No geographic coverage in this fixture",
+    layers: ["Synthetic five-bus topology"],
+    facility: null,
+    scenario: scenario.label,
+    time: "Fixed synthetic snapshot",
+  };
+  const staticRun = createRunState({ attemptId: "static-agent-unavailable", contextRevision }, "unavailable");
+  const staticResults = [{
+    id: `static-agent-${contextRevision}`,
+    answer: "",
+    scope: "Static demo agent",
+    status: { availability: "unavailable" as const, reason: "The static fixture build has no live agent or API connection." },
+    citations: [],
+    provenance: [],
+    limitations: ["No live tool call was made.", "No result, recommendation, or scene action is available in static mode."],
+  }];
 
   return (
     <>
@@ -282,7 +323,7 @@ function App() {
       source={{
         status: "synthetic",
         label: "Synthetic five-bus fixture · no API required",
-        detail: "Checked-in synthetic artifact; not a Minnesota or Texas topology, facility map, or interconnection result.",
+        detail: "Checked-in synthetic artifact; no live API or agent connection. Not a Minnesota or Texas topology, facility map, or interconnection result.",
       }}
       viewport={
         <article className="map">
@@ -310,58 +351,17 @@ function App() {
         </article>
       }
       comparison={<CompareRail selected={selected} onSelect={select} />}
-      inspector={
-        <>
-          <div className="outcome">
-            <p className="eyebrow">MODELED UNMET DEMAND</p>
-            <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
-            <p>{shedHours} {scenario.units.shedMwh} across the {data.execution.assumptions.durationHours}-hour window</p>
-            <div className={selected === "baseline" ? "delta flat" : "delta"}>
-              {selected === "baseline"
-                ? "Baseline reference"
-                : `−${scenario.metrics.improvementMw} ${scenario.units.improvementMw} vs baseline`}
-            </div>
-          </div>
-
-          <div className="stats">
-            <div><span>Demand</span><b>{scenario.metrics.demandMw} {scenario.units.demandMw}</b></div>
-            <div><span>Available supply</span><b>{supply} {scenario.units.availableGenerationMw}</b></div>
-          </div>
-
-          {candidate ? (
-            <div className="insight">
-              <p className="eyebrow">{candidate.name} · +{candidate.capacityMw} MW AT {BUSES[candidate.busId].name.toUpperCase()}</p>
-              <h2>{candidate.description}</h2>
-              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
-              <ul className="relief">
-                {relieved.slice(0, 3).map(({ line, delta }) => (
-                  <li key={line.id}>
-                    <span>{BUSES[line.from].name} → {BUSES[line.to].name}</span>
-                    <em>{signed(delta)} pts</em>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="insight">
-              <p className="eyebrow">NO CAPACITY ADDED</p>
-              <h2>This is the reference run every candidate is measured against.</h2>
-              <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
-            </div>
-          )}
-          <section className="pipeline">
-            <div>
-              <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
-              <h2>Same assumptions. Traceable synthetic output.</h2>
-            </div>
-            <p>
-              {sameAssumptions
-                ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
-                : "Comparison unavailable: scenario assumptions differ."}{" "}
-              Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
-            </p>
+      inspector={<Inspector asset={fixtureInspector} />}
+      chat={
+        <div className="agent-static">
+          <ChatDock context={staticChatContext} contextRevision={contextRevision} sourceLabel="Checked-in synthetic fixture" sourceStatus="synthetic" status="unavailable" />
+          <section className="agent-static__trace" aria-label="Static agent run status">
+            <h3>Run status</h3>
+            <p>The static demo does not open a live agent connection.</p>
+            <RunTrace state={staticRun} />
           </section>
-        </>
+          <ResultCards results={staticResults} />
+        </div>
       }
       />
 
