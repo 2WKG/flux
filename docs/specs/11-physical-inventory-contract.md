@@ -9,7 +9,7 @@ renderer adapter, state source acquisition, or electrical model.
 submits one canonical JSON object with an ID of
 `<geography_id>:physical-inventory:<semantic-version>` and a SHA-256 over its
 canonical JSON (excluding `content_sha256`). The writer persists that exact
-artifact into the `physical_*` DuckDB namespace and refuses a conflicting
+canonical JSON and its decomposed relations into the `physical_*` DuckDB namespace and refuses a conflicting
 repeat. This makes a map/API artifact traceable to a reproducible input rather
 than a current mutable source query.
 
@@ -29,6 +29,10 @@ an asset class, and either source/derived native geometry or an explicit
 Geometry precision in metres and a separate
 human-readable accuracy basis are required whenever geometry exists. Authority
 and version live in `sources`; accuracy basis never substitutes for authority.
+Numeric precision may be null when the source publishes no numeric precision;
+the accuracy basis must say so. Derived geometry also requires an explicit
+derivation method. Unavailable geometry has null geometry, CRS, precision,
+accuracy, and derivation fields.
 
 Terminals and connectivity edges are optional. When present, both carry their
 own source record identity, and an edge can only join two persisted sourced
@@ -38,11 +42,12 @@ proximity, imagery, a label, street data, or a synthetic case.
 ## Coverage
 
 For every reported class/scope pair, `physical_coverage` records the observed
-count, nullable denominator and unavailable count, denominator basis, source
+count, nullable denominator, unknown count, and unavailable count, denominator basis, source
 scope, status, and a named reason. A source scope is never silently treated as
 statewide or owner-level coverage.
 Statuses are `complete`, `partial`, `unknown`, or `unavailable`. A `complete`
-claim needs a reconciled denominator; an unavailable or unknown denominator is
+claim needs exact observed/denominator reconciliation with zero unknown and
+unavailable counts; an unavailable or unknown denominator is
 stored as `null`, never zero. Partial public layers therefore remain useful
 without certifying that all owner-level assets exist.
 
