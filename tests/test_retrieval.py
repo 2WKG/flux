@@ -71,6 +71,7 @@ def test_results_are_bounded_and_include_auditable_citation_fields() -> None:
     assert result.relevance_rationale == "BM25 sparse match for power, transmission"
     assert result.record() == {
         "chunk_id": "high",
+        "content_kind": "source",
         "date": "2026-09-05",
         "doc": "regulation",
         "excerpt": "power trans…",
@@ -78,6 +79,7 @@ def test_results_are_bounded_and_include_auditable_citation_fields() -> None:
         "page": 1,
         "relevance": result.relevance,
         "relevance_rationale": "BM25 sparse match for power, transmission",
+        "provenance": {"sha256": "test"},
         "source": "https://example.test/regulation.pdf",
         "title": "Example regulation",
         "version": "2026-09-05",
@@ -424,3 +426,36 @@ def test_unavailable_reasons_use_the_shared_closed_vocabulary_only() -> None:
         Unavailable(code="corpus_unavailable", reason="x", retryable=False)  # type: ignore[arg-type]
     with pytest.raises(ValidationError):
         Unavailable(code="index_unavailable", reason="x", retryable=False)  # type: ignore[arg-type]
+
+
+def test_cite_hit_preserves_source_version_date_and_provenance() -> None:
+    [result] = search(
+        "Minnesota evidence",
+        [
+            CorpusChunk(
+                chunk_id="mn-1",
+                document_id="mn-project-note",
+                version="2026-09-05",
+                source_uri="docs/research/minnesota/source-citation-inventory.md",
+                text="Minnesota evidence remains bounded by documented sources.",
+                chunk_index=0,
+                content_kind="source",
+                provenance={"retrieved_at": "2026-09-05T18:01:41+00:00", "source_name": "Flux project document"},
+                title="Minnesota source citation inventory",
+                page=1,
+            ),
+            *_FILLER,
+        ],
+    )
+
+    hit = RetrievalHit.model_validate(result.hit())
+
+    assert hit.content_kind == "source"
+    assert hit.source == "docs/research/minnesota/source-citation-inventory.md"
+    assert hit.version == "2026-09-05"
+    assert hit.date == "2026-09-05"
+    assert hit.provenance == {
+        "retrieved_at": "2026-09-05T18:01:41+00:00",
+        "source_name": "Flux project document",
+    }
+    assert hit.locator == "page 1; chunk 0"

@@ -218,11 +218,17 @@ export interface PredictOutageInput {
 
 export interface RetrievalHit {
   chunk_id: string;
+  content_kind: "fixture" | "source";
+  date: string | null;
   doc: string;
+  locator: string;
   page: number;
+  provenance: Record<string, string>;
   score: number;
+  source: string;
   text: string;
   title: string;
+  version: string;
 }
 
 export interface RunCascadeInput {

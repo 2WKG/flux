@@ -28,7 +28,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from typing import Final, Literal
 
 from rank_bm25 import BM25Okapi
@@ -88,12 +88,15 @@ class RetrievalResult:
     relevance: float
     relevance_rationale: str
     chunk_id: str
+    content_kind: Literal["fixture", "source"]
+    provenance: dict[str, str]
 
     def record(self) -> dict[str, object]:
         """Return the JSON-safe public representation."""
 
         return {
             "chunk_id": self.chunk_id,
+            "content_kind": self.content_kind,
             "date": self.date,
             "doc": self.doc,
             "excerpt": self.excerpt,
@@ -101,13 +104,14 @@ class RetrievalResult:
             "page": self.page,
             "relevance": self.relevance,
             "relevance_rationale": self.relevance_rationale,
+            "provenance": dict(sorted(self.provenance.items())),
             "source": self.source,
             "title": self.title,
             "version": self.version,
         }
 
     def hit(self) -> dict[str, object]:
-        """Return the ``cite`` tool hit shape ``{doc, title, page, chunk_id, score, text}``.
+        """Return a complete citation-preserving ``cite`` tool hit shape.
 
         The field names conform to ``copilot.tools.schemas.RetrievalHit``.  A
         page-less chunk cannot be a ``RetrievalHit`` (``page`` is a required
@@ -118,13 +122,31 @@ class RetrievalResult:
         if self.page is None:
             raise ValueError(f"chunk {self.chunk_id} has no page and cannot be cited")
         return {
+            "content_kind": self.content_kind,
+            "date": self.date,
             "doc": self.doc,
+            "locator": self.locator,
+            "provenance": dict(sorted(self.provenance.items())),
+            "source": self.source,
             "title": self.title,
+            "version": self.version,
             "page": self.page,
             "chunk_id": self.chunk_id,
             "score": self.relevance,
             "text": self.excerpt,
         }
+
+
+def _date_from_provenance(provenance: dict[str, str]) -> str | None:
+    """Return the source retrieval date when a version is not calendar-dated."""
+
+    value = provenance.get("retrieved_at")
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value).date().isoformat()
+    except ValueError:
+        return None
 
 
 def _date_from_version(version: str) -> str | None:
@@ -289,10 +311,12 @@ class SparseIndex:
                     locator=_locator(chunk),
                     excerpt=_excerpt(chunk.text, limit=excerpt_characters),
                     version=chunk.version,
-                    date=_date_from_version(chunk.version),
+                    date=_date_from_version(chunk.version) or _date_from_provenance(dict(chunk.provenance)),
                     relevance=score,
                     relevance_rationale="BM25 sparse match for " + ", ".join(shared),
                     chunk_id=chunk.chunk_id,
+                    content_kind=chunk.content_kind,
+                    provenance=dict(sorted(chunk.provenance.items())),
                 )
             )
         return results
