@@ -82,6 +82,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(5.4);
   const [assetSource, setAssetSource] = useState<AssetSource | null>(null);
+  const [assetError, setAssetError] = useState<string | null>(null);
   const [assets, setAssets] = useState<AssetOverlay | null>(null);
   const cache = useRef<FluxAssetCache | null>(null);
   const map = useRef<MapRef | null>(null);
@@ -101,8 +102,8 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
         return value as FluxAssetManifest;
       });
     Promise.all([manifest, loadFluxGridPlacements(bounds as AssetPlacementBounds, controller.signal)])
-      .then(([manifest, placements]) => { if (!controller.signal.aborted) setAssetSource({ manifest, placements }); })
-      .catch(() => { if (!controller.signal.aborted) setAssetSource(null); });
+      .then(([manifest, placements]) => { if (!controller.signal.aborted) { setAssetError(null); setAssetSource({ manifest, placements }); } })
+      .catch((failure: unknown) => { if (!controller.signal.aborted) { setAssetSource(null); setAssetError(failure instanceof Error ? failure.message : "3D asset source request failed."); } });
     return () => controller.abort();
   }, [bounds]);
   // LOD changes reuse the retained manifest, placements and FluxAssetCache bytes.
@@ -111,8 +112,8 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
     const activeCache = cache.current;
     if (assetSource === null || activeCache === null) return () => controller.abort();
     loadFluxGroups(activeCache, assetSource.manifest, assetSource.placements, { zoom, mode: "accepted" })
-      .then((groups) => { if (!controller.signal.aborted) setAssets({ placements: assetSource.placements, groups }); })
-      .catch(() => { if (!controller.signal.aborted) setAssets(null); });
+      .then((groups) => { if (!controller.signal.aborted) { setAssetError(null); setAssets({ placements: assetSource.placements, groups }); } })
+      .catch((failure: unknown) => { if (!controller.signal.aborted) { setAssets(null); setAssetError(failure instanceof Error ? failure.message : "3D model preparation failed."); } });
     return () => controller.abort();
   }, [assetSource, lod]);
   const focusPlacement = useMemo(() => assetSource?.placements.find((placement) =>
@@ -141,6 +142,6 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
       onClick={() => focusPlacement && map.current?.flyTo({ center: [focusPlacement.position[0], focusPlacement.position[1]], zoom: 17, pitch: 50, essential: true })}>
       {focusPlacement === null ? "3D asset unavailable" : "View a 3D asset"}
     </button>
-    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
+    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : assetError ? `observed physical model placement unavailable: ${assetError}` : "observed physical model placements are loading."}</p>
   </section>;
 }
