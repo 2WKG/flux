@@ -1,4 +1,5 @@
 import { type ReactNode, useId, useRef, useState } from "react";
+import { SOURCE_STATUS_COPY, type SourceStatus, requiresDetail } from "../labels";
 import "./app-shell.css";
 
 /**
@@ -7,23 +8,30 @@ import "./app-shell.css";
  * each panel. That keeps it usable for the current synthetic static demo and
  * for a later, server-backed explorer without relabelling either one.
  */
-/** Frozen UI statuses; only the supplied artifact or server result may select one. */
-export type SourceStatus =
-  | "source_supported"
-  | "source_screened"
-  | "hypothetical"
-  | "synthetic"
-  | "unavailable"
-  | "request_failed";
+export type { SourceStatus };
 
-export interface ShellSourceLabel {
-  /** A server or fixture supplied classification; the shell never derives it. */
-  status: SourceStatus;
+interface ShellSourceLabelBase {
   /** Human-readable disclosure, for example "Synthetic fixture · no live API". */
   label: string;
-  /** Optional source, version, coverage, or caveat supplied by the caller. */
-  detail?: string;
 }
+
+/**
+ * The IA requires accompanying copy for `unavailable` (missing prerequisite and
+ * a named next step) and for `request_failed` (safe message and request ID), so
+ * `detail` is required for exactly those two statuses and optional otherwise.
+ */
+export type ShellSourceLabel =
+  | (ShellSourceLabelBase & {
+      /** A server or fixture supplied classification; the shell never derives it. */
+      status: Exclude<SourceStatus, "unavailable" | "request_failed">;
+      /** Optional source, version, coverage, or caveat supplied by the caller. */
+      detail?: string;
+    })
+  | (ShellSourceLabelBase & {
+      status: "unavailable" | "request_failed";
+      /** Required: the missing prerequisite and named next step, or the safe message and request ID. */
+      detail: string;
+    });
 
 export interface ShellSlots {
   /** The primary scene, map, static diagram, or explicit unavailable view. */
@@ -93,16 +101,6 @@ function CollapsiblePanel({ className, heading, children, defaultOpen = true }: 
   );
 }
 
-function sourceStatusCopy(status: SourceStatus): string {
-  return {
-    source_supported: "Source supported",
-    source_screened: "Source screened",
-    hypothetical: "Hypothetical",
-    synthetic: "Synthetic",
-    unavailable: "Unavailable",
-    request_failed: "Request failed",
-  }[status];
-}
 
 /** A keyboard-operable, responsive composition boundary for the future explorer. */
 export function AppShell({
@@ -115,6 +113,13 @@ export function AppShell({
   comparison,
   chat,
 }: AppShellProps) {
+  // A contract violation, not a display state: rendering "Unavailable" or
+  // "Request failed" without the IA's required accompanying copy would show a
+  // bare pill with no next step or request ID. Fail loudly instead.
+  if (requiresDetail(source.status) && !source.detail?.trim()) {
+    throw new Error(`source status "${source.status}" requires a detail: a named next step or request id`);
+  }
+
   return (
     <main className="flux-shell" data-source-status={source.status}>
       <header className="flux-shell__header">
@@ -122,8 +127,8 @@ export function AppShell({
           <p className="flux-shell__eyebrow">EXPLORER SHELL</p>
           <h1>{title}</h1>
         </div>
-        <div className="flux-shell__source" role="status" aria-label={`Data status: ${source.label}`}>
-          <span className="flux-shell__source-status">{sourceStatusCopy(source.status)}</span>
+        <div className="flux-shell__source" role="status">
+          <span className="flux-shell__source-status">{SOURCE_STATUS_COPY[source.status]}</span>
           <span>{source.label}</span>
           {source.detail && <small>{source.detail}</small>}
         </div>

@@ -114,7 +114,6 @@
 }
 .flux-shell__collapse:hover { background: var(--shell-panel-muted); }
 .flux-shell__panel-content { border-top: 1px solid var(--shell-line); padding: 12px; }
-.flux-shell__empty { color: var(--shell-muted); font-size: 0.86rem; line-height: 1.45; margin: 0; }
 
 @media (max-width: 1100px) {
   .flux-shell__grid {

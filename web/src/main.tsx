@@ -220,7 +220,7 @@ function CompareRail({ selected, onSelect }: { selected: Id; onSelect: (id: Id) 
   );
 }
 
-function App() {
+export function App() {
   const [selected, setSelected] = useState<Id>("baseline");
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
@@ -398,4 +398,7 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+// Guarded so the same module can be imported by a server-render test, which has
+// no document. In the browser the mount point is always present in index.html.
+const mountPoint = typeof document === "undefined" ? null : document.getElementById("root");
+if (mountPoint) createRoot(mountPoint).render(<App />);
