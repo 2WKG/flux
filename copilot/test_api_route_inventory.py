@@ -11,6 +11,7 @@ REGISTERED_MINNESOTA_SURFACE = frozenset(
         ("POST", "/site-score"),
         ("POST", "/compare"),
         ("GET", "/lines/top"),
+        ("GET", "/elements/critical"),
         ("GET", "/scenarios"),
         ("GET", "/scenarios/{scenario_id}"),
         ("GET", "/predictions"),
@@ -27,7 +28,6 @@ LEGACY_DOCUMENTED_BUT_ABSENT = frozenset(
     {
         ("POST", "/predict"),
         ("POST", "/cascade"),
-        ("GET", "/elements/critical"),
     }
 )
 
