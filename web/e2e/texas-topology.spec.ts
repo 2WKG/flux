@@ -15,16 +15,16 @@ function glb() {
 test("Texas map zoom control reaches lod2 and requests the visible model", async ({ page }) => {
   const model = glb();
   const digest = createHash("sha256").update(model).digest("hex");
-  const file = { path: "models/substation.glb", bytes: model.length, sha256: digest, triangles: 12 };
+  const file = { path: "models/transmission_line_segment.glb", bytes: model.length, sha256: digest, triangles: 12 };
   const glbRequests: string[] = [];
   await page.route("**/demo/model", (route) => route.fulfill({ json: { status: "available", data: { topology: { label: "synthetic (ACTIVSg2000)" }, counts: { buses: 2, branches: 1 }, elements: [
     { element_id: "bus:1", resolved: true, role: "bus", geometry: { type: "Point", coordinates: [-100, 30] } },
     { element_id: "bus:2", resolved: true, role: "bus", geometry: { type: "Point", coordinates: [-98, 32] } },
     { element_id: "line:1", resolved: true, role: "line", geometry: { type: "LineString", coordinates: [[-100, 30], [-98, 32]] } },
   ] } } }));
-  await page.route("**/assets/flux-grid/manifest.json", (route) => route.fulfill({ json: { contract_id: "flux:3d-asset-archetypes:v1", assets: [{ archetype_id: "substation", lods: { lod0: file, lod1: file, lod2: file } }] } }));
-  await page.route("**/api/v1/grid/asset-placements**", (route) => route.fulfill({ json: { items: [{ id: "placement:1", archetype_id: "substation", position: [-99, 31, 0], label: "Verified placement", artifact_id: "artifact:1", status: "source_supported", visual_mapping: "generic proxy" }] } }));
-  await page.route("**/assets/flux-grid/models/substation.glb", (route) => { glbRequests.push(route.request().url()); return route.fulfill({ body: model, contentType: "model/gltf-binary" }); });
+  await page.route("**/assets/flux-grid/manifest.json", (route) => route.fulfill({ json: { contract_id: "flux:3d-asset-archetypes:v1", assets: [{ archetype_id: "transmission_line_segment", lods: { lod0: file, lod1: file, lod2: file } }] } }));
+  await page.route("**/api/v1/grid/asset-placements**", (route) => route.fulfill({ json: { items: [{ id: "placement:1", archetype_id: "transmission_line_segment", position: [-99, 31, 0], label: "Verified placement", artifact_id: "artifact:1", status: "source_supported", visual_mapping: "source_kind" }] } }));
+  await page.route("**/assets/flux-grid/models/transmission_line_segment.glb", (route) => { glbRequests.push(route.request().url()); return route.fulfill({ body: model, contentType: "model/gltf-binary" }); });
 
   await page.goto("/");
   const map = page.getByLabel("Full synthetic Texas topology");
