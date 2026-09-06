@@ -240,7 +240,26 @@ def _build_mutating(
     return counts
 
 
-def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> dict:
+def _stored_state_scope(con, fallback_states=None) -> str:
+    """Return the canonical scope represented by the database's counties.
+
+    The release manifest describes the promoted database, rather than merely
+    the most recent loader invocation.  Context builds add counties to a
+    Texas store, so using their requested state alone would under-report the
+    published artifact.
+    """
+    states = [
+        row[0]
+        for row in con.execute(
+            "SELECT DISTINCT state FROM counties ORDER BY state"
+        ).fetchall()
+    ]
+    return scope(states if states else fallback_states).slug
+
+
+def _write_stage_manifest(
+    stage_db: Path, stage_parquet: Path, fallback_states=None
+) -> dict:
     """Describe the staged release before it is checked and promoted.
 
     The manifest is stored in the staged database and written next to the
@@ -248,7 +267,9 @@ def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> d
     """
     con = connect(stage_db)
     try:
-        manifest = build_manifest(con, state_scope=scope(states).slug)
+        manifest = build_manifest(
+            con, state_scope=_stored_state_scope(con, fallback_states)
+        )
         store_manifest(con, manifest)
     finally:
         con.close()

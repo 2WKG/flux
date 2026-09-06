@@ -1,0 +1,34 @@
+{
+  "manifest_version": "controls-candidate-manifest-v1",
+  "issue": "2WKG-472",
+  "plan_id": "controls-preselection-v1",
+  "selection_state": "starter_calendar_candidates_frozen_before_outage_lookup",
+  "records": [],
+  "record_schema": {
+    "control_id": "stable deterministic id from preselection-plan.yaml",
+    "cohort": "calendar_control | hazard_near_miss",
+    "candidate_status": "candidate | prioritized | accepted | excluded",
+    "selection_order": "integer produced before any outage lookup",
+    "stratum_key": "canonical serialization of declared matching variables",
+    "county_fips": "canonical catalog value",
+    "boundary_vintage": "canonical catalog value",
+    "window_start_utc": "UTC ISO-8601 inclusive start",
+    "window_end_utc": "UTC ISO-8601 exclusive end",
+    "primary_hazard": "ordinary_weather | matched hazard family",
+    "source_event_ids": "array; empty only for calendar controls",
+    "matched_event_id": "accepted hazard event id or null",
+    "parent_system_id": "source/canonical linkage or null",
+    "weather_receipt": "source URL/release/retrieval/hash record",
+    "weather_coverage_decision": "covered | unavailable | pending",
+    "outage_coverage_decision": "CoveredLabel | UncoveredLabel | pending",
+    "denominator_status": "available | unavailable | pending",
+    "selection_evidence": "preselection-plan.yaml ordering key inputs",
+    "exclusion_or_shortfall": "explicit string or null"
+  },
+  "invariants": [
+    "No outage value, outage threshold, or customer denominator participates in selection_order or candidate_status.",
+    "A missing EAGLE-I label is UncoveredLabel, never zero.",
+    "The manifest cannot call a row accepted before both weather and outage coverage decisions are evidenced.",
+    "Calendar controls and diagnostic hazard near misses remain separate cohorts."
+  ]
+}

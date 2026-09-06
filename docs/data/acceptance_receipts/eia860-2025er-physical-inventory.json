@@ -1,0 +1,47 @@
+{
+  "receipt_version": "1.0.0",
+  "checked_at": "2026-09-06T07:58:46Z",
+  "source": {
+    "raw_download_path": "data/raw/eia860/2025er/eia8602025ER.zip",
+    "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
+    "sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+    "raw_download_path_note": "data/raw/ is gitignored, so this path is a local working copy, not a committed file. The url and sha256 above are the authority: an independent download on 2026-09-06T07:43:27Z returned 23,285,571 bytes hashing to that sha256."
+  },
+  "artifacts": {
+    "tx": {
+      "path": "data/artifacts/physical_inventory/tx/eia860-2025er-physical-inventory-1.0.0.json",
+      "file_sha256": "0ce19e8622679dc4ada09d9f07170c4c31eaeaafd659255e9bb1e9f5df33cc38",
+      "artifact_id": "tx:physical-inventory:1.0.0",
+      "content_sha256": "2a4741058ccf4cce99cbc7e7f4ede0f695e738f66521a1d696d423e2afa70c90",
+      "asset_count": 4907,
+      "terminal_count": 0,
+      "connectivity_edge_count": 0,
+      "source_intake_path": "data/sources/ingest/eia860-2025er-tx-source-intake-v1.json.gz",
+      "source_intake_sha256": "5fce7cf3797e93a6bdb3e3c04e6f3e5245b8777aaa703ad278364fc0f3450b54"
+    },
+    "mn": {
+      "path": "data/artifacts/physical_inventory/mn/eia860-2025er-physical-inventory-1.0.0.json",
+      "file_sha256": "7e9fc88d6e5f676d6aac001a320108f22873eb0f2ea9b5d248bcbe8fa592db9a",
+      "artifact_id": "mn:physical-inventory:1.0.0",
+      "content_sha256": "d92fe0a639f1528b45a2a75231b2903f9f571a8211f5e6f6ec54072375104ded",
+      "asset_count": 2405,
+      "terminal_count": 0,
+      "connectivity_edge_count": 0,
+      "source_intake_path": "data/sources/ingest/eia860-2025er-mn-source-intake-v1.json.gz",
+      "source_intake_sha256": "adff7d0bccc3ad01e0a4ba78f8774b377ff9ceb044796e1f33a3252e1be9ad3b"
+    }
+  },
+  "validation": {
+    "contract_commit": "b7c57baeb8256ae209e3112c9022ffb08436d2a5",
+    "contract_commit_note": "The merge commit that landed PR #225 (2WKG-441) on master; it is an ancestor of this branch. It supersedes b4fc3e03ab6bf37315b769c9a66ec5f68e0413e1, which was a pre-rebase commit on the #225 branch and no longer exists there.",
+    "contract_version": "1.0.0",
+    "checks": [
+      "validate_artifact accepted each canonical JSON artifact",
+      "artifact content_sha256 matched artifact_sha256",
+      "write_artifact persisted each artifact in an empty DuckDB database",
+      "no source-backed terminals or connectivity edges were emitted"
+    ],
+    "checks_rerun_at": "2026-09-06T07:58:46Z",
+    "checks_result": "All four checks passed for tx and mn against contract_commit. The committed file_sha256, content_sha256, asset_count and source_intake_sha256 values above were each recomputed and matched, and build_physical_inventory_artifact re-derived both artifacts from the source archive bit-for-bit (built == committed)."
+  }
+}
