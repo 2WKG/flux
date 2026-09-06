@@ -4,4 +4,4 @@
  * `ExplainerPage` mounts `<CausalSection />` from this barrel. Nothing in this
  * directory imports the main scene.
  */
-export { CausalSection, CAUSAL_LAYER_STATUS } from "./CausalSection";
+export { CausalSection } from "./CausalSection";

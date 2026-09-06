@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { FailureState } from "../../failure-states/FailureState";
+import { STATUS_COPY } from "../../source-truth";
 import {
   assertModel,
   CAUSAL_EDGES,
@@ -16,15 +17,12 @@ import {
 } from "./causalToy";
 import { causalQuery, SECTION_EFFECT_REQUEST } from "./evidenceGate";
 
-/** The layer's status, written once and rendered wherever the section names it. */
-export const CAUSAL_LAYER_STATUS = "Implemented and evidence-gated";
-
 /**
  * Everything on this page's causal panels is computed from the illustrative
  * teaching model in `./causalToy.ts`. No number here is a fitted estimate, and
  * this string is attached to every figure that could be mistaken for one.
  */
-const ILLUSTRATIVE = "Illustrative";
+const TEACHING_MODEL = "synthetic teaching model";
 
 const NODE_LAYOUT: Readonly<Record<VariableId, { x: number; y: number }>> = {
   weather_severity: { x: 62, y: 34 },
@@ -82,7 +80,7 @@ function GraphDiagram({ selection, intervening }: { selection: Selection; interv
   return (
     <figure className="pipeline" style={{ display: "block" }}>
       <div>
-        <p className="eyebrow">2D STRUCTURAL DIAGRAM · {ILLUSTRATIVE.toUpperCase()}</p>
+        <p className="eyebrow">2D STRUCTURAL DIAGRAM · {STATUS_COPY.synthetic} teaching model</p>
         <h2>The graph is the assumption</h2>
         <p>
           Node and edge names follow spec 07&rsquo;s hand-drawn network. Amber edges leave{" "}
@@ -174,7 +172,7 @@ function ContrastPanel({ result, intervening }: { result: Contrast; intervening:
       </h2>
       <p>
         <strong style={{ fontSize: "1.8rem", color: "#edf5ff" }}>{percent(shown)}</strong>{" "}
-        <span>of counties at least 5% out · {ILLUSTRATIVE.toLowerCase()}</span>
+        <span>of counties at least 5% out · {TEACHING_MODEL}</span>
       </p>
       <table>
         <thead>
@@ -236,7 +234,7 @@ function MixPanel({ result }: { result: Contrast }) {
           ))}
         </tbody>
       </table>
-      <p>All shares are {ILLUSTRATIVE.toLowerCase()}, computed from the toy CPTs in this bundle.</p>
+      <p>All shares come from the {TEACHING_MODEL} CPTs in this bundle.</p>
     </article>
   );
 }
@@ -260,7 +258,7 @@ function EvidenceGate() {
     <article className="method-entry">
       <h2>What the real tool answers here</h2>
       <p>
-        This layer is <strong>{CAUSAL_LAYER_STATUS.toLowerCase()}</strong>. The fitted network,
+        This layer uses a <strong>{TEACHING_MODEL}</strong>. The fitted network,
         the difference-in-differences estimate and the counterfactual replay are produced offline
         and reach the copilot only through <code>copilot/tools/causal_query.py</code>, which reads
         deployment-registered artifacts and never estimates on demand.
@@ -340,9 +338,9 @@ export function CausalSection() {
   const interventionRisk = outageRisk(intervene(model.model, { [selection.variableId]: selection.state }));
 
   return (
-    <section aria-label="Causal layer" data-layer-status="implemented_evidence_gated">
+    <section aria-label="Causal layer" data-source-status="synthetic">
       <header className="shell-intro">
-        <p className="eyebrow">CAUSAL LAYER · {CAUSAL_LAYER_STATUS.toUpperCase()}</p>
+        <p className="eyebrow">CAUSAL LAYER · {STATUS_COPY.synthetic} teaching model</p>
         <h1>Two true sentences that are not the same claim.</h1>
         <p>
           &ldquo;Storms cause outages&rdquo; and &ldquo;under-invested areas have more
@@ -354,7 +352,7 @@ export function CausalSection() {
         </p>
         <p>
           Below, that structure is spec 07&rsquo;s graph, shrunk so every number is recomputable by
-          hand. Each figure is <strong>{ILLUSTRATIVE.toLowerCase()}</strong>: it comes from the toy
+          hand. Each figure comes from a <strong>{TEACHING_MODEL}</strong>: it comes from the toy
           conditional tables in this bundle, not from a fitted model, and not from{" "}
           <code>causal_query</code>.
         </p>
@@ -386,7 +384,7 @@ export function CausalSection() {
           <p>
             Across this whole toy population, {percent(baseline)} of county-windows reach at least
             5% of customers out. Every comparison below is against that, and every one of these
-            numbers is {ILLUSTRATIVE.toLowerCase()}.
+            numbers comes from the {TEACHING_MODEL}.
           </p>
         </article>
       </section>
@@ -429,7 +427,7 @@ export function CausalSection() {
           <p aria-live="polite">
             {intervening ? "Intervening on " : "Conditioning on "}
             {selectedVariable.label} = {selection.state}: {percent(intervening ? interventionRisk : result.observed)}{" "}
-            reach at least 5% out ({ILLUSTRATIVE.toLowerCase()}).
+            reach at least 5% out ({TEACHING_MODEL}).
           </p>
         </div>
       </section>
@@ -469,7 +467,7 @@ export function CausalSection() {
             </tbody>
           </table>
           <p>
-            All four columns are {ILLUSTRATIVE.toLowerCase()}. Read the pattern, not the level: two
+            All four columns come from the {TEACHING_MODEL}. Read the pattern, not the level: two
             claims survive the swap only because this graph declares their variable to have no
             causes, and the third does not survive it at all.
           </p>
