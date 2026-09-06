@@ -532,7 +532,9 @@ def bind_later_infrastructure(
 ) -> dict[str, Any]:
     """Bind the four later-infrastructure archetypes without inventing a site."""
     if request.get("format") != LATER_INFRASTRUCTURE_FORMAT:
-        raise AssetBindingError("later-infrastructure request has an unsupported format")
+        raise AssetBindingError(
+            "later-infrastructure request has an unsupported format"
+        )
     if request.get("contract_id") != CONTRACT_ID:
         raise AssetBindingError(
             "later-infrastructure request contract_id does not match the shared contract"
