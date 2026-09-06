@@ -1,544 +1,498 @@
-"""Build the ACTIVSg2000 synthetic pandapower network.
-
-The MATPOWER case is the electrical source of truth.  Geography is optional
-and is hydrated only from the already-validated, current-version ``buses``
-records produced by :mod:`pipelines.activsg`; no historic 2016 coordinate
-bundle is read here.
-"""
+"""Build a labelled pandapower DC network from the Flux DuckDB grid tables."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 import duckdb
+import numpy as np
 import pandapower as pp
-from pandapower.converter.matpower import from_mpc
+from pandapower.converter.pypower.from_ppc import from_ppc
 
-from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationUnavailableError
+from twin.contracts import (
+    SYNTHETIC_TOPOLOGY_LABEL,
+    SimulationInputError,
+    SimulationUnavailableError,
+)
 
-DEFAULT_CASE_RELATIVE_PATH = Path("data/raw/activsg2000_current/case_ACTIVSg2000.m")
-_BASE_NETWORK_CACHE: dict[tuple[str, str | None, int | None, int | None], Any] = {}
+_REQUIRED: dict[str, set[str]] = {
+    "buses": {"bus_id", "name", "base_kv", "lon", "lat", "county_fips"},
+    "lines": {
+        "line_id",
+        "from_bus",
+        "to_bus",
+        "base_kv",
+        "r_pu",
+        "x_pu",
+        "rate_a_mw",
+        "length_km",
+        "is_transformer",
+    },
+    "gens": {"gen_id", "bus_id", "fuel", "pmax_mw"},
+    "loads": {"load_id", "bus_id", "p_mw_nominal"},
+}
+_UNRATED_MVA = 100_000.0
 
 
-def default_case_path() -> Path:
-    """Return the conventional current case path or fail with an actionable error."""
-    path = Path.cwd() / DEFAULT_CASE_RELATIVE_PATH
-    if not path.is_file():
-        raise SimulationUnavailableError(
-            "ACTIVSg2000 MATPOWER case is unavailable; provide case_path explicitly or "
-            f"place the current case at {path}"
-        )
-    return path
+def build_network(db_path: str | Path) -> Any:
+    """Read the declared grid tables into a new synthetic pandapower network.
 
-
-def build_network(
-    case_path: str | Path | None = None,
-    *,
-    db_path: str | Path | None = None,
-    f_hz: int = 60,
-) -> Any:
-    """Import the current ACTIVSg2000 MATPOWER case through ``from_mpc``.
-
-    ``pandapower`` splits this case's 847 voltage-changing branches into
-    ``net.impedance``.  We preserve that representation because the cascade
-    loop explicitly monitors it.  The returned object has a synthetic label so
-    callers cannot mistake it for physical Texas inventory.
+    The source database is opened read-only.  Its numerical topology is
+    preserved as lines plus impedance branches for ``is_transformer`` rows;
+    no public-inventory connectivity is inferred.
     """
-    path = Path(case_path) if case_path is not None else default_case_path()
-    # The live Texas case remains the default.  The shared fixture contract
-    # also supplies synthetic electrical tables in DuckDB, which later policy
-    # layers use without requiring a downloaded MATPOWER artifact.
-    if db_path is None and path.suffix == ".duckdb":
-        return _build_network_from_duckdb(path)
-    if not path.is_file():
-        raise SimulationUnavailableError(f"MATPOWER case is unavailable: {path}")
-    try:
-        net = from_mpc(path, f_hz=f_hz)
-    except Exception as exc:  # converter errors differ by pandapower release
-        raise SimulationUnavailableError(
-            f"could not import MATPOWER case {path}: {exc}"
-        ) from exc
-
-    net["flux_topology"] = SYNTHETIC_TOPOLOGY_LABEL
-    net["flux_case_path"] = str(path)
-    _attach_element_ids(net)
-    if db_path is not None:
-        attach_current_bus_coordinates(net, db_path)
-    return net
-
-
-def _build_network_from_duckdb(path: Path) -> Any:
+    path = Path(db_path)
     if not path.is_file():
         raise SimulationUnavailableError(f"grid database unavailable: {path}")
     con = duckdb.connect(str(path), read_only=True)
     try:
-        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
-        required = {"buses", "lines", "gens", "loads"}
-        missing = sorted(required - tables)
-        if missing:
-            raise SimulationUnavailableError(
-                "grid database missing tables: " + ", ".join(missing)
-            )
+        _validate_schema(con)
         buses = con.execute(
             "SELECT bus_id, name, base_kv, lon, lat, county_fips FROM buses ORDER BY bus_id"
         ).fetchall()
         lines = con.execute(
             "SELECT line_id, from_bus, to_bus, base_kv, r_pu, x_pu, rate_a_mw, length_km, is_transformer FROM lines ORDER BY line_id"
         ).fetchall()
-        gens = con.execute(
+        generators = con.execute(
             "SELECT gen_id, bus_id, fuel, pmax_mw FROM gens ORDER BY gen_id"
         ).fetchall()
+        generator_dispatch = _generator_dispatch(con)
         loads = con.execute(
             "SELECT load_id, bus_id, p_mw_nominal FROM loads ORDER BY load_id"
         ).fetchall()
-        critical = (
-            con.execute(
-                "SELECT cl_id, kind, name, bus_id FROM critical_loads ORDER BY cl_id"
-            ).fetchall()
-            if "critical_loads" in tables
-            else []
-        )
+        critical = _critical_loads(con)
+        native = _native_ppc_data(con)
     finally:
         con.close()
     if not buses:
         raise SimulationUnavailableError("grid database has no bus records")
+    if native is not None:
+        return _build_native_network(
+            path, buses, lines, generators, loads, critical, native
+        )
+
     net = pp.create_empty_network(sn_mva=100.0, f_hz=60.0)
     net["flux_topology"] = SYNTHETIC_TOPOLOGY_LABEL
     net["flux_source_db"] = str(path.resolve())
-    net["flux_bus_index"], net["flux_element_lookup"], net["flux_bus_metadata"] = (
-        {},
-        {},
-        {},
-    )
-    net["flux_critical_loads"] = {}
-    for source_id, name, kv, lon, lat, county in buses:
+    net["flux_bus_index"] = {}
+    net["flux_element_lookup"] = {}
+    net["flux_bus_metadata"] = {}
+    net["flux_critical_loads"] = critical
+    for bus_id, name, base_kv, lon, lat, county in buses:
         index = pp.create_bus(
             net,
-            float(kv),
+            vn_kv=float(base_kv),
             name=str(name),
             geo=json.dumps({"type": "Point", "coordinates": [float(lon), float(lat)]}),
         )
-        net.flux_bus_index[int(source_id)] = int(index)
+        source_id = int(bus_id)
+        net.flux_bus_index[source_id] = int(index)
         net.flux_bus_metadata[int(index)] = {
-            "bus_id": int(source_id),
+            "bus_id": source_id,
             "county_fips": None if county is None else str(county),
         }
-    for line_id, first, second, kv, r_pu, x_pu, rate, length, transformer in lines:
-        source_id = int(line_id)
-        a, b = net.flux_bus_index[int(first)], net.flux_bus_index[int(second)]
-        rating = float(rate) if rate and float(rate) > 0 else 100_000.0
-        if transformer:
+
+    for (
+        line_id,
+        from_bus,
+        to_bus,
+        base_kv,
+        r_pu,
+        x_pu,
+        rate,
+        length,
+        is_transformer,
+    ) in lines:
+        first, second = _bus(net, from_bus), _bus(net, to_bus)
+        element_id = (
+            f"impedance:{int(line_id)}"
+            if bool(is_transformer)
+            else f"line:{int(line_id)}"
+        )
+        rating = _rating(rate)
+        if bool(is_transformer):
+            # DuckDB carries the source case's branch p.u. values on the
+            # network base.  pandapower's impedance table instead stores p.u.
+            # on each element's ``sn_mva`` base, matching from_ppc.
+            impedance_base = rating / float(net.sn_mva)
             index = pp.create_impedance(
                 net,
-                a,
-                b,
-                rft_pu=float(r_pu) * rating / 100,
-                xft_pu=float(x_pu) * rating / 100,
+                first,
+                second,
+                rft_pu=float(r_pu) * impedance_base,
+                xft_pu=float(x_pu) * impedance_base,
                 sn_mva=rating,
-                name=f"impedance:{source_id}",
+                name=element_id,
             )
-            table, element_id = "impedance", f"impedance:{source_id}"
+            table = "impedance"
         else:
-            km = max(float(length or 0), 1e-6)
-            zbase = float(kv) ** 2 / 100
+            kv = float(base_kv)
+            km = max(float(length or 0.0), 1e-6)
+            z_base_ohm = kv * kv / float(net.sn_mva)
+            max_i_ka = rating / (3**0.5 * kv)
             index = pp.create_line_from_parameters(
                 net,
-                a,
-                b,
+                first,
+                second,
                 km,
-                float(r_pu) * zbase / km,
-                float(x_pu) * zbase / km,
+                float(r_pu) * z_base_ohm / km,
+                float(x_pu) * z_base_ohm / km,
                 0.0,
-                rating / (3**0.5 * float(kv)),
-                name=f"line:{source_id}",
+                max_i_ka,
+                name=element_id,
             )
-            table, element_id = "line", f"line:{source_id}"
+            table = "line"
         net[table].at[index, "flux_element_id"] = element_id
+        net[table].at[index, "flux_source_line_id"] = int(line_id)
         net.flux_element_lookup[element_id] = (table, int(index))
-    for pos, (gen_id, bus_id, fuel, pmax) in enumerate(gens):
+
+    # The first declared generator is the reference bus.  When the ingest has
+    # preserved the native MATPOWER dispatch, keep every remaining generator's
+    # scheduled injection as well: otherwise the lone reference would have to
+    # supply the whole system and fabricate an immediate overload cascade.
+    # Minimal/test databases legitimately omit the optional electrical table;
+    # their non-reference generators retain the prior zero schedule.
+    for position, (gen_id, bus_id, fuel, pmax) in enumerate(generators):
+        bus = _bus(net, bus_id)
         element_id = f"generator:{int(gen_id)}"
-        bus = net.flux_bus_index[int(bus_id)]
-        if pos == 0:
-            index = pp.create_ext_grid(net, bus, name=element_id)
+        scheduled_p, in_service = generator_dispatch.get(int(gen_id), (0.0, True))
+        if position == 0:
+            index = pp.create_ext_grid(net, bus, name=element_id, in_service=in_service)
             table = "ext_grid"
         else:
             index = pp.create_gen(
-                net, bus, p_mw=0.0, vm_pu=1.0, max_p_mw=float(pmax), name=element_id
+                net,
+                bus,
+                p_mw=scheduled_p,
+                vm_pu=1.0,
+                max_p_mw=float(pmax),
+                min_p_mw=0.0,
+                name=element_id,
+                in_service=in_service,
             )
             table = "gen"
         net[table].at[index, "flux_element_id"] = element_id
-        net[table].at[index, "pmax_mw"] = float(pmax)
         net[table].at[index, "fuel"] = str(fuel)
+        net[table].at[index, "pmax_mw"] = float(pmax)
         net.flux_element_lookup[element_id] = (table, int(index))
     for load_id, bus_id, demand in loads:
         element_id = f"load:{int(load_id)}"
         index = pp.create_load(
-            net,
-            net.flux_bus_index[int(bus_id)],
-            p_mw=float(demand),
-            q_mvar=0.0,
-            name=element_id,
+            net, _bus(net, bus_id), p_mw=float(demand), q_mvar=0.0, name=element_id
         )
         net.load.at[index, "flux_element_id"] = element_id
         net.load.at[index, "flux_nominal_p_mw"] = float(demand)
         net.flux_element_lookup[element_id] = ("load", int(index))
-    for cl_id, kind, name, bus_id in critical:
-        if bus_id is not None:
-            net.flux_critical_loads.setdefault(int(bus_id), []).append(
-                {"cl_id": str(cl_id), "kind": str(kind), "name": str(name)}
-            )
+    net["flux_input_sha256"] = _network_hash(buses, lines, generators, loads)
     return net
 
 
-def cached_base_network(
-    case_path: str | Path | None = None,
-    *,
-    db_path: str | Path | None = None,
-    f_hz: int = 60,
-) -> Any:
-    """Keep one immutable-process baseline for fast callers that deepcopy it.
-
-    This function is internal-facing by convention: callers must never mutate
-    the returned network.  :func:`twin.cascade.run_cascade` immediately deep
-    copies it before applying any scenario edit.  File mtimes form the cache
-    key, so replacing the case or coordinate DB produces a new base network.
-    """
-    case = Path(case_path) if case_path is not None else default_case_path()
-    db = Path(db_path) if db_path is not None else None
-    if not case.is_file():
-        raise SimulationUnavailableError(f"MATPOWER case is unavailable: {case}")
-    if db is not None and not db.is_file():
-        raise SimulationUnavailableError(f"coordinate database is unavailable: {db}")
-    key = (
-        str(case.resolve()),
-        str(db.resolve()) if db is not None else None,
-        case.stat().st_mtime_ns,
-        db.stat().st_mtime_ns if db is not None else None,
-    )
-    if key not in _BASE_NETWORK_CACHE:
-        _BASE_NETWORK_CACHE.clear()
-        _BASE_NETWORK_CACHE[key] = build_network(case, db_path=db, f_hz=f_hz)
-    return _BASE_NETWORK_CACHE[key]
-
-
-def _attach_element_ids(net: Any) -> None:
-    """Retain original MATPOWER branch and generator positions as stable ids."""
-    branch_lookup = net.get("_from_ppc_lookups", {}).get("branch")
-    if branch_lookup is not None:
-        for source_index, row in branch_lookup.iterrows():
-            element_type = str(row["element_type"])
-            element = int(row["element"])
-            if element_type == "line":
-                net.line.loc[element, "flux_element_id"] = (
-                    f"line:{int(source_index) + 1}"
-                )
-            elif element_type == "impedance":
-                net.impedance.loc[element, "flux_element_id"] = (
-                    f"impedance:{int(source_index) + 1}"
-                )
-    if "flux_element_id" not in net.line:
-        net.line["flux_element_id"] = [f"line:{index + 1}" for index in net.line.index]
-    if "flux_element_id" not in net.impedance:
-        net.impedance["flux_element_id"] = [
-            f"impedance:{index + 1}" for index in net.impedance.index
-        ]
-    gen_lookup = net.get("_from_ppc_lookups", {}).get("gen")
-    if gen_lookup is not None:
-        for source_index, row in gen_lookup.iterrows():
-            element_type = str(row["element_type"])
-            element = int(row["element"])
-            source_id = int(source_index) + 1
-            if element_type in {"gen", "sgen"}:
-                net[element_type].loc[element, "flux_element_id"] = (
-                    f"generator:{source_id}"
-                )
-            elif element_type == "ext_grid":
-                net.ext_grid.loc[element, "flux_element_id"] = f"slack:{source_id}"
-    if "flux_element_id" not in net.gen:
-        net.gen["flux_element_id"] = [
-            f"generator:{index + 1}" for index in net.gen.index
-        ]
-    if "flux_element_id" not in net.sgen:
-        net.sgen["flux_element_id"] = [
-            f"generator:{index + 1}" for index in net.sgen.index
-        ]
-    if "flux_element_id" not in net.ext_grid:
-        net.ext_grid["flux_element_id"] = [
-            f"slack:{index + 1}" for index in net.ext_grid.index
-        ]
-    net.load["flux_element_id"] = [f"load:{index + 1}" for index in net.load.index]
-
-
-def attach_current_bus_coordinates(net: Any, db_path: str | Path) -> None:
-    """Attach only validated current AUX coordinates from the ingest database.
-
-    The ingest path validates ``ACTIVSg2000.aux`` against the MATPOWER IDs and
-    nominal voltages before writing ``coord_source='tamu_aux'``.  A partial or
-    differently sourced table is rejected rather than silently mixing the old
-    June-2016 bus numbering into the current electrical model.
-    """
-    path = Path(db_path)
-    if not path.is_file():
-        raise SimulationUnavailableError(f"coordinate database is unavailable: {path}")
-    con = duckdb.connect(str(path), read_only=True)
-    try:
-        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
-        if "buses" not in tables:
-            raise SimulationUnavailableError("coordinate database has no buses table")
-        columns = {
-            row[1] for row in con.execute("PRAGMA table_info('buses')").fetchall()
-        }
-        required_columns = {"bus_id", "name", "base_kv", "lon", "lat", "coord_source"}
-        if not required_columns.issubset(columns):
-            raise SimulationUnavailableError(
-                "coordinate database buses table lacks the current AUX mapping columns"
-            )
-        frame = con.execute(
-            "SELECT bus_id, name, base_kv, lon, lat, coord_source FROM buses "
-            "WHERE coord_source = 'tamu_aux' ORDER BY bus_id"
-        ).fetchdf()
-    finally:
-        con.close()
-    if frame.empty:
-        raise SimulationUnavailableError(
-            "current AUX coordinates are unavailable in buses; refusing non-current coordinates"
-        )
-    if frame.bus_id.duplicated().any() or frame.name.duplicated().any():
-        raise SimulationUnavailableError(
-            "current AUX coordinate records contain duplicate bus_id or name values"
-        )
-    required = {str(value) for value in net.bus.name}
-    actual = {str(value) for value in frame.name}
-    if actual != required:
-        raise SimulationUnavailableError(
-            "current AUX coordinate names do not exactly match imported MATPOWER buses"
-        )
-    by_name = frame.set_index("name")
-    mismatched = [
-        bus_id
-        for bus_id in net.bus.index
-        if abs(
-            float(net.bus.at[bus_id, "vn_kv"])
-            - float(by_name.at[str(net.bus.at[bus_id, "name"]), "base_kv"])
-        )
-        > 1e-4
-    ]
-    if mismatched:
-        raise SimulationUnavailableError(
-            "current AUX nominal voltages do not match imported MATPOWER buses"
-        )
-    net.bus["flux_source_bus_id"] = [
-        int(by_name.at[str(net.bus.at[bus_id, "name"]), "bus_id"])
-        for bus_id in net.bus.index
-    ]
-    net.bus.loc[:, "geo"] = [
-        json.dumps(
-            {
-                "type": "Point",
-                "coordinates": [
-                    float(by_name.at[str(net.bus.at[bus_id, "name"]), "lon"]),
-                    float(by_name.at[str(net.bus.at[bus_id, "name"]), "lat"]),
-                ],
-            }
-        )
-        for bus_id in net.bus.index
-    ]
-    net["flux_coordinate_source"] = "tamu_aux"
-
-
-def network_summary(net: Any) -> dict[str, int | str]:
-    """A small, explicit adapter summary useful to build and health callers."""
+def network_summary(net: Any) -> dict[str, Any]:
+    """Return counts and honest source labels for a built network."""
     return {
         "topology": str(net.get("flux_topology", SYNTHETIC_TOPOLOGY_LABEL)),
         "buses": len(net.bus),
         "lines": len(net.line),
         "impedance_branches": len(net.impedance),
+        "generators": len(net.gen) + len(net.sgen) + len(net.ext_grid),
         "loads": len(net.load),
-        "generators": len(net.gen),
+        "input_sha256": net.get("flux_input_sha256"),
     }
 
 
-def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, Any]:
-    """Resolve synthetic model elements to current-AUX geometry, never inventory.
-
-    ``net`` must have been built with ``db_path`` so its bus points were
-    validated through the current AUX ingest records.  Unknown IDs and missing
-    coordinates are returned as explicit unresolved elements instead of a map
-    guess.  IDs remain model/MATPOWER identities, never physical assets.
-    """
-    if "flux_coordinate_source" not in net or "flux_source_bus_id" not in net.bus:
+def _validate_schema(con: duckdb.DuckDBPyConnection) -> None:
+    tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    missing_tables = sorted(set(_REQUIRED) - tables)
+    if missing_tables:
         raise SimulationUnavailableError(
-            "model geometry requires build_network(..., db_path=<validated current AUX database>)"
+            "grid database missing tables: " + ", ".join(missing_tables)
         )
-    all_elements: dict[str, tuple[str, int]] = {}
-    for table in ("line", "impedance", "gen", "sgen", "ext_grid", "load"):
-        if "flux_element_id" not in net[table]:
-            raise SimulationUnavailableError(
-                "model geometry requires flux element identifiers"
-            )
-        for index, element_id in net[table].flux_element_id.items():
-            all_elements[str(element_id)] = (table, int(index))
-    selected = (
-        sorted(all_elements)
-        if element_ids is None
-        else [str(value) for value in element_ids]
-    )
-    elements: list[dict[str, Any]] = []
-    for requested_element_id in selected:
-        element_id, record = _resolve_geometry_element(
-            net, all_elements, requested_element_id
+    missing: list[str] = []
+    for table, required in _REQUIRED.items():
+        columns = {
+            row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()
+        }
+        missing.extend(f"{table}.{column}" for column in sorted(required - columns))
+    if missing:
+        raise SimulationUnavailableError(
+            "grid database missing fields: " + ", ".join(missing)
         )
-        if record is None:
-            elements.append(
-                {
-                    "element_id": requested_element_id,
-                    "resolved": False,
-                    "reason": "unknown synthetic model element",
-                }
-            )
-            continue
-        table, index = record
-        frame = net[table]
-        if table in {"line", "impedance"}:
-            from_bus, to_bus = (
-                int(frame.at[index, "from_bus"]),
-                int(frame.at[index, "to_bus"]),
-            )
-            first, second = _bus_point(net, from_bus), _bus_point(net, to_bus)
-            if first is None or second is None:
-                elements.append(
-                    {
-                        "element_id": element_id,
-                        "resolved": False,
-                        "reason": "current AUX point unavailable",
-                    }
-                )
-                continue
-            geometry: dict[str, Any] = {
-                "type": "LineString",
-                "coordinates": [first, second],
-            }
-            coordinates: dict[str, Any] = {
-                "from": {"lon": first[0], "lat": first[1]},
-                "to": {"lon": second[0], "lat": second[1]},
-            }
-            source_bus_ids = [
-                int(net.bus.at[from_bus, "flux_source_bus_id"]),
-                int(net.bus.at[to_bus, "flux_source_bus_id"]),
-            ]
-        else:
-            bus = int(frame.at[index, "bus"])
-            point = _bus_point(net, bus)
-            if point is None:
-                elements.append(
-                    {
-                        "element_id": element_id,
-                        "resolved": False,
-                        "reason": "current AUX point unavailable",
-                    }
-                )
-                continue
-            geometry = {"type": "Point", "coordinates": point}
-            coordinates = {"lon": point[0], "lat": point[1]}
-            source_bus_ids = [int(net.bus.at[bus, "flux_source_bus_id"])]
-        elements.append(
-            {
-                "element_id": element_id,
-                **(
-                    {"requested_element_id": requested_element_id}
-                    if requested_element_id != element_id
-                    else {}
-                ),
-                "resolved": True,
-                "role": {
-                    "line": "line",
-                    "impedance": "impedance_branch",
-                    "gen": "generator",
-                    "sgen": "static_generator",
-                    "ext_grid": "grid_forming_slack",
-                    "load": "load",
-                }[table],
-                "pandapower_index": index,
-                "source_id": element_id,
-                "source_bus_ids": source_bus_ids,
-                "coordinates": coordinates,
-                "geometry": geometry,
-                "provenance": {
-                    "topology": SYNTHETIC_TOPOLOGY_LABEL,
-                    "coordinate_source": "tamu_aux",
-                },
-            }
+
+
+def _critical_loads(
+    con: duckdb.DuckDBPyConnection,
+) -> dict[int, tuple[dict[str, str], ...]]:
+    if "critical_loads" not in {
+        row[0] for row in con.execute("SHOW TABLES").fetchall()
+    }:
+        return {}
+    columns = {
+        row[1] for row in con.execute("PRAGMA table_info('critical_loads')").fetchall()
+    }
+    required = {"cl_id", "kind", "name", "bus_id"}
+    if not required.issubset(columns):
+        return {}
+    result: dict[int, list[dict[str, str]]] = {}
+    for cl_id, kind, name, bus_id in con.execute(
+        "SELECT cl_id, kind, name, bus_id FROM critical_loads WHERE bus_id IS NOT NULL ORDER BY cl_id"
+    ).fetchall():
+        result.setdefault(int(bus_id), []).append(
+            {"cl_id": str(cl_id), "kind": str(kind), "name": str(name)}
         )
-    unresolved = [element for element in elements if not element["resolved"]]
+    return {key: tuple(value) for key, value in result.items()}
+
+
+def _generator_dispatch(
+    con: duckdb.DuckDBPyConnection,
+) -> dict[int, tuple[float, bool]]:
+    """Return source dispatch when the optional native electrical table exists."""
+    if "synthetic_generator_electrical" not in {
+        row[0] for row in con.execute("SHOW TABLES").fetchall()
+    }:
+        return {}
+    columns = {
+        row[1]
+        for row in con.execute(
+            "PRAGMA table_info('synthetic_generator_electrical')"
+        ).fetchall()
+    }
+    if not {"gen_id", "p_mw", "status"}.issubset(columns):
+        return {}
     return {
-        "status": "partial" if unresolved else "available",
-        **(
-            {"reason": "one or more requested synthetic elements could not be resolved"}
-            if unresolved
-            else {}
-        ),
-        "data": {
-            "topology": {
-                "label": SYNTHETIC_TOPOLOGY_LABEL,
-                "synthetic": True,
-                "solver": "pandapower.rundcpp",
-            },
-            "elements": elements,
-            "capabilities": {"selected_component_failure": True},
-            "provenance": {
-                "coordinate_source": "tamu_aux",
-                "mapping": "pandapower/MATPOWER element ids with current AUX bus coordinates",
-                "physical_inventory_equivalence": False,
-            },
+        int(gen_id): (float(p_mw), bool(status))
+        for gen_id, p_mw, status in con.execute(
+            "SELECT gen_id, p_mw, status FROM synthetic_generator_electrical"
+        ).fetchall()
+    }
+
+
+def _native_ppc_data(
+    con: duckdb.DuckDBPyConnection,
+) -> dict[str, dict[int, tuple[Any, ...]]] | None:
+    """Read the optional electrical side tables needed to reproduce the source case."""
+    required = {
+        "synthetic_bus_electrical": {
+            "bus_id",
+            "bus_type",
+            "pd_mw",
+            "qd_mvar",
+            "gs_mw",
+            "bs_mvar",
+            "vm_pu",
+            "va_deg",
+            "vmin_pu",
+            "vmax_pu",
+        },
+        "synthetic_branch_electrical": {
+            "line_id",
+            "b_pu",
+            "tap_ratio",
+            "shift_deg",
+            "status",
+        },
+        "synthetic_generator_electrical": {
+            "gen_id",
+            "p_mw",
+            "q_mvar",
+            "qmax_mvar",
+            "qmin_mvar",
+            "pmin_mw",
+            "status",
+        },
+    }
+    tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    if not set(required).issubset(tables):
+        return None
+    for table, columns in required.items():
+        available = {
+            row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()
+        }
+        if not columns.issubset(available):
+            return None
+    return {
+        "bus": {
+            int(row[0]): row[1:]
+            for row in con.execute(
+                "SELECT bus_id, bus_type, pd_mw, qd_mvar, gs_mw, bs_mvar, vm_pu, va_deg, vmin_pu, vmax_pu FROM synthetic_bus_electrical"
+            ).fetchall()
+        },
+        "branch": {
+            int(row[0]): row[1:]
+            for row in con.execute(
+                "SELECT line_id, b_pu, tap_ratio, shift_deg, status FROM synthetic_branch_electrical"
+            ).fetchall()
+        },
+        "gen": {
+            int(row[0]): row[1:]
+            for row in con.execute(
+                "SELECT gen_id, p_mw, q_mvar, qmax_mvar, qmin_mvar, pmin_mw, status FROM synthetic_generator_electrical"
+            ).fetchall()
         },
     }
 
 
-def _resolve_geometry_element(
-    net: Any,
-    all_elements: dict[str, tuple[str, int]],
-    requested_element_id: str,
-) -> tuple[str, tuple[str, int] | None]:
-    """Resolve the same one-based table aliases accepted by ``run_cascade``."""
-    if requested_element_id in all_elements:
-        return requested_element_id, all_elements[requested_element_id]
-    prefix, separator, raw_index = requested_element_id.partition(":")
-    table = {
-        "line": "line",
-        "impedance": "impedance",
-        "gen": "gen",
-        "sgen": "sgen",
-        "slack": "ext_grid",
-        "load": "load",
-    }.get(prefix)
-    if not separator or table is None:
-        return requested_element_id, None
+def _build_native_network(
+    path: Path,
+    buses: list[tuple[Any, ...]],
+    lines: list[tuple[Any, ...]],
+    generators: list[tuple[Any, ...]],
+    loads: list[tuple[Any, ...]],
+    critical: dict[int, tuple[dict[str, str], ...]],
+    native: dict[str, dict[int, tuple[Any, ...]]],
+) -> Any:
+    """Build through pandapower's MATPOWER converter from DuckDB-held source arrays."""
     try:
-        index = int(raw_index) - 1
-    except ValueError:
-        return requested_element_id, None
-    if index not in net[table].index:
-        return requested_element_id, None
-    canonical = str(net[table].at[index, "flux_element_id"])
-    return canonical, (table, index)
+        bus = np.zeros((len(buses), 13), dtype=float)
+        for index, (bus_id, name, base_kv, lon, lat, county) in enumerate(buses):
+            kind, pd_mw, qd_mvar, gs_mw, bs_mvar, vm_pu, va_deg, vmin_pu, vmax_pu = (
+                native["bus"][int(bus_id)]
+            )
+            bus[index] = (
+                bus_id,
+                kind,
+                pd_mw,
+                qd_mvar,
+                gs_mw,
+                bs_mvar,
+                0.0,
+                vm_pu,
+                va_deg,
+                base_kv,
+                0.0,
+                vmax_pu,
+                vmin_pu,
+            )
+        branch = np.zeros((len(lines), 13), dtype=float)
+        for index, (
+            line_id,
+            from_bus,
+            to_bus,
+            base_kv,
+            r_pu,
+            x_pu,
+            rate,
+            length,
+            is_transformer,
+        ) in enumerate(lines):
+            b_pu, tap_ratio, shift_deg, status = native["branch"][int(line_id)]
+            branch[index] = (
+                from_bus,
+                to_bus,
+                r_pu,
+                x_pu,
+                b_pu,
+                rate,
+                0.0,
+                0.0,
+                tap_ratio,
+                shift_deg,
+                status,
+                0.0,
+                0.0,
+            )
+        gen = np.zeros((len(generators), 21), dtype=float)
+        for index, (gen_id, bus_id, fuel, pmax) in enumerate(generators):
+            p_mw, q_mvar, qmax_mvar, qmin_mvar, pmin_mw, status = native["gen"][
+                int(gen_id)
+            ]
+            gen[index, :10] = (
+                bus_id,
+                p_mw,
+                q_mvar,
+                qmax_mvar,
+                qmin_mvar,
+                1.0,
+                100.0,
+                status,
+                pmax,
+                pmin_mw,
+            )
+    except KeyError as exc:
+        raise SimulationUnavailableError(
+            f"native electrical data missing source id {exc.args[0]}"
+        ) from exc
+    net = from_ppc(
+        {
+            "version": "2",
+            "baseMVA": 100.0,
+            "bus": bus,
+            "gen": gen,
+            "branch": branch,
+            "bus_name": np.array([name for _, name, *_ in buses]),
+        },
+        f_hz=60,
+    )
+    net["flux_topology"] = SYNTHETIC_TOPOLOGY_LABEL
+    net["flux_source_db"] = str(path.resolve())
+    net["flux_bus_index"] = {}
+    net["flux_element_lookup"] = {}
+    net["flux_bus_metadata"] = {}
+    net["flux_critical_loads"] = critical
+    for bus_id, name, base_kv, lon, lat, county in buses:
+        source_id = int(bus_id)
+        net.bus.at[source_id, "geo"] = json.dumps(
+            {"type": "Point", "coordinates": [float(lon), float(lat)]}
+        )
+        net.flux_bus_index[source_id] = source_id
+        net.flux_bus_metadata[source_id] = {
+            "bus_id": source_id,
+            "county_fips": None if county is None else str(county),
+        }
+    branch_lookup = net._from_ppc_lookups["branch"]
+    for offset, (line_id, *_) in enumerate(lines):
+        table = str(branch_lookup.at[offset, "element_type"])
+        index = int(branch_lookup.at[offset, "element"])
+        element_id = (
+            f"impedance:{int(line_id)}"
+            if table == "impedance"
+            else f"line:{int(line_id)}"
+        )
+        net[table].at[index, "flux_element_id"] = element_id
+        net[table].at[index, "flux_source_line_id"] = int(line_id)
+        net.flux_element_lookup[element_id] = (table, index)
+    generator_lookup = net._from_ppc_lookups["gen"]
+    for offset, (gen_id, bus_id, fuel, pmax) in enumerate(generators):
+        table = str(generator_lookup.at[offset, "element_type"])
+        index = int(generator_lookup.at[offset, "element"])
+        element_id = f"generator:{int(gen_id)}"
+        net[table].at[index, "flux_element_id"] = element_id
+        net[table].at[index, "fuel"] = str(fuel)
+        net[table].at[index, "pmax_mw"] = float(pmax)
+        net.flux_element_lookup[element_id] = (table, index)
+    available_loads: dict[int, list[int]] = {}
+    for index, row in net.load.iterrows():
+        available_loads.setdefault(int(row.bus), []).append(int(index))
+    for load_id, bus_id, demand in loads:
+        try:
+            index = available_loads[int(bus_id)].pop(0)
+        except (KeyError, IndexError) as exc:
+            raise SimulationUnavailableError(
+                f"native conversion missing load at bus_id {bus_id}"
+            ) from exc
+        element_id = f"load:{int(load_id)}"
+        net.load.at[index, "flux_element_id"] = element_id
+        net.load.at[index, "flux_nominal_p_mw"] = float(demand)
+        net.flux_element_lookup[element_id] = ("load", index)
+    net["flux_input_sha256"] = _network_hash(buses, lines, generators, loads)
+    return net
 
 
-def _bus_point(net: Any, bus_id: int) -> list[float] | None:
-    raw = net.bus.at[bus_id, "geo"]
-    if not isinstance(raw, str):
-        return None
+def _bus(net: Any, source_id: int) -> int:
     try:
-        point = json.loads(raw)
-        coordinates = point["coordinates"]
-        if point.get("type") != "Point" or len(coordinates) != 2:
-            return None
-        return [float(coordinates[0]), float(coordinates[1])]
-    except (TypeError, ValueError, KeyError):
-        return None
+        return int(net.flux_bus_index[int(source_id)])
+    except KeyError as exc:
+        raise SimulationInputError(
+            f"grid row references unknown bus_id {source_id}"
+        ) from exc
 
 
-if __name__ == "__main__":
-    net = build_network()
-    print(network_summary(net))
+def _rating(value: float | None) -> float:
+    return _UNRATED_MVA if value is None or float(value) <= 0 else float(value)
+
+
+def _network_hash(*frames: object) -> str:
+    encoded = json.dumps(frames, default=str, separators=(",", ":"), ensure_ascii=True)
+    return hashlib.sha256(encoded.encode()).hexdigest()
