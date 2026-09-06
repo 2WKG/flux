@@ -248,6 +248,21 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         label["outage_rate"],
         label["positive"],
     )
+    observations = label.get("denominator_observations")
+    if observations is not None:
+        if not isinstance(observations, dict) or observations.get("status") not in {
+            "constant",
+            "dynamic",
+            "unavailable",
+        }:
+            raise ValidationError(f"{where}.denominator_observations: invalid status")
+        if observations["status"] == "dynamic" and (
+            status != "unavailable"
+            or label.get("unavailability_reason") != "dynamic_denominator_unsupported"
+        ):
+            raise ValidationError(
+                f"{where}: dynamic denominators require unavailable scalar label"
+            )
     if outage_coverage == "UncoveredLabel" and status != "UncoveredLabel":
         raise ValidationError(
             f"{where}: EAGLE-I gap requires label.status=UncoveredLabel"

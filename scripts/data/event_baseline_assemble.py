@@ -57,7 +57,7 @@ FIELDS = [
 
 
 def catalog_rows(events_dir: Path) -> list[dict[str, object]]:
-    paths = event_bundle_paths(events_dir)
+    paths = sorted(events_dir.glob("*/*.json"))
     if not paths:
         raise ValidationError(f"{events_dir}: no event bundle JSON files found")
     rows: list[dict[str, object]] = []
@@ -142,24 +142,6 @@ def catalog_rows(events_dir: Path) -> list[dict[str, object]]:
             str(row["window_start_utc"]),
         ),
     )
-
-
-def event_bundle_paths(events_dir: Path) -> list[Path]:
-    """Return declared event bundles while ignoring control-planning JSON artifacts."""
-    paths: list[Path] = []
-    for path in sorted(events_dir.glob("*/*.json")):
-        try:
-            payload = json.loads(path.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
-            raise ValidationError(f"{path}: cannot read JSON: {exc}") from exc
-        if not isinstance(payload, dict):
-            continue
-        declares_bundle = (
-            "schema_version" in payload or "event" in payload or "records" in payload
-        )
-        if declares_bundle:
-            paths.append(path)
-    return paths
 
 
 def json_list(value: object) -> str:

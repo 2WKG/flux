@@ -681,6 +681,55 @@
           },
           "additionalProperties": false
         },
+        "denominator_observations": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "status",
+            "present_rows",
+            "missing_rows",
+            "min",
+            "max"
+          ],
+          "properties": {
+            "status": {
+              "enum": [
+                "constant",
+                "dynamic",
+                "unavailable"
+              ]
+            },
+            "present_rows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing_rows": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "min": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "max": {
+              "type": [
+                "number",
+                "null"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "unavailability_reason": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "outage_rate": {
           "type": [
             "number",
