@@ -44,7 +44,8 @@ has no DuckDB file.
 # Recommended morning command: real staged runtime store through the local API
 # and same-origin web proxy. It starts API :8031 and web :4317.
 scripts/dev/launch_demo.sh --live \
-  --duckdb /Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb
+  --duckdb /Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb \
+  --case /Users/joshua/buckeye-swarm/flux/data/raw/activsg2000_current/case_ACTIVSg2000.m
 
 # Stop only the processes this invocation recorded.
 scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --stop
@@ -55,14 +56,17 @@ scripts/dev/launch_demo.sh --offline
 
 The live command uses the staged runtime-store inputs already represented by
 the database and the checked-in physical-inventory release pack at
-`data/artifacts/physical_inventory`. It does not fabricate a prediction or
-cascade artifact: those remain explicitly unavailable until their producers
-have persisted them. Model/provider credentials are neither required nor read
-by this launcher.
+`data/artifacts/physical_inventory`. `--case` supplies the local current
+ACTIVSg2000 MATPOWER source used only for the labeled synthetic Texas DC model and
+cascade routes; it is never copied or generated. Historical JEPA trajectories
+and a persisted Texas cascade appear only when their verified artifacts are in
+the database. Model/provider credentials are neither required nor read by this
+launcher.
 
-`--live` exports `DUCKDB_PATH` only to the local FastAPI process and sets
+`--live` exports `DUCKDB_PATH` and, when given, `FLUX_CASE_PATH` only to the
+local FastAPI process and sets
 `FLUX_API_ORIGIN=http://127.0.0.1:8031` only for the web process. It refuses a
-missing or unreadable database, treats a non-200 `/health` response as a failed
+missing or unreadable database or supplied case, treats a non-200 `/health` response as a failed
 live launch, and checks that the same-origin `/layers/buses` proxy returns a
 JSON response. A `503` JSON response from that proxy may describe a named
 unavailable layer; it is not represented as a successful data claim.
@@ -83,6 +87,7 @@ only after the live command has passed its checks:
 ```bash
 scripts/dev/launch_demo.sh --live \
   --duckdb /Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb \
+  --case /Users/joshua/buckeye-swarm/flux/data/raw/activsg2000_current/case_ACTIVSg2000.m \
   --persist
 ```
 

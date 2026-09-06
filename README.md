@@ -1,18 +1,39 @@
-# Flux — grid resilience data product
+# Flux — grid resilience demo
 
-Flux compares resilience scenarios on a synthetic fixture today and is structured for state-scoped, source-backed data ingestion. A selected state needs its own validated source artifacts and configuration; the current fixture does not represent any state. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
+Flux is a local, evidence-labeled Texas and Minnesota energy demo. The Texas
+model mode uses a synthetic ACTIVSg2000 DC screening network; physical inventory
+and Minnesota aggregate coverage are separate views and do not imply a complete
+Minnesota electrical topology.
 
-## Run the desk
+## Run the full local demo
 
-```powershell
-python model/generate_demo.py
-npm --prefix web install
-npm --prefix web run dev
+From the repository root on the prepared demo machine:
+
+```bash
+scripts/dev/launch_demo.sh --live \
+  --duckdb /Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb \
+  --case /Users/joshua/buckeye-swarm/flux/data/raw/activsg2000_current/case_ACTIVSg2000.m
 ```
 
-Full start/stop/smoke steps for the desk and the optional API, verified against master, are in [`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
+Open <http://127.0.0.1:4317>. Use **Asset inventory** for source-backed Texas
+and Minnesota assets, and **Texas grid model** for the explicitly synthetic
+DC cascade. Weather history comes from persisted HRRR artifacts. JEPA timelines
+are experimental historical observed-count forecasts and show their lineage or
+an explicit unavailable state. Ask responses expose their local tool trace and
+limitations.
 
-Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request. `web/server.mjs` exposes **no API route**: 2WKG-300 (`db53a83`) deleted `GET /api/demo` along with its scenario selection and failure envelope, and the static origin now returns the SPA shell for every path — `/api/demo` answers `200 text/html` with a body byte-identical to `/`. The Copilot API is a separate FastAPI service ([`docs/specs/05-copilot.md`](docs/specs/05-copilot.md)). Ingestion jobs can validate and publish the same versioned contract without changing the client.
+Stop this invocation with:
+
+```bash
+scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --stop
+```
+
+For a labeled user LaunchAgent that survives terminal exit, add `--persist` to
+the live command; remove it with `scripts/dev/launch_demo.sh --remove-persist`.
+The complete startup, recovery, and evidence references are in
+[`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md),
+[`docs/data/runtime-store.md`](docs/data/runtime-store.md), and
+[`docs/specs/11-interactive-simulation.md`](docs/specs/11-interactive-simulation.md).
 
 ## Repository context
 

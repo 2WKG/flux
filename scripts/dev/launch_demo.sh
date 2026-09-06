@@ -11,7 +11,7 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/dev/launch_demo.sh [--offline | --live --duckdb PATH]
+  scripts/dev/launch_demo.sh [--offline | --live --duckdb PATH [--case PATH]]
                              [--api-port PORT] [--web-port PORT]
                              [--run-dir PATH] [--skip-install] [--stop]
                              [--persist | --remove-persist]
@@ -22,6 +22,9 @@ Modes:
   --live --duckdb PATH      Require an existing readable DuckDB file, start the
                             local API and same-origin web proxy, then verify
                             health and an allowlisted proxy response.
+  --case PATH               Read a current ACTIVSg2000 RAW case for the optional
+                            synthetic Texas model and cascade routes. Required
+                            with --persist; it is never copied or generated.
   --persist                 Install and start the explicit macOS user LaunchAgent
                             `com.fluxdemo.local` for a live launch. It owns only
                             the selected Flux API and web ports.
@@ -36,6 +39,7 @@ EOF
 
 mode="offline"
 duckdb_path=""
+case_path=""
 api_port=8031
 web_port=4317
 run_dir="${TMPDIR:-/tmp}/flux-demo-launch-${USER:-user}"
@@ -49,6 +53,7 @@ while (($#)); do
     --offline) mode="offline" ;;
     --live) mode="live" ;;
     --duckdb) duckdb_path="${2:?--duckdb requires a path}"; shift ;;
+    --case) case_path="${2:?--case requires a path}"; shift ;;
     --api-port) api_port="${2:?--api-port requires a number}"; shift ;;
     --web-port) web_port="${2:?--web-port requires a number}"; shift ;;
     --run-dir) run_dir="${2:?--run-dir requires a path}"; shift ;;
@@ -70,11 +75,15 @@ if ((persist && remove_persist)); then
   exit 2
 fi
 if ((persist)) && [[ "$mode" != "live" ]]; then
-  echo "--persist requires --live --duckdb PATH." >&2
+  echo "--persist requires --live --duckdb PATH --case PATH." >&2
   exit 2
 fi
 if [[ "$mode" == "offline" && -n "$duckdb_path" ]]; then
   echo "--duckdb is only valid with --live." >&2
+  exit 2
+fi
+if [[ "$mode" == "offline" && -n "$case_path" ]]; then
+  echo "--case is only valid with --live." >&2
   exit 2
 fi
 if [[ "$mode" == "live" && -z "$duckdb_path" ]]; then
@@ -83,6 +92,14 @@ if [[ "$mode" == "live" && -z "$duckdb_path" ]]; then
 fi
 if [[ "$mode" == "live" && (! -f "$duckdb_path" || ! -r "$duckdb_path") ]]; then
   echo "Live database is not a readable file: $duckdb_path" >&2
+  exit 2
+fi
+if [[ "$mode" == "live" && -n "$case_path" && (! -f "$case_path" || ! -r "$case_path") ]]; then
+  echo "Synthetic case is not a readable file: $case_path" >&2
+  exit 2
+fi
+if ((persist)) && [[ -z "$case_path" ]]; then
+  echo "--persist requires --case PATH so the durable demo can serve its labeled Texas model." >&2
   exit 2
 fi
 
@@ -133,6 +150,7 @@ install_persistent_service() {
   <key>KeepAlive</key><dict><key>SuccessfulExit</key><false/></dict>
   <key>EnvironmentVariables</key><dict>
     <key>FLUX_DEMO_DUCKDB_PATH</key><string>$duckdb_path</string>
+    <key>FLUX_DEMO_CASE_PATH</key><string>$case_path</string>
     <key>FLUX_DEMO_API_PORT</key><string>$api_port</string>
     <key>FLUX_DEMO_WEB_PORT</key><string>$web_port</string>
     <key>FLUX_DEMO_LOG_DIR</key><string>$launch_logs_dir</string>
@@ -213,7 +231,7 @@ trap cleanup_on_exit EXIT
 if [[ "$mode" == "live" ]]; then
   (
     cd "$repo"
-    DUCKDB_PATH="$duckdb_path" uv run uvicorn copilot.demo_app:app --host 127.0.0.1 --port "$api_port"
+    DUCKDB_PATH="$duckdb_path" FLUX_CASE_PATH="$case_path" uv run uvicorn copilot.demo_app:app --host 127.0.0.1 --port "$api_port"
   ) >"$run_dir/api.log" 2>&1 &
   echo $! >"$api_pid_file"
   wait_for_http "http://127.0.0.1:$api_port/health" || {

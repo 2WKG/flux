@@ -4,6 +4,7 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 duckdb_path="${FLUX_DEMO_DUCKDB_PATH:?missing FLUX_DEMO_DUCKDB_PATH}"
+case_path="${FLUX_DEMO_CASE_PATH:?missing FLUX_DEMO_CASE_PATH}"
 api_port="${FLUX_DEMO_API_PORT:-8031}"
 web_port="${FLUX_DEMO_WEB_PORT:-4317}"
 log_dir="${FLUX_DEMO_LOG_DIR:?missing FLUX_DEMO_LOG_DIR}"
@@ -13,6 +14,10 @@ mkdir -p "$log_dir"
 
 if [[ ! -r "$duckdb_path" ]]; then
   echo "Flux demo database is not readable: $duckdb_path" >&2
+  exit 1
+fi
+if [[ ! -r "$case_path" ]]; then
+  echo "Flux synthetic case is not readable: $case_path" >&2
   exit 1
 fi
 
@@ -27,7 +32,7 @@ trap stop_children EXIT INT TERM
 
 (
   cd "$repo"
-  DUCKDB_PATH="$duckdb_path" "$uv_bin" run uvicorn copilot.demo_app:app --host 127.0.0.1 --port "$api_port"
+  DUCKDB_PATH="$duckdb_path" FLUX_CASE_PATH="$case_path" "$uv_bin" run uvicorn copilot.demo_app:app --host 127.0.0.1 --port "$api_port"
 ) >>"$log_dir/api.log" 2>&1 &
 api_pid=$!
 echo "$api_pid" >"$log_dir/api.pid"
