@@ -23,7 +23,8 @@
     "selection_basis": "NWS Chicago separates non-thunderstorm wind gusts from the convective line in a Midwest low-pressure system.",
     "uncertainties": [
       "Outside initial Minnesota focus; retained only as an unaccepted expansion candidate."
-    ]
+    ],
+    "source_event_ids": []
   },
   "source_receipts": [
     {
@@ -63,7 +64,10 @@
         "notes": "No retained HRRR receipt.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
       },
       "outage": {
         "coverage": "UncoveredLabel",
@@ -71,7 +75,10 @@
         "notes": "No EAGLE-I result retained; not zero.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
       },
       "matched_coverage_decision": "unavailable",
       "label": {
