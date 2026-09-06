@@ -87,24 +87,29 @@ test("each status carries the exact glyph name the IA visual-treatment column na
     unavailable: "blocked",
     request_failed: "error",
   });
-  // And the names are actually in the IA table rows they claim (225-230).
+  // And the names are actually in the IA table rows that carry these UI labels.
+  // Rows are located by their "UI label" cell, never by line number: an unrelated
+  // edit elsewhere in the IA must not red this test, and a genuinely missing row must.
   const ia = readFileSync(fileURLToPath(new URL("../docs/design/minnesota-demo-narrative-ia.md", webRoot)), "utf8")
     .split("\n");
   const rows = {
-    source_supported: 225,
-    source_screened: 226,
-    hypothetical: 227,
-    synthetic: 228,
-    unavailable: 229,
-    request_failed: 230,
+    source_supported: "Source-supported",
+    source_screened: "Source-screened",
+    hypothetical: "Hypothetical",
+    synthetic: "Synthetic",
+    unavailable: "Unavailable",
+    request_failed: "Request failed",
   };
-  for (const [status, line] of Object.entries(rows)) {
-    const treatment = ia[line - 1].split("|")[3];
-    const expected = STATUS_GLYPHS[status].replace("-", "[ -]");
+  for (const [status, uiLabel] of Object.entries(rows)) {
+    const row = ia.find((line) => line.startsWith("|") && line.split("|")[1]?.trim() === uiLabel);
+    assert.ok(row, `IA row for the "${uiLabel}" UI label not found in minnesota-demo-narrative-ia.md`);
+    const treatment = row.split("|")[3];
+    assert.ok(treatment, `IA row for "${uiLabel}" has no visual-treatment cell`);
+    const expected = STATUS_GLYPHS[status].replaceAll("-", "[ -]");
     assert.match(
       treatment,
-      new RegExp(expected),
-      `${status}: glyph "${STATUS_GLYPHS[status]}" must appear in the IA visual treatment at line ${line}`,
+      new RegExp(`(?:^|\\s)${expected}`),
+      `${status}: glyph "${STATUS_GLYPHS[status]}" must appear in the IA visual treatment for "${uiLabel}"`,
     );
   }
 });
