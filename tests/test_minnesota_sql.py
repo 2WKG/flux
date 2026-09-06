@@ -37,9 +37,11 @@ def db_path(tmp_path: Path) -> Path:
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE accepted_rows (id INTEGER, label TEXT)")
+        con.execute("CREATE TABLE secret_rows (id INTEGER, label TEXT)")
         con.execute(
             "INSERT INTO accepted_rows SELECT range, 'row-' || range::VARCHAR FROM range(205)"
         )
+        con.execute("INSERT INTO secret_rows VALUES (1, 'not-approved')")
         con.execute("CREATE VIEW mn_summary AS SELECT * FROM accepted_rows")
     finally:
         con.close()
@@ -125,6 +127,48 @@ def test_rejects_non_view_relations_table_functions_and_catalog_access(
     assert result.status == "unavailable"
     assert result.unavailable is not None
     assert result.unavailable.code == "unsupported_request"
+
+
+@pytest.mark.parametrize(
+    "query",
+    [
+        "SELECT ((SELECT label FROM secret_rows LIMIT 1)) AS leaked FROM mn_summary",
+        "SELECT coalesce((SELECT label FROM secret_rows LIMIT 1), label) FROM mn_summary",
+        "SELECT CASE WHEN EXISTS (SELECT 1 FROM secret_rows) THEN label END FROM mn_summary",
+        "SELECT sum((SELECT id FROM secret_rows LIMIT 1)) FROM mn_summary",
+        "SELECT * FROM mn_summary WHERE id = (1 * (SELECT id FROM secret_rows LIMIT 1))",
+        "SELECT * FROM mn_summary WHERE id IN ((SELECT id FROM secret_rows))",
+        "WITH safe AS (SELECT * FROM mn_summary), leaked AS (SELECT * FROM secret_rows) SELECT * FROM safe",
+        "WITH mn_summary AS (SELECT * FROM secret_rows) SELECT * FROM mn_summary",
+        "WITH secret_rows AS (SELECT * FROM secret_rows) SELECT s.label FROM secret_rows s CROSS JOIN mn_summary",
+        "SELECT label FROM secret_rows WHERE EXISTS (WITH secret_rows AS (SELECT * FROM mn_summary) SELECT 1 FROM secret_rows) LIMIT 1",
+        "SELECT * FROM mn_summary UNION ALL SELECT * FROM secret_rows",
+        "SELECT * FROM mn_summary m JOIN (SELECT * FROM secret_rows) s USING (id)",
+        "SELECT id FROM mn_summary GROUP BY id HAVING id = (SELECT id FROM secret_rows LIMIT 1)",
+        "SELECT * FROM mn_summary ORDER BY (SELECT id FROM secret_rows LIMIT 1)",
+    ],
+)
+def test_rejects_unapproved_relations_at_every_ast_depth(
+    db_path: Path, query: str
+) -> None:
+    result = _execute(MinnesotaSqlExecutor(db_path, [_view()]), query)
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.code == "unsupported_request"
+    assert "rows" not in result.model_dump()
+
+
+def test_accepts_nested_subqueries_over_approved_view_and_cte(db_path: Path) -> None:
+    result = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()]),
+        "WITH selected AS (SELECT id FROM mn_summary) "
+        "SELECT ((SELECT max(id) FROM selected)) AS approved_id FROM selected LIMIT 1",
+    )
+
+    assert result.status == "available"
+    assert result.rows == [[204]]
+    assert result.provenance[0].artifact_id == "mn:fixture:0123456789abcdef"
 
 
 def test_empty_accepted_view_is_unavailable(tmp_path: Path) -> None:
@@ -300,4 +344,5 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
     assert connect_kwargs["config"] == {
         "autoinstall_known_extensions": "false",
         "autoload_known_extensions": "false",
+        "enable_external_access": "false",
     }

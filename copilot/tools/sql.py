@@ -37,30 +37,6 @@ _FETCH_LIMIT = ROW_LIMIT + 1
 DEFAULT_TIMEOUT_SECONDS = 5.0
 _CLEANUP_SECONDS = 1.0
 
-_FORBIDDEN_TOKENS = frozenset(
-    {
-        "alter",
-        "attach",
-        "call",
-        "copy",
-        "create",
-        "delete",
-        "detach",
-        "drop",
-        "export",
-        "import",
-        "insert",
-        "install",
-        "load",
-        "merge",
-        "pragma",
-        "prepare",
-        "set",
-        "transaction",
-        "update",
-        "vacuum",
-    }
-)
 _FORBIDDEN_FUNCTIONS = frozenset(
     {
         "current_database",
@@ -97,12 +73,6 @@ class SqlRejected(ValueError):
 
 
 @dataclass(frozen=True)
-class _Token:
-    kind: str
-    value: str
-
-
-@dataclass(frozen=True)
 class ApprovedMinnesotaView:
     """A deployment-owned, evidence-bearing local view available to SQL reads."""
 
@@ -126,346 +96,145 @@ def _is_safe_view_name(value: str) -> bool:
     )
 
 
-def _tokens(sql: str) -> list[_Token]:
-    """Tokenize SQL while discarding comments and preserving quoted literals.
+def _serialized_statement(query: str) -> tuple[str, list[object]]:
+    """Ask DuckDB to parse and normalize one statement without binding it."""
 
-    DuckDB remains the statement parser.  This small lexer is solely for the
-    relation/function policy, so strings and comments cannot spoof a keyword
-    check and quoted identifiers remain identifiers rather than raw text.
-    """
-
-    result: list[_Token] = []
-    index = 0
-    size = len(sql)
-    while index < size:
-        character = sql[index]
-        if character.isspace():
-            index += 1
-        elif sql.startswith("--", index):
-            newline = sql.find("\n", index + 2)
-            index = size if newline == -1 else newline + 1
-        elif sql.startswith("/*", index):
-            depth = 1
-            index += 2
-            while index < size and depth:
-                if sql.startswith("/*", index):
-                    depth += 1
-                    index += 2
-                elif sql.startswith("*/", index):
-                    depth -= 1
-                    index += 2
-                else:
-                    index += 1
-            if depth:
-                raise SqlRejected("unterminated block comment")
-        elif character == "'":
-            index += 1
-            closed = False
-            while index < size:
-                if sql[index] == "'":
-                    if index + 1 < size and sql[index + 1] == "'":
-                        index += 2
-                    else:
-                        index += 1
-                        closed = True
-                        break
-                else:
-                    index += 1
-            if not closed:
-                raise SqlRejected("unterminated string literal")
-            result.append(_Token("literal", ""))
-        elif character == '"':
-            index += 1
-            content: list[str] = []
-            while index < size:
-                if sql[index] == '"':
-                    if index + 1 < size and sql[index + 1] == '"':
-                        content.append('"')
-                        index += 2
-                    else:
-                        index += 1
-                        break
-                else:
-                    content.append(sql[index])
-                    index += 1
-            else:
-                raise SqlRejected("unterminated quoted identifier")
-            result.append(_Token("quoted_identifier", "".join(content).lower()))
-        elif character.isalpha() or character == "_":
-            end = index + 1
-            while end < size and (sql[end].isalnum() or sql[end] in "_$"):
-                end += 1
-            result.append(_Token("identifier", sql[index:end].lower()))
-            index = end
-        elif character.isdigit():
-            end = index + 1
-            while end < size and (sql[end].isalnum() or sql[end] in "._"):
-                end += 1
-            result.append(_Token("literal", ""))
-            index = end
-        else:
-            result.append(_Token("symbol", character))
-            index += 1
-    return result
-
-
-def _matching_paren(tokens: list[_Token], start: int) -> int:
-    depth = 0
-    for index in range(start, len(tokens)):
-        if tokens[index].value == "(":
-            depth += 1
-        elif tokens[index].value == ")":
-            depth -= 1
-            if depth == 0:
-                return index
-    raise SqlRejected("unbalanced parentheses")
-
-
-def _looks_like_cte(tokens: list[_Token], index: int) -> bool:
-    if index >= len(tokens) or tokens[index].kind not in {
-        "identifier",
-        "quoted_identifier",
-    }:
-        return False
-    index += 1
-    if index < len(tokens) and tokens[index].value == "(":
-        index = _matching_paren(tokens, index) + 1
-    return index < len(tokens) and tokens[index].value == "as"
-
-
-def _validate_functions(tokens: list[_Token]) -> None:
-    for name in _function_calls(tokens):
-        if name in _FORBIDDEN_FUNCTIONS or name.startswith(
-            _FORBIDDEN_FUNCTION_PREFIXES
-        ):
-            raise SqlRejected(f"function {name!r} is not permitted")
-
-
-def _function_calls(tokens: list[_Token]) -> set[str]:
-    """Return unquoted call names for the post-parse macro policy."""
-
-    return {
-        token.value
-        for index, token in enumerate(tokens[:-1])
-        if token.kind in {"identifier", "quoted_identifier"}
-        and tokens[index + 1].value == "("
-    }
-
-
-def _parse_source(
-    tokens: list[_Token],
-    index: int,
-    ctes: set[str],
-    allowed_views: set[str],
-    relations: set[str],
-) -> int:
-    if index < len(tokens) and tokens[index].value in {"lateral", "only", "table"}:
-        raise SqlRejected("only direct approved local views may appear in FROM or JOIN")
-    if index >= len(tokens):
-        raise SqlRejected("FROM or JOIN is missing a relation")
-    if tokens[index].value == "(":
-        end = _matching_paren(tokens, index)
-        _validate_query_tokens(
-            tokens[index + 1 : end], ctes.copy(), allowed_views, relations
-        )
-        return end + 1
-    if tokens[index].kind not in {"identifier", "quoted_identifier"}:
-        raise SqlRejected("FROM or JOIN must name an approved local view")
-    name = tokens[index].value
-    index += 1
-    if index < len(tokens) and tokens[index].value == ".":
-        raise SqlRejected("schema-qualified relations are not permitted")
-    if index < len(tokens) and tokens[index].value == "(":
-        raise SqlRejected("table functions and macros are not permitted")
-    if name in ctes:
-        return index
-    if name not in allowed_views:
-        raise SqlRejected(f"relation {name!r} is not an approved Minnesota view")
-    relations.add(name)
-    return index
-
-
-_FROM_END = frozenset(
-    {
-        "where",
-        "group",
-        "having",
-        "order",
-        "limit",
-        "offset",
-        "qualify",
-        "window",
-        "union",
-        "except",
-        "intersect",
-        "returning",
-    }
-)
-
-
-def _validate_query_tokens(
-    tokens: list[_Token], ctes: set[str], allowed_views: set[str], relations: set[str]
-) -> None:
-    if not tokens:
-        raise SqlRejected("query is empty")
-    start = 0
-    if tokens[0].value == "with":
-        start = 1
-        if start < len(tokens) and tokens[start].value == "recursive":
-            start += 1
-        while _looks_like_cte(tokens, start):
-            alias = tokens[start].value
-            ctes.add(alias)
-            start += 1
-            if start < len(tokens) and tokens[start].value == "(":
-                start = _matching_paren(tokens, start) + 1
-            if start >= len(tokens) or tokens[start].value != "as":
-                raise SqlRejected("CTE is missing AS")
-            start += 1
-            if start >= len(tokens) or tokens[start].value != "(":
-                raise SqlRejected("CTE is missing its query")
-            end = _matching_paren(tokens, start)
-            _validate_query_tokens(
-                tokens[start + 1 : end], ctes.copy(), allowed_views, relations
-            )
-            start = end + 1
-            if (
-                start < len(tokens)
-                and tokens[start].value == ","
-                and _looks_like_cte(tokens, start + 1)
-            ):
-                start += 1
-                continue
-            break
-    if start >= len(tokens) or tokens[start].value != "select":
-        raise SqlRejected("only SELECT or WITH ... SELECT statements are permitted")
-
-    index = start
-    while index < len(tokens):
-        if tokens[index].value == "(":
-            end = _matching_paren(tokens, index)
-            if index + 1 < end and tokens[index + 1].value in {"select", "with"}:
-                _validate_query_tokens(
-                    tokens[index + 1 : end], ctes.copy(), allowed_views, relations
-                )
-            index = end + 1
-            continue
-        if tokens[index].value in {"from", "join"}:
-            index = _parse_source(tokens, index + 1, ctes, allowed_views, relations)
-            while index < len(tokens):
-                value = tokens[index].value
-                if value in _FROM_END:
-                    break
-                if value == "join" or value == ",":
-                    index = _parse_source(
-                        tokens, index + 1, ctes, allowed_views, relations
-                    )
-                elif value == "(":
-                    # A parenthesized expression in an ON clause may contain a
-                    # scalar subquery; validate it before skipping it.
-                    end = _matching_paren(tokens, index)
-                    if index + 1 < end and tokens[index + 1].value in {
-                        "select",
-                        "with",
-                    }:
-                        _validate_query_tokens(
-                            tokens[index + 1 : end],
-                            ctes.copy(),
-                            allowed_views,
-                            relations,
-                        )
-                    index = end + 1
-                else:
-                    index += 1
-            continue
-        index += 1
-
-
-def _validate_statement(
-    query: str, allowed_views: set[str]
-) -> tuple[str, set[str], set[str]]:
-    tokens = _tokens(query)
-    semicolons = [index for index, token in enumerate(tokens) if token.value == ";"]
-    if len(semicolons) > 1 or (semicolons and semicolons[0] != len(tokens) - 1):
-        raise SqlRejected("only one optional trailing semicolon is permitted")
-    if semicolons:
-        tokens.pop()
-    if not tokens:
-        raise SqlRejected("query is empty")
-    if tokens[0].value not in {"select", "with"}:
-        raise SqlRejected("only SELECT or WITH ... SELECT statements are permitted")
-    forbidden = next(
-        (
-            token.value
-            for token in tokens
-            if token.kind == "identifier" and token.value in _FORBIDDEN_TOKENS
-        ),
-        None,
-    )
-    if forbidden:
-        raise SqlRejected(f"keyword {forbidden!r} is not permitted")
-    _validate_functions(tokens)
     try:
         statements = duckdb.extract_statements(query)
     except duckdb.ParserException as error:
         raise SqlRejected("query is not valid DuckDB SQL") from error
     if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
         raise SqlRejected("only one SELECT statement is permitted")
-    if statements[0].named_parameters or any(token.value == "?" for token in tokens):
+    if statements[0].named_parameters:
         raise SqlRejected(
             "SQL parameters are not available in the fixed query-only tool contract"
         )
+    try:
+        serialized = duckdb.sql(
+            "SELECT json_serialize_sql(?)", params=[statements[0].query]
+        ).fetchone()[0]
+        sql = duckdb.sql(
+            "SELECT json_deserialize_sql(?)", params=[serialized]
+        ).fetchone()[0]
+    except (duckdb.Error, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise SqlRejected("query is not valid DuckDB SQL") from error
+    try:
+        document = json.loads(serialized)
+        statement_nodes = document["statements"]
+    except (KeyError, TypeError, json.JSONDecodeError) as error:
+        raise SqlRejected("query parser result is unavailable") from error
+    if document.get("error") or not isinstance(statement_nodes, list):
+        raise SqlRejected("query is not valid DuckDB SQL")
+    return str(sql), statement_nodes
+
+
+def _validate_statement(
+    query: str, allowed_views: set[str]
+) -> tuple[str, set[str], set[str]]:
+    sql, nodes = _serialized_statement(query)
     relations: set[str] = set()
-    _validate_query_tokens(tokens, set(), allowed_views, relations)
+    function_calls: set[str] = set()
+
+    def validate_relation(node: object, ctes: set[str]) -> None:
+        if not isinstance(node, dict):
+            raise SqlRejected("query contains an invalid relation")
+        node_type = node.get("type")
+        if node_type == "BASE_TABLE":
+            if node.get("catalog_name") or node.get("schema_name"):
+                raise SqlRejected("schema-qualified relations are not permitted")
+            name = str(node.get("table_name", "")).lower()
+            if name not in ctes:
+                if name not in allowed_views:
+                    raise SqlRejected(
+                        f"relation {name!r} is not an approved Minnesota view"
+                    )
+                relations.add(name)
+            return
+        if node_type == "JOIN":
+            if "left" not in node or "right" not in node:
+                raise SqlRejected("query contains an invalid join")
+            validate_relation(node["left"], ctes)
+            validate_relation(node["right"], ctes)
+            for key, child in node.items():
+                if key not in {"left", "right"}:
+                    validate(child, ctes)
+            return
+        if node_type == "SUBQUERY":
+            if "subquery" not in node:
+                raise SqlRejected("query contains an invalid subquery relation")
+            validate(node["subquery"], ctes)
+            return
+        if node_type == "EMPTY":
+            return
+        if node_type == "TABLE_FUNCTION":
+            raise SqlRejected("table functions and macros are not permitted")
+        raise SqlRejected(f"relation node {node_type!r} is not permitted")
+
+    def validate_select(node: dict[str, object], outer_ctes: set[str]) -> None:
+        cte_map = node.get("cte_map")
+        entries = cte_map.get("map") if isinstance(cte_map, dict) else None
+        if not isinstance(entries, list):
+            raise SqlRejected("query contains an invalid CTE map")
+        visible_ctes = outer_ctes.copy()
+        for entry in entries:
+            if not isinstance(entry, dict) or not isinstance(entry.get("key"), str):
+                raise SqlRejected("query contains an invalid CTE")
+            value = entry.get("value")
+            if not isinstance(value, dict) or "query" not in value:
+                raise SqlRejected("query contains an invalid CTE")
+            # A CTE can use outer and preceding CTEs; adding its own name only
+            # afterwards preserves lexical scope and rejects recursive CTEs.
+            validate(value["query"], visible_ctes)
+            visible_ctes.add(entry["key"].lower())
+        for key, child in node.items():
+            if key == "cte_map":
+                continue
+            if key == "from_table":
+                validate_relation(child, visible_ctes)
+            else:
+                validate(child, visible_ctes)
+
+    def validate(node: object, ctes: set[str]) -> None:
+        if isinstance(node, list):
+            for child in node:
+                validate(child, ctes)
+            return
+        if not isinstance(node, dict):
+            return
+        node_type = node.get("type")
+        if node_type == "SELECT_NODE":
+            validate_select(node, ctes)
+            return
+        if node_type == "RECURSIVE_CTE_NODE":
+            raise SqlRejected("recursive CTEs are not permitted")
+        if (
+            "class" not in node
+            and isinstance(node_type, str)
+            and node_type in {
+            "BASE_TABLE",
+            "JOIN",
+            "SUBQUERY",
+            "TABLE_FUNCTION",
+            "EMPTY",
+            }
+        ):
+            raise SqlRejected("query contains a relation outside FROM or JOIN")
+        if node.get("class") == "FUNCTION":
+            name = str(node.get("function_name", "")).lower()
+            if not name:
+                raise SqlRejected("unnamed function is not permitted")
+            if name in _FORBIDDEN_FUNCTIONS or name.startswith(
+                _FORBIDDEN_FUNCTION_PREFIXES
+            ):
+                raise SqlRejected(f"function {name!r} is not permitted")
+            function_calls.add(name)
+        for child in node.values():
+            validate(child, ctes)
+
+    validate(nodes, set())
     if not relations:
         raise SqlRejected("query must read at least one approved Minnesota view")
-    return (
-        _remove_trailing_terminator(statements[0].query),
-        relations,
-        _function_calls(tokens),
-    )
-
-
-def _remove_trailing_terminator(query: str) -> str:
-    """Remove the one validated terminator without touching literal semicolons."""
-
-    index = 0
-    while index < len(query):
-        if query.startswith("--", index):
-            newline = query.find("\n", index + 2)
-            index = len(query) if newline == -1 else newline + 1
-        elif query.startswith("/*", index):
-            end = query.find("*/", index + 2)
-            if end == -1:
-                raise SqlRejected("unterminated block comment")
-            index = end + 2
-        elif query[index] == "'":
-            index += 1
-            while index < len(query):
-                if query[index] == "'":
-                    if index + 1 < len(query) and query[index + 1] == "'":
-                        index += 2
-                        continue
-                    else:
-                        index += 1
-                        break
-                index += 1
-        elif query[index] == '"':
-            index += 1
-            while index < len(query):
-                if query[index] == '"':
-                    if index + 1 < len(query) and query[index + 1] == '"':
-                        index += 2
-                        continue
-                    else:
-                        index += 1
-                        break
-                index += 1
-        elif query[index] == ";":
-            return query[:index].rstrip()
-        else:
-            index += 1
-    return query.rstrip()
+    return sql, relations, function_calls
 
 
 def _quote_identifier(name: str) -> str:
@@ -617,6 +386,7 @@ class MinnesotaSqlExecutor:
                 config={
                     "autoinstall_known_extensions": "false",
                     "autoload_known_extensions": "false",
+                    "enable_external_access": "false",
                 },
             )
         except Exception:  # noqa: BLE001 - driver errors must not expose local paths.
