@@ -15,9 +15,13 @@ DuckDB file:
 scripts/dev/launch_demo.sh --live --duckdb /absolute/path/to/grid.duckdb
 ```
 
-The helper uses loopback ports only and does not create data, contact a model
-provider, configure a tunnel, or publish an external service. Full start, stop,
-and limitation details are in [`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
+Both servers bind `127.0.0.1` by default, so the demo is reachable only from this
+machine; `--bind ADDR` is the explicit opt-in to publish it on an interface. The
+helper does not create data, contact a model provider, configure a tunnel, or
+publish an external service. `--status` reports the recorded processes and
+`--stop` stops them and verifies their ports are released before it reports
+success. Full start, stop, and limitation details are in
+[`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
 The Minnesota-specific aggregate/source boundary, static/API separation, and
 external-delivery limitation are recorded in
 [`docs/runbooks/minnesota-demo-handoff.md`](docs/runbooks/minnesota-demo-handoff.md).
