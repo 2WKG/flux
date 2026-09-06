@@ -23,8 +23,10 @@
       "geometry_accuracy_basis": "Publisher describes PUC/utility review and ongoing boundary updates. The service metadata queried for this ledger does not provide a positional-accuracy value.",
       "stable_identifiers": ["OBJECTID", "mn_utility_id", "eusa_v5_id", "eia_utility_id when populated"],
       "verified_query": {
-        "url": "https://arcgis.metc.state.mn.us/server/rest/services/GDRS/MNGEO_util_service_areas/FeatureServer/0/query?where=1%3D1%26returnCountOnly=true%26f=json",
+        "url": "https://arcgis.metc.state.mn.us/server/rest/services/GDRS/MNGEO_util_service_areas/FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json",
         "returned_feature_count": 192,
+        "response_json": {"count": 192},
+        "response_sha256": "c040a562a2cc92c1067aa89543f0154b1e61e7af685870919aab41dc7f75e1f6",
         "count_meaning": "Current FeatureServer feature count, not a count of utilities, grid assets, feeders, substations, or customers."
       },
       "supports_classes": ["retail_service_area"],
