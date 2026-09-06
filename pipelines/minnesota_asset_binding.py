@@ -48,6 +48,24 @@ CITY_ESSENTIAL_ARCHETYPE_IDS = (
     "solar_array",
 )
 
+# 2WKG-402 receives a published geometry archive, but that archive is not a
+# Minnesota placement artifact.  Keep the four later-infrastructure models in
+# one explicit request shape so a mount owner can consume the checked release
+# identity without substituting a made-up location or facility identity.
+LATER_INFRASTRUCTURE_FORMAT = "flux:minnesota-later-infrastructure-binding:v1"
+LATER_INFRASTRUCTURE_ARCHETYPE_IDS = (
+    "battery_storage",
+    "warehouse_logistics_center",
+    "school_emergency_services",
+    "ev_charging_station",
+)
+RUNTIME_RELEASE = {
+    "tag": "flux-grid-runtime-v1-20260906",
+    "archive_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+    "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+    "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+}
+
 #: The coordinate reference every placement declares. `docs/specs/00-overview.md`
 #: and `docs/specs/10-duckdb-contract.md`: all geometry is EPSG:4326 lon/lat.
 PLACEMENT_CRS = "EPSG:4326"
@@ -491,6 +509,92 @@ def bind_city_essentials(
     }
 
 
+def _validated_runtime_release(request: dict[str, Any]) -> dict[str, str]:
+    """Require the exact release read back for the later-asset handoff."""
+    release = request.get("runtime_release")
+    if not isinstance(release, dict):
+        raise AssetBindingError(
+            "later-infrastructure request.runtime_release is required"
+        )
+    actual = {key: release.get(key) for key in RUNTIME_RELEASE}
+    if actual != RUNTIME_RELEASE:
+        raise AssetBindingError(
+            "later-infrastructure request must pin the verified Flux Grid runtime release"
+        )
+    return dict(RUNTIME_RELEASE)
+
+
+def bind_later_infrastructure(
+    con: duckdb.DuckDBPyConnection,
+    catalog: dict[str, Any],
+    inventory: dict[str, Any],
+    request: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind the four later-infrastructure archetypes without inventing a site."""
+    if request.get("format") != LATER_INFRASTRUCTURE_FORMAT:
+        raise AssetBindingError(
+            "later-infrastructure request has an unsupported format"
+        )
+    if request.get("contract_id") != CONTRACT_ID:
+        raise AssetBindingError(
+            "later-infrastructure request contract_id does not match the shared contract"
+        )
+    runtime_release = _validated_runtime_release(request)
+    assets = request.get("assets")
+    if not isinstance(assets, list):
+        raise AssetBindingError("later-infrastructure request.assets must be an array")
+
+    by_archetype: dict[str, dict[str, Any]] = {}
+    for asset in assets:
+        if not isinstance(asset, dict) or not isinstance(asset.get("model"), dict):
+            raise AssetBindingError(
+                "each later-infrastructure asset must contain a model object"
+            )
+        archetype_id = asset["model"].get("archetype_id")
+        if not isinstance(archetype_id, str):
+            raise AssetBindingError(
+                "each later-infrastructure model.archetype_id must be a string"
+            )
+        if archetype_id in by_archetype:
+            raise AssetBindingError(
+                f"later-infrastructure request duplicates archetype {archetype_id!r}"
+            )
+        by_archetype[archetype_id] = asset
+
+    expected_ids = set(LATER_INFRASTRUCTURE_ARCHETYPE_IDS)
+    actual_ids = set(by_archetype)
+    if actual_ids != expected_ids:
+        raise AssetBindingError(
+            "later-infrastructure request must contain exactly the four 2WKG-402 "
+            f"archetypes; missing={sorted(expected_ids - actual_ids)!r}, "
+            f"unexpected={sorted(actual_ids - expected_ids)!r}"
+        )
+
+    bindings = [
+        bind_asset(
+            con,
+            catalog,
+            inventory,
+            by_archetype[archetype_id]["model"],
+            by_archetype[archetype_id].get("placement"),
+        )
+        for archetype_id in LATER_INFRASTRUCTURE_ARCHETYPE_IDS
+    ]
+    return {
+        "format": LATER_INFRASTRUCTURE_FORMAT,
+        "contract_id": CONTRACT_ID,
+        "runtime_release": runtime_release,
+        "assets": bindings,
+        "summary": {
+            "total": len(bindings),
+            "placed": sum(binding["render_mode"] == "placed" for binding in bindings),
+            "catalog_previews": sum(
+                binding["render_mode"] == "catalog_preview" for binding in bindings
+            ),
+        },
+    }
+
+
 def bind_from_files(
     catalog_path: Path,
     inventory_path: Path,
@@ -520,6 +624,8 @@ def bind_from_files(
                 request,
                 binaries=load_pack_binaries(pack_archive_path or PACK_ARCHIVE_PATH),
             )
+        if request.get("format") == LATER_INFRASTRUCTURE_FORMAT:
+            return bind_later_infrastructure(con, catalog, inventory, request)
         return bind_asset(
             con,
             catalog,
@@ -546,5 +652,22 @@ def bind_city_essentials_from_files(
     con = duckdb.connect(str(db_path), read_only=True)
     try:
         return bind_city_essentials(con, catalog, inventory, request, binaries=binaries)
+    finally:
+        con.close()
+
+
+def bind_later_infrastructure_from_files(
+    catalog_path: Path,
+    inventory_path: Path,
+    request_path: Path,
+    db_path: Path,
+) -> dict[str, Any]:
+    """Load the versioned 2WKG-402 request and return its safe bindings."""
+    request = _read_json(request_path)
+    catalog = load_catalog(catalog_path)
+    inventory = load_inventory(inventory_path)
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        return bind_later_infrastructure(con, catalog, inventory, request)
     finally:
         con.close()

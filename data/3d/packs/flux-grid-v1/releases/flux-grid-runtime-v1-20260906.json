@@ -1,8 +1,10 @@
 {
   "schema_version": 1,
   "release_tag": "flux-grid-runtime-v1-20260906",
-  "publication_status": "planned_external_attachment_not_yet_published",
+  "publication_status": "published_external_attachment_verified",
   "asset_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+  "download_url": "https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip",
+  "archive_bytes": 5321737,
   "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
   "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
   "release_contents": {
@@ -23,5 +25,5 @@
     "model_license": "CC0-1.0",
     "scope": "All 18 generated asset metadata records declare CC0-1.0; per-asset source-of-shape provenance is carried by the runtime manifest."
   },
-  "release_procedure": "Do not infer publication from this record. Attach the exact filename to the named release tag, read back its bytes and digest, then run the installer against a fresh checkout."
+  "release_procedure": "The named attachment was read back from the named release tag. Before installation, hash the exact archive and its extracted manifest, then invoke the installer with both the extracted root and the archive path."
 }

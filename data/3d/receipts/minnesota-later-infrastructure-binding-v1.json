@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "receipt_format": "flux:minnesota-later-infrastructure-binding-receipt:v1",
+  "source_request": "data/3d/requests/minnesota-later-infrastructure-v1.json",
+  "runtime_release": {
+    "tag": "flux-grid-runtime-v1-20260906",
+    "archive_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+    "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+    "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b"
+  },
+  "archive_verification": {
+    "status": "verified",
+    "release_url": "https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip",
+    "archive_bytes": 5321737,
+    "extracted_package_root": "flux-grid-runtime-v1-20260906T103700Z",
+    "package_files": 96
+  },
+  "installer": {
+    "status": "installed",
+    "verified_files": 96,
+    "same_origin_destination": "web/public/assets/flux-grid",
+    "installed_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+    "command": "node scripts/install_flux_grid_pack.mjs /path/to/flux-grid-runtime-v1-20260906T103700Z /path/to/flux-grid-runtime-v1-20260906T103700Z.zip"
+  },
+  "placement_status": "unavailable",
+  "accepted_placement_artifact_ids": [],
+  "live_data_prerequisite": "A server artifact must be accepted in the Minnesota product store before a web mount can add a placement: it needs an available mn_artifact_manifests row with provenance, an accepted source_supported or source_screened regulatory label when scored, a placement identity and EPSG:4326 coordinates inside accepted Minnesota geometry, and inventory policy that permits point placement. The current inventory has no such facility artifact.",
+  "binding": {
+    "format": "flux:minnesota-later-infrastructure-binding:v1",
+    "contract_id": "flux:3d-asset-archetypes:v1",
+    "runtime_release": {
+      "tag": "flux-grid-runtime-v1-20260906",
+      "archive_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+      "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+      "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b"
+    },
+    "assets": [
+      {
+        "render_mode": "catalog_preview",
+        "semantic_type": "storage",
+        "archetype_id": "battery_storage",
+        "footprint_m": {"length": 80, "width": 50},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 18000, "lod1": 7000, "lod2": 2000},
+        "material": {"slot": "MAT_STATUS", "status_label": "unavailable"},
+        "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure: no accepted Minnesota placement artifact was supplied"
+      },
+      {
+        "render_mode": "catalog_preview",
+        "semantic_type": "load",
+        "archetype_id": "warehouse_logistics_center",
+        "footprint_m": {"length": 180, "width": 120},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 20000, "lod1": 7500, "lod2": 2200},
+        "material": {"slot": "MAT_STATUS", "status_label": "unavailable"},
+        "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure: no accepted Minnesota placement artifact was supplied"
+      },
+      {
+        "render_mode": "catalog_preview",
+        "semantic_type": "critical_load",
+        "archetype_id": "school_emergency_services",
+        "footprint_m": {"length": 100, "width": 70},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 22000, "lod1": 8500, "lod2": 2400},
+        "material": {"slot": "MAT_STATUS", "status_label": "unavailable"},
+        "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure: no accepted Minnesota placement artifact was supplied"
+      },
+      {
+        "render_mode": "catalog_preview",
+        "semantic_type": "load",
+        "archetype_id": "ev_charging_station",
+        "footprint_m": {"length": 40, "width": 25},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 14000, "lod1": 5000, "lod2": 1500},
+        "material": {"slot": "MAT_STATUS", "status_label": "unavailable"},
+        "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure: no accepted Minnesota placement artifact was supplied"
+      }
+    ],
+    "summary": {"total": 4, "placed": 0, "catalog_previews": 4}
+  }
+}

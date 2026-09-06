@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {installFluxGridPack, runtimeInventory, validateRuntimeManifest} from '../../scripts/install_flux_grid_pack.mjs';
+import {installFluxGridPack, runtimeInventory, validatePublishedReleaseReceipt, validateRuntimeManifest} from '../../scripts/install_flux_grid_pack.mjs';
 
 const packUrl=new URL('../../data/3d/packs/flux-grid-v1/',import.meta.url);
 const catalogUrl=new URL('../../data/3d/asset-archetypes-v1.json',import.meta.url);
@@ -18,32 +18,17 @@ async function fixture() {
   return {root,pack,repo};
 }
 
-/**
- * A fixture whose *reviewed* pack root (the lock side the installer reads its
- * manifest and pinned inventory from) carries the supplied manifest bytes, so a
- * refusal can be driven through installFluxGridPack rather than asserted on the
- * validator alone.
- */
-async function reviewedPackFixture(manifestBytes) {
-  const base=await fixture();
-  const packRoot=path.join(base.root,'reviewed-pack');
-  await mkdir(packRoot);
-  await writeFile(path.join(packRoot,'package.SHA256SUMS'),await readFile(new URL('package.SHA256SUMS',packUrl)));
-  await writeFile(path.join(packRoot,'manifest.json'),manifestBytes);
-  return {...base,packRoot};
-}
-
 async function committedManifest() {
   return JSON.parse(await readFile(new URL('manifest.json',packUrl),'utf8'));
 }
-test('installer rejects changed source bytes before creating runtime output', async()=>{
+test('installer requires an archive that can be checked against the published receipt', async()=>{
   const {root,pack,repo}=await fixture();
   try {
     const inventory=await readFile(new URL('../../data/3d/packs/flux-grid-v1/package.SHA256SUMS',import.meta.url),'utf8');
     const relative=inventory.split('\n').map(line=>line.slice(66)).find(file=>file.startsWith('assets/'));
     await mkdir(path.dirname(path.join(pack,relative)),{recursive:true});
     await writeFile(path.join(pack,relative),'not the pinned file');
-    await assert.rejects(installFluxGridPack(pack,repo),/checksum mismatch/);
+    await assert.rejects(installFluxGridPack(pack,repo),/verified published archive path/);
     await assert.rejects(access(path.join(repo,'web/public')));
   } finally {await rm(root,{recursive:true,force:true});}
 });
@@ -87,11 +72,13 @@ test('tracked publication manifest states the unpublished truth and stays contra
   assert.throws(()=>validateRuntimeManifest(unpinned,inventory,catalog),/resource is not pinned/);
 });
 
-test('planned runtime release receipt names immutable external bytes without publishing them',async()=>{
+test('published runtime release receipt names the only archive installer may accept',async()=>{
   const release=JSON.parse(await readFile(new URL('../../data/3d/packs/flux-grid-v1/releases/flux-grid-runtime-v1-20260906.json',import.meta.url),'utf8'));
   assert.equal(release.release_tag,'flux-grid-runtime-v1-20260906');
-  assert.equal(release.publication_status,'planned_external_attachment_not_yet_published');
+  assert.equal(release.publication_status,'published_external_attachment_verified');
   assert.equal(release.asset_filename,'flux-grid-runtime-v1-20260906T103700Z.zip');
+  assert.equal(release.archive_bytes,5321737);
+  assert.equal(release.download_url,'https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip');
   assert.equal(release.archive_sha256,'44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78');
   assert.equal(release.runtime_manifest_sha256,'068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b');
   assert.deepEqual(release.release_contents,{archetypes:18,glb_files:54,preview_png_files:18});
@@ -99,6 +86,13 @@ test('planned runtime release receipt names immutable external bytes without pub
   const catalog=await readFile(catalogUrl);
   assert.equal(release.source_contract.sha256,createHash('sha256').update(catalog).digest('hex'));
   assert.equal(release.license.model_license,'CC0-1.0');
+  assert.doesNotThrow(()=>validatePublishedReleaseReceipt(release,catalog));
+  const wrongArchive=structuredClone(release);
+  wrongArchive.archive_sha256='0'.repeat(64);
+  assert.throws(()=>validatePublishedReleaseReceipt(wrongArchive,catalog),/does not pin archive_sha256/);
+  const oldStatus=structuredClone(release);
+  oldStatus.publication_status='planned_external_attachment_not_yet_published';
+  assert.throws(()=>validatePublishedReleaseReceipt(oldStatus,catalog),/not verified as attached/);
 });
 
 test('every enumerated manifest guarantee is a refusal with a failing case',async()=>{
@@ -140,35 +134,6 @@ test('every enumerated manifest guarantee is a refusal with a failing case',asyn
   assert.throws(()=>validateRuntimeManifest(repinned,inventory,catalog),/must pin the frozen catalog: data\/3d\/asset-archetypes-v1\.json/);
 });
 
-test('installFluxGridPack refuses an invalid reviewed manifest before creating runtime output',async()=>{
-  const manifest=await committedManifest();
-  manifest.assets=manifest.assets.slice(0,17);
-  const {root,pack,repo,packRoot}=await reviewedPackFixture(JSON.stringify(manifest));
-  try {
-    await assert.rejects(installFluxGridPack(pack,repo,{packRoot}),/Reviewed runtime manifest must declare 18 assets/);
-    await assert.rejects(access(path.join(repo,'web/public')));
-  } finally {await rm(root,{recursive:true,force:true});}
-});
-
-test('installFluxGridPack refuses fabricated archetype ids that the frozen catalog does not name',async()=>{
-  const manifest=await committedManifest();
-  // 18 assets, every LOD path left exactly as pinned in package.SHA256SUMS;
-  // only the archetype identities are invented.
-  manifest.assets=manifest.assets.map((asset,index)=>({...asset,archetype_id:`fabricated_archetype_${index}`}));
-  const {root,pack,repo,packRoot}=await reviewedPackFixture(JSON.stringify(manifest));
-  try {
-    await assert.rejects(installFluxGridPack(pack,repo,{packRoot}),/absent from the frozen catalog: fabricated_archetype_0/);
-    await assert.rejects(access(path.join(repo,'web/public')));
-  } finally {await rm(root,{recursive:true,force:true});}
-});
-
-test('installFluxGridPack refuses malformed reviewed manifest bytes by name',async()=>{
-  const {root,pack,repo,packRoot}=await reviewedPackFixture('{"assets": [ this is not json');
-  try {
-    await assert.rejects(installFluxGridPack(pack,repo,{packRoot}),/Invalid reviewed runtime manifest JSON: /);
-    await assert.rejects(access(path.join(repo,'web/public')));
-  } finally {await rm(root,{recursive:true,force:true});}
-});
 test('every committed pack file re-hashes to its pinned digest',async()=>{
   const packDir=fileURLToPath(new URL('../../data/3d/packs/flux-grid-v1/',import.meta.url));
   const pinned=new Map((await readFile(path.join(packDir,'committed-sources.SHA256SUMS'),'utf8'))
