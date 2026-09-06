@@ -124,7 +124,9 @@ def test_producer_objective_is_counterfactual_and_not_naive_headroom() -> None:
     assert top["objective_components"]["mean_redundancy_uplift"] == 50.0
     assert top["edit_hash"]
     assert top["analysis_label"] == SCREENING_LABEL
-    assert top["model_mode"] == "synthetic"
+    assert top["model_mode"] == "topology"
+    assert top["topology"] == "synthetic (ACTIVSg2000)"
+    assert top["regulatory_label"] == "hypothetical"
     assert top["safety_flags"] == ["S1"]
 
 

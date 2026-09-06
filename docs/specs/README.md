@@ -22,7 +22,7 @@ Headline: **state-configurable grid resilience analysis: outage context, synthet
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the
 backup is **Speed-to-Power** (large-load verification + grid headroom ranking, spec 09), whose wire half
 reuses spec 08's tables and `top_lines` tool. The shared contract (repo layout, DuckDB tables, scenario IDs,
-copilot tool signatures — nine tools after A8) lives in `00-overview.md` §2 and wins over any downstream spec.
+copilot tool signatures — thirteen tools including the static interactive tools) lives in `00-overview.md` §2 and wins over any downstream spec.
 
 Every spec has the same sections in order: Purpose · Inputs · Outputs · Algorithm or Design ·
 Interfaces · Acceptance criteria · Demo hook · Risks/unknowns · Weekend time-box.
@@ -43,6 +43,7 @@ Anything the author could not confirm exists is marked `[UNVERIFIED]`.
 | 10 | [`10-duckdb-contract.md`](10-duckdb-contract.md) | Minnesota artifact identity/provenance contract, `mn_*` tables | Minnesota data identity, unit, coordinate, and provenance contract; owns `mn:<artifact_kind>:<sha256-16>` identity and the availability/model-mode/field-provenance envelope. Implemented by `pipelines/minnesota_schema.py`. |
 | 10 | [`10-minnesota-demo.md`](10-minnesota-demo.md) | Minnesota demo scope | Current authority for the demo geography, scenarios, and acceptance claims; supersedes the legacy Texas/ERCOT/ACTIVSg2000 demo contract. |
 | 11 | [`11-physical-inventory-contract.md`](11-physical-inventory-contract.md) | `pipelines/physical_inventory.py`, `pipelines/assemble_physical_inventory.py`, `physical_*` tables | Versioned, source-qualified physical-grid inventory artifacts: canonical JSON + SHA-256 identity, asset/geometry/provenance rules, per class/scope coverage ledger, and state-release composition. Adds the seven `physical_*` DuckDB tables registered in `00-overview.md` §2.2 (amendment A12). Diverges from spec 10 by declaration, not silently. |
+| 12 | [`12-interactive-simulation.md`](12-interactive-simulation.md) | `twin/`, `siting/`, interactive routes | **Texas-only interactive-physics lane.** Turns 03/04/05/06 from precomputed reads into live editing and solving: net build from the DuckDB tables, scenario edit ops, physics-informed placement limits (interconnect distance, voltage class, corridor headroom), crisis cascade over providers/consumers/transmitters, draw-versus-capability balance, a consumer redundancy score, and ideal-location search. DC screening fidelity, labeled as such. Adds three DuckDB tables and four copilot tools, registered in `00-overview.md` §2.2/§2.3 (amendment A13); its five compute routes are mounted under the `/interactive` prefix and return unwrapped success bodies. |
 
 Critical path for the weekend: **01 → 03 → 04 → 06** (siting screen). See `00-overview.md` §4.1 and §7.
 

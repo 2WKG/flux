@@ -57,10 +57,9 @@ test("every landed panel is mounted in the one App", () => {
     "failure state": /class="failure-state"/,
     "layer controls": /class="layer-controls"/,
     "layer status legend": /aria-label="Layer status legend"/,
-    "inspector": /class="asset-inspector"/,
-    "physical inventory panel": /aria-label="Source-backed physical inventory"/,
-    "inventory coverage disclosure": /aria-label="Coverage and geometry availability"/,
-    "inventory map slot": /class="grid-map"/,
+    "Texas topology workspace": /aria-label="Full synthetic Texas topology workspace"/,
+    "Texas model mount": /class="map scene-viewport"/,
+    "named model-route fallback": /Texas model topology unavailable/,
     "cascade playback panel": /aria-label="Cascade playback"/,
     "cascade playback controls": /<legend>Elements to take offline<\/legend>/,
   };
@@ -68,16 +67,14 @@ test("every landed panel is mounted in the one App", () => {
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);
 });
 
-test("the inspector is composed without borrowing the shell's own column class", () => {
-  // `.inspector` is the shell's flex column (`styles.css`), written for its own
-  // metric stack. Handing it to `Inspector` inherits rules meant for something
-  // else, so exactly one element may carry it: the shell's own aside.
-  const inspectorClasses = [...markup.matchAll(/class="([^"]*)"/g)]
-    .map((match) => match[1].split(/\s+/))
-    .filter((classes) => classes.includes("inspector"));
-  assert.equal(inspectorClasses.length, 1, "exactly one element may carry the shell's own .inspector class");
-  assert.match(markup, /<aside class="inspector" aria-label="Scenario inspector">/);
-  assert.match(markup, /class="asset-inspector"/, "the composed inspector must carry its own class");
+test("the default composition mounts the Texas model surface without a five-bus inspector rail", () => {
+  // The full network is the primary surface. The old scenario inspector and
+  // physical-inventory panel remain separate components for their own routes,
+  // but neither may displace the model viewport on the default route.
+  assert.match(markup, /<section class="workspace model-workspace" aria-label="Full synthetic Texas topology workspace">/);
+  assert.match(markup, /class="map scene-viewport"/);
+  assert.match(markup, /Texas model topology unavailable/);
+  assert.doesNotMatch(markup, /class="asset-inspector"|aria-label="Scenario inspector"|Source-backed physical inventory/);
 });
 
 test("the composed shell publishes the machine provenance token, not prose", () => {

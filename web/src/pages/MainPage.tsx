@@ -20,7 +20,6 @@ import { FailureState } from "../failure-states/FailureState";
 import { fromClientState } from "../failure-states/adapters";
 import type { FailureStateInput } from "../failure-states/types";
 import { Inspector } from "../inspector/Inspector";
-import type { InspectorAsset } from "../inspector/types";
 import { LayerControls } from "../layers/LayerControls";
 import { descriptorsFor } from "../layers/descriptor-adapter";
 import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "../layers/registry";
@@ -29,7 +28,6 @@ import { legendForLayer } from "../layers/legend";
 import { applyFilters, suppressesUncertainty, uncertainSuppressions } from "../layers/filters";
 import { createReadApiClient } from "../data/client-state";
 import { loadRegistryDataStatuses } from "../data/layer-status";
-import { loadScenarioAsset } from "../data/scenario-asset";
 import { runAsk } from "../data/ask-stream";
 import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
@@ -358,10 +356,6 @@ export function App() {
   // reason there is none. Nothing here falls back to a plausible value.
   const [dataStatuses, setDataStatuses] = useState<Readonly<Record<string, DataStatus>>>({});
   const [visibleLayerIds, setVisibleLayerIds] = useState<readonly string[]>([]);
-  const [inspectorAsset, setInspectorAsset] = useState<InspectorAsset>({
-    status: "unavailable", artifactLabel: "unavailable",
-    message: "The scenario read route has not answered yet.",
-  });
   const [apiFailure, setApiFailure] = useState<FailureStateInput | null>({
     kind: "loading",
     message: "Checking the evidence API for this scene.",
@@ -380,12 +374,13 @@ export function App() {
   const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
   const [askAvailable, setAskAvailable] = useState(false);
 
-  const [gridState, setGridState] = useState<GridState>("mn");
-  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.mn);
+  const [gridState, setGridState] = useState<GridState>("tx");
+  const [gridLayers, setGridLayers] = useState<readonly string[]>(GRID_LAYERS.tx);
   const [gridQuery, setGridQuery] = useState("");
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
+  const [modelAttempt, setModelAttempt] = useState(0);
   const [texasModel, setTexasModel] = useState<TexasModelPayload>({ status: "unavailable", reason: "Loading the synthetic Texas model." });
 
   const contextRevision = `${selected}:${attemptId}`;
@@ -438,15 +433,6 @@ export function App() {
     return () => controller.abort();
   }, []);
 
-  // The inspector reads the scenario the shell has selected.
-  useEffect(() => {
-    const controller = new AbortController();
-    loadScenarioAsset(selected, READ_CLIENT, { signal: controller.signal })
-      .then((asset) => setInspectorAsset(asset))
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [selected]);
-
   // One probe decides what the dock is allowed to claim about itself. A health
   // route that does not answer is a named failure state, never a quiet default.
   useEffect(() => {
@@ -495,7 +481,7 @@ export function App() {
       })
       .catch(() => { if (!controller.signal.aborted) setTexasModel({ status: "unavailable", reason: "The model topology could not be read." }); });
     return () => controller.abort();
-  }, []);
+  }, [modelAttempt]);
 
   const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
   // No producer supplies an evidence disclosure yet, so every layer that would
@@ -558,52 +544,34 @@ export function App() {
     <main data-source-status={SOURCE_TRUTH.status}>
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
-        <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required for this scene</div>
+        <div className="live"><i />Synthetic ACTIVSg2000 static topology · model API required</div>
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
-      <header className="shell-intro">
-        <p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p>
-        <h1>Where does 300 MW cut the most unmet demand?</h1>
-        <p>
-          One fixed cold-stress snapshot, three runs from the same assumptions. Pick a candidate to see the
-          corridors it relieves. Every figure is read from a checked-in synthetic artifact — no runtime request,
-          and no claim about a real grid.
-        </p>
+      <header className="shell-intro texas-model-intro">
+        <p className="eyebrow">SYNTHETIC TEXAS / STATIC TOPOLOGY</p>
+        <h1>ACTIVSg2000 network geometry</h1>
+        <p>All displayed buses and branches come from the read-only synthetic model route. Physical 3D visuals remain a separately labeled observed-inventory overlay.</p>
       </header>
 
-      <section className="shell-controls" aria-label="Scenario controls">
-        <div>
-          <p className="eyebrow">Scenario comparison</p>
-          <p>Choose a bundled run. All choices keep the same synthetic five-bus assumptions.</p>
-        </div>
-        <span className="shell-status">{STATUS_COPY[SOURCE_TRUTH.status]} five-bus preview · not Minnesota data</span>
-      </section>
-
-      <CompareRail selected={selected} onSelect={select} />
-
-      <section className="workspace" aria-label="Viewport-first scenario workspace">
+      <section className="workspace model-workspace" aria-label="Full synthetic Texas topology workspace">
         <article className="map scene-viewport">
           <div className="map-head">
             <div>
-              <p className="eyebrow">NETWORK STATE · {scenario.label.toUpperCase()}</p>
-              <p className="hint">Line weight tracks utilization. Hover or tab a corridor for its reading.</p>
-            </div>
-            <div className="toggle" role="group" aria-label="Corridor colouring">
-              <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
-              <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
+              <p className="eyebrow">SYNTHETIC TEXAS TOPOLOGY</p>
+              <p className="hint">All supplied branches and buses remain visible at every zoom. 3D visual LOD never culls topology.</p>
             </div>
           </div>
 
           {texasModel.status === "available" || texasModel.status === "partial"
             ? <TexasTopologyMap payload={texasModel} />
-            : <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />}
+            : <section className="texas-model-unavailable" role="status">
+                <strong>Texas model topology unavailable</strong>
+                <span>{texasModel.reason ?? "The model route has not supplied a resolved topology."}</span>
+                <button type="button" onClick={() => setModelAttempt((value) => value + 1)}>Retry model request</button>
+              </section>}
 
-          <div className="legend">
-            {view === "load"
-              ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
-              : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
-          </div>
+          <div className="legend">Synthetic model geometry · no solved flows or observed electrical state.</div>
           <LayerControls
             layers={layerDescriptors}
             visibleLayerIds={visibleLayerIds}
@@ -647,61 +615,7 @@ export function App() {
           </section>
         </article>
 
-        <aside className="inspector" aria-label="Scenario inspector">
-          <div className="outcome">
-            <p className="eyebrow">MODELED UNMET DEMAND</p>
-            <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
-            <p>{shedHours} {scenario.units.shedMwh} across the {data.execution.assumptions.durationHours}-hour window</p>
-            <div className={selected === "baseline" ? "delta flat" : "delta"}>
-              {selected === "baseline"
-                ? "Baseline reference"
-                : `−${scenario.metrics.improvementMw} ${scenario.units.improvementMw} vs baseline`}
-            </div>
-          </div>
-
-          <div className="stats">
-            <div><span>Demand</span><b>{scenario.metrics.demandMw} {scenario.units.demandMw}</b></div>
-            <div><span>Available supply</span><b>{supply} {scenario.units.availableGenerationMw}</b></div>
-          </div>
-
-          {candidate ? (
-            <div className="insight">
-              <p className="eyebrow">{candidate.name} · +{candidate.capacityMw} MW AT {BUSES[candidate.busId].name.toUpperCase()}</p>
-              <h2>{candidate.description}</h2>
-              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
-              <ul className="relief">
-                {relieved.slice(0, 3).map(({ line, delta }) => (
-                  <li key={line.id}>
-                    <span>{BUSES[line.from].name} → {BUSES[line.to].name}</span>
-                    <em>{signed(delta)} pts</em>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="insight">
-              <p className="eyebrow">NO CAPACITY ADDED</p>
-              <h2>This is the reference run every candidate is measured against.</h2>
-              <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
-            </div>
-          )}
-
-          <Inspector asset={inspectorAsset} className="asset-inspector" title="Scenario provenance" />
-        </aside>
       </section>
-
-      <GridInventoryPanel
-        load={gridLoad}
-        state={gridState}
-        layers={gridLayers}
-        query={gridQuery}
-        selected={gridSelected}
-        onStateChange={(next) => { setGridState(next); setGridLayers(GRID_LAYERS[next]); setGridSelected(null); }}
-        onLayersChange={setGridLayers}
-        onQueryChange={setGridQuery}
-        onSelect={setGridSelected}
-        onRetry={() => setGridAttempt((value) => value + 1)}
-      />
 
       <CascadePlaybackPanel
         className="cascade-playback"
@@ -715,14 +629,11 @@ export function App() {
 
       <section className="pipeline">
         <div>
-          <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
-          <h2>Same assumptions. Traceable synthetic output.</h2>
+          <p className="eyebrow">MODEL CONTRACT</p>
+          <h2>Static synthetic network geometry.</h2>
         </div>
         <p>
-          {sameAssumptions
-            ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
-            : "Comparison unavailable: scenario assumptions differ."}{" "}
-          Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
+          The read-only model route supplies the synthetic ACTIVSg2000 artifact. It describes topology and mapped coordinates only: no power flow, contingency result, or physical-inventory equivalence is asserted.
         </p>
       </section>
 
