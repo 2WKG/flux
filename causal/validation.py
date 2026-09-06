@@ -18,6 +18,7 @@ MISSING_TREATMENT_DEFINITION = "MISSING_TREATMENT_DEFINITION"
 MISSING_OUTCOME_DEFINITION = "MISSING_OUTCOME_DEFINITION"
 MISSING_DATA_COVERAGE = "MISSING_DATA_COVERAGE"
 MISSING_DIAGNOSTICS = "MISSING_DIAGNOSTICS"
+UNRESOLVED_CITATION = "UNRESOLVED_CITATION"
 
 INSUFFICIENCY_CODES = (
     FIXTURE_NOT_ESTIMABLE,
@@ -26,6 +27,7 @@ INSUFFICIENCY_CODES = (
     MISSING_OUTCOME_DEFINITION,
     MISSING_DATA_COVERAGE,
     MISSING_DIAGNOSTICS,
+    UNRESOLVED_CITATION,
 )
 
 SUPPORTED_ESTIMATION_METHODS = frozenset({"backdoor.econml.dml.LinearDML", "twfe_only"})
@@ -116,6 +118,15 @@ def validate_artifact(artifact: Mapping[str, Any]) -> ValidationResult:
                 MISSING_DIAGNOSTICS,
                 "diagnostics",
                 "Required diagnostics must be recorded with passing status.",
+            )
+        )
+
+    if not _citations_resolve(artifact):
+        diagnostics.append(
+            PrerequisiteDiagnostic(
+                UNRESOLVED_CITATION,
+                "citations",
+                "Every citation and estimate evidence entry must name a declared source.",
             )
         )
 
@@ -225,6 +236,39 @@ def _has_covered_data(
         and source_complete
         and variables_have_sources
         and covariates_complete
+    )
+
+
+def _declared_source_ids(artifact: Mapping[str, Any]) -> set[str]:
+    sources = artifact.get("sources")
+    if not isinstance(sources, list):
+        return set()
+    return {
+        _mapping(source).get("source_id")
+        for source in sources
+        if isinstance(_mapping(source).get("source_id"), str)
+    }
+
+
+def _citations_resolve(artifact: Mapping[str, Any]) -> bool:
+    """Require every citation to point at a source the artifact declares.
+
+    ``citations`` must be a non-empty list; ``estimate.evidence`` is checked
+    whenever it is present.  A citation whose ``source_id`` is not declared in
+    ``sources`` cannot be resolved by a reader and therefore cannot back a claim.
+    """
+
+    source_ids = _declared_source_ids(artifact)
+    citations = artifact.get("citations")
+    if not isinstance(citations, list) or not citations:
+        return False
+    evidence = _mapping(artifact.get("estimate")).get("evidence", [])
+    if not isinstance(evidence, list):
+        return False
+    return all(
+        _nonempty(_mapping(item).get("locator"))
+        and _mapping(item).get("source_id") in source_ids
+        for item in [*citations, *evidence]
     )
 
 

@@ -19,11 +19,53 @@ def _stable_id(namespace: str, source_id: str) -> int:
     return int(hashlib.sha256(f"{namespace}:{source_id}".encode()).hexdigest()[:7], 16)
 
 
+def _collision_id(namespace: str, source_id: str, attempt: int) -> int:
+    """Derive a signed-32-bit retry ID without changing normal legacy IDs."""
+    return (
+        int(
+            hashlib.sha256(f"{namespace}:{source_id}:{attempt}".encode()).hexdigest()[
+                :8
+            ],
+            16,
+        )
+        & 0x7FFFFFFF
+    )
+
+
+def _unique_stable_ids(
+    source_ids: pd.Series, reserved: set[int] | None = None
+) -> pd.Series:
+    """Assign deterministic unique IDs; never let a truncated hash collide silently."""
+    if source_ids.duplicated().any():
+        raise ValueError("NTAD data has duplicate immutable facility identifiers")
+    assigned: dict[str, int] = {}
+    used = set(reserved or ())
+    for source_id in sorted(source_ids.astype(str)):
+        candidate = _stable_id("ntad_military_bases", source_id)
+        attempt = 0
+        while candidate == 0 or candidate in used:
+            attempt += 1
+            candidate = _collision_id("ntad_military_bases", source_id, attempt)
+        assigned[source_id] = candidate
+        used.add(candidate)
+    return source_ids.astype(str).map(assigned)
+
+
+def _ntad_id_column(active: gpd.GeoDataFrame) -> str | None:
+    """Return a complete, unique upstream identifier column when available."""
+    for column in ("mirtaLocationsIdpk", "OBJECTID"):
+        if column not in active:
+            continue
+        values = active[column].astype("string").str.strip()
+        if values.notna().all() and values.ne("").all() and values.is_unique:
+            return column
+    return None
+
+
 def _ntad_source_ids(active: gpd.GeoDataFrame) -> pd.Series:
     """Use the NTAD record identifier, never a GeoDataFrame row position."""
-    for column in ("mirtaLocationsIdpk", "OBJECTID"):
-        if column in active and active[column].notna().all():
-            return column + ":" + active[column].astype(str)
+    if column := _ntad_id_column(active):
+        return column + ":" + active[column].astype(str)
     # The public NTAD schema supplies mirtaLocationsIdpk.  A content-derived
     # fallback is stable for a release that omits it, unlike the input row index.
     required = [
@@ -49,13 +91,12 @@ def _ntad_source_ids(active: gpd.GeoDataFrame) -> pd.Series:
     )
 
 
-def _ntad_cl_ids(active: gpd.GeoDataFrame, source_ids: pd.Series) -> pd.Series:
+def _ntad_cl_ids(
+    active: gpd.GeoDataFrame, source_ids: pd.Series, reserved: set[int] | None = None
+) -> pd.Series:
     """Use source-derived IDs when NTAD supplies one; retain fixture compatibility otherwise."""
-    if any(
-        column in active and active[column].notna().all()
-        for column in ("mirtaLocationsIdpk", "OBJECTID")
-    ):
-        return source_ids.map(lambda value: _stable_id("ntad_military_bases", value))
+    if _ntad_id_column(active):
+        return _unique_stable_ids(source_ids, reserved)
     # Hand-authored unit fixtures from before the NTAD identity field use only
     # descriptive properties.  Their canonical ordering is deterministic for a
     # fixed fixture and does not affect real NTAD releases, which take the
@@ -114,9 +155,15 @@ def load_dod(
     centroids = active.geometry.centroid.to_crs(4326)
     county_fips = _centroid_counties(con, centroids)
     source_id = _ntad_source_ids(active)
+    reserved_ids = {
+        row[0]
+        for row in con.execute(
+            "SELECT cl_id FROM critical_loads WHERE kind <> 'dod'"
+        ).fetchall()
+    }
     frame = pd.DataFrame(
         {
-            "cl_id": _ntad_cl_ids(active, source_id),
+            "cl_id": _ntad_cl_ids(active, source_id, reserved_ids),
             "kind": "dod",
             "name": active["siteName"].astype(str),
             "lon": centroids.x,
@@ -134,7 +181,7 @@ def load_dod(
         frame = frame[frame.county_fips.notna()].copy()
         active = active.loc[frame.index]
     source_id = source_id.loc[frame.index]
-    frame["cl_id"] = _ntad_cl_ids(active, source_id).to_numpy()
+    frame["cl_id"] = _ntad_cl_ids(active, source_id, reserved_ids).to_numpy()
     con.execute("""CREATE TABLE IF NOT EXISTS critical_load_geometry(cl_id INTEGER PRIMARY KEY, source_id TEXT,
         reporting_component TEXT, operational_status TEXT, is_joint_base BOOLEAN, area_km2 DOUBLE, geom_wkb BLOB)""")
     # Remove only geometry currently owned by DoD before replacing its parent

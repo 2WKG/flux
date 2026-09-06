@@ -1,0 +1,131 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "flux:p0-uri-beryl-calibration-ledger:v1",
+  "reportAsOf": "2026-09-06",
+  "policy": {
+    "calibrationRule": "fail_closed_when_required_observations_are_not_checked_in",
+    "allowedValueClasses": ["observed", "proxy", "modeled", "unavailable"],
+    "scope": "This ledger reports only evidence present in this repository. It does not acquire public data."
+  },
+  "topologyContext": {
+    "valueClass": "modeled",
+    "role": "context_only_not_calibration_evidence",
+    "receipt": "data/sources/activsg2000.json",
+    "receiptSha256": "da8335a0b2c73792574207a8999293c932a1885f7dd71c7c394c71b2d75920ed",
+    "citation": "A.B. Birchfield et al., Grid Structural Characteristics as Validation Criteria for Synthetic Networks, IEEE Transactions on Power Systems, 2017, doi:10.1109/TPWRS.2016.2616385",
+    "mappingLimit": "ACTIVSg2000 is a synthetic Texas test case. It is not ERCOT topology and supplies no SCADA, nodal telemetry, ratings, restricted data, or real-world asset mapping."
+  },
+  "requiredEvidence": [
+    {
+      "id": "county_outage_observations",
+      "status": "unavailable",
+      "source": "unavailable: no checked-in public outage artifact",
+      "vintage": "unavailable",
+      "coverage": "unavailable for Uri and Beryl",
+      "transformation": "not performed",
+      "method": "not performed"
+    },
+    {
+      "id": "county_weather_observations",
+      "status": "unavailable",
+      "source": "unavailable: no checked-in public weather artifact",
+      "vintage": "unavailable",
+      "coverage": "unavailable for Uri and Beryl",
+      "transformation": "not performed",
+      "method": "not performed"
+    },
+    {
+      "id": "balancing_authority_demand",
+      "status": "unavailable",
+      "source": "unavailable: no checked-in public demand artifact",
+      "vintage": "unavailable",
+      "coverage": "unavailable for Uri and Beryl",
+      "transformation": "not performed",
+      "method": "not performed"
+    },
+    {
+      "id": "hazard_or_event_observations",
+      "status": "unavailable",
+      "source": "unavailable: no checked-in public hazard or event artifact",
+      "vintage": "unavailable",
+      "coverage": "unavailable for Uri and Beryl",
+      "transformation": "not performed",
+      "method": "not performed"
+    },
+    {
+      "id": "operational_observations",
+      "status": "unavailable",
+      "source": "unavailable: no checked-in public operational artifact",
+      "vintage": "unavailable",
+      "coverage": "unavailable for Uri and Beryl",
+      "transformation": "not performed",
+      "method": "not performed"
+    }
+  ],
+  "scenarios": [
+    {
+      "scenarioId": "uri_2021",
+      "label": "Winter Storm Uri",
+      "window": "2021-02-13T00:00:00Z to 2021-02-20T23:00:00Z",
+      "evidenceIds": ["county_outage_observations", "county_weather_observations", "balancing_authority_demand", "hazard_or_event_observations", "operational_observations"],
+      "calibration": {
+        "status": "unavailable",
+        "method": "not performed",
+        "reason": "No required public observation artifact is checked in."
+      },
+      "result": {
+        "quantity": "P0 scenario calibration result",
+        "valueClass": "unavailable",
+        "value": null,
+        "unit": null,
+        "source": "unavailable",
+        "vintage": "unavailable",
+        "coverage": "unavailable",
+        "transformation": "not performed",
+        "method": "not performed",
+        "uncertainty": "high: no calibration can be estimated without checked-in observations"
+      },
+      "comparison": {
+        "status": "not_performed",
+        "reason": "No checked-in like-for-like observed and modeled quantity exists."
+      },
+      "limits": {
+        "syntheticTopologyMapping": "No synthetic-to-real asset, line, bus, generator, or service mapping is asserted.",
+        "nonNodalAggregate": "No county, balancing-authority, or nodal comparison is reported.",
+        "restrictedData": "No ERCOT topology, SCADA, nodal telemetry, ratings, or restricted data is used or claimed."
+      }
+    },
+    {
+      "scenarioId": "beryl_2024",
+      "label": "Hurricane Beryl",
+      "window": "2024-07-07T00:00:00Z to 2024-07-12T23:00:00Z",
+      "evidenceIds": ["county_outage_observations", "county_weather_observations", "balancing_authority_demand", "hazard_or_event_observations", "operational_observations"],
+      "calibration": {
+        "status": "unavailable",
+        "method": "not performed",
+        "reason": "No required public observation artifact is checked in."
+      },
+      "result": {
+        "quantity": "P0 scenario calibration result",
+        "valueClass": "unavailable",
+        "value": null,
+        "unit": null,
+        "source": "unavailable",
+        "vintage": "unavailable",
+        "coverage": "unavailable",
+        "transformation": "not performed",
+        "method": "not performed",
+        "uncertainty": "high: no calibration can be estimated without checked-in observations"
+      },
+      "comparison": {
+        "status": "not_performed",
+        "reason": "No checked-in like-for-like observed and modeled quantity exists."
+      },
+      "limits": {
+        "syntheticTopologyMapping": "No synthetic-to-real asset, line, bus, generator, or service mapping is asserted.",
+        "nonNodalAggregate": "No county, balancing-authority, or nodal comparison is reported.",
+        "restrictedData": "No ERCOT topology, SCADA, nodal telemetry, ratings, or restricted data is used or claimed."
+      }
+    }
+  ]
+}

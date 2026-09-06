@@ -1,6 +1,6 @@
 # Static origin and tunnel inventory
 
-Last checked: 2026-09-05
+Last checked: 2026-09-06 (merged `master` at `6c0b4caa06`)
 
 This is an inventory, not a provisioning guide. It records only checked-in
 configuration and a public, read-only tunnel check; it intentionally contains no
@@ -38,8 +38,8 @@ is no checked-in environment file or wrapper that overrides it.
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
-| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. The origin serves static assets only; this path now falls back to the SPA shell like any unknown path. |
-| `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
+| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route by design; this path falls back to the SPA shell like any unknown path (verified 2026-09-06: `200 text/html`). |
+| `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returned `530` (2026-09-05); no route can be attributed to the local origin yet |
 | optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
 | optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
@@ -61,9 +61,11 @@ tunnel-mapped.
 
 The Texas-first shared overview ([`docs/specs/00-overview.md`](../specs/00-overview.md))
 remains the primary reference for the repository's routing, API, and tunnel
-contract. The Minnesota demo inherits neutral engineering patterns only after
-its own source and model gates are accepted; until then, no Minnesota-specific
-route, fixture, or tunnel mapping is claimed in this inventory.
+contract. Gate 0 is accepted
+([`docs/design/minnesota-gate-0-approval.md`](../design/minnesota-gate-0-approval.md)),
+which freezes an aggregate-mode boundary only; the network/topology decision gate
+in `10-minnesota-demo.md` is still open. Either way, no Minnesota-specific route,
+fixture, or tunnel mapping is claimed in this inventory.
 
 ## Start and verify the static origin
 

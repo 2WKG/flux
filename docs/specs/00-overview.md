@@ -134,7 +134,8 @@ def predict_outage(county_fips: str, scenario_id: str, horizon_h: int = 72) -> d
 def run_cascade(element_ids: list[str], scenario_id: str, hour: int) -> dict
 def score_site(site_id: str, unit_mw: int, scenario_id: str) -> dict
 def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10) -> dict
-def sql(query: str) -> dict            # read-only DuckDB; rejects anything but SELECT/WITH; row cap 200
+def sql(query: str | None = None, template_id: str | None = None) -> dict
+                                          # legacy query or registered template; read-only DuckDB; row cap 200
 def cite(query: str, k: int = 5) -> dict  # retrieval over regulatory PDFs
 # added by amendment A8 (nine tools total):
 def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict   # ids "site:<site_id>" | "line:<line_id>"
@@ -142,6 +143,20 @@ def top_critical_elements(region: str, n: int = 10) -> dict                     
 def causal_query(...) -> dict                                                        # spec 07 owns the signature
 # helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
 ```
+
+SQL deployments may register fixed, deployment-owned templates. Every `sql`
+call supplies exactly one of `query` or `template_id`; the input boundary
+rejects an empty call and a call carrying both. In registry
+mode, the caller supplies one advertised `template_id` matching
+`^[a-z][a-z0-9_]{0,63}$`; raw `query` text is rejected before database access.
+Each template declares its complete approved-view relation set, which is
+validated against the parsed statement at registry construction. A deployment
+without a registry retains legacy `query` input and answers a `template_id`
+with an explicit unavailable result naming the missing registry. Only a
+deployment-owned template may contain positional `?` markers. Its caller may
+send at most 25 finite JSON scalar values; the executor checks exact arity and
+binds them before execution. Legacy free-form `query` text cannot contain
+placeholders or values.
 
 `cite` corpus (in `data/raw/regs/`, chunked by spec 05): 10 CFR Part 100; DOE coal-to-nuclear reports
 (Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed rule
@@ -248,13 +263,24 @@ GET  /layers/{name}?scenario_id=&hour=&run_id=&unit_mw=&tech=&res=
        name ∈ {buses, lines, gens, counties, critical_loads, outage_risk, cascade, sites,
                line_upgrades, storm, national_hex, eaglei}          (GeoJSON / Arrow IPC / JSON — see 05)
 POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
+GET  /cascade?scenario_id=&run_id=                    → one qualified persisted cascade_runs run, unwrapped {run_id, scenario_id, artifact_id, model_mode, geography_id, hours:[{hour, lost_load_mw (MW), …}], provenance:[…], limitations:[…], source_kind, topology, attributes} (05 §Routes, 2WKG-104)
 POST /site-score   {site_id, unit_mw, scenario_id}    → score_site(...) dict
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
+GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows, filtered in SQL before LIMIT (05 §Routes, 2WKG-104)
 GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
 GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
 ```
+
+The additive Minnesota `GET` routes are persisted-artifact reads with unwrapped
+payloads (only failures carry the envelope). `GET /cascade` selects a persisted cascade
+only when its model result is validated, its manifest is available with
+`model_mode: "topology"`, and its nonempty provenance and limitations are present; it
+labels the topology from the persisted provenance (synthetic ACTIVSg2000 or fixture) and
+never starts a cascade calculation. `POST /cascade` retains the compute-route contract
+above. `GET /predictions` returns only persisted predictions whose evaluation is
+qualified; absent or unqualified artifacts are unavailable rather than an empty success.
 
 Python entry points (owning spec's CLI wins; this list is the run order):
 
@@ -459,7 +485,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     | `compare_interventions(scenario, intervention_ids)` | `compare_interventions(scenario_id, intervention_ids)` | **new**, below |
     | `top_critical_elements(region, count)` | `top_critical_elements(region, n)` | **new**, below |
     | `top_line_upgrades(region, technology, count)` | `top_lines(region, tech, n)` | rename only |
-    | `sql(query)` | `sql(query)` | identical |
+    | `sql(query)` | `sql(query | template_id)` | Exactly one of legacy query text or a deployment-owned registered template. |
     | — | `cite(query, k)` | contract-only (retrieval) |
     | — | `causal_query(...)` | contract-only; spec 07 owns the signature and implementation; registered here so the tool count is consistent |
 

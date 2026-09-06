@@ -1,10 +1,11 @@
 """Fail-closed, bounded SQL reads for accepted Minnesota artifacts.
 
-The model-facing SQL contract deliberately has only a query string.  Deployment
-code supplies the separate, trusted list of Minnesota views and their evidence;
-this module never discovers tables or turns the ``mn_*`` storage relations into
-an allowlist.  Until an artifact publisher registers views, calls therefore
-return the normal unavailable result.
+The model-facing contract accepts either a legacy query string or an approved
+deployment template id. Deployment code supplies the trusted list of Minnesota
+views, evidence, and optional fixed templates; this module never discovers
+tables or turns the ``mn_*`` storage relations into an allowlist. Until an
+artifact publisher registers views, calls therefore return the normal
+unavailable result.
 """
 
 from __future__ import annotations
@@ -12,13 +13,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import math
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+import re
+from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from time import monotonic
+from typing import Any, Literal
 from uuid import UUID
 
 import duckdb
@@ -36,6 +40,7 @@ ROW_LIMIT = 200
 _FETCH_LIMIT = ROW_LIMIT + 1
 DEFAULT_TIMEOUT_SECONDS = 5.0
 _CLEANUP_SECONDS = 1.0
+_EXECUTION_LOGGER = logging.getLogger("copilot.sql")
 
 _FORBIDDEN_FUNCTIONS = frozenset(
     {
@@ -73,6 +78,18 @@ class SqlRejected(ValueError):
 
 
 @dataclass(frozen=True)
+class SqlExecutionRecord:
+    """Bound-safe operational record; it deliberately omits SQL and values."""
+
+    template_id: str | None
+    parameter_count: int | None
+    row_count: int | None
+    duration_ms: int
+    provenance_artifact_ids: tuple[str, ...]
+    outcome: Literal["success", "rejected", "timed_out", "unavailable", "failed"]
+
+
+@dataclass(frozen=True)
 class ApprovedMinnesotaView:
     """A deployment-owned, evidence-bearing local view available to SQL reads."""
 
@@ -96,7 +113,75 @@ def _is_safe_view_name(value: str) -> bool:
     )
 
 
-def _serialized_statement(query: str) -> tuple[str, list[object]]:
+def _is_template_id(value: str) -> bool:
+    """Match the public ``SqlInput.template_id`` ASCII identifier contract."""
+    return (
+        bool(value)
+        and len(value) <= 64
+        and "a" <= value[0] <= "z"
+        and all(
+            "a" <= character <= "z" or "0" <= character <= "9" or character == "_"
+            for character in value
+        )
+    )
+
+
+def _bound_parameters(value: object) -> list[str | int | float | bool | None] | None:
+    """Return only the finite, bounded scalar list the public model accepts."""
+
+    if not isinstance(value, list) or len(value) > 25:
+        return None
+    for parameter in value:
+        if parameter is None or isinstance(parameter, (str, bool, int)):
+            continue
+        if isinstance(parameter, float) and math.isfinite(parameter):
+            continue
+        return None
+    return value
+
+
+def _positional_placeholder_count(query: str) -> int:
+    """Count only ``?`` tokens outside SQL literals and comments.
+
+    Deployment templates may use DuckDB's positional form only.  The scanner is
+    deliberately narrow: dollar parameters are rejected even when their AST
+    identifiers look numeric, so a template cannot introduce a second binding
+    syntax.
+    """
+
+    index = 0
+    count = 0
+    while index < len(query):
+        if query.startswith("--", index):
+            newline = query.find("\n", index + 2)
+            index = len(query) if newline < 0 else newline + 1
+        elif query.startswith("/*", index):
+            end = query.find("*/", index + 2)
+            index = len(query) if end < 0 else end + 2
+        elif query[index] in "'\"":
+            quote = query[index]
+            index += 1
+            while index < len(query):
+                if query[index] == quote:
+                    if index + 1 < len(query) and query[index + 1] == quote:
+                        index += 2
+                        continue
+                    index += 1
+                    break
+                index += 1
+        elif query[index] == "?":
+            count += 1
+            index += 1
+        elif query[index] == "$" and re.match(r"\$[A-Za-z0-9_]", query[index:]):
+            raise SqlRejected("only positional ? SQL parameters are permitted")
+        else:
+            index += 1
+    return count
+
+
+def _serialized_statement(
+    query: str, *, allow_positional_parameters: bool = False
+) -> tuple[str, list[object], int]:
     """Ask DuckDB to parse and normalize one statement without binding it."""
 
     try:
@@ -105,10 +190,12 @@ def _serialized_statement(query: str) -> tuple[str, list[object]]:
         raise SqlRejected("query is not valid DuckDB SQL") from error
     if len(statements) != 1 or statements[0].type != duckdb.StatementType.SELECT:
         raise SqlRejected("only one SELECT statement is permitted")
-    if statements[0].named_parameters:
-        raise SqlRejected(
-            "SQL parameters are not available in the fixed query-only tool contract"
-        )
+    placeholder_count = _positional_placeholder_count(query)
+    expected_parameters = {str(index) for index in range(1, placeholder_count + 1)}
+    if statements[0].named_parameters != expected_parameters:
+        raise SqlRejected("SQL parameters are not available in the fixed tool contract")
+    if placeholder_count and not allow_positional_parameters:
+        raise SqlRejected("SQL parameters are not available in the fixed tool contract")
     try:
         serialized = duckdb.sql(
             "SELECT json_serialize_sql(?)", params=[statements[0].query]
@@ -125,13 +212,15 @@ def _serialized_statement(query: str) -> tuple[str, list[object]]:
         raise SqlRejected("query parser result is unavailable") from error
     if document.get("error") or not isinstance(statement_nodes, list):
         raise SqlRejected("query is not valid DuckDB SQL")
-    return str(sql), statement_nodes
+    return str(sql), statement_nodes, placeholder_count
 
 
 def _validate_statement(
-    query: str, allowed_views: set[str]
-) -> tuple[str, set[str], set[str]]:
-    sql, nodes = _serialized_statement(query)
+    query: str, allowed_views: set[str], *, allow_positional_parameters: bool = False
+) -> tuple[str, set[str], set[str], int]:
+    sql, nodes, placeholder_count = _serialized_statement(
+        query, allow_positional_parameters=allow_positional_parameters
+    )
     relations: set[str] = set()
     function_calls: set[str] = set()
 
@@ -235,7 +324,7 @@ def _validate_statement(
     validate(nodes, set())
     if not relations:
         raise SqlRejected("query must read at least one approved Minnesota view")
-    return sql, relations, function_calls
+    return sql, relations, function_calls, placeholder_count
 
 
 def _quote_identifier(name: str) -> str:
@@ -269,6 +358,29 @@ def _json_value(value: Any, *, json_column: bool = False) -> JsonValue:
     raise ValueError(f"SQL returned unsupported value type {type(value).__name__}")
 
 
+@dataclass(frozen=True)
+class ApprovedMinnesotaQuery:
+    """A named deployment query with its complete relation declaration."""
+
+    name: str
+    sql: str
+    relations: frozenset[str]
+    parameter_count: int = field(init=False)
+
+    def __post_init__(self) -> None:
+        if not _is_template_id(self.name):
+            raise ValueError("approved query names must match the template_id contract")
+        if not self.relations or any(
+            not _is_safe_view_name(name) for name in self.relations
+        ):
+            raise ValueError("approved queries require declared simple relations")
+        object.__setattr__(
+            self,
+            "parameter_count",
+            _serialized_statement(self.sql, allow_positional_parameters=True)[2],
+        )
+
+
 class MinnesotaSqlExecutor:
     """Execute one validated SELECT against deployment-registered local views."""
 
@@ -276,14 +388,33 @@ class MinnesotaSqlExecutor:
         self,
         database_path: Path | str,
         approved_views: Iterable[ApprovedMinnesotaView] = (),
+        approved_queries: Iterable[ApprovedMinnesotaQuery] = (),
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        execution_logger: Callable[[SqlExecutionRecord], None] | None = None,
     ) -> None:
         self._database_path = Path(database_path)
         self._views = {view.name: view for view in approved_views}
+        registered_queries = tuple(approved_queries)
+        self._queries = {query.name: query for query in registered_queries}
+        if len(self._queries) != len(registered_queries):
+            raise ValueError("approved query names must be unique")
+        for query in self._queries.values():
+            if not query.relations <= set(self._views):
+                raise ValueError("approved query relation is not an approved view")
+            _, relations, _, parameter_count = _validate_statement(
+                query.sql, set(self._views), allow_positional_parameters=True
+            )
+            if parameter_count != query.parameter_count:
+                raise ValueError("approved query placeholder count is inconsistent")
+            if relations != set(query.relations):
+                raise ValueError(
+                    "approved query relation declaration does not match SQL"
+                )
         self._timeout_seconds = timeout_seconds
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
+        self._execution_logger = execution_logger
 
     def _unavailable(self, code: str, reason: str) -> UnavailableOutput:
         return unavailable_output(code, reason)  # type: ignore[arg-type]
@@ -307,7 +438,11 @@ class MinnesotaSqlExecutor:
         return {str(row[0]).lower() for row in rows}
 
     def _run(
-        self, connection: duckdb.DuckDBPyConnection, sql: str, relations: set[str]
+        self,
+        connection: duckdb.DuckDBPyConnection,
+        sql: str,
+        relations: set[str],
+        parameters: list[str | int | float | bool | None],
     ) -> tuple[list[str], list[list[JsonValue]], bool]:
         try:
             present_views = self._available_local_views(connection)
@@ -325,7 +460,7 @@ class MinnesotaSqlExecutor:
                     raise LookupError(f"accepted artifact view is empty: {view_name}")
             cursor = connection.execute(
                 f"SELECT * FROM ({sql}) AS bounded_minnesota_sql LIMIT ?",
-                [_FETCH_LIMIT],
+                [*parameters, _FETCH_LIMIT],
             )
             columns = [column[0] for column in cursor.description]
             json_columns = [
@@ -345,23 +480,120 @@ class MinnesotaSqlExecutor:
             connection.close()
 
     async def execute(self, request: SqlInput | str) -> SqlData | UnavailableOutput:
+        """Execute once and emit a best-effort bound-safe operational record."""
+
+        started = monotonic()
+        result = await self._execute(request)
+        payload = request if isinstance(request, SqlInput) else None
+        template_id = None
+        if (
+            payload is not None
+            and payload.query is None
+            and isinstance(payload.template_id, str)
+            and _is_template_id(payload.template_id)
+            and payload.template_id in self._queries
+        ):
+            # Registry membership makes this deployment-owned identifier safe to
+            # record even if a caller bypassed Pydantic's input validation.
+            template_id = payload.template_id
+        parameter_count = (
+            len(payload.parameters)
+            if isinstance(getattr(payload, "parameters", None), list)
+            else None
+        )
+        record = SqlExecutionRecord(
+            template_id=template_id,
+            parameter_count=parameter_count,
+            row_count=result.row_count if isinstance(result, SqlData) else None,
+            duration_ms=max(0, round((monotonic() - started) * 1000)),
+            provenance_artifact_ids=tuple(
+                item.artifact_id for item in result.provenance
+            ),
+            outcome=self._execution_outcome(result),
+        )
+        _EXECUTION_LOGGER.info("sql_execution %s", record)
+        if self._execution_logger is not None:
+            try:
+                self._execution_logger(record)
+            except Exception:  # noqa: BLE001 - observability cannot change tool output.
+                return result
+        return result
+
+    @staticmethod
+    def _execution_outcome(
+        result: SqlData | UnavailableOutput,
+    ) -> Literal["success", "rejected", "timed_out", "unavailable", "failed"]:
+        if isinstance(result, SqlData):
+            return "success"
+        if result.unavailable is not None:
+            if (
+                result.unavailable.reason
+                == "SQL query exceeded the execution time limit"
+            ):
+                return "timed_out"
+            if result.unavailable.reason == "SQL query could not be executed":
+                return "failed"
+            if result.unavailable.code == "unsupported_request":
+                return "rejected"
+        return "unavailable"
+
+    async def _execute(self, request: SqlInput | str) -> SqlData | UnavailableOutput:
         """Return a bounded result or an explicit unavailable envelope.
 
-        The generated row limit is a bound parameter.  The caller never gets a
-        parameter dictionary because the public ``SqlInput`` contract has only
-        ``query``; submitted placeholders are rejected instead of guessed.
+        Only a deployment-owned template may contain positional ``?`` markers.
+        Values are passed separately to DuckDB; legacy query text retains the
+        no-placeholder rule.
         """
 
         try:
-            query = (
-                request.query
-                if isinstance(request, SqlInput)
-                else SqlInput(query=request).query
+            payload = (
+                request if isinstance(request, SqlInput) else SqlInput(query=request)
             )
         except Exception:  # noqa: BLE001 - Pydantic is the public input boundary.
             return self._unavailable(
                 "unsupported_request", "SQL query is outside the fixed input contract"
             )
+        # ``SqlInput`` already enforces exactly one of ``query``/``template_id``;
+        # this guard keeps the executor fail-closed if a caller bypasses it.
+        if (payload.query is None) == (payload.template_id is None):
+            return self._unavailable(
+                "unsupported_request",
+                "SQL accepts exactly one of query or template_id",
+            )
+        parameters = _bound_parameters(getattr(payload, "parameters", None))
+        if parameters is None:
+            return self._unavailable(
+                "unsupported_request",
+                "SQL parameters must be bounded finite JSON scalars",
+            )
+        if self._queries:
+            if payload.template_id is None:
+                return self._unavailable(
+                    "unsupported_request", "SQL requires one registered template_id"
+                )
+            template = self._queries.get(payload.template_id)
+            if template is None:
+                return self._unavailable(
+                    "unsupported_request", "SQL template is not registered"
+                )
+            query = template.sql
+            if len(parameters) != template.parameter_count:
+                return self._unavailable(
+                    "unsupported_request", "SQL template parameter count does not match"
+                )
+        elif payload.template_id is not None:
+            return self._unavailable(
+                "unsupported_request",
+                "SQL template registry is not configured for this deployment",
+            )
+        else:
+            assert payload.query is not None
+            query = payload.query
+            if parameters:
+                return self._unavailable(
+                    "unsupported_request",
+                    "SQL parameters require a registered template",
+                )
         if not self._database_path.is_file():
             return self._unavailable(
                 "artifact_unavailable",
@@ -373,11 +605,17 @@ class MinnesotaSqlExecutor:
                 "no approved Minnesota SQL views are provisioned",
             )
         try:
-            sql, relations, function_calls = _validate_statement(
-                query, set(self._views)
+            sql, relations, function_calls, placeholder_count = _validate_statement(
+                query,
+                set(self._views),
+                allow_positional_parameters=bool(self._queries),
             )
         except SqlRejected as error:
             return self._unavailable("unsupported_request", str(error))
+        if placeholder_count != len(parameters):
+            return self._unavailable(
+                "unsupported_request", "SQL template parameter count does not match"
+            )
         try:
             # A connection per request keeps cancellation isolated.  Opening
             # read-only never creates a missing database (checked above).
@@ -410,7 +648,7 @@ class MinnesotaSqlExecutor:
                 "stored SQL macros are not permitted",
             )
         task = asyncio.create_task(
-            asyncio.to_thread(self._run, connection, sql, relations)
+            asyncio.to_thread(self._run, connection, sql, relations, parameters)
         )
         try:
             columns, rows, truncated = await asyncio.wait_for(

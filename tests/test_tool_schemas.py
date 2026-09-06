@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from copilot.tools.schemas import (
@@ -17,6 +18,7 @@ from copilot.tools.schemas import (
     unavailable_output,
     validate_tool_input,
 )
+from scripts.ci.export_tool_contracts import build_schema_document, render_ts
 
 
 def test_registry_has_exactly_the_nine_shared_contract_tools() -> None:
@@ -102,6 +104,87 @@ def test_top_lines_rejects_out_of_bound_pages_and_unknown_filters() -> None:
     ):
         with pytest.raises(ValidationError):
             validate_tool_input("top_lines", payload)
+
+
+def test_sql_input_requires_exactly_one_of_query_or_template_id() -> None:
+    # 00-overview A8 amendment: ``sql(query | template_id)``; the boundary,
+    # not the executor, is where ``{}`` and both-set payloads die.
+    for payload in (
+        {},
+        {"query": "SELECT 1", "template_id": "summary_rows"},
+        {"query": None, "template_id": None},
+    ):
+        with pytest.raises(ValidationError, match="exactly one"):
+            validate_tool_input("sql", payload)
+
+    legacy = validate_tool_input("sql", {"query": "SELECT 1"})
+    template = validate_tool_input("sql", {"template_id": "summary_rows"})
+    assert legacy.model_dump() == {
+        "query": "SELECT 1",
+        "template_id": None,
+        "parameters": [],
+    }
+    assert template.model_dump() == {
+        "query": None,
+        "template_id": "summary_rows",
+        "parameters": [],
+    }
+
+
+def test_sql_template_id_keeps_the_frozen_identifier_pattern() -> None:
+    for template_id in ("Summary_rows", "_x", "a-b", "a" * 65, ""):
+        with pytest.raises(ValidationError):
+            validate_tool_input("sql", {"template_id": template_id})
+
+    schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")
+    assert set(schema["input_schema"]["properties"]) == {
+        "query",
+        "template_id",
+        "parameters",
+    }
+
+
+def test_sql_tool_schema_encodes_the_exactly_one_input_contract() -> None:
+    schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")[
+        "input_schema"
+    ]
+    validator = Draft202012Validator(schema)
+
+    # Strict tool schemas require every declared key, so the unused XOR member
+    # is explicit null rather than omitted.
+    assert validator.is_valid(
+        {"query": "SELECT 1", "template_id": None, "parameters": []}
+    )
+    assert validator.is_valid(
+        {"query": None, "template_id": "summary_rows", "parameters": []}
+    )
+    for payload in (
+        {},
+        {"query": "SELECT 1", "template_id": None},
+        {"query": None, "template_id": "summary_rows"},
+        {"query": None, "template_id": None, "parameters": []},
+        {"query": "SELECT 1", "template_id": "summary_rows", "parameters": []},
+    ):
+        assert not validator.is_valid(payload)
+
+
+def test_exported_sql_contract_keeps_the_xor_in_json_schema_and_typescript() -> None:
+    document = build_schema_document()
+    schema = {"$ref": "#/$defs/SqlInput", "$defs": document["$defs"]}
+    validator = Draft202012Validator(schema)
+
+    # The exported public contract preserves the original query-only form;
+    # strict provider schemas add the explicit null companion above.
+    assert validator.is_valid({"query": "SELECT 1"})
+    assert validator.is_valid({"template_id": "summary_rows"})
+    assert validator.is_valid({"query": "SELECT 1", "template_id": None})
+    assert validator.is_valid({"query": None, "template_id": "summary_rows"})
+    assert not validator.is_valid({"query": None, "template_id": None})
+    assert not validator.is_valid({"query": "SELECT 1", "template_id": "summary_rows"})
+    rendered = render_ts(document)
+    assert "export type SqlInput =" in rendered
+    assert "query: string; template_id?: null;" in rendered
+    assert "query?: null; template_id: string;" in rendered
 
 
 def test_representative_unavailable_output_keeps_provenance() -> None:
