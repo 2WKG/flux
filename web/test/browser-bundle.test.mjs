@@ -28,6 +28,7 @@ test("database packages are rejected by segment, including scoped and suffixed D
   for (const input of ["node_modules/postgres-array/index.js", "node_modules/react/index.js", "src/main.tsx"]) {
     assertBrowserBundle(inputs(input), webRoot);
   }
+  assertBrowserBundle(inputs("node_modules/is-unsafe/src/contexts/sql.js"), webRoot);
 });
 
 test("analytics directories are judged on the web-relative input path, not the absolute one", () => {

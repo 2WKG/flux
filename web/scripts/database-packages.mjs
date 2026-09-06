@@ -20,9 +20,9 @@ export function databasePackageSpecifier() {
   return `(?:${[...scoped, ...names].join("|")})(?:\\/[^"'\`]*)?`;
 }
 
-/** Matches a metafile input path whose segments name a database package, e.g. node_modules/@duckdb/duckdb-wasm/x.js. */
+/** Matches a database package below node_modules, never an incidental source file such as contexts/sql.js. */
 export function databasePackagePath() {
   const scoped = DATABASE_PACKAGE_SCOPES.map((scope) => `${escape(scope)}[/\\\\][^/\\\\]+`);
   const names = DATABASE_PACKAGE_NAMES.map(escape);
-  return new RegExp(`(?:^|[/\\\\])(?:${[...scoped, ...names].join("|")})(?:[/\\\\]|$)`, "i");
+  return new RegExp(`(?:^|[/\\\\])node_modules[/\\\\](?:${[...scoped, ...names].join("|")})(?:[/\\\\]|$)`, "i");
 }
