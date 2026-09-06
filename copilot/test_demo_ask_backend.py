@@ -154,6 +154,9 @@ def test_inventory_questions_use_the_verified_physical_release_not_cascade() -> 
     assert events[1][1]["tool"] == "physical_inventory"
     result = events[2][1]["result"]
     assert result["region"] == "texas"
+    assert result["artifact_id"] == "tx:physical-inventory:1.1.0"
+    assert result["artifact_version"] == "1.1.0"
+    assert result["asset_count"] == 11_949
     assert result["source_records"]
     assert result["selected_asset"] is None
 
@@ -179,6 +182,28 @@ def test_selected_physical_asset_is_resolved_from_the_verified_release() -> None
     selected = result["selected_asset"]
     assert selected["asset_id"] == _first_tx_asset_id()
     assert selected["source"]["source_ref"]
+
+
+def test_inventory_tool_uses_the_same_verified_release_as_the_map_endpoint() -> None:
+    client = _client(_ActualRunner(), inventory_reader=_physical_inventory_reader())
+    layer = client.get("/api/v1/grid/layers/all?state=tx&version=1.1.0&limit=1")
+    answer = client.post(
+        "/ask",
+        json={
+            "attempt_id": ATTEMPT,
+            "question": "What source-backed inventory is visible here?",
+            "context": {"region": "texas", "view_mode": "physical_inventory"},
+            "history": [],
+        },
+    )
+
+    assert layer.status_code == 200
+    result = _events(answer)[2][1]["result"]
+    map_release = layer.json()
+    assert result["artifact_id"] == map_release["artifact_id"]
+    assert result["artifact_version"] == map_release["artifact_version"]
+    assert result["release_sha256"] == map_release["release_sha256"]
+    assert result["asset_count"] == map_release["page"]["total"]
 
 
 def test_existing_ask_http_path_runs_a_provenanced_cascade_tool_and_streams_plain_text() -> (
