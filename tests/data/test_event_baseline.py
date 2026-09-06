@@ -309,7 +309,8 @@ def test_assembler_preserves_event_and_county_window_dispositions(
 
 
 def test_operational_eaglei_receipt_maps_to_acquisition_proof() -> None:
-    raw = {
+    raw = {"raw_sha256": "a" * 64, "filtered_sha256": "b" * 64}
+    sidecar = {
         "acquisition_complete": True,
         "acquisition_method": "exhaustive_annual_stream",
         "source_system_id": "figshare:24237376:53581661",
@@ -318,10 +319,10 @@ def test_operational_eaglei_receipt_maps_to_acquisition_proof() -> None:
         "source_file_bytes": 12,
         "integrity_basis": "figshare_file_metadata_md5_and_size",
         "raw_sha256": "a" * 64,
-        "filtered_sha256": "b" * 64,
     }
     proof = eaglei_acquisition_from_operational_receipt(
         raw,
+        sidecar,
         raw_artifact_uri="approved://raw",
         source_sidecar_uri="approved://sidecar",
         source_sidecar_sha256="c" * 64,
