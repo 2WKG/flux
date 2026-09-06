@@ -77,6 +77,15 @@ def test_model_missing_database_and_packaged_artifact_is_named_unavailable(
     }
 
 
+def test_model_rejects_more_than_64_requested_elements(tmp_path: Path) -> None:
+    path = tmp_path / "grid.duckdb"
+    _database(path)
+    response = TestClient(create_app(Settings(duckdb_path=path))).get(
+        "/demo/model", params=[("element_id", str(index)) for index in range(65)]
+    )
+    assert response.status_code == 422
+
+
 def test_packaged_texas_topology_fallback_is_complete(tmp_path: Path) -> None:
     response = TestClient(
         create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))
