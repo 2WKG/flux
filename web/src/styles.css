@@ -155,9 +155,12 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .pipeline h2 { font-size: 1.5rem; margin: .4rem 0 }
 .pipeline > p { max-width: 520px; margin: 0 }
 
-.chat-dock { position: fixed; right: 28px; bottom: 20px; z-index: 6; width: min(420px, calc(100vw - 40px)); border: 1px solid #315873; border-radius: 12px; background: #0b1d2e; box-shadow: 0 18px 48px -24px #000; overflow: hidden }
-.chat-dock.collapsed { width: min(350px, calc(100vw - 40px)) }
-.chat-dock.expanded { width: min(420px, calc(100vw - 40px)) }
+/* In flow, not floating. A fixed dock parks itself over the inspector column and
+   hides the headline metric while the page is scrolled, so the dock sits at the
+   end of the document where the JSX already puts it. */
+.chat-dock { margin-top: 14px; border: 1px solid #315873; border-radius: 12px; background: #0b1d2e; overflow: hidden }
+.chat-dock.collapsed { border-color: #294c69 }
+.chat-dock.expanded { border-color: #3d6b8d }
 .chat-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; text-align: left }
 .chat-toggle strong { display: block; font-size: .85rem; margin-top: 4px }
 .chat-state { color: #d6b77a; font: 700 .61rem 'DM Mono', monospace; line-height: 1.35; text-align: right }
@@ -191,12 +194,12 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
   .inspector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
   .inspector .insight { grid-column: 1 / -1; margin-top: 0 }
   .shell-controls { align-items: flex-start; flex-direction: column }
-  .chat-dock { right: 20px; bottom: 14px }
+
 }
 @media (max-width: 500px) {
   h1 { font-size: 2.5rem }
   .outcome > strong { font-size: 3.6rem }
   .stats { grid-template-columns: 1fr }
   .timeline { grid-template-columns: 1fr }
-  .chat-dock, .chat-dock.collapsed, .chat-dock.expanded { left: 10px; right: 10px; bottom: 10px; width: auto }
+
 }
