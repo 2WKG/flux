@@ -1,9 +1,8 @@
 # 02 — County outage model (LightGBM on EAGLE-I, Layer 3)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** A selected state's data is used only when declared source artifacts and validation are present. The Texas examples below are the current documented case; [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota dataset.
 
-Status: build spec, weekend scope. Texas first; the model is county-generic so P1 national is
-"add rows", not "add code". Depends on `01-data-ingest.md` tables: `eaglei_outages`,
+Status: build spec. The model is county-generic, but each selected state needs validated inputs; Texas is the documented topology-backed case and further states add validated rows and provenance rather than a new model. Depends on `01-data-ingest.md` tables: `eaglei_outages`,
 `county_customers` (helper), `weather_hourly`, `storm_events`, `hazard_static`, `nri_hazards`
 (helper), `counties`, `scenarios`, `nws_alerts` (helper), optional `utility_reliability`.
 

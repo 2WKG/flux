@@ -6,7 +6,7 @@
 
 ## Authority and scope
 
-This Minnesota contract **coexists with** the Texas-first overview. It does not
+This Minnesota contract **coexists with** the state-configurable overview. It does not
 supersede that overview wholesale or derive Minnesota fixture data from Texas
 records. [10-minnesota-demo.md](10-minnesota-demo.md) supersedes the legacy Texas,
 ERCOT, Uri, and ACTIVSg2000 demo contract. This document makes its required artifact
