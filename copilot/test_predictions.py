@@ -1,8 +1,8 @@
 """HTTP coverage for qualified prediction and persisted cascade reads.
 
 Fixtures are built on the real ``pipelines.db`` 2.1.0 DDL plus the
-``models.outage.persistence`` companion tables, so the tests cannot drift from
-the columns the routes read.
+``models.outage.persistence`` companion tables and the ``pipelines.minnesota_schema``
+namespace, so the tests cannot drift from the columns the routes read.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from copilot.app import create_app
 from copilot.config import Settings
 from copilot.routes import predictions as predictions_module
 from models.outage.persistence import PersistenceError, ensure_persistence_schema
+from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 SCENARIO = "mn_winter_2023_snow"
 OTHER_SCENARIO = "mn_spring_2024_flood"
@@ -35,6 +36,13 @@ _ACTIVSG_PROVENANCE = (
     "2018",
     "2026-09-05 12:00:00",
     "activsg2000@2018",
+)
+_UNLABELLED_PROVENANCE = (
+    "vendor.export",
+    "s3://bucket/export.parquet",
+    "1",
+    "2026-09-05 12:00:00",
+    "vendor@1",
 )
 
 
@@ -144,17 +152,30 @@ def _prediction_database(path: Path, rows: tuple[_Prediction, ...]) -> None:
 
 @dataclass(frozen=True)
 class _Run:
+    """One persisted cascade run and the Minnesota artifact that qualifies it."""
+
     run_id: str
-    retrieved_at: str | None
+    created_at: str = "2026-09-05 00:00:00"
     hours: tuple[int, ...] = (0,)
     scenario_id: str = SCENARIO
     provenance: tuple[str, str, str | None, str | None, str] = _ACTIVSG_PROVENANCE
+    # None: a bare cascade row with no Minnesota artifact at all.
+    model_mode: str | None = "topology"
+    availability: str = "available"
+    validation_status: str = "validated"
+    with_provenance: bool = True
+    limitations: str = '["Fixture topology evidence only."]'
+
+    @property
+    def artifact_id(self) -> str:
+        return f"mn:model:{self.run_id}"
 
 
 def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
     _real_database(path)
     con = duckdb.connect(str(path))
     try:
+        ensure_minnesota_schema(con)
         for run in runs:
             for hour in run.hours:
                 con.execute(
@@ -170,10 +191,65 @@ def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
                         run.provenance[0],
                         run.provenance[1],
                         run.provenance[2],
-                        run.retrieved_at,
+                        run.provenance[3],
                         run.provenance[4],
                     ],
                 )
+            if run.model_mode is None:
+                continue
+            con.execute(
+                "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    run.artifact_id,
+                    "model_result",
+                    SCHEMA_VERSION,
+                    "mn",
+                    run.availability,
+                    run.model_mode,
+                    "{}",
+                    run.created_at,
+                    "[]",
+                    run.limitations,
+                    "[]",
+                ],
+            )
+            if run.with_provenance:
+                con.execute(
+                    "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    [
+                        run.artifact_id,
+                        0,
+                        run.provenance[0],
+                        run.provenance[1],
+                        run.provenance[2] or "v1",
+                        run.provenance[3] or "2026-09-05 00:00:00",
+                        "test fixture",
+                        run.run_id,
+                        "b" * 64,
+                        False,
+                    ],
+                )
+            if run.availability != "available":
+                continue
+            topology = run.model_mode == "topology"
+            con.execute(
+                "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    run.artifact_id,
+                    "fixture-cascade",
+                    "v1",
+                    run.run_id,
+                    "a" * 64,
+                    run.validation_status,
+                    "lost_load_mw",
+                    1.0,
+                    "MW",
+                    None if topology else "regional sum",
+                    100.0 if topology else None,
+                    "pandapower" if topology else None,
+                    "fixture-converter" if topology else None,
+                ],
+            )
     finally:
         con.close()
 
@@ -404,12 +480,22 @@ def test_prediction_read_failure_is_unavailable(
 # --- GET /cascade -------------------------------------------------------------
 
 
+def _hour(hour: int) -> dict[str, object]:
+    return {
+        "hour": hour,
+        "tripped_element_ids": [
+            {"element_id": "line-7", "kind": "line", "stage": 1, "cause": "weather"}
+        ],
+        "lost_load_mw": 12.5 * (hour + 1),
+        "counties_dark": ["27000"],
+        "critical_loads_lost": ["cl-1"],
+    }
+
+
 def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
     database = tmp_path / "cascade.duckdb"
-    _cascade_database(
-        database,
-        (_Run("mn_winter_2023_snow-s0-0badf00d", "2026-09-05 12:00:00", (1, 0)),),
-    )
+    run = _Run("mn_winter_2023_snow-s0-0badf00d", hours=(1, 0))
+    _cascade_database(database, (run,))
 
     response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
 
@@ -418,82 +504,69 @@ def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
     assert body == {
         "run_id": "mn_winter_2023_snow-s0-0badf00d",
         "scenario_id": SCENARIO,
-        "hours": [
+        "artifact_id": "mn:model:mn_winter_2023_snow-s0-0badf00d",
+        "model_mode": "topology",
+        "geography_id": "mn",
+        "hours": [_hour(0), _hour(1)],
+        "provenance": [
             {
-                "hour": 0,
-                "tripped_element_ids": [
-                    {
-                        "element_id": "line-7",
-                        "kind": "line",
-                        "stage": 1,
-                        "cause": "weather",
-                    }
-                ],
-                "lost_load_mw": 12.5,
-                "counties_dark": ["27000"],
-                "critical_loads_lost": ["cl-1"],
-            },
-            {
-                "hour": 1,
-                "tripped_element_ids": [
-                    {
-                        "element_id": "line-7",
-                        "kind": "line",
-                        "stage": 1,
-                        "cause": "weather",
-                    }
-                ],
-                "lost_load_mw": 25.0,
-                "counties_dark": ["27000"],
-                "critical_loads_lost": ["cl-1"],
-            },
+                "source_name": "twin.cascade",
+                "source_ref": "data/raw/activsg2000/scenarios_ACTIVSg2000.m",
+                "source_version": "2018",
+                "retrieved_at": "2026-09-05T12:00:00Z",
+                "license_or_terms": "test fixture",
+                "source_record_id": "mn_winter_2023_snow-s0-0badf00d",
+                "content_sha256": "b" * 64,
+                "is_derived": False,
+            }
         ],
-        "provenance": {
-            "source_name": "twin.cascade",
-            "source_ref": "data/raw/activsg2000/scenarios_ACTIVSg2000.m",
-            "source_version": "2018",
-            "source_retrieved_at": "2026-09-05T12:00:00Z",
-            "fixture_batch_id": "activsg2000@2018",
-            "source_kind": "simulated",
-            "topology": "synthetic (ACTIVSg2000)",
-        },
+        "limitations": ["Fixture topology evidence only."],
+        "source_kind": "simulated",
+        "topology": "synthetic (ACTIVSg2000)",
         "attributes": predictions_module.CASCADE_ATTRIBUTES,
     }
     assert body["attributes"]["lost_load_mw"]["unit"] == "MW"
+    assert "status" not in body
 
 
-def test_cascade_topology_label_comes_from_the_row_provenance(tmp_path: Path) -> None:
-    """A fixture-sourced run is labelled a fixture, not synthetic topology."""
-    database = tmp_path / "fixture-run.duckdb"
+def test_cascade_labels_come_from_the_persisted_provenance(tmp_path: Path) -> None:
+    """A fixture-sourced run is labelled a fixture; an unidentifiable one fails closed."""
+    fixture = tmp_path / "fixture-run.duckdb"
     _cascade_database(
-        database,
-        (
-            _Run(
-                "mn_winter_2023_snow-s0-f1f1f1f1", None, provenance=_FIXTURE_PROVENANCE
-            ),
-        ),
+        fixture,
+        (_Run("mn_winter_2023_snow-s0-f1f1f1f1", provenance=_FIXTURE_PROVENANCE),),
+    )
+    unlabelled = tmp_path / "unlabelled-run.duckdb"
+    _cascade_database(
+        unlabelled,
+        (_Run("mn_winter_2023_snow-s0-0000beef", provenance=_UNLABELLED_PROVENANCE),),
     )
 
-    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+    labelled = _client(fixture).get("/cascade", params={"scenario_id": SCENARIO})
+    refused = _client(unlabelled).get("/cascade", params={"scenario_id": SCENARIO})
 
-    assert response.status_code == 200
-    provenance = response.json()["provenance"]
-    assert provenance["source_kind"] == "fixture"
-    assert provenance["topology"] is None
-    assert provenance["source_retrieved_at"] is None
+    assert labelled.status_code == 200
+    assert labelled.json()["source_kind"] == "fixture"
+    assert labelled.json()["topology"] is None
+    assert refused.status_code == 503
+    assert _details(refused) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_label_unavailable",
+        "run_id": "mn_winter_2023_snow-s0-0000beef",
+    }
 
 
-def test_latest_cascade_run_is_by_retrieval_time_not_run_id_order(
+def test_latest_cascade_run_is_by_artifact_time_not_run_id_order(
     tmp_path: Path,
 ) -> None:
-    """Lexically-later run ids must not win over a more recently retrieved run."""
+    """Lexically-later run ids must not win over a more recently created artifact."""
     database = tmp_path / "runs.duckdb"
     _cascade_database(
         database,
         (
             _Run("mn_winter_2023_snow-s0-ffffffff", "2026-09-01 00:00:00"),
             _Run("mn_winter_2023_snow-s0-00000000", "2026-09-05 00:00:00"),
-            _Run("mn_winter_2023_snow-s0-aaaaaaaa", None),
+            _Run("mn_winter_2023_snow-s0-aaaaaaaa", "2026-09-03 00:00:00"),
         ),
     )
 
@@ -533,6 +606,74 @@ def test_cascade_run_id_selects_that_run_or_is_not_found(tmp_path: Path) -> None
     }
 
 
+def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -> None:
+    """A cascade row with no Minnesota model result behind it is not served."""
+    database = tmp_path / "bare-cascade.duckdb"
+    _cascade_database(
+        database, (_Run("mn_winter_2023_snow-s0-bare0000", model_mode=None),)
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported_or_absent",
+    }
+
+
+def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:
+    database = tmp_path / "aggregate-cascade.duckdb"
+    run = _Run("mn_winter_2023_snow-s0-a66re6a7", model_mode="aggregate")
+    _cascade_database(database, (run,))
+
+    latest = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+    named = _client(database).get(
+        "/cascade", params={"scenario_id": SCENARIO, "run_id": run.run_id}
+    )
+
+    assert latest.status_code == 503
+    assert _details(latest) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported_or_absent",
+    }
+    # The run exists but is unqualified: named, not 404.
+    assert named.status_code == 503
+    assert _details(named) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported_or_absent",
+        "run_id": run.run_id,
+    }
+
+
+def test_unavailable_manifest_is_not_a_qualified_cascade(tmp_path: Path) -> None:
+    database = tmp_path / "unavailable-manifest.duckdb"
+    _cascade_database(
+        database,
+        (_Run("mn_winter_2023_snow-s0-0ff11ne0", availability="unavailable"),),
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+
+
+def test_cascade_artifact_with_empty_limitations_is_invalid(tmp_path: Path) -> None:
+    database = tmp_path / "no-limitations.duckdb"
+    run = _Run("mn_winter_2023_snow-s0-11111111", limitations="[]")
+    _cascade_database(database, (run,))
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "invalid_topology_artifact",
+        "run_id": run.run_id,
+    }
+
+
 def test_cascade_table_absent_from_real_database_is_unavailable(tmp_path: Path) -> None:
     """A 2.1.0 database file that exists but has no ``cascade_runs`` is a 503, not a 500."""
     database = tmp_path / "grid.duckdb"
@@ -547,9 +688,25 @@ def test_cascade_table_absent_from_real_database_is_unavailable(tmp_path: Path) 
     assert _details(response) == {"artifact": "cascade_runs", "reason": "missing"}
 
 
-def test_cascade_without_a_run_for_the_scenario_is_unavailable(tmp_path: Path) -> None:
+def test_cascade_without_minnesota_metadata_tables_is_named_missing(
+    tmp_path: Path,
+) -> None:
+    """A real grid.duckdb whose ``mn_*`` namespace was never created."""
     database = tmp_path / "grid.duckdb"
     _real_database(database)
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "missing",
+    }
+
+
+def test_cascade_without_a_run_for_the_scenario_is_unavailable(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _cascade_database(database, ())
 
     response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
 
@@ -562,9 +719,16 @@ def test_cascade_without_a_run_for_the_scenario_is_unavailable(tmp_path: Path) -
 
 def test_cascade_schema_drift_is_unavailable(tmp_path: Path) -> None:
     database = tmp_path / "drift.duckdb"
+    _cascade_database(database, (_Run("mn_winter_2023_snow-s0-0badf00d"),))
     con = duckdb.connect(str(database))
-    con.execute("CREATE TABLE cascade_runs (run_id TEXT, scenario_id TEXT)")
-    con.execute("INSERT INTO cascade_runs VALUES ('mn-storm-run-1', ?)", [SCENARIO])
+    con.execute("DROP TABLE cascade_runs")
+    con.execute(
+        "CREATE TABLE cascade_runs (run_id TEXT, scenario_id TEXT, hour INTEGER)"
+    )
+    con.execute(
+        "INSERT INTO cascade_runs VALUES ('mn_winter_2023_snow-s0-0badf00d', ?, 0)",
+        [SCENARIO],
+    )
     con.close()
 
     response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
@@ -579,18 +743,15 @@ def test_cascade_schema_drift_is_unavailable(tmp_path: Path) -> None:
 def test_cascade_row_without_a_lost_load_number_is_unavailable(tmp_path: Path) -> None:
     """A row the contract forbids (no ``lost_load_mw``) is named, never invented."""
     database = tmp_path / "nullable.duckdb"
+    run = _Run("mn_winter_2023_snow-s0-0badf00d")
+    _cascade_database(database, (run,))
     con = duckdb.connect(str(database))
+    # Same columns as the 2.1.0 DDL, without the NOT NULL the contract requires.
+    con.execute("CREATE TABLE drifted AS SELECT * FROM cascade_runs")
+    con.execute("DROP TABLE cascade_runs")
+    con.execute("ALTER TABLE drifted RENAME TO cascade_runs")
     con.execute(
-        """CREATE TABLE cascade_runs (
-            run_id TEXT, scenario_id TEXT, hour INTEGER, tripped_element_ids_json TEXT,
-            lost_load_mw DOUBLE, counties_dark_json TEXT, critical_loads_lost_json TEXT,
-            counterfactual_site_id BIGINT, source_name TEXT, source_ref TEXT,
-            source_version TEXT, source_retrieved_at TIMESTAMP, fixture_batch_id TEXT)"""
-    )
-    con.execute(
-        "INSERT INTO cascade_runs VALUES ('mn-run', ?, 0, '[]', NULL, '[]', '[]', NULL, "
-        "'twin.cascade', 'ref', NULL, NULL, 'batch')",
-        [SCENARIO],
+        "UPDATE cascade_runs SET lost_load_mw = NULL WHERE run_id = ?", [run.run_id]
     )
     con.close()
 
@@ -600,7 +761,7 @@ def test_cascade_row_without_a_lost_load_number_is_unavailable(tmp_path: Path) -
     assert _details(response) == {
         "artifact": "cascade_runs",
         "reason": "schema_mismatch",
-        "run_id": "mn-run",
+        "run_id": run.run_id,
     }
 
 
@@ -608,7 +769,7 @@ def test_cascade_read_failure_is_unavailable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     database = tmp_path / "cascade.duckdb"
-    _cascade_database(database, (_Run("mn_winter_2023_snow-s0-0badf00d", None),))
+    _cascade_database(database, (_Run("mn_winter_2023_snow-s0-0badf00d"),))
     real_connect = duckdb.connect
 
     class _FailingConnection:

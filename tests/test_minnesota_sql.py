@@ -12,9 +12,16 @@ from uuid import UUID
 
 import duckdb
 import pytest
+from pydantic import ValidationError
 
 from copilot.tools.schemas import ArtifactRef, SqlInput
-from copilot.tools.sql import ROW_LIMIT, ApprovedMinnesotaView, MinnesotaSqlExecutor
+from copilot.tools.sql import (
+    ROW_LIMIT,
+    ApprovedMinnesotaQuery,
+    ApprovedMinnesotaView,
+    MinnesotaSqlExecutor,
+    SqlRejected,
+)
 
 
 def _view() -> ApprovedMinnesotaView:
@@ -69,6 +76,192 @@ def test_no_registered_minnesota_views_fails_closed(db_path: Path) -> None:
     assert result.status == "unavailable"
     assert result.unavailable is not None
     assert result.unavailable.code == "artifact_unavailable"
+
+
+def test_named_template_registry_executes_declared_view_and_rejects_raw_sql(
+    db_path: Path,
+) -> None:
+    template = ApprovedMinnesotaQuery(
+        name="summary_rows",
+        sql="SELECT id, label FROM mn_summary ORDER BY id",
+        relations=frozenset({"mn_summary"}),
+    )
+    executor = MinnesotaSqlExecutor(db_path, [_view()], [template])
+
+    result = asyncio.run(executor.execute(SqlInput(template_id="summary_rows")))
+    raw = _execute(executor, "SELECT id, label FROM mn_summary")
+    unknown = asyncio.run(executor.execute(SqlInput(template_id="not_registered")))
+
+    assert result.status == "available"
+    assert result.rows[0] == [0, "row-0"]
+    assert raw.status == unknown.status == "unavailable"
+    assert raw.unavailable is not None and raw.unavailable.code == "unsupported_request"
+    assert (
+        unknown.unavailable is not None
+        and unknown.unavailable.code == "unsupported_request"
+    )
+
+
+def test_template_registry_rejects_mismatched_or_unapproved_relation_declarations(
+    db_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="not an approved view"):
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            [
+                ApprovedMinnesotaQuery(
+                    "wrong_relation",
+                    "SELECT * FROM mn_summary",
+                    frozenset({"mn_other"}),
+                )
+            ],
+        )
+
+
+def _other_view() -> ApprovedMinnesotaView:
+    return ApprovedMinnesotaView("mn_other", _view().provenance)
+
+
+def _summary_template(name: str = "summary_rows") -> ApprovedMinnesotaQuery:
+    return ApprovedMinnesotaQuery(
+        name, "SELECT id, label FROM mn_summary ORDER BY id", frozenset({"mn_summary"})
+    )
+
+
+def _forbid_connect(monkeypatch: pytest.MonkeyPatch) -> list[object]:
+    calls: list[object] = []
+
+    def connect(*args: object, **kwargs: object) -> None:
+        calls.append((args, kwargs))
+        raise AssertionError("duckdb.connect must not be reached")
+
+    monkeypatch.setattr("copilot.tools.sql.duckdb.connect", connect)
+    return calls
+
+
+def test_registry_mode_rejects_raw_and_unknown_input_before_any_connection(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _forbid_connect(monkeypatch)
+    executor = MinnesotaSqlExecutor(db_path, [_view()], [_summary_template()])
+
+    raw = _execute(executor, "SELECT id, label FROM mn_summary")
+    unknown = asyncio.run(executor.execute(SqlInput(template_id="not_registered")))
+
+    assert raw.status == unknown.status == "unavailable"
+    assert raw.unavailable is not None
+    assert raw.unavailable.code == "unsupported_request"
+    assert unknown.unavailable is not None
+    assert unknown.unavailable.code == "unsupported_request"
+    assert calls == []
+
+
+def test_query_and_template_id_together_are_rejected_at_the_boundary() -> None:
+    with pytest.raises(ValidationError, match="exactly one"):
+        SqlInput(query="SELECT id FROM mn_summary", template_id="summary_rows")
+    with pytest.raises(ValidationError, match="exactly one"):
+        SqlInput()
+
+
+def test_executor_rejects_both_fields_before_the_registry_or_a_connection(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A caller that bypasses pydantic still cannot reach the template or DuckDB."""
+    calls = _forbid_connect(monkeypatch)
+    bypassed = SqlInput.model_construct(
+        query="SELECT id FROM mn_summary", template_id="summary_rows"
+    )
+
+    registry = asyncio.run(
+        MinnesotaSqlExecutor(db_path, [_view()], [_summary_template()]).execute(
+            bypassed
+        )
+    )
+    legacy = asyncio.run(MinnesotaSqlExecutor(db_path, [_view()]).execute(bypassed))
+
+    for result in (registry, legacy):
+        assert result.status == "unavailable"
+        assert result.unavailable is not None
+        assert result.unavailable.code == "unsupported_request"
+        assert "exactly one" in result.unavailable.reason
+    assert calls == []
+
+
+def test_legacy_mode_names_the_missing_registry_instead_of_dropping_template_id(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _forbid_connect(monkeypatch)
+
+    result = asyncio.run(
+        MinnesotaSqlExecutor(db_path, [_view()]).execute(
+            SqlInput(template_id="summary_rows")
+        )
+    )
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.code == "unsupported_request"
+    assert "registry is not configured" in result.unavailable.reason
+    assert calls == []
+
+
+def test_template_relation_declaration_must_match_the_parsed_sql(
+    db_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="does not match SQL"):
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view(), _other_view()],
+            [
+                ApprovedMinnesotaQuery(
+                    "declared_superset",
+                    "SELECT id FROM mn_summary",
+                    frozenset({"mn_summary", "mn_other"}),
+                )
+            ],
+        )
+
+
+def test_duplicate_template_names_are_rejected_at_construction(db_path: Path) -> None:
+    with pytest.raises(ValueError, match="unique"):
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            [_summary_template(), _summary_template()],
+        )
+
+
+@pytest.mark.parametrize(
+    "sql",
+    [
+        "COPY (SELECT * FROM mn_summary) TO 'x.csv'",
+        "SELECT * FROM mn_summary, read_csv('x.csv')",
+        "SELECT * FROM mn_summary WHERE id = $1",
+        "SELECT * FROM mn_summary; SELECT 1",
+    ],
+)
+def test_template_sql_is_validated_when_the_registry_is_constructed(
+    db_path: Path, sql: str
+) -> None:
+    with pytest.raises(SqlRejected):
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            [ApprovedMinnesotaQuery("hardened", sql, frozenset({"mn_summary"}))],
+        )
+
+
+@pytest.mark.parametrize(
+    "name", ["Summary_rows", "_summary_rows", "summary-rows", "a" * 65]
+)
+def test_template_names_match_the_public_template_id_contract(name: str) -> None:
+    with pytest.raises(ValueError, match="template_id contract"):
+        ApprovedMinnesotaQuery(
+            name,
+            "SELECT id FROM mn_summary",
+            frozenset({"mn_summary"}),
+        )
 
 
 def test_reads_only_registered_view_with_cte_comments_and_bound_row_cap(
