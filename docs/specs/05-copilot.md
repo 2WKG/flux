@@ -260,7 +260,7 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 
 | name | format | query params | shape |
 | --- | --- | --- | --- |
-| `buses` | GeoJSON Point | — | props `bus_id, name, kv, county_fips` |
+| `buses` | GeoJSON Point | `scenario_id?`, `hour?` | props `bus_id, name, kv, county_fips`; with `scenario_id`+`hour` the node annotations below are merged in (`copilot/routes/layers.py::_annotated_buses_collection` over `pipelines/node_annotations.py`) |
 | `lines` | GeoJSON LineString | `scenario_id?`, `hour?` | props `line_id, from_bus, to_bus, kv, rate_mw, loading_pct` (loading from cascade run at hour if given, else base) |
 | `gens` | GeoJSON Point | — | `gen_id, name, fuel, mw, retiring` |
 | `counties` | GeoJSON Polygon (simplified, 5 kB/county max) | — | `county_fips, name, customers` |
@@ -272,6 +272,44 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 | `storm` | GeoJSON Polygon FeatureCollection | `scenario_id` | one feature per hour: `{hour, severity}` (from spec 02's storm polygon table or NWS-alert geojson file; if absent returns empty collection) |
 | `national_hex` | Arrow IPC (`h3: str, res: i8, buses: i32, lines: i32, gen_mw: f32`) | `res?=4` | precomputed from the 82k model (spec 01); **if not built the response is 503 `unavailable` with `details.reason: "not_built"`** — the shared failure envelope, never a 404 and never a bare not-built JSON body (`copilot/routes/layers.py:236-237` → `_unavailable` `:98-112` → `UnavailableError.http_status = 503`, `copilot/api/errors.py:76-83`). `BUILT_LAYERS = frozenset({"buses"})` (`layers.py:44`), so **eleven of the twelve documented layers answer this way today**, not only `national_hex` and the UI hides the layer |
 | `eaglei` | Arrow IPC (`county_fips, ts, customers_out`) | `scenario_id` | actual outages for the compare slider |
+
+
+#### Node annotations on `GET /layers/buses` (2WKG-427/428)
+
+`pipelines/node_annotations.py` is the only producer; `pipelines/labels.py` is
+the only place these strings are written, and
+`scripts/ci/export_tool_contracts.py` exports them to
+`web/src/contracts/node-annotations.json` so the browser **imports** the
+vocabulary instead of restating it (a fork is a `gate/contract-drift` failure).
+
+| Vocabulary | Values | Meaning |
+| --- | --- | --- |
+| `role` (`NODE_ROLES`) | `both`, `consumer`, `producer`, `transmission` | derived per bus from the persisted tables only: a bus with at least one `gens` row **and** a `loads` row of `p_mw_nominal > 0` is `both`; generation alone is `producer`; a `> 0` load alone is `consumer`; everything else — including a bus whose only `loads` row is exactly `0 MW` — is `transmission`. It is a derived classification (`field_provenance.role == "derived"`), never a source claim |
+| `field_provenance` (`FIELD_PROVENANCE_TOKENS`) | `source_backed`, `synthetic`, `derived`, `unavailable`, `broken_reference` | per-attribute truth on the artifact axis of `00-overview.md` §4.3, plus `derived` for a value this adapter computes and `broken_reference` for a dangling foreign key. This is **not** the six-token UI status axis (`web/src/labels.ts`) and must not be mapped onto it |
+| `binding_method` | `same_county`, `unassigned_no_county`, `unassigned_no_eligible_bus` (`pipelines/joins.py`), `receipt_missing`, `receipt_table_absent` | how a critical-load facility came to be attached to this bus, read from the `critical_load_bus_dist(cl_id, bus_id, distance_km, match_method)` receipt that `join_critical_loads_to_bus` already persists. `critical_load_bus_dist` is created by the join step, not by the frozen DDL, so a database whose join never ran reports `receipt_table_absent` — a named state, never a default |
+
+Two bindings are **not** `source_backed`, and the route may not label them so:
+`county_name`/`county_fips` are produced by `join_bus_county`, which drops a
+**synthetic** ACTIVSg2000 bus coordinate into TIGER polygons with a 30 km
+nearest-polygon fallback; `critical_loads` are attached by a nearest-eligible-bus
+proximity match. The underlying county and facility are source-backed; their
+attachment to bus *N* is synthetic, so both fields carry `synthetic`.
+
+Every annotation carries `topology = "synthetic (ACTIVSg2000)"`
+(`pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL`, the single definition the two
+routes now import) in the record itself, not only on the response envelope, so
+a second consumer that serialises one record still ships the disclosure.
+
+Each entry of `critical_loads` is `{id, name, kind, bus_id, binding_method,
+binding_distance_km}`. The facility key is **`id`**, matching the
+`critical_loads` layer row above and `TexasNodeCriticalFacility` in
+`web/src/texas-nodes/types.ts` (2WKG-438); the adapter's earlier `cl_id` spelling
+was the drift and is gone. `binding_distance_km` is `null` whenever no receipt
+row describes this exact `(cl_id, bus_id)` pair.
+
+`read_node_annotations` returns exactly one record per `buses` row and raises
+`ValueError` if it ever does not — `_annotated_buses_collection` indexes the
+result by bus id, so a silent fan-out would be a `KeyError` 500.
 
 Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (pyarrow 25.0.1 installed), `Content-Type: application/vnd.apache.arrow.stream` (IANA-registered media type, HTTP 200 on the registry entry 2026-09-05). GeoJSON: `application/geo+json`, gzip via `fastapi.middleware.gzip.GZipMiddleware` (fastapi 0.141.1 installed).
 

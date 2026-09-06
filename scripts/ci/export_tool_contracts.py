@@ -1,8 +1,10 @@
 """Export the Copilot tool contracts to JSON Schema and TypeScript declarations.
 
-``copilot/tools/schemas.py`` is the only source of truth. This script writes
-``web/src/contracts/copilot-tools.schema.json`` and
-``web/src/contracts/copilot-tools.d.ts`` deterministically (sorted keys, 2-space
+``copilot/tools/schemas.py`` is the only source of truth for the tool
+contracts, and ``pipelines/labels.py`` for the node-annotation vocabularies.
+This script writes ``web/src/contracts/copilot-tools.schema.json``,
+``web/src/contracts/copilot-tools.d.ts`` and
+``web/src/contracts/node-annotations.json`` deterministically (sorted keys, 2-space
 indent, trailing newline) so ``gate/contract-drift`` can prove the committed
 copies match. Run it with::
 
@@ -28,10 +30,18 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from copilot.tools import schemas
+from pipelines.labels import (
+    BINDING_RECEIPT_ABSENT,
+    BINDING_RECEIPT_MISSING,
+    FIELD_PROVENANCE_TOKENS,
+    NODE_ROLES,
+    SYNTHETIC_TOPOLOGY_LABEL,
+)
 
 OUT_DIR = REPO_ROOT / "web" / "src" / "contracts"
 SCHEMA_PATH = OUT_DIR / "copilot-tools.schema.json"
 TS_PATH = OUT_DIR / "copilot-tools.d.ts"
+NODE_ANNOTATIONS_PATH = OUT_DIR / "node-annotations.json"
 REGENERATE = "uv run --extra dev python scripts/ci/export_tool_contracts.py"
 
 
@@ -72,6 +82,27 @@ def build_schema_document() -> dict[str, Any]:
         "description": f"Generated from copilot/tools/schemas.py by {REGENERATE}",
         "$defs": defs,
         "tools": tools,
+    }
+
+
+def build_node_annotation_document() -> dict[str, Any]:
+    """The vocabularies `GET /layers/buses` annotations use, for the browser.
+
+    `docs/specs/05-copilot.md` declares them; `pipelines/labels.py` holds them.
+    Browser code imports this file instead of restating the strings, so a fork
+    is a `gate/contract-drift` failure rather than a silent divergence.
+    """
+    return {
+        "$id": "flux://layers/node-annotations",
+        "description": (
+            "Vocabularies for GET /layers/buses node annotations. "
+            f"Generated from pipelines/labels.py by {REGENERATE}"
+        ),
+        "binding_receipt_absent": BINDING_RECEIPT_ABSENT,
+        "binding_receipt_missing": BINDING_RECEIPT_MISSING,
+        "field_provenance_tokens": list(FIELD_PROVENANCE_TOKENS),
+        "node_roles": list(NODE_ROLES),
+        "synthetic_topology_label": SYNTHETIC_TOPOLOGY_LABEL,
     }
 
 
@@ -184,6 +215,10 @@ def main(argv: list[str]) -> int:
     outputs = {
         SCHEMA_PATH: json.dumps(document, indent=2, sort_keys=True) + "\n",
         TS_PATH: render_ts(document),
+        NODE_ANNOTATIONS_PATH: json.dumps(
+            build_node_annotation_document(), indent=2, sort_keys=True
+        )
+        + "\n",
     }
     drifted = [
         p for p, text in outputs.items() if not p.exists() or p.read_text() != text
