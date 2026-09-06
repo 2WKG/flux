@@ -1,0 +1,22 @@
+.layer-controls { color: #eaf2ff; background: #111b2d; border: 1px solid #3a5276; border-radius: 12px; padding: 1rem; font: 14px/1.4 system-ui, sans-serif; }
+.layer-controls h2 { margin: 0; font-size: 1rem; }
+.layer-controls header p { margin: .45rem 0 0; color: #b7c8de; }
+.layer-list { list-style: none; padding: 0; margin: 1rem 0 0; display: grid; gap: .6rem; }
+.layer-row { border-top: 1px solid #304666; padding-top: .6rem; }
+.layer-main { display: flex; align-items: center; flex-wrap: wrap; gap: .35rem .6rem; }
+.layer-main label { display: inline-flex; gap: .45rem; align-items: center; min-width: 12rem; font-weight: 650; }
+.layer-main input { inline-size: 1rem; block-size: 1rem; accent-color: #79b8ff; }
+.layer-category, .layer-status, .layer-evidence-class { border: 1px solid #54709b; border-radius: 999px; padding: .08rem .5rem; font-size: .76rem; white-space: nowrap; }
+.layer-status { color: #f7d487; border-color: #907337; }
+.layer-status-glyph { display: inline-block; min-inline-size: .85rem; margin-inline-end: .25rem; font-weight: 800; text-align: center; }
+[data-status="synthetic"] .layer-status { color: #d3b9ff; border-color: #795da5; }
+[data-status="unavailable"] .layer-status, [data-status="request_failed"] .layer-status { color: #ffc0c0; border-color: #95565a; }
+.layer-evidence-class { color: #b7c8de; }
+.layer-reason { margin: .4rem 0 0 1.45rem; color: #ffc0c0; }
+.layer-details { margin: .45rem 0 0 1.45rem; color: #c8d7eb; }
+.layer-details summary { cursor: pointer; width: fit-content; }
+.layer-evidence { display: grid; grid-template-columns: minmax(6.5rem, auto) 1fr; gap: .25rem .65rem; margin: .5rem 0 0; }
+.layer-evidence div { display: contents; }
+.layer-evidence dt { color: #9db4d1; }
+.layer-evidence dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 480px) { .layer-controls { padding: .75rem; } .layer-main label { min-width: 100%; } .layer-details, .layer-reason { margin-left: 0; } .layer-evidence { grid-template-columns: 1fr; gap: .1rem; } .layer-evidence dd { margin: 0 0 .35rem; } }
