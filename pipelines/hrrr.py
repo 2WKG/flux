@@ -51,6 +51,17 @@ class GribMessage:
     step_hours: int
 
 
+@dataclass(frozen=True)
+class PreparedHour:
+    """A fully validated hour which has not touched the database."""
+
+    valid: datetime
+    frame: pd.DataFrame
+    receipt_path: Path
+    receipt_payload: dict[str, Any]
+    source_run: dict[str, Any]
+
+
 def _as_utc(value: str) -> datetime:
     return datetime.fromisoformat(value).astimezone(UTC)
 
@@ -404,7 +415,11 @@ def bounded_ordered_prepare(
     hours, prepare, write, *, workers: int | None = None
 ) -> int:
     """Prepare disjoint hours concurrently and commit them in declared order."""
-    workers = workers or int(os.environ.get("HRRR_PREPARE_WORKERS", "1"))
+    workers = (
+        int(os.environ.get("HRRR_PREPARE_WORKERS", "1"))
+        if workers is None
+        else workers
+    )
     if workers < 1:
         raise ValueError("HRRR_PREPARE_WORKERS must be positive")
     iterator = iter(hours)
@@ -433,10 +448,13 @@ def bounded_ordered_prepare(
                 done, _ = wait(pending, return_when=FIRST_COMPLETED)
                 for future in done:
                     completed[pending.pop(future)] = future.result()
-                    submit()
                 while next_write in completed:
                     total += write(completed.pop(next_write))
                     next_write += 1
+                # Bound both queued work and prepared payloads.  In particular,
+                # a slow first hour cannot make later decoded GRIB arrays pile up.
+                while len(pending) + len(completed) < workers and submit():
+                    pass
         except Exception:
             for future in pending:
                 future.cancel()
@@ -444,8 +462,163 @@ def bounded_ordered_prepare(
     return total
 
 
+def _prepare_hrrr_hour(
+    *,
+    scenario_id: str,
+    valid: datetime,
+    index: pd.DataFrame,
+    wanted_counties: set[str],
+) -> PreparedHour:
+    """Fetch, decode, validate, and aggregate one hour without database access."""
+    analysis_url, accum_url = _url(valid, 0), _url(valid - timedelta(hours=1), 1)
+    decoded: dict[str, GribMessage] = {}
+    candidates = sorted(
+        (RAW_DIR / "receipts" / scenario_id).glob(f"{valid:%Y%m%dT%H%M%SZ}-*.json")
+    )
+    cached = next(
+        (
+            item
+            for item in (_cached_messages(path) for path in candidates)
+            if item is not None
+        ),
+        None,
+    )
+    source_records: list[dict[str, Any]] = [] if cached is None else cached[1]
+    for name, field in ANALYSIS_FIELDS.items():
+        if cached is None:
+            path, receipt = _fetch_message(analysis_url, field, RAW_DIR)
+            source_records.append(receipt | {"init": valid.isoformat(), "lead": 0})
+        else:
+            path = cached[0][field]
+        decoded[name] = _decode(path)
+        _validate_message(decoded[name], field=field, init=valid, lead=0, index=index)
+    for name, field in ACCUMULATION_FIELDS.items():
+        if cached is None:
+            path, receipt = _fetch_message(accum_url, field, RAW_DIR)
+            source_records.append(
+                receipt | {"init": (valid - timedelta(hours=1)).isoformat(), "lead": 1}
+            )
+        else:
+            path = cached[0][field]
+        decoded[name] = _decode(path)
+        _validate_message(
+            decoded[name],
+            field=field,
+            init=valid - timedelta(hours=1),
+            lead=1,
+            index=index,
+        )
+    values = {
+        "wind_ms": _mean_by_county(
+            index, np.hypot(decoded["wind_u"].value, decoded["wind_v"].value)
+        ),
+        "gust_ms": _mean_by_county(index, decoded["gust_ms"].value),
+        "temp_c": _mean_by_county(index, decoded["temp_k"].value - 273.15),
+        "precip_mm": _mean_by_county(index, decoded["precip_mm"].value),
+        "ice_mm": _mean_by_county(index, decoded["ice_mm"].value),
+    }
+    frame = pd.DataFrame(values).rename_axis("county_fips").reset_index()
+    frame["ts"] = valid.replace(tzinfo=None)
+    frame = frame[frame.county_fips.isin(wanted_counties)]
+    if set(frame.county_fips) != wanted_counties:
+        raise RuntimeError("county index does not cover every requested county")
+    receipt_path = _receipt_path(
+        RAW_DIR, scenario_id, valid, source_records, str(index.grid_signature.iloc[0])
+    )
+    analysis_sources = source_records[: len(ANALYSIS_FIELDS)]
+    accumulation_sources = source_records[len(ANALYSIS_FIELDS) :]
+    source_run = {
+        "scenario_id": scenario_id,
+        "valid_ts": valid.isoformat(),
+        "source": "noaa_hrrr",
+        "source_release": "hrrr-sfc-3km",
+        "source_file": str(receipt_path),
+        "loaded_at": utc_now().replace(tzinfo=UTC).isoformat(),
+        "model": "hrrr",
+        "grid_signature": str(index.grid_signature.iloc[0]),
+        "analysis_init": valid.isoformat(),
+        "analysis_lead_h": 0,
+        "accumulation_init": (valid - timedelta(hours=1)).isoformat(),
+        "accumulation_lead_h": 1,
+        "analysis_url": analysis_url,
+        "accumulation_url": accum_url,
+        "analysis_etag": analysis_sources[0]["etag"],
+        "accumulation_etag": accumulation_sources[0]["etag"],
+        "analysis_fields_json": {
+            item["field"]: item["sha256"] for item in analysis_sources
+        },
+        "accumulation_fields_json": {
+            item["field"]: item["sha256"] for item in accumulation_sources
+        },
+        "analysis_ranges_json": {
+            item["field"]: item["range"] for item in analysis_sources
+        },
+        "accumulation_ranges_json": {
+            item["field"]: item["range"] for item in accumulation_sources
+        },
+        "county_index_version": str(index.grid_signature.iloc[0]),
+        "receipt_path": str(receipt_path),
+        "retrieved_at": utc_now().replace(tzinfo=UTC).isoformat(),
+        "fallback_kind": None,
+    }
+    return PreparedHour(
+        valid=valid,
+        frame=frame,
+        receipt_path=receipt_path,
+        receipt_payload={
+            "scenario_id": scenario_id,
+            "valid_ts": valid.isoformat(),
+            "index_path": str(INDEX_CACHE),
+            "sources": source_records,
+            "weather_source_run": source_run,
+        },
+        source_run=source_run,
+    )
+
+
+def _write_prepared_hrrr_hour(con, prepared: PreparedHour, selected: StateScope) -> int:
+    """Persist one prepared hour in a paired, single-writer transaction."""
+    prepared.receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    if not prepared.receipt_path.exists():
+        temporary_receipt = prepared.receipt_path.with_suffix(".json.tmp")
+        temporary_receipt.write_text(
+            json.dumps(prepared.receipt_payload, indent=2, sort_keys=True) + "\n"
+        )
+        temporary_receipt.replace(prepared.receipt_path)
+    retrieved_at = _as_utc(prepared.source_run["retrieved_at"])
+    con.execute("BEGIN TRANSACTION")
+    try:
+        rows = replace_frame(
+            con,
+            "weather_hourly",
+            prepared.frame,
+            where=(
+                f"({selected.county_where()}) AND ts = "
+                f"TIMESTAMP '{prepared.valid:%Y-%m-%d %H:%M:%S}'"
+            ),
+            source_name="noaa_hrrr",
+            source_ref=str(prepared.receipt_path),
+            source_version="hrrr-sfc-3km",
+            source_retrieved_at=retrieved_at,
+            fixture_batch_id=(
+                f"hrrr-{prepared.source_run['scenario_id']}-{prepared.valid:%Y%m%d%H}"
+            ),
+        )
+        _persist_source_run(con, prepared.source_run)
+        con.execute("COMMIT")
+    except Exception:
+        con.execute("ROLLBACK")
+        raise
+    return rows
+
+
 def load_hrrr_window(
-    con, scenario_id: str, states: tuple[str, ...] = ("TX",), fxx: int = 0
+    con,
+    scenario_id: str,
+    states: tuple[str, ...] = ("TX",),
+    fxx: int = 0,
+    *,
+    workers: int | None = None,
 ) -> int:
     """Load a declared historical window using only indexed HTTP range requests."""
     if fxx != 0:
@@ -465,143 +638,19 @@ def load_hrrr_window(
     )
     if not wanted_counties:
         raise ValueError("counties must be loaded before HRRR aggregation")
-    total = 0
-    valid = start
-    while valid < end:
-        analysis_url, accum_url = _url(valid, 0), _url(valid - timedelta(hours=1), 1)
-        decoded: dict[str, GribMessage] = {}
-        candidates = sorted(
-            (RAW_DIR / "receipts" / scenario_id).glob(f"{valid:%Y%m%dT%H%M%SZ}-*.json")
-        )
-        cached = next(
-            (
-                item
-                for item in (_cached_messages(path) for path in candidates)
-                if item is not None
-            ),
-            None,
-        )
-        source_records: list[dict[str, Any]] = [] if cached is None else cached[1]
-        for name, field in ANALYSIS_FIELDS.items():
-            if cached is None:
-                path, receipt = _fetch_message(analysis_url, field, RAW_DIR)
-                source_records.append(receipt | {"init": valid.isoformat(), "lead": 0})
-            else:
-                path = cached[0][field]
-            decoded[name] = _decode(path)
-            _validate_message(
-                decoded[name], field=field, init=valid, lead=0, index=index
-            )
-        for name, field in ACCUMULATION_FIELDS.items():
-            if cached is None:
-                path, receipt = _fetch_message(accum_url, field, RAW_DIR)
-                source_records.append(
-                    receipt
-                    | {"init": (valid - timedelta(hours=1)).isoformat(), "lead": 1}
-                )
-            else:
-                path = cached[0][field]
-            decoded[name] = _decode(path)
-            _validate_message(
-                decoded[name],
-                field=field,
-                init=valid - timedelta(hours=1),
-                lead=1,
-                index=index,
-            )
-        values = {
-            "wind_ms": _mean_by_county(
-                index, np.hypot(decoded["wind_u"].value, decoded["wind_v"].value)
-            ),
-            "gust_ms": _mean_by_county(index, decoded["gust_ms"].value),
-            "temp_c": _mean_by_county(index, decoded["temp_k"].value - 273.15),
-            "precip_mm": _mean_by_county(index, decoded["precip_mm"].value),
-            "ice_mm": _mean_by_county(index, decoded["ice_mm"].value),
-        }
-        frame = pd.DataFrame(values).rename_axis("county_fips").reset_index()
-        frame["ts"] = valid.replace(tzinfo=None)
-        frame = frame[frame.county_fips.isin(wanted_counties)]
-        if set(frame.county_fips) != wanted_counties:
-            raise RuntimeError("county index does not cover every requested county")
-        receipt_path = _receipt_path(
-            RAW_DIR,
-            scenario_id,
-            valid,
-            source_records,
-            str(index.grid_signature.iloc[0]),
-        )
-        receipt_path.parent.mkdir(parents=True, exist_ok=True)
-        analysis_sources = source_records[: len(ANALYSIS_FIELDS)]
-        accumulation_sources = source_records[len(ANALYSIS_FIELDS) :]
-        source_run = {
-            "scenario_id": scenario_id,
-            "valid_ts": valid.isoformat(),
-            "source": "noaa_hrrr",
-            "source_release": "hrrr-sfc-3km",
-            "source_file": str(receipt_path),
-            "loaded_at": utc_now().replace(tzinfo=UTC).isoformat(),
-            "model": "hrrr",
-            "grid_signature": str(index.grid_signature.iloc[0]),
-            "analysis_init": valid.isoformat(),
-            "analysis_lead_h": 0,
-            "accumulation_init": (valid - timedelta(hours=1)).isoformat(),
-            "accumulation_lead_h": 1,
-            "analysis_url": analysis_url,
-            "accumulation_url": accum_url,
-            "analysis_etag": analysis_sources[0]["etag"],
-            "accumulation_etag": accumulation_sources[0]["etag"],
-            "analysis_fields_json": {
-                item["field"]: item["sha256"] for item in analysis_sources
-            },
-            "accumulation_fields_json": {
-                item["field"]: item["sha256"] for item in accumulation_sources
-            },
-            "analysis_ranges_json": {
-                item["field"]: item["range"] for item in analysis_sources
-            },
-            "accumulation_ranges_json": {
-                item["field"]: item["range"] for item in accumulation_sources
-            },
-            "county_index_version": str(index.grid_signature.iloc[0]),
-            "receipt_path": str(receipt_path),
-            "retrieved_at": utc_now().replace(tzinfo=UTC).isoformat(),
-            "fallback_kind": None,
-        }
-        payload = {
-            "scenario_id": scenario_id,
-            "valid_ts": valid.isoformat(),
-            "index_path": str(INDEX_CACHE),
-            "sources": source_records,
-            "weather_source_run": source_run,
-        }
-        if not receipt_path.exists():
-            temporary_receipt = receipt_path.with_suffix(".json.tmp")
-            temporary_receipt.write_text(
-                json.dumps(payload, indent=2, sort_keys=True) + "\n"
-            )
-            temporary_receipt.replace(receipt_path)
-        retrieved_at = _as_utc(source_run["retrieved_at"])
-        con.execute("BEGIN TRANSACTION")
-        try:
-            rows = replace_frame(
-                con,
-                "weather_hourly",
-                frame,
-                where=f"({selected.county_where()}) AND ts = TIMESTAMP '{valid:%Y-%m-%d %H:%M:%S}'",
-                source_name="noaa_hrrr",
-                source_ref=str(receipt_path),
-                source_version="hrrr-sfc-3km",
-                source_retrieved_at=retrieved_at,
-                fixture_batch_id=f"hrrr-{scenario_id}-{valid:%Y%m%d%H}",
-            )
-            _persist_source_run(con, source_run)
-            con.execute("COMMIT")
-        except Exception:
-            con.execute("ROLLBACK")
-            raise
-        total += rows
-        valid += timedelta(hours=1)
-    return total
+    hour_count = int((end - start).total_seconds() // 3600)
+    hours = tuple(start + timedelta(hours=offset) for offset in range(hour_count))
+    return bounded_ordered_prepare(
+        hours,
+        lambda valid: _prepare_hrrr_hour(
+            scenario_id=scenario_id,
+            valid=valid,
+            index=index,
+            wanted_counties=wanted_counties,
+        ),
+        lambda prepared: _write_prepared_hrrr_hour(con, prepared, selected),
+        workers=workers,
+    )
 
 
 def load_hrrr_forecast(con, run: datetime | None = None, horizon_h: int = 48) -> int:
