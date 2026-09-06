@@ -1,20 +1,17 @@
 import type { ReactNode } from "react";
 
+import type { AssetStatus } from "../labels";
+
 /**
  * The Gate-0 frozen UI status vocabulary
  * (`docs/design/minnesota-gate-0-approval.md` §3, bound to server fields by
- * `docs/design/minnesota-demo-narrative-ia.md`). This is a structural mirror of
- * `SourceStatus` in `src/ask/run-state/types.ts`; the two are deliberately
- * import-compatible so a single token set reaches the status strip and the 3D
- * `MAT_STATUS` slot. Widening it is a Gate-0 decision, not a code change.
+ * `docs/design/minnesota-demo-narrative-ia.md`). It is written once in
+ * `src/labels.ts` and re-exported here under the name PR #213 uses for the same
+ * union (`SourceStatus` in `src/ask/run-state/types.ts`), so the two surfaces
+ * are import-compatible instead of carrying rival vocabularies. Widening the
+ * set is a Gate-0 decision, not a code change.
  */
-export type SourceStatus =
-  | "source_supported"
-  | "source_screened"
-  | "hypothetical"
-  | "synthetic"
-  | "unavailable"
-  | "request_failed";
+export type SourceStatus = AssetStatus;
 
 /** The two frozen tokens a request-outcome surface is allowed to emit. */
 export type FailureStatus = Extract<SourceStatus, "unavailable" | "request_failed">;
