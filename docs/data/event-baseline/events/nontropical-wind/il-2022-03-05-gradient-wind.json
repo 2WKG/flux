@@ -24,7 +24,9 @@
     "uncertainties": [
       "Outside initial Minnesota focus; retained only as an unaccepted expansion candidate."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "1012888"
+    ]
   },
   "source_receipts": [
     {
@@ -44,6 +46,25 @@
       "grid_index_mapping": "No grid mapping.",
       "gaps": [
         "Coverage receipt pending."
+      ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=1012888; STATE=ILLINOIS; CZ_NAME=KANE; EVENT_TYPE=Thunderstorm Wind.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
     }
   ],

@@ -47,29 +47,61 @@
       "gaps": [
         "County coverage pending."
       ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2024",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2024_c20260728",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c",
+      "filtered_sha256": null,
+      "bytes": 12693243,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=1225278; STATE=MINNESOTA; CZ_NAME=SOUTHERN COOK; EVENT_TYPE=Strong Wind.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ]
     }
   ],
   "records": [
     {
-      "record_id": "mn-2024-11-11-lake-superior-gradient-27031-0000",
+      "record_id": "mn-2024-11-11-lake-superior-gradient-27031-0600",
       "county_fips": "27031",
       "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
       "scenario_id": "mn-2024-11-11-lake-superior-gradient-replay",
-      "window_start_utc": "2024-11-11T00:00:00Z",
-      "window_end_utc": "2024-11-11T06:00:00Z",
+      "window_start_utc": "2024-11-11T06:00:00Z",
+      "window_end_utc": "2024-11-11T12:00:00Z",
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
         "coverage": "uncovered",
-        "source_receipt_ids": [],
-        "notes": "No retained HRRR receipt.",
+        "source_receipt_ids": [
+          "ncei-stormevents-2024"
+        ],
+        "notes": "NCEI zone event report 1225278 intersects this canonical window; no sampled weather time series is asserted.",
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1225278"
+          ],
+          "source_window": {
+            "start_utc": "2024-11-11T08:00:00Z",
+            "end_utc": "2024-11-11T15:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "MN Southern Cook zone",
+          "limitations": "Zone report establishes occurrence for the named zone only; it is not a countywide measurement or a time series."
+        }
       },
       "outage": {
         "coverage": "UncoveredLabel",
