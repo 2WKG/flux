@@ -58,6 +58,31 @@ def test_manifest_window_is_half_open(monkeypatch, tmp_path):
     assert (end - start).total_seconds() == 3600
 
 
+def test_bounded_prepare_writes_in_order_and_stops_on_failure():
+    written = []
+    assert (
+        hrrr.bounded_ordered_prepare(
+            range(4),
+            lambda hour: hour,
+            lambda hour: written.append(hour) or 1,
+            workers=2,
+        )
+        == 4
+    )
+    assert written == [0, 1, 2, 3]
+    called = []
+
+    def prepare(hour):
+        called.append(hour)
+        if hour == 1:
+            raise RuntimeError("bad hour")
+        return hour
+
+    with pytest.raises(RuntimeError, match="bad hour"):
+        hrrr.bounded_ordered_prepare(range(20), prepare, lambda _hour: 1, workers=1)
+    assert called == [0, 1]
+
+
 def test_range_fetch_uses_idx_bounds_only(monkeypatch, tmp_path):
     calls = []
 

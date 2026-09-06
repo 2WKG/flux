@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -396,6 +398,50 @@ def _persist_source_run(con, source_run: dict[str, Any]) -> None:
         raise RuntimeError(
             "weather_source_runs helper is required for HRRR ingestion"
         ) from error
+
+
+def bounded_ordered_prepare(
+    hours, prepare, write, *, workers: int | None = None
+) -> int:
+    """Prepare disjoint hours concurrently and commit them in declared order."""
+    workers = workers or int(os.environ.get("HRRR_PREPARE_WORKERS", "1"))
+    if workers < 1:
+        raise ValueError("HRRR_PREPARE_WORKERS must be positive")
+    iterator = iter(hours)
+    pending = {}
+    submitted = 0
+    completed = {}
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+
+        def submit():
+            nonlocal submitted
+            try:
+                hour = next(iterator)
+            except StopIteration:
+                return False
+            pending[pool.submit(prepare, hour)] = submitted
+            submitted += 1
+            return True
+
+        for _ in range(workers):
+            if not submit():
+                break
+        next_write = 0
+        total = 0
+        try:
+            while pending:
+                done, _ = wait(pending, return_when=FIRST_COMPLETED)
+                for future in done:
+                    completed[pending.pop(future)] = future.result()
+                    submit()
+                while next_write in completed:
+                    total += write(completed.pop(next_write))
+                    next_write += 1
+        except Exception:
+            for future in pending:
+                future.cancel()
+            raise
+    return total
 
 
 def load_hrrr_window(
