@@ -113,8 +113,22 @@ test("with no API origin configured, every allowlisted path refuses by name", as
   // the answer is never the shell.
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/health", "/scenarios", "/scenarios/baseline", "/api/v1/grid/layers/line", "/layers/buses"]) {
-    const response = await get(path);
+  for (const [path, init] of [
+    ["/health"],
+    ["/scenarios"],
+    ["/scenarios/baseline"],
+    ["/api/v1/grid/layers/line"],
+    ["/layers/buses"],
+    ["/cascade?scenario_id=uri_2021"],
+    ["/scenario/edit", { method: "POST" }],
+    ["/cascade", { method: "POST" }],
+    ["/balance?scope=base"],
+    ["/redundancy?bus_id=7"],
+    ["/siting/search", { method: "POST" }],
+    ["/minnesota/smr/validate", { method: "POST" }],
+    ["/mn/comparisons", { method: "POST" }],
+  ]) {
+    const response = await get(path, init);
     assert.equal(response.status, 503, `${path} must refuse, not answer`);
     assert.match(response.type, /json/, `${path} must refuse in the envelope's own media type`);
     assert.notEqual(response.body, shell.body, `${path} must not be answered with the SPA shell`);
@@ -155,18 +169,36 @@ test("with no API origin configured, a path outside the allowlist is not given t
   assert.notEqual(posted.status, 503, "POST /health is outside the table and must not be refused as one");
 });
 
-test("a configured API origin forwards only the allowlisted read paths", async () => {
+test("a configured API origin forwards only the fixed same-origin allowlist", async () => {
   const seen = [];
-  const api = await upstream((req, res) => {
-    seen.push(`${req.method} ${req.url}`);
+  const api = await upstream(async (req, res) => {
+    const body = await new Promise((resolve, reject) => {
+      const chunks = [];
+      req.on("data", (chunk) => chunks.push(chunk));
+      req.on("end", () => resolve(Buffer.concat(chunks).toString()));
+      req.on("error", reject);
+    });
+    seen.push({ method: req.method, url: req.url, body, contentType: req.headers["content-type"] });
     res.writeHead(200, { "content-type": "application/json" });
-    res.end(JSON.stringify({ ok: true, url: req.url }));
+    res.end(JSON.stringify({ ok: true, url: req.url, body }));
   });
   const base = await proxyOrigin(api);
 
-  const forwarded = await fetch(`${base}/api/v1/grid/layers/line?state=mn&limit=100`);
-  assert.equal(forwarded.status, 200);
-  assert.deepEqual(await forwarded.json(), { ok: true, url: "/api/v1/grid/layers/line?state=mn&limit=100" });
+  for (const [path, init, expected] of [
+    ["/api/v1/grid/layers/line?state=mn&limit=100", undefined, { method: "GET", url: "/api/v1/grid/layers/line?state=mn&limit=100", body: "" }],
+    ["/cascade?scenario_id=uri_2021", undefined, { method: "GET", url: "/cascade?scenario_id=uri_2021", body: "" }],
+    ["/balance?scope=edit&edit_hash=abc", undefined, { method: "GET", url: "/balance?scope=edit&edit_hash=abc", body: "" }],
+    ["/redundancy?bus_id=7&scenario_id=interactive", undefined, { method: "GET", url: "/redundancy?bus_id=7&scenario_id=interactive", body: "" }],
+    ["/scenario/edit", { method: "POST", headers: { "content-type": "application/json" }, body: '{"ops":[]}' }, { method: "POST", url: "/scenario/edit", body: '{"ops":[]}' }],
+    ["/cascade", { method: "POST", headers: { "content-type": "application/json" }, body: '{"element_ids":[]}' }, { method: "POST", url: "/cascade", body: '{"element_ids":[]}' }],
+    ["/siting/search", { method: "POST", headers: { "content-type": "application/json" }, body: '{"kind":"producer"}' }, { method: "POST", url: "/siting/search", body: '{"kind":"producer"}' }],
+    ["/minnesota/smr/validate", { method: "POST", headers: { "content-type": "application/json" }, body: '{"scene_id":"mn"}' }, { method: "POST", url: "/minnesota/smr/validate", body: '{"scene_id":"mn"}' }],
+    ["/mn/comparisons", { method: "POST", headers: { "content-type": "application/json" }, body: '{"baseline_context_id":"a","candidate_context_id":"b"}' }, { method: "POST", url: "/mn/comparisons", body: '{"baseline_context_id":"a","candidate_context_id":"b"}' }],
+  ]) {
+    const forwarded = await fetch(`${base}${path}`, init);
+    assert.equal(forwarded.status, 200, `${expected.method} ${path} did not proxy`);
+    assert.deepEqual(await forwarded.json(), { ok: true, url: expected.url, body: expected.body });
+  }
 
   // Not on the table: a path outside it, and a method outside it. Neither may
   // reach the upstream -- which the `seen` assertion at the end proves. What
@@ -178,15 +210,38 @@ test("a configured API origin forwards only the allowlisted read paths", async (
     assert.equal(response.status, 503, `${path} must not be forwarded`);
     assert.notEqual(await response.text(), shell, `${path} must not be forwarded`);
   }
-  for (const path of ["/site-score"]) {
-    const response = await fetch(`${base}${path}`);
-    assert.equal(await response.text(), shell, `${path} must not be forwarded`);
+  for (const [path, init, expectedStatus] of [
+    ["/site-score", undefined, 200],
+    ["/scenario/edit", undefined, 200],
+    ["/balance", { method: "POST" }, 404],
+    ["/cascade", { method: "PUT" }, 404],
+    ["/minnesota/smr/validate", undefined, 200],
+    ["/mn/comparisons", undefined, 200],
+    ["/mn/comparisons/extra", { method: "POST" }, 404],
+    ["/sql", { method: "POST" }, 404],
+  ]) {
+    const response = await fetch(`${base}${path}`, init);
+    assert.equal(response.status, expectedStatus, `${path} must be handled by the static origin`);
+    if (expectedStatus === 200) assert.equal(await response.text(), shell, `${path} must not be forwarded`);
   }
   // `/health` is forwarded for GET only. A POST is not forwarded at all: the
   // static origin has no POST route, so it 404s here rather than reaching the API.
   const wrongMethod = await fetch(`${base}/health`, { method: "POST" });
   assert.equal(wrongMethod.status, 404, "POST /health must not be forwarded");
-  assert.deepEqual(seen, ["GET /api/v1/grid/layers/line?state=mn&limit=100"]);
+  assert.deepEqual(seen.map(({ method, url, body }) => ({ method, url, body })), [
+    { method: "GET", url: "/api/v1/grid/layers/line?state=mn&limit=100", body: "" },
+    { method: "GET", url: "/cascade?scenario_id=uri_2021", body: "" },
+    { method: "GET", url: "/balance?scope=edit&edit_hash=abc", body: "" },
+    { method: "GET", url: "/redundancy?bus_id=7&scenario_id=interactive", body: "" },
+    { method: "POST", url: "/scenario/edit", body: '{"ops":[]}' },
+    { method: "POST", url: "/cascade", body: '{"element_ids":[]}' },
+    { method: "POST", url: "/siting/search", body: '{"kind":"producer"}' },
+    { method: "POST", url: "/minnesota/smr/validate", body: '{"scene_id":"mn"}' },
+    { method: "POST", url: "/mn/comparisons", body: '{"baseline_context_id":"a","candidate_context_id":"b"}' },
+  ]);
+  for (const request of seen.filter(({ method }) => method === "POST")) {
+    assert.equal(request.contentType, "application/json", `${request.url} lost its content type`);
+  }
 });
 
 test("an unreachable upstream answers in the failure-envelope shape, not an HTML error page", async () => {
