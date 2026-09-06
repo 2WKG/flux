@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 from fastapi.testclient import TestClient
 
+from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
@@ -166,6 +167,7 @@ def test_qualified_persisted_prediction_is_returned(tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "available"
+    assert "X-Flux-Artifact" not in response.headers
     assert len(body["predictions"]) == 1
     assert body["predictions"][0] == {
         "scenario_id": "mn_winter_2023_snow",
@@ -198,6 +200,8 @@ def test_unqualified_prediction_is_not_returned_as_success(tmp_path: Path) -> No
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
     assert response.json()["error"]["details"] == {
         "artifact": "outage_predictions",
         "reason": "no_qualified_prediction",
@@ -234,6 +238,7 @@ def test_persisted_cascade_is_returned(tmp_path: Path) -> None:
         ],
         "limitations": ["Fixture topology evidence only."],
     }
+    assert response.headers["X-Flux-Artifact"] == "mn:model:storm-run-1"
     assert _file_sha256(database) == before
 
 
@@ -254,6 +259,8 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
 
 
 def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:
@@ -295,4 +302,6 @@ def test_cascade_requires_scenario_id_without_opening_a_database(
     response = _client(database).get("/cascade")
 
     assert response.status_code == 422
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
     assert not database.exists()

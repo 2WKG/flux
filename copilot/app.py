@@ -10,6 +10,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from copilot.api import (
     API_VERSION,
+    API_VERSION_HEADER,
+    ARTIFACT_HEADER,
+    REQUEST_ID_HEADER,
     NotFoundError,
     install_error_handlers,
     request_id_of,
@@ -33,6 +36,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_credentials=False,
         allow_methods=["GET"],
         allow_headers=["*"],
+        expose_headers=[REQUEST_ID_HEADER, API_VERSION_HEADER, ARTIFACT_HEADER],
     )
     install_error_handlers(app)
 
