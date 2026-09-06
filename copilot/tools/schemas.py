@@ -14,9 +14,7 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-type ScenarioId = Literal[
-    "uri_2021", "beryl_2024", "helene_2024", "forecast_72h"
-]
+type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
 type UnavailableCode = Literal[
     "artifact_unavailable",
@@ -63,7 +61,9 @@ class ToolOutput(ContractModel):
         if self.status == "available" and self.unavailable is not None:
             raise ValueError("available results cannot carry an unavailable reason")
         if self.status == "available" and not self.provenance:
-            raise ValueError("available results require artifact or retrieval provenance")
+            raise ValueError(
+                "available results require artifact or retrieval provenance"
+            )
         return self
 
 
@@ -80,7 +80,10 @@ class PredictOutageInput(ContractModel):
 
 
 class RunCascadeInput(ContractModel):
-    element_ids: Annotated[list[Annotated[str, Field(min_length=1, max_length=128)]], Field(min_length=1, max_length=25)]
+    element_ids: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=128)]],
+        Field(min_length=1, max_length=25),
+    ]
     scenario_id: ScenarioId
     hour: Annotated[int, Field(ge=0, le=167)]
 
@@ -94,21 +97,16 @@ class ScoreSiteInput(ContractModel):
 TOP_LINES_MAX_LIMIT = 50
 """The largest page a ``top_lines`` read may request."""
 
-TOP_LINES_MAX_OFFSET = 10_000
-"""The largest zero-based page offset a ``top_lines`` read may request."""
-
-TOP_LINES_DEFAULT_SORT = "mw_per_musd DESC, cost_usd ASC, line_id ASC"
-"""The fixed ranking order; callers cannot supply an arbitrary sort expression."""
-
 
 class TopLinesInput(ContractModel):
     """Closed, bounded input for the persisted line-upgrade ranking read.
 
-    ``region`` and ``tech`` are the complete filter allowlist.  Results use
-    :data:`TOP_LINES_DEFAULT_SORT`; that fixed order gives equal primary scores
-    a deterministic cost and line-id tie-breaker.  ``offset`` is zero-based and
-    skips rows in that same order.  A page beyond the result set is empty rather
-    than wrapping or changing sort order.
+    ``region``, ``tech`` and ``n`` are the complete model-facing input: the
+    frozen contract signature ``top_lines(region, tech, n=10)`` from
+    ``docs/specs/00-overview.md`` §2.4 and ``05-copilot.md``.  No pagination or
+    sort parameter is exposed to the model; the result order is spec 08's
+    ``mw_per_musd`` descending and belongs to the ``top_lines`` implementation,
+    which must pin it with a behavioural test when it lands.
     """
 
     region: Annotated[
@@ -128,14 +126,6 @@ class TopLinesInput(ContractModel):
             description="Page size; at most 50 persisted ranking rows.",
         ),
     ] = 10
-    offset: Annotated[
-        int,
-        Field(
-            ge=0,
-            le=TOP_LINES_MAX_OFFSET,
-            description="Zero-based number of rows to skip in the fixed ranking order.",
-        ),
-    ] = 0
 
 
 class SqlInput(ContractModel):
@@ -150,7 +140,11 @@ class CiteInput(ContractModel):
 class CompareInterventionsInput(ContractModel):
     scenario_id: ScenarioId
     intervention_ids: Annotated[
-        list[Annotated[str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")]],
+        list[
+            Annotated[
+                str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")
+            ]
+        ],
         Field(min_length=1, max_length=5),
     ]
 
@@ -319,15 +313,60 @@ class ToolDefinition:
 
 
 TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
-    ToolDefinition("predict_outage", "Read a persisted county outage prediction.", PredictOutageInput, (PredictOutageData, UnavailableOutput)),
-    ToolDefinition("run_cascade", "Read or run the bounded cascade contract.", RunCascadeInput, (CascadeData, UnavailableOutput)),
-    ToolDefinition("score_site", "Read a bounded site score.", ScoreSiteInput, (SiteScoreData, UnavailableOutput)),
-    ToolDefinition("top_lines", "Read deterministic source-labeled line rankings.", TopLinesInput, (LinesData, UnavailableOutput)),
-    ToolDefinition("sql", "Execute a bounded read-only analytical query.", SqlInput, (SqlData, UnavailableOutput)),
-    ToolDefinition("cite", "Retrieve citation-preserving corpus chunks.", CiteInput, (CiteData, UnavailableOutput)),
-    ToolDefinition("compare_interventions", "Compare up to five named interventions.", CompareInterventionsInput, (InterventionsData, UnavailableOutput)),
-    ToolDefinition("top_critical_elements", "Rank persisted cascade reach by element.", TopCriticalElementsInput, (CriticalElementsData, UnavailableOutput)),
-    ToolDefinition("causal_query", "Read a validated causal artifact or explicit unavailable result.", CausalQueryInput, (CausalData, UnavailableOutput)),
+    ToolDefinition(
+        "predict_outage",
+        "Read a persisted county outage prediction.",
+        PredictOutageInput,
+        (PredictOutageData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "run_cascade",
+        "Read or run the bounded cascade contract.",
+        RunCascadeInput,
+        (CascadeData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "score_site",
+        "Read a bounded site score.",
+        ScoreSiteInput,
+        (SiteScoreData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "top_lines",
+        "Read deterministic source-labeled line rankings.",
+        TopLinesInput,
+        (LinesData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "sql",
+        "Execute a bounded read-only analytical query.",
+        SqlInput,
+        (SqlData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "cite",
+        "Retrieve citation-preserving corpus chunks.",
+        CiteInput,
+        (CiteData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "compare_interventions",
+        "Compare up to five named interventions.",
+        CompareInterventionsInput,
+        (InterventionsData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "top_critical_elements",
+        "Rank persisted cascade reach by element.",
+        TopCriticalElementsInput,
+        (CriticalElementsData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "causal_query",
+        "Read a validated causal artifact or explicit unavailable result.",
+        CausalQueryInput,
+        (CausalData, UnavailableOutput),
+    ),
 )
 
 _REGISTRY_BY_NAME = {definition.name: definition for definition in TOOL_REGISTRY}
@@ -359,7 +398,9 @@ def tool_schema(definition: ToolDefinition) -> dict[str, Any]:
     }
 
 
-TOOL_SCHEMAS: tuple[dict[str, Any], ...] = tuple(tool_schema(definition) for definition in TOOL_REGISTRY)
+TOOL_SCHEMAS: tuple[dict[str, Any], ...] = tuple(
+    tool_schema(definition) for definition in TOOL_REGISTRY
+)
 
 
 def validate_tool_input(name: str, payload: dict[str, JsonValue]) -> ContractModel:
