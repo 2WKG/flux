@@ -32,14 +32,15 @@
       "source_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
       "vintage": "TIGER/Line 2024",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [{"logical_name": "tl_2024_us_county.zip", "immutable_id": null, "raw_path": "tiger/2024/tl_2024_us_county.zip"}],
+      "artifacts": [{"logical_name": "tl_2024_us_county.zip", "immutable_id": "sha256:04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b", "raw_path": "tiger/2024/tl_2024_us_county.zip"}],
       "coverage": "Texas county polygons and FIPS joins; source CRS EPSG:4269 is transformed to EPSG:4326 for the curated contract.",
       "timezone": "not applicable",
       "units": {"geometry": "source EPSG:4269; curated EPSG:4326"},
       "destinations": ["counties"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The P0 raw path is required by the builder but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-tiger-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "A public raw artifact was retrieved at the declared path; its checksum, byte count, TX loader validation, and CRS transformation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "fema-nri-v1.20",
@@ -50,15 +51,16 @@
       "license_access": {"license": "U.S. government public data", "access": "public"},
       "artifacts": [
         {"logical_name": "NRI_Counties_TX.json", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Counties_TX.json"},
-        {"logical_name": "NRI_Table_Counties.zip", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}
+        {"logical_name": "NRI_Table_Counties.zip", "immutable_id": "sha256:b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072", "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}
       ],
       "coverage": "Texas county population and composite natural-hazard risk; it is screening context, not site-specific engineering analysis.",
       "timezone": "not applicable",
       "units": {"risk_score": "source index score", "population": "people"},
       "destinations": ["counties", "hazard_static"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "No immutable P0 raw artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-nri-v1.20.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "A public raw artifact was retrieved at the declared path; its checksum, byte count, and TX loader validation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "pudl-eia860-v2026.2.0",
@@ -68,16 +70,17 @@
       "vintage": "PUDL v2026.2.0 EIA-860 yearly outputs",
       "license_access": {"license": "CC-BY-4.0 for PUDL outputs; underlying source terms also apply", "access": "public"},
       "artifacts": [
-        {"logical_name": "out_eia__yearly_plants.parquet", "immutable_id": null, "raw_path": "pudl/v2026.2.0/out_eia__yearly_plants.parquet"},
-        {"logical_name": "out_eia__yearly_generators.parquet", "immutable_id": null, "raw_path": "pudl/v2026.2.0/out_eia__yearly_generators.parquet"}
+        {"logical_name": "out_eia__yearly_plants.parquet", "immutable_id": "sha256:66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc", "raw_path": "pudl/v2026.2.0/out_eia__yearly_plants.parquet"},
+        {"logical_name": "out_eia__yearly_generators.parquet", "immutable_id": "sha256:6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8", "raw_path": "pudl/v2026.2.0/out_eia__yearly_generators.parquet"}
       ],
       "coverage": "Texas plant and generator attributes used for candidate context; proximity matching to synthetic assets is not a real-grid connection claim.",
       "timezone": "not applicable",
       "units": {"capacity": "MW", "coordinates": "degrees EPSG:4326"},
       "destinations": ["gens", "site_candidates"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The versioned P0 paths are specified but their raw artifacts, checksums, and curated output are not checked into this clone."
+      "checked_in_receipt": "data/sources/texas-pudl-eia860-v2026.2.0.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "Version-pinned public raw artifacts were retrieved at the declared paths; checksums, byte counts, and TX loader validation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "eia930-erco-2021h1-2024h2",

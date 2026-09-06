@@ -20,6 +20,7 @@ SPEC.loader.exec_module(inventory_module)
 
 ACTIVSG_INDEX = 0
 TIGER_INDEX = 1
+EIA930_INDEX = 4
 EAGLEI_INDEX = 6
 
 
@@ -40,8 +41,8 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
     assert report["summary"] == {
         "excluded": 1,
         "ingested": 0,
-        "unavailable": 9,
-        "validated": 1,
+        "unavailable": 6,
+        "validated": 4,
     }
     assert "synthetic" in report["synthetic_geometry_caveat"].lower()
     assert "not the real ercot" in report["synthetic_geometry_caveat"].lower()
@@ -52,6 +53,19 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
         "passed": True,
         "mismatches": [],
     }
+    for identifier in (
+        "census-tiger-2024-counties",
+        "fema-nri-v1.20",
+        "pudl-eia860-v2026.2.0",
+    ):
+        record = _record(_inventory(), identifier)
+        assert record["status"] == "validated"
+        assert record["checked_in_receipt"]
+        assert all(
+            artifact["immutable_id"] is None
+            or artifact["immutable_id"].startswith("sha256:")
+            for artifact in record["artifacts"]
+        )
     assert report["requested_raw_root"] == (tmp_path / "missing-raw").as_posix()
     assert all(record["schema_valid"] for record in report["records"])
     assert all(
@@ -129,13 +143,13 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # A receipt-less source cannot claim evidence just by changing one word.
         (
             _flip_status,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "ingested",
             "ingested record needs a checked_in_receipt path",
         ),
         (
             _flip_status,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "ingested",
             "ingested record needs an ingestion_timestamp",
         ),
@@ -147,7 +161,7 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         ),
         (
             _flip_status,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "validated",
             "validated record needs an immutable artifact identifier",
         ),
@@ -167,13 +181,13 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # Unevidenced statuses must not carry evidence fields.
         (
             _timestamp_on_unavailable,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "unavailable",
             "unavailable record must have a null ingestion_timestamp",
         ),
         (
             _receipt_on_unavailable,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "unavailable",
             "unavailable record must not claim a checked_in_receipt",
         ),
@@ -186,15 +200,15 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # Structural rules.
         (
             _duplicate_id,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "unavailable",
             "duplicate record id: activsg2000-current",
         ),
         (
             _http_url,
-            TIGER_INDEX,
+            EIA930_INDEX,
             "unavailable",
-            "records[1].source_url must be an https URL",
+            "records[4].source_url must be an https URL",
         ),
         (
             _weaken_caveat,
