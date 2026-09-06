@@ -57,6 +57,14 @@ class _Edit:
     element_ids: tuple[str, ...]
 
 
+# The current interactive core builds one static synthetic topology. It has no
+# scenario-loader or stochastic seed application boundary, so accepting any
+# other identity would merely relabel the same baseline.
+_STATIC_SCENARIO_ID = "interactive"
+_STATIC_HOUR = 0
+_STATIC_SEED = 0
+
+
 class InteractiveService:
     """Shares immutable edit identities while rebuilding a fresh network per call."""
 
@@ -65,6 +73,9 @@ class InteractiveService:
         self._edits: dict[str, _Edit] = {}
 
     async def scenario_edit(self, payload: ScenarioEditRequest) -> dict[str, object]:
+        _require_static_context(
+            payload.base_scenario_id, payload.hour, payload.seed
+        )
         result = await _in_thread(_scenario_edit, payload, duckdb_path=self.duckdb_path)
         self._edits[str(result["data"]["edit_hash"])] = _Edit(
             payload.base_scenario_id,
@@ -75,6 +86,7 @@ class InteractiveService:
         return result
 
     async def cascade(self, payload: CascadeRequest) -> dict[str, object]:
+        _require_static_context(payload.scenario_id, payload.hour, payload.seed)
         if payload.edit_hash is not None:
             saved = self._edits.get(payload.edit_hash)
             if saved is None:
@@ -96,19 +108,30 @@ class InteractiveService:
         scope: Literal["base", "edit"] = "base",
         scenario_id: str = "interactive",
         hour: int = 0,
+        seed: int = 0,
         edit_hash: str | None = None,
     ) -> dict[str, object]:
+        _require_static_context(scenario_id, hour, seed)
+        edit = _resolve_edit(scope, edit_hash, self._edits)
+        if edit is not None:
+            _require_edit_context(edit, scenario_id, hour, seed)
         return await _in_thread(
             _balance,
-            _resolve_edit(scope, edit_hash, self._edits),
+            edit,
             scenario_id=scenario_id,
             hour=hour,
             duckdb_path=self.duckdb_path,
         )
 
     async def redundancy(
-        self, *, bus_id: int, scenario_id: str = "interactive", hour: int = 0
+        self,
+        *,
+        bus_id: int,
+        scenario_id: str = "interactive",
+        hour: int = 0,
+        seed: int = 0,
     ) -> dict[str, object]:
+        _require_static_context(scenario_id, hour, seed)
         return await _in_thread(
             _redundancy,
             bus_id,
@@ -118,6 +141,7 @@ class InteractiveService:
         )
 
     async def siting_search(self, payload: SitingSearchRequest) -> dict[str, object]:
+        _require_static_context(payload.scenario_id, payload.hour, payload.seed)
         return await _in_thread(_siting_search, payload, duckdb_path=self.duckdb_path)
 
 
@@ -144,12 +168,17 @@ def create_interactive_router(*, service: InteractiveService) -> APIRouter:
             str, Query(min_length=1, max_length=128)
         ] = "interactive",
         hour: Annotated[int, Query(ge=0, le=8_760)] = 0,
+        seed: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
         edit_hash: Annotated[
             str | None, Query(min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")
         ] = None,
     ) -> dict[str, object]:
         return await service.balance(
-            scope=scope, scenario_id=scenario_id, hour=hour, edit_hash=edit_hash
+            scope=scope,
+            scenario_id=scenario_id,
+            hour=hour,
+            seed=seed,
+            edit_hash=edit_hash,
         )
 
     @router.get("/redundancy")
@@ -159,9 +188,10 @@ def create_interactive_router(*, service: InteractiveService) -> APIRouter:
             str, Query(min_length=1, max_length=128)
         ] = "interactive",
         hour: Annotated[int, Query(ge=0, le=8_760)] = 0,
+        seed: Annotated[int, Query(ge=0, le=2_147_483_647)] = 0,
     ) -> dict[str, object]:
         return await service.redundancy(
-            bus_id=bus_id, scenario_id=scenario_id, hour=hour
+            bus_id=bus_id, scenario_id=scenario_id, hour=hour, seed=seed
         )
 
     @router.post("/siting/search")
@@ -184,6 +214,26 @@ def _resolve_edit(
         return edits[edit_hash]
     except KeyError as exc:
         raise NotFoundError("The requested interactive edit is not available.") from exc
+
+
+def _require_static_context(scenario_id: str, hour: int, seed: int) -> None:
+    if (scenario_id, hour, seed) != (
+        _STATIC_SCENARIO_ID,
+        _STATIC_HOUR,
+        _STATIC_SEED,
+    ):
+        raise InvalidInputError(
+            "Only the static interactive scenario at hour 0 with seed 0 is available."
+        )
+
+
+def _require_edit_context(
+    edit: _Edit, scenario_id: str, hour: int, seed: int
+) -> None:
+    if (edit.scenario_id, edit.hour, edit.seed) != (scenario_id, hour, seed):
+        raise InvalidInputError(
+            "Request context does not match the immutable edit hash."
+        )
 
 
 async def _in_thread(

@@ -175,7 +175,7 @@ def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 
 def sql(query: str | None = None, template_id: str | None = None) -> dict
                                           # legacy query or registered template; read-only DuckDB; row cap 200
 def cite(query: str, k: int = 5) -> dict  # retrieval over regulatory PDFs
-# added by amendment A8 (nine tools total):
+# added by amendment A8 plus the static interactive surface (thirteen tools total):
 def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict   # ids "site:<site_id>" | "line:<line_id>"
 def top_critical_elements(region: str, n: int = 10) -> dict                          # ranks by cascade reach from cascade_runs
 def causal_query(...) -> dict                                                        # spec 07 owns the signature
@@ -448,7 +448,7 @@ Team size assumed 4–6. Owners are `TBD` — fill in at kickoff. Times are loca
 | 13:00–17:00 | 02 | Train LightGBM; hold out `uri_2021`, `beryl_2024`, `helene_2024`; write `outage_predictions` for all four scenarios. | TBD | AUC on Uri holdout printed; ≥0.75 target [UNVERIFIED achievable]. |
 | 13:00–17:00 | 03 | Cascade loop on real ACTIVSg2000: weather-driven line failure probs → trip → DC PF → overload trip → repeat; county + critical-load translation; write `cascade_runs` for `base_uri_2021`. | TBD | A base run with nonzero `lost_load_mw` and ≥1 DoD load lost. |
 | 13:00–17:00 | 06 | Outage choropleth + actual toggle + time scrubber; cascade playback layer reading `cascade_runs`. | TBD | Beats 2 and 3 click through on fixture data. |
-| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists all nine (A8). |
+| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists all thirteen, with interactive tools labelled static synthetic. |
 | 15:00–17:00 | 04 | Safety scorer (`safety_score`, `safety_flags_json`) on all Texas candidates. | TBD | 30 rows in `site_scores` with safety only. |
 | 15:00–17:00 | 07 | pgmpy DAG fit on EAGLE-I + weather + hazard for Texas counties; write `causal/artifacts/decomposition.json`. | TBD | One county decomposition prints. |
 | 17:00–19:00 | 03+04 | Grid-value delta: inject `unit_mw` gen at `site.bus_id`, re-run cascade on stress hours, compute `lol_reduction_mwh`, `congestion_relief_pct`, `blackstart_reach_mw`. | TBD | One `GridValueResult` with `lol_reduction_mwh > 0`; one persisted counterfactual run in `cascade_runs`. |
@@ -534,7 +534,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 | Cascade re-runs for siting too slow (30 sites × 2 sizes × 168 h) | Medium | DC PF is ms-scale; cap hours to the 24 h peak window of Uri; parallelise with multiprocessing; precompute Day 1 night. |
 | HRRR reanalysis for Feb 2021 is large / hard to subset | High | ERA5 county-mean via a small subset; or NOAA ISD station data interpolated to counties; 01 decides, 02 consumes the same columns. |
 | Archived HIFLD lines unreachable | Medium | The demo map uses ACTIVSg2000 line geometry (synthetic lat/lon are provided by the dataset). HIFLD only for the national scale slide; OSM `power=line` as fallback. |
-| `claude-sonnet-5` tool loop slow with nine tools + SSE | Low | Cap tool iterations at 6; pre-warm one answer for beat 5 as a cached transcript fallback. |
+| `claude-sonnet-5` tool loop slow with thirteen tools + SSE | Low | Cap tool iterations at 4; pre-warm one answer for beat 5 as a cached transcript fallback. |
 | NRC July 2026 proposed siting rule PDF not locatable | Low | Located: Federal Register 2026-14341 (16 July 2026), NRC ADAMS ML26176A438. Fallback: cite 10 CFR 100 + Reg Guide 4.7 and mention the proposed rule verbally. |
 | Nobody on the team has run pandapower before | Medium | 03 starts on fixture DB at 08:30; the DC PF example in pandapower docs is 10 lines. |
 
@@ -610,7 +610,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
      elements: [{element_id, kind: line|bus|gen, lost_load_mw, critical_loads_lost: [cl_id], runs: int}]}
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
-  - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
+  - **Tool count.** The contract has **thirteen** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`, plus `scenario_edit`, `cascade`, `balance`, and `redundancy`. The last four use only the labelled static synthetic baseline (`interactive`, hour 0, seed 0) until a validated scenario application adapter exists. A5's "six tool signatures unchanged" still holds — the six are unchanged; three persisted-data tools and four interactive tools are added. `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
 - **A10 — SSE transport.** `POST /ask` uses the v1 event names, envelopes,
   ordering, terminal behavior, heartbeats, and POST-resume identity defined in
   `docs/research/sse-event-schema.md`. Spec 05 and the web client consume that

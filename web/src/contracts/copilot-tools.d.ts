@@ -8,6 +8,14 @@ export interface ArtifactRef {
   source_ref: string;
 }
 
+export interface BalanceInput {
+  edit_hash?: string | null;
+  hour?: 0;
+  scenario_id?: "interactive";
+  scope?: "base" | "edit";
+  seed?: 0;
+}
+
 export interface CascadeData {
   counties_dark: string[];
   critical_loads_lost: CriticalLoadLoss[];
@@ -139,6 +147,29 @@ export interface CriticalLoadLoss {
   name: string;
 }
 
+export interface InteractiveCascadeInput {
+  edit_hash?: string | null;
+  element_ids: string[];
+  hour?: 0;
+  scenario_id?: "interactive";
+  seed?: 0;
+}
+
+export interface InteractiveData {
+  data: Record<string, JsonValue>;
+  limitations: string[];
+  model_fidelity: "dc_screening";
+  network_provenance: "synthetic_activsg2000";
+  provenance?: ArtifactRef[];
+  status: "available";
+  unavailable?: Unavailable | null;
+}
+
+export interface InteractiveEditOperation {
+  element_id: string;
+  op: "outage";
+}
+
 export interface Intervention {
   critical_loads_protected: string[];
   customer_hours_avoided: number;
@@ -216,6 +247,13 @@ export interface PredictOutageInput {
   scenario_id: ScenarioId;
 }
 
+export interface RedundancyInput {
+  bus_id: number;
+  hour?: 0;
+  scenario_id?: "interactive";
+  seed?: 0;
+}
+
 export interface RetrievalHit {
   chunk_id: string;
   content_kind: "fixture" | "source";
@@ -235,6 +273,13 @@ export interface RunCascadeInput {
   element_ids: string[];
   hour: number;
   scenario_id: ScenarioId;
+}
+
+export interface ScenarioEditInput {
+  base_scenario_id?: "interactive";
+  hour?: 0;
+  ops: InteractiveEditOperation[];
+  seed?: 0;
 }
 
 export type ScenarioId = "uri_2021" | "beryl_2024" | "helene_2024" | "forecast_72h";
@@ -317,7 +362,7 @@ export interface UnavailableOutput {
   unavailable?: Unavailable | null;
 }
 
-export type ToolName = "predict_outage" | "run_cascade" | "score_site" | "top_lines" | "sql" | "cite" | "compare_interventions" | "top_critical_elements" | "causal_query";
+export type ToolName = "predict_outage" | "run_cascade" | "score_site" | "top_lines" | "sql" | "cite" | "compare_interventions" | "top_critical_elements" | "causal_query" | "scenario_edit" | "cascade" | "balance" | "redundancy";
 
 export interface ToolContracts {
   predict_outage: { input: PredictOutageInput; output: PredictOutageData | UnavailableOutput };
@@ -329,4 +374,8 @@ export interface ToolContracts {
   compare_interventions: { input: CompareInterventionsInput; output: InterventionsData | UnavailableOutput };
   top_critical_elements: { input: TopCriticalElementsInput; output: CriticalElementsData | UnavailableOutput };
   causal_query: { input: CausalQueryInput; output: CausalData | UnavailableOutput };
+  scenario_edit: { input: ScenarioEditInput; output: InteractiveData | UnavailableOutput };
+  cascade: { input: InteractiveCascadeInput; output: InteractiveData | UnavailableOutput };
+  balance: { input: BalanceInput; output: InteractiveData | UnavailableOutput };
+  redundancy: { input: RedundancyInput; output: InteractiveData | UnavailableOutput };
 }

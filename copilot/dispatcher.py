@@ -14,7 +14,17 @@ from typing import Protocol
 
 from pydantic import BaseModel, ValidationError
 
-from copilot.tools.schemas import TOOL_REGISTRY, validate_tool_input
+from copilot.tools.schemas import (
+    TOOL_REGISTRY,
+    ArtifactRef,
+    BalanceInput,
+    InteractiveCascadeInput,
+    InteractiveData,
+    RedundancyInput,
+    ScenarioEditInput,
+    unavailable_output,
+    validate_tool_input,
+)
 
 MAX_TOOL_TURNS = 4
 
@@ -112,4 +122,140 @@ class ToolDispatcher:
         result = await self._handlers[call.name](payload, context)
         if not isinstance(result, Mapping):
             raise TypeError(f"tool {call.name!r} returned a non-mapping result")
-        return ToolResult(call.call_id, call.name, MappingProxyType(dict(call.arguments)), MappingProxyType(dict(result)))
+        definition = next(item for item in TOOL_REGISTRY if item.name == call.name)
+        try:
+            validated = _validate_tool_result(definition.output_model, result)
+        except ValidationError as exc:
+            raise TypeError(f"tool {call.name!r} returned an invalid result") from exc
+        output = validated.model_dump(mode="json")
+        if call.name in {"scenario_edit", "cascade"} and output["status"] == "available":
+            output["scene_action"] = _scene_action(call, output)
+        return ToolResult(
+            call.call_id,
+            call.name,
+            MappingProxyType(dict(call.arguments)),
+            MappingProxyType(output),
+        )
+
+
+def _validate_tool_result(
+    models: tuple[type[BaseModel], type[BaseModel]], result: Mapping[str, object]
+) -> BaseModel:
+    """Accept only one declared Pydantic output shape from a registered handler."""
+
+    errors: list[ValidationError] = []
+    for model in models:
+        try:
+            return model.model_validate(result)
+        except ValidationError as exc:
+            errors.append(exc)
+    raise errors[-1]
+
+
+def _scene_action(call: ToolCall, output: Mapping[str, object]) -> dict[str, object]:
+    """Attach the one additive browser action shape to its observed tool call."""
+
+    data = output.get("data")
+    values = data if isinstance(data, Mapping) else {}
+    key = "edit_hash" if call.name == "scenario_edit" else "run_id"
+    value = values.get(key)
+    action: dict[str, object] = {
+        "action_id": f"{call.name}:{call.call_id}",
+        "kind": call.name,
+        "tool_call_id": call.call_id,
+        "reversible": True,
+        "status": "available",
+    }
+    if isinstance(value, str) and value:
+        action["edit_hash" if call.name == "scenario_edit" else "cascade_id"] = value
+    return action
+
+
+def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
+    """Return all 13 handlers with live calls for the four interactive tools.
+
+    The historical nine-tool implementations are deployment-owned. Until a
+    deployment supplies them, they answer typed `unsupported_request` results
+    rather than guessing from the question or making a network call.
+    """
+
+    async def unavailable(_: BaseModel, __: Mapping[str, object]) -> Mapping[str, object]:
+        return unavailable_output(
+            "unsupported_request",
+            "This deployment has not registered that tool implementation.",
+        ).model_dump(mode="json")
+
+    handlers = {definition.name: unavailable for definition in TOOL_REGISTRY}
+
+    async def scenario_edit(
+        payload: BaseModel, _: Mapping[str, object]
+    ) -> Mapping[str, object]:
+        from copilot.interactive_routes import EditOperation, ScenarioEditRequest
+
+        value = ScenarioEditInput.model_validate(payload)
+        response = await service.scenario_edit(  # type: ignore[attr-defined]
+            ScenarioEditRequest(
+                base_scenario_id=value.base_scenario_id,
+                ops=[EditOperation(**item.model_dump()) for item in value.ops],
+                hour=value.hour,
+                seed=value.seed,
+            )
+        )
+        return _interactive_output(response)
+
+    async def cascade(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+        from copilot.interactive_routes import CascadeRequest
+
+        value = InteractiveCascadeInput.model_validate(payload)
+        response = await service.cascade(  # type: ignore[attr-defined]
+            CascadeRequest(**value.model_dump())
+        )
+        return _interactive_output(response)
+
+    async def balance(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+        value = BalanceInput.model_validate(payload)
+        response = await service.balance(  # type: ignore[attr-defined]
+            **value.model_dump()
+        )
+        return _interactive_output(response)
+
+    async def redundancy(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+        value = RedundancyInput.model_validate(payload)
+        response = await service.redundancy(  # type: ignore[attr-defined]
+            **value.model_dump()
+        )
+        return _interactive_output(response)
+
+    handlers.update(
+        {
+            "scenario_edit": scenario_edit,
+            "cascade": cascade,
+            "balance": balance,
+            "redundancy": redundancy,
+        }
+    )
+    return handlers
+
+
+def _interactive_output(response: object) -> dict[str, object]:
+    """Add explicit simulated provenance before the registry validates it."""
+
+    if not isinstance(response, Mapping):
+        raise TypeError("interactive service returned a non-mapping response")
+    value = dict(response)
+    value.update(
+        {
+            "status": "available",
+            "provenance": [
+                ArtifactRef(
+                    artifact_id="tx:synthetic:interactive-service",
+                    artifact_version="current",
+                    source_kind="simulated",
+                    source_ref="copilot.interactive_routes.InteractiveService",
+                ).model_dump(mode="json")
+            ],
+        }
+    )
+    # The service envelope uses arbitrary JSON only inside its `data` member;
+    # validate that concrete envelope before returning a handler mapping.
+    return InteractiveData.model_validate(value).model_dump(mode="json")

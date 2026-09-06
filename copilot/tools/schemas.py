@@ -234,6 +234,52 @@ class CausalQueryInput(ContractModel):
     treatment: Literal["hardening_saidi", "firm_generation_100mw"] | None = None
 
 
+# The interactive core currently supports only its explicitly labelled static
+# baseline. These are separate from the historical/persisted scenario tools:
+# their strict inputs prevent an agent from relabelling one static simulation as
+# a storm replay.
+class InteractiveEditOperation(ContractModel):
+    op: Literal["outage"]
+    element_id: Annotated[str, Field(min_length=1, max_length=160)]
+
+
+class ScenarioEditInput(ContractModel):
+    base_scenario_id: Literal["interactive"] = "interactive"
+    ops: Annotated[list[InteractiveEditOperation], Field(min_length=1, max_length=64)]
+    hour: Literal[0] = 0
+    seed: Literal[0] = 0
+
+
+class InteractiveCascadeInput(ContractModel):
+    element_ids: Annotated[
+        list[Annotated[str, Field(min_length=1, max_length=160)]],
+        Field(min_length=1, max_length=64),
+    ]
+    scenario_id: Literal["interactive"] = "interactive"
+    hour: Literal[0] = 0
+    edit_hash: Annotated[
+        str | None, Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")
+    ] = None
+    seed: Literal[0] = 0
+
+
+class BalanceInput(ContractModel):
+    scope: Literal["base", "edit"] = "base"
+    scenario_id: Literal["interactive"] = "interactive"
+    hour: Literal[0] = 0
+    seed: Literal[0] = 0
+    edit_hash: Annotated[
+        str | None, Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")
+    ] = None
+
+
+class RedundancyInput(ContractModel):
+    bus_id: Annotated[int, Field(ge=0)]
+    scenario_id: Literal["interactive"] = "interactive"
+    hour: Literal[0] = 0
+    seed: Literal[0] = 0
+
+
 class OutagePoint(ContractModel):
     ts: Annotated[str, Field(min_length=1, max_length=64)]
     p_out: Annotated[float, Field(ge=0, le=1)]
@@ -442,6 +488,16 @@ class CausalData(ToolOutput):
     citations: Annotated[list[CausalCitation], Field(min_length=1, max_length=50)]
 
 
+class InteractiveData(ToolOutput):
+    """A validated envelope from the non-persisting interactive service."""
+
+    status: Literal["available"]
+    model_fidelity: Literal["dc_screening"]
+    network_provenance: Literal["synthetic_activsg2000"]
+    limitations: Annotated[list[str], Field(min_length=1)]
+    data: dict[str, JsonValue]
+
+
 @dataclass(frozen=True)
 class ToolDefinition:
     name: str
@@ -506,6 +562,30 @@ TOOL_REGISTRY: tuple[ToolDefinition, ...] = (
         "Read a validated causal artifact or explicit unavailable result.",
         CausalQueryInput,
         (CausalData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "scenario_edit",
+        "Create one immutable synthetic outage edit on the static interactive baseline.",
+        ScenarioEditInput,
+        (InteractiveData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "cascade",
+        "Run a bounded synthetic cascade on the static interactive baseline.",
+        InteractiveCascadeInput,
+        (InteractiveData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "balance",
+        "Read synthetic balance accounting for the static interactive baseline or an edit.",
+        BalanceInput,
+        (InteractiveData, UnavailableOutput),
+    ),
+    ToolDefinition(
+        "redundancy",
+        "Read bounded synthetic topology redundancy for a canonical bus.",
+        RedundancyInput,
+        (InteractiveData, UnavailableOutput),
     ),
 )
 

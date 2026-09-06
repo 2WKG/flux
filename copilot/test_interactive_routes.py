@@ -63,7 +63,7 @@ def test_all_ticket_436_routes_are_mounted_at_the_public_root(monkeypatch) -> No
     edit = client.post(
         "/scenario/edit",
         json={
-            "base_scenario_id": "uri_2021",
+            "base_scenario_id": "interactive",
             "ops": [{"op": "outage", "element_id": "line:7"}],
         },
     )
@@ -75,21 +75,21 @@ def test_all_ticket_436_routes_are_mounted_at_the_public_root(monkeypatch) -> No
             "/cascade",
             json={
                 "element_ids": ["line:7"],
-                "scenario_id": "uri_2021",
+                "scenario_id": "interactive",
                 "hour": 0,
                 "edit_hash": edit_hash,
             },
         ),
         client.get("/balance", params={"scope": "edit", "edit_hash": edit_hash}),
         client.get(
-            "/redundancy", params={"bus_id": 7, "scenario_id": "uri_2021", "hour": 0}
+            "/redundancy", params={"bus_id": 7, "scenario_id": "interactive", "hour": 0}
         ),
         client.post(
             "/siting/search",
             json={
                 "kind": "synthetic_generation",
                 "unit_mw": 300,
-                "scenario_id": "uri_2021",
+                "scenario_id": "interactive",
                 "n": 1,
             },
         ),
@@ -109,34 +109,24 @@ def test_unknown_and_malformed_edits_fail_explicitly(monkeypatch) -> None:
     assert missing.status_code == 404
     assert missing.json()["error"]["code"] == "not_found"
     malformed = client.post(
-        "/scenario/edit", json={"base_scenario_id": "uri", "ops": []}
+        "/scenario/edit", json={"base_scenario_id": "interactive", "ops": []}
     )
     assert malformed.status_code == 422
     assert malformed.json()["error"]["code"] == "invalid_input"
 
 
-def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch) -> None:
+def test_unapplied_seed_fails_closed(monkeypatch) -> None:
     client = _client(monkeypatch)
     edit = client.post(
         "/scenario/edit",
         json={
-            "base_scenario_id": "uri",
+            "base_scenario_id": "interactive",
             "seed": 1,
             "ops": [{"op": "outage", "element_id": "line:7"}],
         },
     )
-    replay = client.post(
-        "/cascade",
-        json={
-            "element_ids": ["line:7"],
-            "scenario_id": "uri",
-            "hour": 0,
-            "seed": 0,
-            "edit_hash": edit.json()["data"]["edit_hash"],
-        },
-    )
-    assert replay.status_code == 422
-    assert replay.json()["error"]["code"] == "invalid_input"
+    assert edit.status_code == 422
+    assert edit.json()["error"]["code"] == "invalid_input"
 
 
 def test_missing_core_is_an_explicit_unavailable_error(monkeypatch) -> None:
@@ -150,7 +140,56 @@ def test_missing_core_is_an_explicit_unavailable_error(monkeypatch) -> None:
 
     sys.modules["twin.build"].build_network = unavailable
     response = client.post(
-        "/cascade", json={"element_ids": ["line:7"], "scenario_id": "uri", "hour": 0}
+        "/cascade", json={"element_ids": ["line:7"], "scenario_id": "interactive", "hour": 0}
     )
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "unavailable"
+
+
+def test_unknown_scenario_and_cross_context_edit_reuse_fail_closed(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    unknown = client.post(
+        "/scenario/edit",
+        json={
+            "base_scenario_id": "no_such_scenario",
+            "ops": [{"op": "outage", "element_id": "line:7"}],
+        },
+    )
+    assert unknown.status_code == 422
+    assert unknown.json()["error"]["code"] == "invalid_input"
+
+    edit = client.post(
+        "/scenario/edit",
+        json={
+            "base_scenario_id": "interactive",
+            "ops": [{"op": "outage", "element_id": "line:7"}],
+        },
+    )
+    assert edit.status_code == 200
+    edit_hash = edit.json()["data"]["edit_hash"]
+    for response in (
+        client.post(
+            "/cascade",
+            json={
+                "element_ids": ["line:7"],
+                "scenario_id": "interactive",
+                "hour": 1,
+                "edit_hash": edit_hash,
+            },
+        ),
+        client.get(
+            "/balance",
+            params={
+                "scope": "edit",
+                "scenario_id": "interactive",
+                "hour": 1,
+                "edit_hash": edit_hash,
+            },
+        ),
+        client.get(
+            "/redundancy",
+            params={"bus_id": 7, "scenario_id": "no_such_scenario"},
+        ),
+    ):
+        assert response.status_code == 422, response.text
+        assert response.json()["error"]["code"] == "invalid_input"
