@@ -287,7 +287,9 @@ one synthetic scenario, so 02–08 can start before real ingest finishes.
 ### 4.2 Interfaces (exact function/route signatures the overview pins)
 
 Copilot HTTP surface — **spec 05 owns the route names**; restated here so 06 builds against the same
-list. No `/api/` prefix. Map data comes through one `GET /layers/{name}` endpoint.
+list. The DuckDB read surface carries no `/api/` prefix and its map data comes through one
+`GET /layers/{name}` endpoint; the published physical-inventory release is a separate versioned
+artifact surface under `/api/v1/grid/layers/{layer}` (2WKG-89) and is the only prefixed route.
 
 ```
 GET  /health                                   → {ok, duckdb_path, tables, corpus_chunks, dense, model}
@@ -302,10 +304,11 @@ GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare arra
 GET  /lines/top?region=&tech=any&limit=50&offset=0    → one bounded deterministic page of the persisted line-upgrade ranking as the top_lines dict; limit is capped at TOP_LINES_MAX_LIMIT (50) and the frozen tool input top_lines(region, tech, n) stays unpaginated (05 §Routes, 2WKG-172)
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict + evidence/comparison_status; persisted deltas only, never derived (05 §Routes, A8, 2WKG-173)
 GET  /elements/critical?region=&n=10&offset=0         → top_critical_elements(...) dict incl. scenario_ids, + offset/evidence; partial counts the relation, not the page (05 §Routes, A8, 2WKG-173)
+GET  /api/v1/grid/layers/{layer}?state=&version=&bbox=&limit=50&cursor= → one deterministic page of a published physical-inventory release, unwrapped; layer ∈ the release's asset classes or "all"; native geometry plus a WGS84 display copy with transform provenance; total orders on asset_id, cursor bound to (state, version, layer, bbox, release_sha256). The only /api/-prefixed route: it serves a versioned published artifact, not the DuckDB read surface above (05 §Routes, 2WKG-89)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
 ```
 
-This list is the **eleven routes `copilot/app.py` actually mounts**, regenerated from
+This list is the **twelve routes `copilot/app.py` actually mounts**, regenerated from
 `app.openapi()['paths']` and cross-checked against the `@router` decorators and
 `copilot/test_read_route_contracts.py:95-250`. Two previously listed routes, `POST /cascade` and
 `POST /predict`, **do not exist in any form on `master`** and are removed rather than marked

@@ -39,9 +39,7 @@ def _artifact_path(root: Path, state: str, version: str) -> Path:
     return root / state / f"physical-inventory-{version}.json.gz"
 
 
-@lru_cache(maxsize=8)
-def _read_release(path_text: str) -> dict[str, Any]:
-    path = Path(path_text)
+def _read_release(path: Path) -> dict[str, Any]:
     try:
         with gzip.open(path, "rt", encoding="utf-8") as stream:
             release = json.load(stream)
@@ -52,19 +50,38 @@ def _read_release(path_text: str) -> dict[str, Any]:
     return release
 
 
-def _verified_release(root: Path, state: str, version: str) -> dict[str, Any]:
-    """Read a release only when both published digests agree with its manifest."""
-    path = _artifact_path(root, state, version)
-    manifest_path = root / f"manifest-{version}.json"
-    if not path.is_file() or not manifest_path.is_file():
-        raise _unavailable("release_not_found", state=state, version=version)
+def _fingerprint(path: Path) -> tuple[int, int]:
+    """Identify the exact bytes on disk without reading them."""
+    stat = path.stat()
+    return stat.st_mtime_ns, stat.st_size
+
+
+@lru_cache(maxsize=8)
+def _verify_and_read(
+    path_text: str,
+    manifest_text: str,
+    state: str,
+    version: str,
+    release_fingerprint: tuple[int, int],
+    manifest_fingerprint: tuple[int, int],
+) -> dict[str, Any]:
+    """Read a release only when both published digests agree with its manifest.
+
+    A published release is immutable, so the four digest conjuncts below are a
+    property of the bytes on disk rather than of a request.  The cache key
+    carries both files' ``(st_mtime_ns, st_size)``, so replacing either file
+    re-verifies from scratch instead of pairing a stale parse with a fresh
+    digest.  ``lru_cache`` never stores a raised exception, so a refusal is
+    recomputed — and stays a refusal — on every subsequent request.
+    """
+    path = Path(path_text)
     try:
-        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest = json.loads(Path(manifest_text).read_text(encoding="utf-8"))
         entry = next(item for item in manifest["artifacts"] if item["state"] == state)
         compressed_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
     except (OSError, KeyError, StopIteration, TypeError, json.JSONDecodeError) as exc:
         raise _unavailable("invalid_manifest", state=state, version=version) from exc
-    release = _read_release(str(path))
+    release = _read_release(path)
     if (
         not str(entry.get("published_path", "")).endswith(
             f"/{state}/physical-inventory-{version}.json.gz"
@@ -75,6 +92,22 @@ def _verified_release(root: Path, state: str, version: str) -> dict[str, Any]:
     ):
         raise _unavailable("release_hash_mismatch", state=state, version=version)
     return release
+
+
+def _verified_release(root: Path, state: str, version: str) -> dict[str, Any]:
+    """Return the verified release, verifying each published file version once."""
+    path = _artifact_path(root, state, version)
+    manifest_path = root / f"manifest-{version}.json"
+    if not path.is_file() or not manifest_path.is_file():
+        raise _unavailable("release_not_found", state=state, version=version)
+    return _verify_and_read(
+        str(path),
+        str(manifest_path),
+        state,
+        version,
+        _fingerprint(path),
+        _fingerprint(manifest_path),
+    )
 
 
 def _parse_bbox(value: str | None) -> tuple[float, float, float, float] | None:
@@ -149,8 +182,14 @@ def _display_geometry(
         raise _unavailable("display_transform_failed") from exc
 
 
-def _item(asset: dict[str, Any], sources: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    display, transform = _display_geometry(asset)
+def _item(
+    asset: dict[str, Any],
+    sources: dict[str, dict[str, Any]],
+    display_pair: tuple[dict[str, Any] | None, dict[str, str] | None] | None = None,
+) -> dict[str, Any]:
+    display, transform = (
+        _display_geometry(asset) if display_pair is None else display_pair
+    )
     source_id = asset.get("source_id")
     source = sources.get(source_id)
     if not isinstance(source_id, str) or source is None:
@@ -211,23 +250,49 @@ def get_physical_layer(
     }
     offset = _cursor(cursor, binding)
     sources = {source["source_id"]: source for source in release.get("sources", [])}
-    items = [
-        _item(asset, sources)
-        for asset in release["assets"]
-        if layer == "all" or asset["asset_class"] == layer
-    ]
+    # Select, filter and order the raw assets first; only the page that is
+    # actually served is projected into a wire item, so `limit` bounds the
+    # transform work instead of costing O(release) per page.
+    selected = sorted(
+        (
+            asset
+            for asset in release["assets"]
+            if layer == "all" or asset["asset_class"] == layer
+        ),
+        key=lambda asset: asset["asset_id"],
+    )
+    # Provenance is a whole-release claim, so it is still checked across every
+    # selected asset rather than only the page.
+    for asset in selected:
+        if not isinstance(asset.get("source_id"), str) or asset["source_id"] not in (
+            sources
+        ):
+            raise _unavailable("provenance_missing")
+    displays: list[tuple[dict[str, Any] | None, dict[str, str] | None]] | None = None
     if viewport is not None:
         viewport_shape = box(*viewport)
-        items = [
-            item
-            for item in items
-            if item["display_geometry"] is not None
-            and shape(item["display_geometry"]).intersects(viewport_shape)
-        ]
-    items.sort(key=lambda item: item["asset_id"])
-    page_items = items[offset : offset + limit]
+        kept: list[dict[str, Any]] = []
+        displays = []
+        for asset in selected:
+            display_pair = _display_geometry(asset)
+            geometry = display_pair[0]
+            if geometry is not None and shape(geometry).intersects(viewport_shape):
+                kept.append(asset)
+                displays.append(display_pair)
+        selected = kept
+    total = len(selected)
+    page_assets = selected[offset : offset + limit]
+    page_displays = (
+        displays[offset : offset + limit]
+        if displays is not None
+        else [None] * len(page_assets)
+    )
+    page_items = [
+        _item(asset, sources, display_pair)
+        for asset, display_pair in zip(page_assets, page_displays, strict=True)
+    ]
     next_cursor = (
-        _encode_cursor(offset + limit, binding) if offset + limit < len(items) else None
+        _encode_cursor(offset + limit, binding) if offset + limit < total else None
     )
     return JSONResponse(
         {
@@ -244,7 +309,7 @@ def get_physical_layer(
                 "limit": limit,
                 "cursor": cursor,
                 "next_cursor": next_cursor,
-                "total": len(items),
+                "total": total,
             },
             "coverage": [
                 row
