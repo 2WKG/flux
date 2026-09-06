@@ -6,6 +6,7 @@ import asyncio
 from pathlib import Path
 
 from copilot.demo.ask_backend import CascadeRunner, CoreCascadeEvidence, DemoAskBackend
+from copilot.demo.jepa import DEFAULT_JEPA_ARTIFACT
 from copilot.runtime import AsyncNarrationProvider
 from copilot.tools.schemas import ArtifactRef, ToolOutput, unavailable_output
 
@@ -92,10 +93,11 @@ def build_demo_ask_backend(
     cascade_runner: CascadeRunner | None = None,
     provider: AsyncNarrationProvider | None = None,
     case_path: Path | None = None,
+    jepa_artifact_path: Path = DEFAULT_JEPA_ARTIFACT,
 ) -> DemoAskBackend:
     """Build the opt-in primary ``/ask`` backend; no module-global wiring."""
 
     runner = cascade_runner or CoreCascadeRunner(
         duckdb_path=duckdb_path, case_path=case_path
     )
-    return DemoAskBackend(runner, provider)
+    return DemoAskBackend(runner, provider, jepa_artifact_path=jepa_artifact_path)

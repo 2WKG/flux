@@ -137,7 +137,7 @@ trap cleanup_on_exit EXIT
 if [[ "$mode" == "live" ]]; then
   (
     cd "$repo"
-    DUCKDB_PATH="$duckdb_path" uv run uvicorn copilot.app:app --host 127.0.0.1 --port "$api_port"
+    DUCKDB_PATH="$duckdb_path" uv run uvicorn copilot.demo_app:app --host 127.0.0.1 --port "$api_port"
   ) >"$run_dir/api.log" 2>&1 &
   echo $! >"$api_pid_file"
   wait_for_http "http://127.0.0.1:$api_port/health" || {
