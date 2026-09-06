@@ -190,6 +190,24 @@ def load_eia860_plants(
     rows = replace_frame(
         con, "eia_plants", plant_frame, where=_state_where(selected_scope)
     )
+    con.execute(
+        "DELETE FROM ingest_warnings WHERE source = ? AND source_key = ?",
+        ["pudl_eia860", f"scope:{selected_scope.slug}"],
+    )
+    if curated.empty:
+        # A scope with no plants is reported, never recorded as a clean load.
+        con.execute(
+            "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+            [
+                "pudl_eia860",
+                f"scope:{selected_scope.slug}",
+                (
+                    f"0 EIA-860 plants in {plants_path.name} for scope "
+                    f"{selected_scope.slug}; the source has no rows for "
+                    f"{', '.join(selected_scope.usps)}"
+                ),
+            ],
+        )
     log_artifact(
         con,
         source="pudl_eia860",
