@@ -111,6 +111,21 @@ def test_identity_and_immutable_edit_are_deterministic() -> None:
     assert original["run_id"] != changed["run_id"]
 
 
+def test_static_generator_source_identity_is_exact_and_slack_fails_closed() -> None:
+    net = _overloaded_impedance_net()
+    pp.create_sgen(net, 0, p_mw=1)
+    net.gen["flux_element_id"] = []
+    net.sgen["flux_element_id"] = ["generator:40"]
+    net.ext_grid["flux_element_id"] = ["slack:379"]
+    result = run_cascade(["generator:40"], "storm", 0, net=net)
+    assert result["tripped_element_ids"][0] == {
+        "element_id": "generator:40", "kind": "static_generator", "stage": 0, "cause": "forced",
+    }
+    assert net.sgen.at[0, "in_service"]
+    with pytest.raises(SimulationInputError, match="grid-forming slack outages"):
+        run_cascade(["slack:379"], "storm", 0, net=net)
+
+
 def test_feasibility_balance_redundancy_and_measured_counterfactual() -> None:
     net = _overloaded_impedance_net()
     pp.create_gen(net, 0, p_mw=1, vm_pu=1, max_p_mw=20, min_p_mw=0)

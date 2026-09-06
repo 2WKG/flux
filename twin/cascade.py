@@ -619,7 +619,10 @@ def _apply_forced_outages(net: Any, element_ids: Sequence[str]) -> tuple[list[Ca
         if not bool(net[table].at[index, "in_service"]):
             continue
         net[table].at[index, "in_service"] = False
-        kind = {"line": "line", "impedance": "impedance", "gen": "generator", "load": "load"}[table]
+        kind = {
+            "line": "line", "impedance": "impedance", "gen": "generator",
+            "sgen": "static_generator", "load": "load",
+        }[table]
         events.append(CascadeEvent(element_id=element_id, kind=kind, stage=0, cause="forced"))
         if table == "load":
             lost_load_mw += float(net.load.at[index, "p_mw"])
@@ -643,14 +646,32 @@ def _resolve_element(net: Any, raw_id: str) -> tuple[str, int, str]:
     prefix, separator, value = token.partition(":")
     if not separator:
         prefix, value = "line", token
-    aliases = {"line": "line", "impedance": "impedance", "generator": "gen", "gen": "gen", "load": "load"}
-    table = aliases.get(prefix.lower())
+    normalized_prefix = prefix.lower()
+    if normalized_prefix == "slack":
+        matches = net.ext_grid.index[net.ext_grid.flux_element_id.astype(str) == token]
+        if len(matches) == 1:
+            raise SimulationInputError(
+                "grid-forming slack outages are unsupported without an explicit replacement model"
+            )
+        raise SimulationInputError(f"unknown slack element id {raw_id!r}")
+    if normalized_prefix == "generator":
+        matches: list[tuple[str, int]] = []
+        for provider_table in ("gen", "sgen"):
+            frame = net[provider_table]
+            if "flux_element_id" in frame:
+                matches.extend((provider_table, int(index)) for index in frame.index[frame.flux_element_id.astype(str) == token])
+        if len(matches) == 1:
+            table, index = matches[0]
+            return table, index, str(net[table].at[index, "flux_element_id"])
+        raise SimulationInputError(f"unknown generator source id {raw_id!r}")
+    aliases = {"line": "line", "impedance": "impedance", "gen": "gen", "sgen": "sgen", "load": "load"}
+    table = aliases.get(normalized_prefix)
     if table is None:
         raise SimulationInputError(f"unknown synthetic element kind in {raw_id!r}")
     expected = f"{prefix.lower()}:{value}"
     frame = net[table]
     if "flux_element_id" in frame:
-        matches = frame.index[frame.flux_element_id.astype(str).isin({token, expected, f"generator:{value}"})]
+        matches = frame.index[frame.flux_element_id.astype(str).isin({token, expected})]
         if len(matches) == 1:
             index = int(matches[0])
             return table, index, str(frame.at[index, "flux_element_id"])
@@ -665,7 +686,10 @@ def _resolve_element(net: Any, raw_id: str) -> tuple[str, int, str]:
 
 
 def _ensure_element_ids(net: Any) -> None:
-    for table, prefix in (("line", "line"), ("impedance", "impedance"), ("gen", "generator"), ("load", "load")):
+    for table, prefix in (
+        ("line", "line"), ("impedance", "impedance"), ("gen", "generator"),
+        ("sgen", "generator"), ("ext_grid", "slack"), ("load", "load"),
+    ):
         if "flux_element_id" not in net[table]:
             net[table]["flux_element_id"] = [f"{prefix}:{int(index) + 1}" for index in net[table].index]
 
