@@ -24,7 +24,9 @@
     "uncertainties": [
       "Outside initial Minnesota focus; no matched coverage evidence."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "1015187"
+    ]
   },
   "source_receipts": [
     {
@@ -45,29 +47,61 @@
       "gaps": [
         "Detailed event/coverage receipts pending."
       ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamp is local CDT; 2022-04-14 14:40-15:13 CDT converts to 19:40-20:13 UTC.",
+      "filters": "EVENT_ID=1015187; STATE=ILLINOIS; CZ_TYPE=Z; CZ_NAME=CENTRAL COOK COUNTY; EVENT_TYPE=High Wind.",
+      "grid_index_mapping": "Zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ]
     }
   ],
   "records": [
     {
-      "record_id": "il-2022-04-14-high-wind-17031-1200",
+      "record_id": "il-2022-04-14-high-wind-17031-1800",
       "county_fips": "17031",
       "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
       "scenario_id": "il-2022-04-14-high-wind-replay",
-      "window_start_utc": "2022-04-14T12:00:00Z",
-      "window_end_utc": "2022-04-14T18:00:00Z",
+      "window_start_utc": "2022-04-14T18:00:00Z",
+      "window_end_utc": "2022-04-15T00:00:00Z",
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
         "coverage": "uncovered",
-        "source_receipt_ids": [],
-        "notes": "No retained HRRR receipt.",
+        "source_receipt_ids": [
+          "ncei-stormevents-2022"
+        ],
+        "notes": "NCEI zone event report 1015187 intersects this canonical window; no sampled weather time series is asserted.",
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1015187"
+          ],
+          "source_window": {
+            "start_utc": "2022-04-14T19:40:00Z",
+            "end_utc": "2022-04-14T20:13:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "IL Central Cook County zone",
+          "limitations": "Zone report establishes occurrence for the named zone only; it is not a countywide measurement or a time series."
+        }
       },
       "outage": {
         "coverage": "UncoveredLabel",
