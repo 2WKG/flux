@@ -109,6 +109,33 @@ test("reads only a complete attributed additive scene action", () => {
   assert.match(markup, /No reversal operation is wired here/);
 });
 
+test("does not substitute an edit hash for an available cascade identity", () => {
+  const markup = render([
+    event("tool_result", 1, {
+      call_id: "cascade-call",
+      tool: "cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: {
+        scene_action: {
+          action_id: "action-without-run",
+          kind: "cascade",
+          tool_call_id: "cascade-call",
+          edit_hash: "an-edit-is-not-a-run",
+          reversible: true,
+          status: "available",
+        },
+      },
+    }),
+  ]);
+
+  assert.match(markup, /data-agent-simulation-capability="simulation_action"[^>]*data-agent-simulation-availability="unavailable"/);
+  assert.match(markup, /data-agent-scene-action="cascade"[^>]*data-agent-scene-action-status="unavailable"/);
+  assert.match(markup, /no stable cascade_id, so it cannot be applied/);
+  assert.match(markup, /Edit hash: an-edit-is-not-a-run/);
+  assert.doesNotMatch(markup, /Cascade id:/);
+});
+
 test("rejects absent or invalid scene actions without inferring a capability", () => {
   const markup = render([
     event("tool_result", 1, {

@@ -55,6 +55,9 @@ const unavailable: UnavailableSimulationCapability = {
   reason: "absent_from_received_ask_event_data",
 };
 
+const MISSING_CASCADE_ID_REASON =
+  "The received cascade action has no stable cascade_id, so it cannot be applied.";
+
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -102,6 +105,21 @@ function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | nu
     || cascadeId === null
     || reason === null
   ) return null;
+
+  // An edit hash names an edit, not a cascade run. A cascade that claims to be
+  // available without its own stable identity stays explicitly unavailable;
+  // this view must never substitute one identifier for the other.
+  if (kind === "cascade" && status === "available" && cascadeId === undefined) {
+    return {
+      actionId,
+      kind,
+      toolCallId,
+      ...(editHash === undefined ? {} : { editHash }),
+      reversible: true,
+      status: "unavailable",
+      reason: MISSING_CASCADE_ID_REASON,
+    };
+  }
 
   return {
     actionId,
