@@ -4,7 +4,15 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
-import { CONTENT_SECURITY_POLICY, createApp, NO_API_ORIGIN_REASON } from "../server.mjs";
+import {
+  BODY_TOO_LARGE_REASON,
+  CONTENT_SECURITY_POLICY,
+  createApp,
+  CROSS_ORIGIN_REASON,
+  MAX_FORWARDED_BODY_BYTES,
+  METHOD_NOT_ALLOWED_REASON,
+  NO_API_ORIGIN_REASON,
+} from "../server.mjs";
 
 const servers = [];
 
@@ -125,7 +133,7 @@ test("with no API origin configured, every allowlisted path refuses by name", as
     ["/balance?scope=base"],
     ["/redundancy?bus_id=7"],
     ["/siting/search", { method: "POST" }],
-    ["/minnesota/aggregate"],
+    ["/site-score", { method: "POST" }],
     ["/minnesota/smr/validate", { method: "POST" }],
     ["/mn/comparisons", { method: "POST" }],
   ]) {
@@ -164,10 +172,19 @@ test("with no API origin configured, a path outside the allowlist is not given t
     const response = await get(path);
     assert.equal(response.body, shell.body, `${path} must still fall back to the shell`);
   }
-  // And the method half of the table: POST /health is not forwarded, so it is
-  // not refused as an API path either.
+  // And the method half of the table: POST /health is not forwarded. It is not
+  // the *no upstream* refusal either -- the path is allowlisted, the method is
+  // not, so it is the caller's own named 405 and never the shell.
   const posted = await get("/health", { method: "POST" });
-  assert.notEqual(posted.status, 503, "POST /health is outside the table and must not be refused as one");
+  assert.equal(posted.status, 405, "POST /health must be refused by name");
+  assert.match(posted.type, /json/, "POST /health must be refused in the envelope's media type");
+  assert.notEqual(posted.body, shell.body, "POST /health must not be answered with the SPA shell");
+  const refusal = JSON.parse(posted.body);
+  assert.equal(refusal.status, "error");
+  assert.equal(refusal.error.code, "invalid_input");
+  assert.equal(refusal.error.details.reason, METHOD_NOT_ALLOWED_REASON);
+  assert.equal(refusal.error.retryable, false);
+  assert.equal(refusal.data, null);
 });
 
 test("a configured API origin forwards only the fixed same-origin allowlist", async () => {
@@ -190,10 +207,10 @@ test("a configured API origin forwards only the fixed same-origin allowlist", as
     ["/cascade?scenario_id=uri_2021", undefined, { method: "GET", url: "/cascade?scenario_id=uri_2021", body: "" }],
     ["/balance?scope=edit&edit_hash=abc", undefined, { method: "GET", url: "/balance?scope=edit&edit_hash=abc", body: "" }],
     ["/redundancy?bus_id=7&scenario_id=interactive", undefined, { method: "GET", url: "/redundancy?bus_id=7&scenario_id=interactive", body: "" }],
-    ["/minnesota/aggregate?artifact=mn%3Aaggregate%3Av1", undefined, { method: "GET", url: "/minnesota/aggregate?artifact=mn%3Aaggregate%3Av1", body: "" }],
     ["/scenario/edit", { method: "POST", headers: { "content-type": "application/json" }, body: '{"ops":[]}' }, { method: "POST", url: "/scenario/edit", body: '{"ops":[]}' }],
     ["/cascade", { method: "POST", headers: { "content-type": "application/json" }, body: '{"element_ids":[]}' }, { method: "POST", url: "/cascade", body: '{"element_ids":[]}' }],
     ["/siting/search", { method: "POST", headers: { "content-type": "application/json" }, body: '{"kind":"producer"}' }, { method: "POST", url: "/siting/search", body: '{"kind":"producer"}' }],
+    ["/site-score?trace=1", { method: "POST", headers: { "content-type": "application/json" }, body: '{"site_id":"s1","unit_mw":300,"scenario_id":"mn"}' }, { method: "POST", url: "/site-score?trace=1", body: '{"site_id":"s1","unit_mw":300,"scenario_id":"mn"}' }],
     ["/minnesota/smr/validate", { method: "POST", headers: { "content-type": "application/json" }, body: '{"scene_id":"mn"}' }, { method: "POST", url: "/minnesota/smr/validate", body: '{"scene_id":"mn"}' }],
     ["/mn/comparisons", { method: "POST", headers: { "content-type": "application/json" }, body: '{"baseline_context_id":"a","candidate_context_id":"b"}' }, { method: "POST", url: "/mn/comparisons", body: '{"baseline_context_id":"a","candidate_context_id":"b"}' }],
   ]) {
@@ -212,40 +229,159 @@ test("a configured API origin forwards only the fixed same-origin allowlist", as
     assert.equal(response.status, 503, `${path} must not be forwarded`);
     assert.notEqual(await response.text(), shell, `${path} must not be forwarded`);
   }
+  // A path *not* on the table is the static origin's business: an unlisted path
+  // under an allowlisted prefix is the SPA shell or an Express 404, and neither
+  // reaches the upstream.
   for (const [path, init, expectedStatus] of [
-    ["/site-score", undefined, 200],
-    ["/scenario/edit", undefined, 200],
-    ["/balance", { method: "POST" }, 404],
-    ["/cascade", { method: "PUT" }, 404],
-    ["/minnesota/aggregate", { method: "POST" }, 404],
-    ["/minnesota/smr/validate", undefined, 200],
-    ["/mn/comparisons", undefined, 200],
+    ["/minnesota/aggregate", undefined, 200],
     ["/mn/comparisons/extra", { method: "POST" }, 404],
+    ["/siting/searchx", { method: "POST" }, 404],
+    ["/cascade/extra", undefined, 200],
     ["/sql", { method: "POST" }, 404],
   ]) {
     const response = await fetch(`${base}${path}`, init);
     assert.equal(response.status, expectedStatus, `${path} must be handled by the static origin`);
     if (expectedStatus === 200) assert.equal(await response.text(), shell, `${path} must not be forwarded`);
   }
-  // `/health` is forwarded for GET only. A POST is not forwarded at all: the
-  // static origin has no POST route, so it 404s here rather than reaching the API.
-  const wrongMethod = await fetch(`${base}/health`, { method: "POST" });
-  assert.equal(wrongMethod.status, 404, "POST /health must not be forwarded");
+  // A path that *is* on the table with a method that is not gets the shared
+  // envelope, 405, and a named reason -- never an HTML page and never a 200
+  // shell. Status alone cannot tell those apart, so the media type and the
+  // reason are pinned too: before this, `GET /scenario/edit` answered 200 with
+  // `index.html` and `POST /balance` answered Express's HTML `Cannot POST`
+  // page, which the browser's validator can only call *malformed*.
+  for (const [path, init] of [
+    ["/scenario/edit", undefined],
+    ["/siting/search", undefined],
+    ["/mn/comparisons", undefined],
+    ["/minnesota/smr/validate", undefined],
+    ["/site-score", undefined],
+    ["/ask", undefined],
+    ["/cascade", { method: "PUT" }],
+    ["/cascade", { method: "DELETE" }],
+    ["/balance", { method: "POST" }],
+    ["/redundancy", { method: "POST" }],
+    ["/health", { method: "POST" }],
+  ]) {
+    const label = `${init?.method ?? "GET"} ${path}`;
+    const response = await fetch(`${base}${path}`, init);
+    assert.equal(response.status, 405, `${label} must be refused by name, not fall through`);
+    assert.match(
+      response.headers.get("content-type"),
+      /application\/json/,
+      `${label} must be refused in the envelope's own media type, not an HTML page`,
+    );
+    const body = await response.text();
+    assert.notEqual(body, shell, `${label} must not be answered with the SPA shell`);
+    const envelope = JSON.parse(body);
+    assert.equal(envelope.status, "error", `${label} refused without the shared envelope`);
+    assert.equal(envelope.error.code, "invalid_input", `${label} refused without the shared code`);
+    assert.equal(
+      envelope.error.details.reason,
+      METHOD_NOT_ALLOWED_REASON,
+      `${label} refused without a named reason`,
+    );
+    assert.equal(envelope.error.retryable, false, `${label} is the caller's fault and is not retryable`);
+    assert.equal(envelope.data, null, `${label} must not invent a payload`);
+    assert.equal(envelope.meta.api_version, "v1");
+  }
   assert.deepEqual(seen.map(({ method, url, body }) => ({ method, url, body })), [
     { method: "GET", url: "/api/v1/grid/layers/line?state=mn&limit=100", body: "" },
     { method: "GET", url: "/cascade?scenario_id=uri_2021", body: "" },
     { method: "GET", url: "/balance?scope=edit&edit_hash=abc", body: "" },
     { method: "GET", url: "/redundancy?bus_id=7&scenario_id=interactive", body: "" },
-    { method: "GET", url: "/minnesota/aggregate?artifact=mn%3Aaggregate%3Av1", body: "" },
     { method: "POST", url: "/scenario/edit", body: '{"ops":[]}' },
     { method: "POST", url: "/cascade", body: '{"element_ids":[]}' },
     { method: "POST", url: "/siting/search", body: '{"kind":"producer"}' },
+    { method: "POST", url: "/site-score?trace=1", body: '{"site_id":"s1","unit_mw":300,"scenario_id":"mn"}' },
     { method: "POST", url: "/minnesota/smr/validate", body: '{"scene_id":"mn"}' },
     { method: "POST", url: "/mn/comparisons", body: '{"baseline_context_id":"a","candidate_context_id":"b"}' },
   ]);
   for (const request of seen.filter(({ method }) => method === "POST")) {
     assert.equal(request.contentType, "application/json", `${request.url} lost its content type`);
   }
+});
+
+test("a forward naming a foreign origin is refused and never reaches the upstream", async () => {
+  // Only the path and query cross, so the upstream's own CORSMiddleware never
+  // sees the real caller: without this check any page on the internet could
+  // drive the writes on this table as CORS-simple requests. A same-origin
+  // `Origin` (what the browser sends for a same-origin POST) still forwards.
+  const seen = [];
+  const api = await upstream((req, res) => {
+    seen.push({ method: req.method, url: req.url });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  const base = await proxyOrigin(api);
+  const shell = await (await fetch(`${base}/`)).text();
+  const host = new URL(base).host;
+
+  for (const origin of ["https://evil.example", "http://localhost:9999", "null"]) {
+    const response = await fetch(`${base}/scenario/edit`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin },
+      body: '{"ops":[]}',
+    });
+    assert.equal(response.status, 403, `${origin} was not refused`);
+    assert.match(response.headers.get("content-type"), /application\/json/, `${origin} was refused as an HTML page`);
+    const body = await response.text();
+    assert.notEqual(body, shell, `${origin} was answered with the SPA shell`);
+    const envelope = JSON.parse(body);
+    assert.equal(envelope.status, "error");
+    assert.equal(envelope.error.code, "invalid_input");
+    assert.equal(envelope.error.details.reason, CROSS_ORIGIN_REASON, `${origin} was refused without a named reason`);
+    assert.equal(envelope.error.retryable, false);
+    assert.equal(envelope.data, null);
+  }
+  assert.deepEqual(seen, [], "a cross-origin forward reached the upstream");
+
+  // The control: this origin's own `Origin` header is not a foreign one.
+  const sameOrigin = await fetch(`${base}/scenario/edit`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: `http://${host}` },
+    body: '{"ops":[]}',
+  });
+  assert.equal(sameOrigin.status, 200, "a same-origin write must still forward");
+  assert.deepEqual(seen, [{ method: "POST", url: "/scenario/edit" }]);
+});
+
+test("a request body over the cap is refused by name and never reaches the upstream", async () => {
+  const seen = [];
+  const api = await upstream(async (req, res) => {
+    const chunks = [];
+    for await (const chunk of req) chunks.push(chunk);
+    seen.push({ url: req.url, bytes: Buffer.concat(chunks).length });
+    res.writeHead(200, { "content-type": "application/json" });
+    res.end(JSON.stringify({ ok: true }));
+  });
+  const base = await proxyOrigin(api);
+
+  const oversized = `{"ops":"${"x".repeat(MAX_FORWARDED_BODY_BYTES + 4096)}"}`;
+  const response = await fetch(`${base}/scenario/edit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: oversized,
+  });
+  assert.equal(response.status, 413, "an oversized body was not refused");
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  const envelope = await response.json();
+  assert.equal(envelope.status, "error");
+  assert.equal(envelope.error.code, "invalid_input");
+  assert.equal(envelope.error.details.reason, BODY_TOO_LARGE_REASON);
+  assert.equal(envelope.error.retryable, false);
+  assert.equal(envelope.data, null);
+  assert.deepEqual(seen, [], "an oversized body reached the upstream");
+
+  // The control: a body just under the cap still forwards, byte for byte.
+  const filler = "y".repeat(MAX_FORWARDED_BODY_BYTES - 64);
+  const allowed = `{"ops":"${filler}"}`;
+  const okResponse = await fetch(`${base}/scenario/edit`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: allowed,
+  });
+  assert.equal(okResponse.status, 200, "a body under the cap must still forward");
+  assert.deepEqual(seen, [{ url: "/scenario/edit", bytes: Buffer.byteLength(allowed) }]);
 });
 
 test("an unreachable upstream answers in the failure-envelope shape, not an HTML error page", async () => {

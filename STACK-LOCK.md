@@ -30,12 +30,23 @@ Since 2WKG-355 the same App also carries the evidence surfaces — chat, run tra
 - **`FLUX_API_ORIGIN` (optional, unset by default).** Since 2WKG-355 the one App is server-backed
   (`docs/specs/spec-code-reconciliation.md`, D-10) and its own CSP is `connect-src 'self'`, so a
   demo deployed beside a live Copilot API needs that API on the same origin. When this variable
-  names an origin, `web/server.mjs` forwards a **fixed allowlist of read paths** to it —
+  names an origin, `web/server.mjs` forwards a **fixed allowlist of path+method pairs** to it —
   `GET /api/v1/grid/layers/{layer}`, `GET /health`, `GET /layers/{name}`, `GET /scenarios`,
-  `GET /scenarios/{id}` and `POST /ask` — with a 30-second deadline, streaming the response so an
-  SSE answer is not buffered. Nothing else is forwarded, and an unreachable upstream answers in the
-  shared failure-envelope shape rather than an HTML error page. With the variable unset every one
-  of those paths falls through to the SPA shell and the page renders its named unavailable states.
+  `GET /scenarios/{id}`, `GET /cascade`, `GET /balance`, `GET /redundancy`, `POST /site-score`,
+  `POST /cascade`, `POST /scenario/edit`, `POST /siting/search`, `POST /minnesota/smr/validate`,
+  `POST /mn/comparisons` and `POST /ask` — with a 30-second deadline, streaming the response so an
+  SSE answer is not buffered. Nothing else is forwarded. The interactive write paths
+  (`POST /cascade`, `POST /scenario/edit`, `POST /siting/search`, `POST /minnesota/smr/validate`,
+  `POST /mn/comparisons`) and the reads `GET /balance` and `GET /redundancy` are this origin's half
+  of the seam PR #331 registers upstream; until it lands they forward to an upstream that answers
+  its own `not_found` envelope. Matching is **path first**: a path on the table with a method that
+  is not is refused `405` with `details.reason = "method_not_allowed"`, never an HTML page and never
+  the SPA shell. A forward whose `Origin` header names a different origin is refused `403`
+  (`cross_origin_forward_refused`), and a request body over 1 MiB is refused `413`
+  (`request_body_too_large`); an unreachable upstream answers `503` `upstream_unreachable`. Every
+  one of those refusals uses the shared failure-envelope shape rather than an HTML error page. With
+  the variable unset every allowlisted path answers `503` `no_api_origin_configured` in the same
+  envelope, and every other path is the SPA shell.
   `FLUX_GRID_API_ORIGIN` is accepted as an alias for the name PR #245 used.
 - Reuse the existing Cloudflare Tunnel and its configured local origin for `bouncepulse.com`; this task does not create or modify tunnel infrastructure.
 

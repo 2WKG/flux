@@ -235,9 +235,17 @@ consumer of five of these routes — `GET /health`, `GET /scenarios/{scenario_id
 through `web/src/data/`. Three properties of that consumer are contractual, not incidental:
 
 - **Same-origin only.** The served shell's CSP is `connect-src 'self'`, so the browser requests
-  these paths on its own origin. `web/server.mjs` forwards a fixed allowlist of them to
-  `FLUX_API_ORIGIN` when that variable is set, and serves the SPA shell for all of them when it is
-  not; it still defines no route of its own (2WKG-300).
+  these paths on its own origin. `web/server.mjs` forwards a fixed allowlist of path+method pairs
+  to `FLUX_API_ORIGIN` when that variable is set — the five consumer routes above plus
+  `GET /scenarios`, `GET /cascade`, `GET /balance`, `GET /redundancy`, `POST /site-score`,
+  `POST /cascade`, `POST /scenario/edit`, `POST /siting/search`, `POST /minnesota/smr/validate`
+  and `POST /mn/comparisons` (STACK-LOCK.md names the same list). Nothing else is forwarded. When
+  the variable is unset each of those paths answers the shared `unavailable` envelope with
+  `details.reason = "no_api_origin_configured"` rather than the SPA shell, so "this deployment has
+  no API" is a named claim and not a malformed HTML response; every other path is still the shell.
+  A method the table does not carry for an allowlisted path is refused `405`
+  (`method_not_allowed`) in the same envelope. The origin still defines no route of its own
+  (2WKG-300).
 - **A failure envelope keeps its named reason.** Every non-2xx answer reaches the screen as its
   own `error.code` and `error.message` under the frozen `unavailable` / `request_failed` token —
   never as a client-invented sentence, and never as an empty success.
