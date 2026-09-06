@@ -26,8 +26,7 @@
     "selection_basis": "NCEI Storm Events episode 144637, event 868457, is an independent cold candidate with matched NCEI weather evidence but incomplete EAGLE-I outage coverage.",
     "exclusions": [],
     "uncertainties": [
-      "The EAGLE-I annual traversal does not provide a complete 24-sample outage window; no zero imputation, outage rate, or five-percent label is asserted.",
-      "NCEI event 868457 is retained as zone-level candidate context only; its report is not a county time series and cannot establish county weather coverage."
+      "The EAGLE-I annual traversal does not provide a complete 24-sample outage window; no zero imputation, outage rate, or five-percent label is asserted."
     ]
   },
   "source_receipts": [
@@ -135,15 +134,28 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2020"
+        ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": null,
-        "notes": "NCEI event 868457 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
+        "event_report": {
+          "source_event_ids": [
+            "868457"
+          ],
+          "source_window": {
+            "start_utc": "2020-02-12T18:00:00Z",
+            "end_utc": "2020-02-13T16:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "NWS public forecast zone MNZ047 (Stevens); NCEI CZ_FIPS:047",
+          "limitations": "NWS zone report, not a county time series. MNZ047 is 1:1 with county 27149 (Stevens) in the NWS zone/county correlation, so it is county-wide in extent; it states occurrence over the reported interval and no sample series."
+        },
+        "notes": "NCEI event 868457 report interval intersects this canonical county window. Zone MNZ047 maps to county 27149 (Stevens) and to no other county, and 27149 contains no other zone, in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the zone report is county-wide in extent."
       },
       "outage": {
         "coverage": "UncoveredLabel",
