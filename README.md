@@ -18,6 +18,8 @@ Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` a
 
 The project is expanding from the current synthetic preview toward source-backed network, scenario, and candidate-site datasets. The wider research plan and data catalog live in `docs/specs/` and `datasets/README.md`. Bulk downloads, parquet outputs, and DuckDB files remain outside Git.
 
+The [UI style guide](docs/design/ui-style-guide.md) and [companion token reference](docs/design/ui-tokens.css) define current visual and interaction direction only. They do not change the shared API, data, geography, scenario, or provenance contracts.
+
 ## Verify
 
 ```powershell
