@@ -11,6 +11,7 @@ from gnn.artifactwriter import ArtifactWriter, split_by_contingency
 from gnn.contracts import PlannedSample, SampleLabels, TrainingSample
 from gnn.generate import GenerationConfig, generate_training_samples
 from gnn.hours import hourly_demand_profile, select_hours
+from gnn.normalization import normalize_feature_value
 from gnn.sampler import SamplerConfig, build_plan
 from twin.build import build_network
 
@@ -69,8 +70,8 @@ def _fixture_db(tmp_path: Path) -> Path:
 def _graph_fixture(out_dir: Path) -> None:
     graph = out_dir / "graph"
     graph.mkdir(parents=True)
-    nodes = b"[]\n"
-    edges = b"[]\n"
+    nodes = b'[{"features":{"base_kv":230.0,"p_mw_nominal":null}}]\n'
+    edges = b'[{"features":{"rate_a_mw":null,"x_pu":0.1}}]\n'
     (graph / "nodes.json").write_bytes(nodes)
     (graph / "edges.json").write_bytes(edges)
     manifest = {
@@ -152,6 +153,18 @@ def test_generation_is_resumable_and_binds_the_graph_export(tmp_path: Path) -> N
     assert first["planned_count"] == 5
     assert len(records) == 5
     assert first["graph_dataset"]["topology_label"] == "synthetic (ACTIVSg2000)"
+    normalization = json.loads((output / "normalization.json").read_text())
+    assert normalization["fit_partition"] == "train"
+    assert not set(normalization["fit_sample_ids"]).intersection(
+        normalization["excluded_partitions"]["held_out"]
+    )
+    assert normalization["statistics"]["node_features"]["base_kv"]["mean"] == 230.0
+    assert (
+        normalize_feature_value(
+            230.0, normalization["statistics"]["node_features"]["base_kv"]
+        )
+        == 0.0
+    )
     assert (
         first["identity"]["source_database_sha256"]
         == hashlib.sha256(database.read_bytes()).hexdigest()

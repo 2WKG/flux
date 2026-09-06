@@ -16,13 +16,20 @@ from gnn.contracts import (
     SamplingError,
     TrainingSample,
 )
+from gnn.normalization import fit_graph_normalization
 from gnn.sampler import canonical_json
 
 ARTIFACT_SCHEMA_VERSION = "gnn-training-artifact/v1"
 # ``graph`` is the immutable graph-export companion for this sample artifact.
 # It is deliberately an owned directory rather than a link back into the source
 # tree: a training run must be portable without making the DuckDB writable.
-_OWNED_FILES = {"manifest.json", "samples.jsonl", "split.json", "graph"}
+_OWNED_FILES = {
+    "manifest.json",
+    "normalization.json",
+    "samples.jsonl",
+    "split.json",
+    "graph",
+}
 
 
 def split_by_contingency(
@@ -149,6 +156,10 @@ class ArtifactWriter:
             index_to_id[index] for index in split["held_out_sample_ids"]
         ]
         _atomic_json(self.target / "split.json", split)
+        normalization = fit_graph_normalization(
+            self.target / "graph", graph_dataset, split
+        )
+        _atomic_json(self.target / "normalization.json", normalization)
         manifest = {
             "schema_version": ARTIFACT_SCHEMA_VERSION,
             "sample_schema_version": SAMPLE_SCHEMA_VERSION,
@@ -159,6 +170,7 @@ class ArtifactWriter:
             "failed_count": sum(record["status"] == "failed" for record in records),
             "samples_sha256": _sha256(self.samples_path),
             "split_sha256": _sha256(self.target / "split.json"),
+            "normalization_sha256": _sha256(self.target / "normalization.json"),
             "source_database": str(self.source),
             "graph_dataset": graph_dataset,
         }
