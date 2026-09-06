@@ -9,8 +9,8 @@ import { pathToFileURL } from "node:url";
 const outputDirectory = mkdtempSync(join(tmpdir(), "flux-validation-"));
 process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true }));
 execFileSync(
-  "./node_modules/.bin/tsc",
-  ["src/data/validation.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
+  process.execPath,
+  ["./node_modules/typescript/bin/tsc", "src/data/validation.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
   { cwd: new URL("../..", import.meta.url), stdio: "inherit" },
 );
 const {
