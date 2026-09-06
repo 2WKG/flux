@@ -39,6 +39,7 @@ threshold suite, or mandatory per-PR approval process.
 | U7 copilot | 05 | `copilot/**` | U3, U4, U5, U6 | Tool wrappers, source retrieval, and read APIs |
 | U8 frontend | 06 | `web/**` | U7 routes | Demo views and playback |
 | U9 causal layer | 07 | `causal/**` | U3, U4 | Labeled causal query support |
+| U10 historical event baseline | 2WKG-460/461 (contract), 462–472 (hazard bundles), 473 (catalog + split) | `docs/data/event-baseline/**` (schema at `docs/data/event-baseline/event_baseline.schema.json`), `scripts/data/event_baseline_*` | — | County-window contract and validated research receipts; hazard workers own only `events/<hazard>/`; final audit owns catalog and grouped splits |
 
 Suggested waves: U1; then U2 and U3; then U4 and U6; then U5, U7, and U9 as
 their dependencies become available; then U8. The critical path is
