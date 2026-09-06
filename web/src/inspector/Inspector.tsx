@@ -1,5 +1,6 @@
 import { useId, type CSSProperties } from "react";
-import type { AssetStatus, InspectorAsset, InspectorField, InspectorProps } from "./types";
+import { isAssetStatus, type AssetStatus } from "../labels";
+import type { InspectorAsset, InspectorArtifactLabel, InspectorField, InspectorProps } from "./types";
 
 export type { AssetStatus, InspectorArtifactLabel, InspectorAsset, InspectorField, InspectorProps, InspectorProvenance, InspectorRelationship } from "./types";
 
@@ -21,21 +22,12 @@ const statusExplanation: Record<AssetStatus, string> = {
   request_failed: "The source request failed. No result has been inferred from the failure.",
 };
 
-const expectedArtifactLabel: Record<AssetStatus, "source_backed" | "synthetic" | "unavailable"> = {
-  source_supported: "source_backed", source_screened: "source_backed", hypothetical: "source_backed",
-  synthetic: "synthetic", unavailable: "unavailable", request_failed: "unavailable",
-};
-
-function isAssetStatus(value: unknown): value is AssetStatus {
-  return typeof value === "string" && value in statusText;
-}
-
 function unavailableInput(message: string): InspectorAsset {
   return { status: "unavailable", artifactLabel: "unavailable", message };
 }
 
 function unavailableResponse(status: "unavailable" | "request_failed", message?: unknown): InspectorAsset {
-  return { status, artifactLabel: "unavailable", message: typeof message === "string" ? message : statusExplanation[status] };
+  return { status, artifactLabel: status, message: typeof message === "string" ? message : statusExplanation[status] };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -63,7 +55,9 @@ export function normalizeInspectorAsset(asset: unknown): InspectorAsset {
   if (!isRecord(asset)) return unavailableInput("No server asset was supplied.");
   const candidate = asset as InspectorAsset;
   if (!isAssetStatus(candidate.status)) return unavailableInput("Asset status is missing or not recognized.");
-  if (candidate.artifactLabel !== expectedArtifactLabel[candidate.status]) {
+  // One primary label per surface: the asserted artifact label is the same
+  // six-token vocabulary as the status, so anything but agreement fails closed.
+  if (candidate.artifactLabel !== candidate.status) {
     return unavailableInput("Asset status and artifact label do not agree; source detail is withheld.");
   }
   if (candidate.status === "unavailable" || candidate.status === "request_failed") {
@@ -71,6 +65,15 @@ export function normalizeInspectorAsset(asset: unknown): InspectorAsset {
   }
   if (!hasSafeDetailShape(asset)) return unavailableInput("Asset detail is malformed; source detail is withheld.");
   return candidate;
+}
+
+/**
+ * Source-neutral is not unlabelled: the artifact label is rendered as the IA's
+ * display string ("Hypothetical", "Synthetic", ...), never as a raw token and
+ * never as a label the vocabulary does not contain.
+ */
+function artifactText(label: InspectorArtifactLabel | undefined, status: AssetStatus): string {
+  return statusText[label ?? status];
 }
 
 function displayedField(field: InspectorField): string {
@@ -121,10 +124,11 @@ export function Inspector({ asset, onSelectRelationship, className, title = "Ins
     <p style={styles.disclosure}>{safeAsset.message ?? statusExplanation[safeAsset.status]}</p>
     <dl style={styles.summary}>
       <div><dt>Status</dt><dd>{statusText[safeAsset.status]}</dd></div>
-      <div><dt>Artifact</dt><dd>{safeAsset.artifactLabel}</dd></div>
+      <div><dt>Artifact</dt><dd>{artifactText(safeAsset.artifactLabel, safeAsset.status)}</dd></div>
       <div><dt>Scenario</dt><dd>{safeAsset.scenario ?? "Unavailable"}</dd></div>
       <div><dt>Readiness</dt><dd>{safeAsset.readiness ?? "Unavailable"}</dd></div>
       <div><dt>Coverage</dt><dd>{safeAsset.coverage ?? "Unavailable"}</dd></div>
+      <div><dt>Topology</dt><dd>{safeAsset.topology ?? "Unavailable"}</dd></div>
     </dl>
 
     <section aria-label="Fields" style={styles.section}><h3 style={styles.heading}>Fields, units, and uncertainty</h3><FieldList fields={fields} /></section>
