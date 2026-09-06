@@ -20,12 +20,13 @@
       "end_utc": "2021-06-09T00:00:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "NWS Twin Cities June 2021 local climatological record identifies a 99 F station maximum on June 5; EAGLE-I has 24 observed 15-minute values for the selected county window.",
+    "selection_basis": "NWS Twin Cities June 2021 local climatological record (F-6) identifies a 99 F station maximum on local June 5; the exhaustive EAGLE-I annual acquisition has 24 observed 15-minute values for the selected county window. The record is candidate_only: no county weather coverage is asserted, and the station maximum is not the window's own evidence.",
     "exclusions": [
       "No county-grid HRRR extraction receipt yet",
       "No documented controlled shedding record"
     ],
     "uncertainties": [
+      "The selected county window [2021-06-05T00:00:00Z, 06:00:00Z) is 2021-06-04 19:00 to 2021-06-05 01:00 CDT. It therefore covers the evening of local June 4 and the first hour of local June 5, and does not contain the daytime hours of local June 5 in which the cited 99 F daily maximum was reached (that is the 18:00Z-00:00Z bin). The F-6 daily maximum names the calendar day the window opens on; it is not an observation inside the window and is not used as weather coverage.",
       "Station evidence is not a county-wide heat-field receipt",
       "Customer denominator unavailable"
     ],
