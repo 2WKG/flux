@@ -1,7 +1,7 @@
 """Persistence and query coverage for 2WKG-122.
 
 Each test pins one clause of the issue's "Done when" list against the real
-``pipelines.db`` DDL (contract 2.0.0, with the ``scenarios``/``counties``
+``pipelines.db`` DDL (contract 2.1.0, with the ``scenarios``/``counties``
 foreign keys) on a temporary database file.
 """
 
@@ -170,7 +170,7 @@ def _seed_parents(con: duckdb.DuckDBPyConnection) -> None:
 
 @pytest.fixture
 def con(tmp_path: Path):
-    """A real contract-2.0.0 database file with the companion tables and FK parents."""
+    """A real contract-2.1.0 database file with the companion tables and FK parents."""
     connection = connect(tmp_path / "grid.duckdb")
     ensure_persistence_schema(connection)
     _seed_parents(connection)
@@ -244,7 +244,7 @@ def test_ddl_is_idempotent(con):
 def test_schema_goes_through_the_shared_contract():
     con = duckdb.connect(":memory:")
     ensure_persistence_schema(con)
-    assert stored_contract_version(con) == SCHEMA_VERSION == "2.0.0"
+    assert stored_contract_version(con) == SCHEMA_VERSION == "2.1.0"
     validate_schema(con)
     # The real outage_predictions DDL: FKs to scenarios/counties are enforced.
     with pytest.raises(duckdb.ConstraintException):
