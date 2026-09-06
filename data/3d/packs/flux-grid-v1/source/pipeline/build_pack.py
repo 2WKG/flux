@@ -15,7 +15,10 @@ import bpy
 from mathutils import Vector
 
 SOURCE = Path(__file__).resolve().parents[1]
-CATALOG = SOURCE / "asset-archetypes-v1.json"
+# The frozen catalog is a sibling of ``packs/`` under data/3d, never part of
+# this pack's source tree.  Keeping this as the default makes the documented
+# Blender invocation reproducible without an extra --catalog argument.
+CATALOG = SOURCE.parents[2] / "asset-archetypes-v1.json"
 # Blender executes this script directly; the sibling generators are source modules.
 for folder in (
     "pipeline",

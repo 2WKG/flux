@@ -28,6 +28,34 @@ with a committed `package-lock.json`; pnpm is not used.
 
 The repo root is `flux/`. All paths below are relative to it.
 
+## Local demo launcher
+
+The portable launcher builds the web app, records the PIDs and logs it starts,
+and serves loopback-only endpoints. It never creates a DuckDB file, configures
+a provider, installs a service, configures a tunnel, or exposes a public URL.
+
+```bash
+# Bundled static demo only.
+scripts/dev/launch_demo.sh --offline
+
+# Optional local API; the DuckDB artifact must already exist and be readable.
+scripts/dev/launch_demo.sh --live --duckdb /absolute/path/to/grid.duckdb
+
+# Stop only the recorded processes from this invocation.
+scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --stop
+```
+
+`--live` starts `copilot.app:app` on `127.0.0.1:8031` and the web origin on
+`127.0.0.1:4317` by default. `--offline` starts only the web server. Use
+`--api-port`, `--web-port`, `--run-dir`, and `--skip-install` to override the
+defaults. The launcher checks the local API health endpoint, shell, asset, and
+in live mode the API's `/layers/buses` JSON response. The static browser build
+does not require the API; a same-origin browser proxy is separate routing work.
+
+This establishes local readiness only. Minnesota coverage remains limited to
+the persisted artifact supplied to the API; it does not establish Minnesota
+topology, a model/provider result, an external tunnel, or public deployment.
+
 ## Static demo
 
 `web/server.mjs` is a Node/Express server. It serves the built React client

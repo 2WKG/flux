@@ -22,6 +22,7 @@ LEDGERS = discover_ledgers(ROOT)
 # vacuously if the glob ever stopped matching.
 EXPECTED_LEDGERS = {
     "minnesota-source-authority-ledger-v1.json",
+    "texas-distribution-source-authority-ledger-v1.json",
     "texas-source-authority-ledger-v1.json",
 }
 

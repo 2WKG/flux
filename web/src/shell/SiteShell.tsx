@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, type ComponentType } from "react";
+import { Component, Suspense, lazy, useEffect, type ComponentType, type ReactNode } from "react";
 
 import { FailureState } from "../failure-states/FailureState";
 import type { RouteId } from "../router";
@@ -17,7 +17,40 @@ import { TruthLegend } from "./TruthLegend";
 const PAGES: Record<RouteId, ComponentType> = {
   main: lazy(() => import("../pages/MainPage").then((module) => ({ default: module.App }))),
   explainer: lazy(() => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage }))),
+  minnesota: lazy(() => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom }))),
 };
+
+/** Keep failed lazy page imports inside the shared shell and recovery surface. */
+class RouteFailureBoundary extends Component<
+  { readonly routeId: RouteId; readonly children: ReactNode },
+  { readonly failed: boolean }
+> {
+  state = { failed: false };
+
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+
+  componentDidUpdate(previous: Readonly<{ routeId: RouteId }>) {
+    if (previous.routeId !== this.props.routeId && this.state.failed) {
+      this.setState({ failed: false });
+    }
+  }
+
+  render() {
+    if (this.state.failed) {
+      return (
+        <div className="page-pending">
+          <FailureState
+            state={{ kind: "failed", message: "This page could not be loaded. The rest of the site is still available." }}
+            onRetry={() => location.reload()}
+          />
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /** The one mounted root: shared navigation, the routed page, the shared legend. */
 export function SiteShell() {
@@ -31,15 +64,17 @@ export function SiteShell() {
   return (
     <>
       <SiteNav current={route} onNavigate={navigate} />
-      <Suspense
-        fallback={
-          <div className="page-pending">
-            <FailureState state={{ kind: "loading", message: `Loading ${route.label}.` }} />
-          </div>
-        }
-      >
-        <Page />
-      </Suspense>
+      <RouteFailureBoundary routeId={route.id}>
+        <Suspense
+          fallback={
+            <div className="page-pending">
+              <FailureState state={{ kind: "loading", message: `Loading ${route.label}.` }} />
+            </div>
+          }
+        >
+          <Page />
+        </Suspense>
+      </RouteFailureBoundary>
       <TruthLegend statuses={route.truthLabels} note={route.truthNote} />
     </>
   );
