@@ -1,0 +1,235 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2019-kincade",
+    "parent_system_id": "ca-2019-kincade",
+    "primary_hazard": "wildfire",
+    "secondary_hazards": [
+      "psps"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "CALFIRE:/incidents/2019/10/23/kincade-fire/",
+      "MTBS:perims_DD:Kincade:2019"
+    ],
+    "context_window": {
+      "start_utc": "2019-10-23T04:27:00Z",
+      "end_utc": "2019-11-07T03:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-10-24T00:00:00Z",
+      "end_utc": "2019-10-24T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-10-24T06:00:00Z",
+      "end_utc": "2019-11-07T03:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "CAL FIRE county-scoped Kincade incident record cross-referenced to the MTBS version 12.0 burned-area-boundary release; PSPS is a separate co-occurrence tag only.",
+    "uncertainties": [
+      "No direct utility damage report was collected.",
+      "Full annual EAGLE-I scan has 23 valid observations of 24; one native customers_out value is blank.",
+      "No customer denominator is present in this EAGLE-I annual slice."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "mtbs-perims-v12-kincade",
+      "provider": "USGS and USDA Forest Service Monitoring Trends in Burn Severity (MTBS)",
+      "url": "https://www.sciencebase.gov/catalog/item/5e7229b8e4b01d509268afba?format=json",
+      "release": "Monitoring Trends in Burn Severity Burned Areas Boundaries, version 12.0 (April 2025)",
+      "retrieved_at_utc": "2026-09-06T14:00:00Z",
+      "license_or_access": "Public USGS ScienceBase catalog and download metadata.",
+      "raw_sha256": "efd1a0e9424a5d1cd394dd9d82606b408c2cf80f4308c240c87d9f3df7087678",
+      "filtered_sha256": null,
+      "bytes": 14760,
+      "etag": "ScienceBase release-file MD5 65278fcb893f94cd0eaf66d966ee7125",
+      "units": "burned-area boundary polygons; release file mtbs_perims_DD.zip is 374092911 bytes",
+      "timezone_conversion": "MTBS boundary evidence is post-fire spatial evidence; no timestamp conversion is used.",
+      "filters": "Kincade, California, 2019; spatial intersection is required before any county coverage claim.",
+      "grid_index_mapping": "none",
+      "gaps": ["A post-fire perimeter does not establish a six-hour weather series, outage label, ignition causation, or utility damage."],
+      "capture_method": "Fetched and SHA-256 verified the versioned ScienceBase catalog response, which declares the downloadable MTBS boundary asset.",
+      "verification": {"sha256_computed_from_response_body": true, "notes": "raw_sha256 is the catalog JSON, not a claim that the perimeter archive was locally acquired."},
+      "files": {"mtbs_perims_DD.zip": {"url": "https://www.sciencebase.gov/catalog/file/get/5e7229b8e4b01d509268afba?f=__disk__a5%2F0c%2F74%2Fa50c74cf6fbe3184470ed0dda1c9090750489c14", "bytes": 374092911, "sha256": null}},
+      "uncertainty": "MTBS verifies mapped burned-area extent at the candidate-event level; it is not county-window or causal/outage evidence."
+    },
+    {
+      "receipt_id": "calfire-kincade",
+      "provider": "CAL FIRE",
+      "url": "https://www.fire.ca.gov/incidents/2019/10/23/kincade-fire/",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "public incident record",
+      "raw_sha256": "42b4e23e6cd011dce63954d0592d8188bf11d9a7fb9a4c94d62fe6359ad48e09",
+      "filtered_sha256": null,
+      "bytes": 76672,
+      "etag": null,
+      "units": "incident dates; local PDT converted to UTC",
+      "timezone_conversion": "PDT to UTC (+7 hours)",
+      "filters": "Sonoma County (FIPS 06097), canonical six-hour window",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Incident record is event evidence, not verified utility damage or outage causation."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-kincade",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:01:12.152069Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "filtered_sha256": "3a57966ff01a0795026a0e208854bfa27890fd12b0263610806cbcb2183984d4",
+      "bytes": 1102778792,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "units": "customers_out; UTC 15-minute timestamps",
+      "timezone_conversion": "none; source documents UTC",
+      "filters": "California, FIPS 06097, [2019-10-24T00:00Z,2019-10-24T06:00Z)",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Full annual scan: 23 valid of 24 selected 15-minute observations; 2019-10-24T04:45:00Z has blank customers_out.",
+        "Customer denominator unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547885",
+        "source_file": "eaglei_outages_2019.csv",
+        "source_file_id": 42547885,
+        "source_file_bytes": 1102778792,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+        "raw_artifact_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+        "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2019-kincade-06097-20191024000000_eaglei_2019_20191024T000000_20191024T060000.csv",
+        "filtered_artifact_sha256": "3a57966ff01a0795026a0e208854bfa27890fd12b0263610806cbcb2183984d4"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2019-kincade-06097-20191024t0000",
+      "county_fips": "06097",
+      "boundary_vintage": "2020 Census",
+      "scenario_id": "ca-2019-kincade-replay",
+      "window_start_utc": "2019-10-24T00:00:00Z",
+      "window_end_utc": "2019-10-24T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "mtbs-perims-v12-kincade",
+        "calfire-kincade",
+        "eaglei-kincade"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-kincade:06097|2019-10-24 00:00:00",
+        "eaglei-kincade:06097|2019-10-24 00:15:00",
+        "eaglei-kincade:06097|2019-10-24 00:30:00",
+        "eaglei-kincade:06097|2019-10-24 00:45:00",
+        "eaglei-kincade:06097|2019-10-24 01:00:00",
+        "eaglei-kincade:06097|2019-10-24 01:15:00",
+        "eaglei-kincade:06097|2019-10-24 01:30:00",
+        "eaglei-kincade:06097|2019-10-24 01:45:00",
+        "eaglei-kincade:06097|2019-10-24 02:00:00",
+        "eaglei-kincade:06097|2019-10-24 02:15:00",
+        "eaglei-kincade:06097|2019-10-24 02:30:00",
+        "eaglei-kincade:06097|2019-10-24 02:45:00",
+        "eaglei-kincade:06097|2019-10-24 03:00:00",
+        "eaglei-kincade:06097|2019-10-24 03:15:00",
+        "eaglei-kincade:06097|2019-10-24 03:30:00",
+        "eaglei-kincade:06097|2019-10-24 03:45:00",
+        "eaglei-kincade:06097|2019-10-24 04:00:00",
+        "eaglei-kincade:06097|2019-10-24 04:15:00",
+        "eaglei-kincade:06097|2019-10-24 04:30:00",
+        "eaglei-kincade:06097|2019-10-24 05:00:00",
+        "eaglei-kincade:06097|2019-10-24 05:15:00",
+        "eaglei-kincade:06097|2019-10-24 05:30:00",
+        "eaglei-kincade:06097|2019-10-24 05:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-kincade",
+          "county_fips": "06097",
+          "start_utc": "2019-10-24T00:00:00Z",
+          "end_utc": "2019-10-24T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "calfire-kincade"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "CALFIRE:/incidents/2019/10/23/kincade-fire/"
+          ],
+          "source_window": {
+            "start_utc": "2019-10-23T04:27:00Z",
+            "end_utc": "2019-11-07T03:00:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "Sonoma County",
+          "limitations": "Incident evidence only; it does not establish a weather series or grid damage."
+        },
+        "notes": "County-scoped incident interval intersects this replay window."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-kincade"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 23,
+        "missing_timestamps": [
+          "2019-10-24T04:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "Complete annual-source scan found 23 valid customer-out values of 24; blank 04:45Z is an explicit quality gap, never zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
