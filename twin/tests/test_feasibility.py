@@ -102,6 +102,29 @@ def test_radial_spur_screen_is_named_p3_rule():
     assert result["reason"] == "radial_spur_exceeds_40_km_screening_choice"
 
 
+def test_spur_rating_cannot_exceed_smallest_installed_conductor_class():
+    net = _net()
+    net.bus = pd.DataFrame({"vn_kv": [345.0, 345.0]}, index=[1, 2])
+    net.line = pd.DataFrame(
+        {"from_bus": [1], "to_bus": [2], "in_service": [True], "max_i_ka": [0.2]}
+    )
+    edit = {
+        "kind": "add_line",
+        "from_bus_id": 1,
+        "to_bus_id": 2,
+        "rate_a_mw": 200.0,
+        "base_kv": 345.0,
+        "length_km": 12.0,
+    }
+
+    result = evaluate_feasibility(net, edit)
+
+    assert result["status"] == "invalid"
+    assert result["rule"] == "P3"
+    assert result["reason"] == "radial_spur_exceeds_smallest_conductor_rating"
+    assert result["evidence"]["smallest_conductor_rating_mw"] == 345.0 * 3**0.5 * 0.2
+
+
 def test_corridor_overload_is_invalid_p4():
     result = evaluate_feasibility(_net(loading=100.1), _load())
 
