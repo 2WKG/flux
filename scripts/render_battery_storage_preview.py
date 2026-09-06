@@ -3,20 +3,14 @@
 from __future__ import annotations
 
 import argparse
-import struct
-import zlib
+import sys
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from scripts.asset_contract_lib import png_bytes
+
 SIZE = 512
-
-
-def _chunk(kind: bytes, payload: bytes) -> bytes:
-    return (
-        struct.pack(">I", len(payload))
-        + kind
-        + payload
-        + struct.pack(">I", zlib.crc32(kind + payload) & 0xFFFFFFFF)
-    )
 
 
 def render(path: Path) -> None:
@@ -34,21 +28,16 @@ def render(path: Path) -> None:
             ):
                 color = (163, 170, 173)
             pixels.extend((*color, 255))
-    png = (
-        b"\x89PNG\r\n\x1a\n"
-        + _chunk(b"IHDR", struct.pack(">IIBBBBB", SIZE, SIZE, 8, 6, 0, 0, 0))
-        + _chunk(b"IDAT", zlib.compress(bytes(pixels), 9))
-        + _chunk(b"IEND", b"")
-    )
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(png)
+    path.write_bytes(png_bytes(SIZE, SIZE, bytes(pixels), 6))
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser()
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
-    render(parser.parse_args().output)
+    render(parser.parse_args(argv).output)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
