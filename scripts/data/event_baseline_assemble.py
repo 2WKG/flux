@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 from pathlib import Path
 
 from event_baseline_validate import ValidationError, load_and_validate
@@ -56,7 +57,7 @@ FIELDS = [
 
 
 def catalog_rows(events_dir: Path) -> list[dict[str, object]]:
-    paths = sorted(events_dir.glob("*/*.json"))
+    paths = event_bundle_paths(events_dir)
     if not paths:
         raise ValidationError(f"{events_dir}: no event bundle JSON files found")
     rows: list[dict[str, object]] = []
@@ -143,9 +144,25 @@ def catalog_rows(events_dir: Path) -> list[dict[str, object]]:
     )
 
 
-def json_list(value: object) -> str:
-    import json
+def event_bundle_paths(events_dir: Path) -> list[Path]:
+    """Return declared event bundles while ignoring control-planning JSON artifacts."""
+    paths: list[Path] = []
+    for path in sorted(events_dir.glob("*/*.json")):
+        try:
+            payload = json.loads(path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ValidationError(f"{path}: cannot read JSON: {exc}") from exc
+        if not isinstance(payload, dict):
+            continue
+        declares_bundle = (
+            "schema_version" in payload or "event" in payload or "records" in payload
+        )
+        if declares_bundle:
+            paths.append(path)
+    return paths
 
+
+def json_list(value: object) -> str:
     return json.dumps(value, separators=(",", ":"), sort_keys=True)
 
 

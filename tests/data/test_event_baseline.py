@@ -9,6 +9,10 @@ from pathlib import Path
 
 import pytest
 
+from scripts.data.event_baseline_receipt import (
+    eaglei_acquisition_from_operational_receipt,
+)
+
 ROOT = Path(__file__).parents[2]
 SPEC = importlib.util.spec_from_file_location(
     "event_baseline_validate", ROOT / "scripts/data/event_baseline_validate.py"
@@ -288,3 +292,26 @@ def test_assembler_preserves_event_and_county_window_dispositions(
     header, row = output.read_text().splitlines()
     assert "event_disposition" in header and "record_disposition" in header
     assert ",accepted," in row
+
+
+def test_operational_eaglei_receipt_maps_to_acquisition_proof() -> None:
+    raw = {
+        "acquisition_complete": True,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:53581661",
+        "source_file": "eaglei_outages_2024.csv",
+        "source_file_id": 53581661,
+        "source_file_bytes": 12,
+        "integrity_basis": "figshare_file_metadata_md5_and_size",
+        "raw_sha256": "a" * 64,
+        "filtered_sha256": "b" * 64,
+    }
+    proof = eaglei_acquisition_from_operational_receipt(
+        raw,
+        raw_artifact_uri="approved://raw",
+        source_sidecar_uri="approved://sidecar",
+        source_sidecar_sha256="c" * 64,
+        filtered_artifact_uri="approved://filtered",
+    )
+    assert proof["source_file_id"] == 53581661
+    assert proof["filtered_artifact_sha256"] == "b" * 64
