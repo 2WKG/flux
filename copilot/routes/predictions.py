@@ -455,6 +455,14 @@ def cascade(
     settings: Settings = request.app.state.settings
     con = _connect(settings, artifact=artifact)
     try:
+        # The current canonical DB also contains a separately qualified Texas
+        # synthetic run.  It predates the Minnesota-manifest schema below, so
+        # it must be read from its own persisted provenance rather than forced
+        # through a Minnesota artifact join.
+        texas = _read_qualified_texas_synthetic(con, scenario_id, run_id)
+        if texas is not None:
+            response.headers[ARTIFACT_HEADER] = "synthetic-cascade"
+            return texas
         missing = _missing_tables(con, CASCADE_TABLES)
         if missing:
             raise _unavailable("missing", artifact=missing[0])
@@ -533,5 +541,57 @@ def cascade(
         "limitations": limitations,
         "source_kind": source_kind,
         "topology": topology,
+        "attributes": CASCADE_ATTRIBUTES,
+    }
+
+
+def _read_qualified_texas_synthetic(
+    con: duckdb.DuckDBPyConnection, scenario_id: str, run_id: str | None
+) -> dict[str, Any] | None:
+    """Read only persisted ACTIVSg2000 rows; Minnesota stays on its own path."""
+
+    params: list[object] = [scenario_id]
+    clause = ""
+    if run_id is not None:
+        clause = " AND run_id = ?"
+        params.append(run_id)
+    rows = con.execute(
+        "SELECT run_id, hour, tripped_element_ids_json, lost_load_mw, "
+        "counties_dark_json, critical_loads_lost_json, source_name, source_ref, "
+        "source_version, fixture_batch_id FROM cascade_runs WHERE scenario_id = ?"
+        + clause
+        + " AND source_name = 'twin.cascade' "
+        "AND source_ref = 'ACTIVSg2000 synthetic topology' "
+        "AND fixture_batch_id = 'synthetic-cascade' ORDER BY hour, run_id",
+        params,
+    ).fetchall()
+    if not rows:
+        return None
+    selected_run = _require_str(rows[0][0], "run_id", _RowInvalid)
+    if any(row[0] != selected_run for row in rows):
+        rows = [row for row in rows if row[0] == selected_run]
+    hours, _ = _hours_from_rows(
+        [(row[1], row[2], row[3], row[4], row[5], row[6], row[7]) for row in rows]
+    )
+    return {
+        "run_id": selected_run,
+        "scenario_id": scenario_id,
+        "artifact_id": "synthetic-cascade",
+        "model_mode": "synthetic",
+        "geography_id": "tx",
+        "hours": hours,
+        "provenance": [
+            {
+                "source_name": rows[0][6], "source_ref": rows[0][7],
+                "source_version": rows[0][8], "fixture_batch_id": rows[0][9],
+            }
+        ],
+        "limitations": [
+            "Synthetic (ACTIVSg2000) topology only; not a physical asset map.",
+            "No physical-inventory connectivity is inferred.",
+        ],
+        "source_kind": "synthetic",
+        "topology": "synthetic (ACTIVSg2000)",
+        "playback_qualified": True,
         "attributes": CASCADE_ATTRIBUTES,
     }
