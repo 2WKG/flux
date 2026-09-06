@@ -24,7 +24,11 @@ def _database(path: Path) -> None:
         con.execute(
             "CREATE TABLE line_upgrade_detail (line_id BIGINT, scenario_id TEXT, region TEXT, best_tech TEXT, congestion_method TEXT)"
         )
-        for line_id, score, cost in ((10, 20.0, 2_000_000.0), (11, 20.0, 1_000_000.0), (12, 10.0, 1_000_000.0)):
+        for line_id, score, cost in (
+            (10, 20.0, 2_000_000.0),
+            (11, 20.0, 1_000_000.0),
+            (12, 10.0, 1_000_000.0),
+        ):
             con.execute("INSERT INTO lines VALUES (?, 1, 2, 230)", [line_id])
             con.execute(
                 "INSERT INTO line_upgrade_scores VALUES (?, 'mn_fixture', 'v1', '2026-01-01', 'fixture', 'line-test', 'fixture', ?, 1, 10, 9, ?, 3, true, false, NULL)",

@@ -77,9 +77,10 @@ def _provenance(row: dict[str, Any], prefix: str) -> dict[str, Any]:
             "fixture_batch_id",
         )
     }
-    if not all(isinstance(provenance[key], str) and provenance[key] for key in (
-        "source_name", "source_ref", "fixture_batch_id"
-    )):
+    if not all(
+        isinstance(provenance[key], str) and provenance[key]
+        for key in ("source_name", "source_ref", "fixture_batch_id")
+    ):
         raise unavailable("provenance_missing")
     return provenance
 
@@ -121,7 +122,11 @@ def _normalise_site_outcome(
         "blackstart_reach_mw",
     ):
         value = result.pop(f"score_{metric}")
-        if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(value):
+        if (
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+        ):
             raise unavailable("invalid_persisted_outcome")
         result[metric] = float(value)
     result["safety_flags"] = _json_string_list(
