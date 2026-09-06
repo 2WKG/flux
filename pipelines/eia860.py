@@ -272,7 +272,10 @@ def seed_site_candidates(con, states=None) -> int:
         con,
         "site_candidates",
         candidates,
-        where="kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing')",
+        where=(
+            "kind IN ('coal_retired', 'coal_retiring', 'nuclear_existing') "
+            f"AND ({selected_scope.county_where()})"
+        ),
         source_name="pudl_eia860",
         source_ref="eia_plants",
         source_version="v2026.2.0",

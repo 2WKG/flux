@@ -142,12 +142,18 @@ def load_storm_events(
             """DELETE FROM storm_events AS events
                WHERE EXISTS (SELECT 1 FROM storm_event_attributes AS attrs
                              WHERE attrs.source_year = ?
+                               AND ({scope})
                                AND attrs.event_id = events.event_id
-                               AND attrs.county_fips = events.county_fips)""",
+                               AND attrs.county_fips = events.county_fips)""".format(
+                scope=selected_scope.county_where("attrs.county_fips")
+            ),
             [year],
         )
         rows = replace_frame(
-            con, "storm_event_attributes", attributes, where=f"source_year = {year}"
+            con,
+            "storm_event_attributes",
+            attributes,
+            where=f"source_year = {year} AND ({selected_scope.county_where()})",
         )
         incoming = contract.copy()
         incoming["source_name"] = "noaa_storm_events"
