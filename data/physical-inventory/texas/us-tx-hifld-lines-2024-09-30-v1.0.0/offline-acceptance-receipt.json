@@ -1,0 +1,56 @@
+{
+  "artifact": {
+    "artifact_id": "us-tx:physical-inventory:1.0.0",
+    "artifact_version": "1.0.0",
+    "content_sha256": "713cdbd5c6c08856e28ccd346af5b89bcf841cbe0879c08a5f9a511d94cced5a",
+    "contract_version": "1.0.0",
+    "electrical_model_mode": "none",
+    "inventory_mode": "physical_observed",
+    "sources": [
+      {
+        "authority": "Federal User Community / HIFLD archive",
+        "content_sha256": "fe9c2d8a0f7fb5c010b7b112fa4a7c249dff693408eec55ea5d1df0577db3ade",
+        "source_id": "hifld-lines-2024-09-30",
+        "source_ref": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0",
+        "source_version": "Archived service; last data update 2024-09-30"
+      }
+    ]
+  },
+  "completion_claim": "No parent or state acceptance issue is complete from this offline receipt alone.",
+  "connectivity": {
+    "edge_source_ids": [],
+    "source_backed_edge_count": 0,
+    "source_backed_terminal_count": 0,
+    "terminal_source_ids": []
+  },
+  "coverage": [
+    {
+      "asset_class": "line",
+      "authoritative_state_class_denominator": null,
+      "coverage_status": "partial",
+      "denominator_evidence": "source_local_or_unknown",
+      "normalized_asset_count": 7042,
+      "reason": "Native observed routes are partial/stale public overlay; endpoint labels are not terminals or edges.",
+      "source_geometry_count": 7042,
+      "source_returned_count": 7042,
+      "source_scope": "Archived national HIFLD service selected by supplied Texas polygon; no owner-level Texas completeness declaration",
+      "unavailable_count": null,
+      "unavailable_geometry_count": 0,
+      "unknown_or_unreported_count": null
+    }
+  ],
+  "end_to_end_result": "NOT VERIFIED",
+  "errors": [],
+  "offline_result": "VERIFIED",
+  "receipt_kind": "physical_inventory_offline_acceptance",
+  "receipt_version": "1.0.0",
+  "stages": {
+    "artifact_to_normalized_inventory": "VERIFIED",
+    "browser_interaction": "NOT VERIFIED",
+    "inspector": "NOT VERIFIED",
+    "selection": "NOT VERIFIED",
+    "spatial_api_transport": "NOT VERIFIED",
+    "viewport_render": "NOT VERIFIED"
+  },
+  "state": "tx"
+}
