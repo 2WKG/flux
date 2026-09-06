@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -76,11 +78,14 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
-    data_root = app.state.settings.duckdb_path.parent.parent
+    # The experimental artifact ships with this application revision.  It is
+    # intentionally independent from the operator-selected DuckDB location so
+    # a stale neighboring checkout cannot silently change the demo forecast.
+    app_root = Path(__file__).resolve().parent.parent
     app.include_router(
         create_demo_data_router(
             duckdb_path=app.state.settings.duckdb_path,
-            jepa_artifact_path=data_root
+            jepa_artifact_path=app_root
             / "artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json",
         )
     )
