@@ -263,7 +263,7 @@ GET  /layers/{name}?scenario_id=&hour=&run_id=&unit_mw=&tech=&res=
        name ∈ {buses, lines, gens, counties, critical_loads, outage_risk, cascade, sites,
                line_upgrades, storm, national_hex, eaglei}          (GeoJSON / Arrow IPC / JSON — see 05)
 POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
-GET  /cascade?scenario_id=&run_id=                    → one qualified persisted cascade_runs run, unwrapped {run_id, scenario_id, artifact_id, model_mode, geography_id, hours:[{hour, lost_load_mw (MW), …}], provenance:[…], limitations:[…], source_kind, topology, attributes} (05 §Routes, 2WKG-104)
+GET  /cascade?scenario_id=&run_id=                    → one qualified persisted cascade_runs run, unwrapped {run_id, scenario_id, artifact_id, model_mode, geography_id, hours:[{hour, lost_load_mw (MW), …}], provenance:[…], limitations:[…], source_kind, topology, attributes} (05 §Routes, 2WKG-170)
 POST /site-score   {site_id, unit_mw, scenario_id}    → one persisted site_scores row, unwrapped {site_id, …, artifact_id, model_mode, limitations, source_kind, topology, provenance} — model metadata joined from mn_artifact_manifests, not from site_scores (05 §Routes, 2WKG-172)
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows, filtered in SQL before LIMIT (05 §Routes, 2WKG-104)
