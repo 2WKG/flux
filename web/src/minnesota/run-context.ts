@@ -14,6 +14,16 @@ export const MINNESOTA_BOOKMARK_VERSION = "v1";
 export const MINNESOTA_AGGREGATE_SCENE_ID = "mn:coverage:aggregate:v1";
 export const MINNESOTA_AGGREGATE_ARTIFACT_ID = "mn:aggregate:manifest:v1";
 
+/**
+ * The only v1 identifiers the aggregate comparison route accepts from this
+ * shell. They name persisted server contexts; their presence does not claim
+ * that a particular deployment has those artifacts available.
+ */
+export const MINNESOTA_COMPARISON_CONTEXT_IDS = Object.freeze({
+  baseline: "mn:baseline:v1",
+  candidate: "mn:candidate:v1",
+});
+
 /** The one Minnesota scene this branch can identify without inventing geometry. */
 export const MINNESOTA_AGGREGATE_SCENE = Object.freeze({
   id: MINNESOTA_AGGREGATE_SCENE_ID,
@@ -173,6 +183,31 @@ export interface MinnesotaRunResult<T> {
 export type MinnesotaRunResultAcceptance<T> =
   | { readonly kind: "accepted"; readonly value: T }
   | { readonly kind: "stale" };
+
+/**
+ * Retained for consumers that need to name an unavailable comparison without
+ * deriving a delta, ranking, or effect from the aggregate manifest.
+ */
+export interface MinnesotaComparisonUnavailable {
+  readonly kind: "unavailable";
+  readonly code: "mn_server_compare_contract_missing";
+  readonly baseline: Readonly<MinnesotaRunContext>;
+  readonly candidate: Readonly<MinnesotaRunContext>;
+  readonly message: string;
+}
+
+export function unavailableMinnesotaComparison(
+  baseline: Readonly<MinnesotaRunContext>,
+  candidate: Readonly<MinnesotaRunContext>,
+): MinnesotaComparisonUnavailable {
+  return {
+    kind: "unavailable",
+    code: "mn_server_compare_contract_missing",
+    baseline,
+    candidate,
+    message: "No server comparison contract supplies a Minnesota aggregate baseline, candidate, or effect.",
+  };
+}
 
 /** Consumers use this seam before rendering any future server response. */
 export function acceptMinnesotaRunResult<T>(

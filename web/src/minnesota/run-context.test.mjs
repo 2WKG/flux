@@ -25,6 +25,11 @@ test("the Minnesota baseline is immutable aggregate metadata with no invented as
     scenario_id: null, hour: null, selected_site_id: null, compare_site_id: null, selected_element_id: null, unit_mw: null,
   });
   assert.equal(mn.resetMinnesotaRunContext(), baseline);
+  assert.deepEqual(mn.MINNESOTA_COMPARISON_CONTEXT_IDS, {
+    baseline: "mn:baseline:v1",
+    candidate: "mn:candidate:v1",
+  });
+  assert.equal(Object.isFrozen(mn.MINNESOTA_COMPARISON_CONTEXT_IDS), true);
 });
 
 test("a versioned bookmark round-trips exactly and rejects partial, duplicate, unknown, and future states", () => {
