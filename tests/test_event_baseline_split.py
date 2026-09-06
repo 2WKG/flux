@@ -280,6 +280,11 @@ def test_rows_sharing_a_parent_system_land_in_one_split() -> None:
     }
     right["record"]["window_end_utc"] = "2024-06-01T06:00:00Z"
 
+    # `components()`, not the manifest: two rows under one parent hash to the
+    # same group key even when nothing groups them, so only the component count
+    # can tell "one group" from "two identical-keyed groups".
+    assert len(splitter.components([left, right])) == 1
+
     manifest = splitter.manifest_rows([left, right])
 
     assert {item["split"] for item in manifest} == {splitter.split_for("storm-a")}
@@ -301,6 +306,8 @@ def test_rows_with_overlapping_context_windows_land_in_one_split() -> None:
     }
     right["record"]["window_start_utc"] = "2021-01-02T12:00:00Z"
     right["record"]["window_end_utc"] = "2021-01-02T18:00:00Z"
+
+    assert len(splitter.components([left, right])) == 1
 
     manifest = splitter.manifest_rows([left, right])
 
