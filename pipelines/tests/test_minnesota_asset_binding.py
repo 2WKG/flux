@@ -428,9 +428,13 @@ def test_bind_from_files_previews_when_storage_has_no_manifest(tmp_path):
 # --- Gate 6 city-essential pack ------------------------------------------------
 
 
-def test_city_essentials_request_semantically_binds_all_seven_as_safe_previews(tmp_path):
+def test_city_essentials_request_semantically_binds_all_seven_as_safe_previews(
+    tmp_path,
+):
     """The committed Gate 6 request is complete but invents no Minnesota place."""
-    binding = bind_city_essentials(_db(tmp_path), _catalog(), _inventory(), _city_essentials_request())
+    binding = bind_city_essentials(
+        _db(tmp_path), _catalog(), _inventory(), _city_essentials_request()
+    )
 
     assert binding["summary"] == {"total": 7, "placed": 0, "catalog_previews": 7}
     assert [asset["archetype_id"] for asset in binding["assets"]] == [
