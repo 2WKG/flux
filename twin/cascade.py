@@ -5,7 +5,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -190,6 +190,146 @@ def rank_candidate_placements(
     return [result.json() for result in sorted(results, key=lambda row: (-row.redundancy, -row.reachable_load_mw, row.bus_id))]
 
 
+def texas_stress_preset(
+    scenario_id: str,
+    hour: int,
+    *,
+    net: Any | None = None,
+    case_path: str | Path | None = None,
+    db_path: str | Path | None = None,
+    force_count: int = 8,
+) -> dict[str, Any]:
+    """Build an auditable N-k synthetic Texas stress preset from solved flows.
+
+    The forced set comprises the user-selected number of highest loaded actual
+    in-service lines under the model's normal ratings, plus the largest
+    currently radial synthetic load tie when one exists.  It is a deliberately
+    severe synthetic contingency, not a weather observation or physical-grid
+    outage claim.  Every later stage comes from ``rundcpp`` and the normal
+    overload limit; this helper never invents visual threshold events.
+    """
+    if force_count < 1:
+        raise SimulationInputError("force_count must be at least one")
+    base_net = build_network(case_path, db_path=db_path) if net is None else copy.deepcopy(net)
+    _ensure_element_ids(base_net)
+    _solve(base_net)
+    top_lines = sorted(
+        (
+            (float(loading), str(base_net.line.at[index, "flux_element_id"]))
+            for index, loading in base_net.res_line.loading_percent.items()
+            if bool(base_net.line.at[index, "in_service"])
+        ),
+        key=lambda row: (-row[0], row[1]),
+    )[:force_count]
+    if not top_lines:
+        raise SimulationUnavailableError("synthetic network has no in-service lines to form a stress preset")
+    radial = _largest_radial_load_tie(base_net)
+    forced = [element_id for _, element_id in top_lines]
+    if radial is not None and radial[0] not in forced:
+        forced.append(radial[0])
+    cascade = run_cascade(forced, scenario_id, hour, net=base_net, db_path=db_path, write=False)
+    return {
+        "preset_id": f"synthetic_texas_n{len(forced)}_stress",
+        "topology": SYNTHETIC_TOPOLOGY_LABEL,
+        "source_kind": "simulated",
+        "scenario_id": scenario_id,
+        "hour": hour,
+        "forced_element_ids": forced,
+        "selection": {
+            "method": "highest baseline DC line loading under normal ratings plus largest radial synthetic load tie",
+            "baseline_line_loading_percent": [
+                {"element_id": element_id, "loading_percent": round(loading, 6)}
+                for loading, element_id in top_lines
+            ],
+            "radial_load_tie": (
+                {"element_id": radial[0], "isolated_synthetic_load_mw": radial[1]}
+                if radial is not None
+                else None
+            ),
+        },
+        "timeline": cascade["tripped_element_ids"],
+        "cascade": cascade,
+    }
+
+
+def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict[str, Any]:
+    """Package provenance and an honest playback qualification for a run.
+
+    This keeps the UI bridge read-only.  A run qualifies only after its exact
+    synthetic ``cascade_runs`` row has been persisted and the current MATPOWER,
+    current AUX, scenario, and weather-run receipts are all present in the DB.
+    """
+    for key in ("run_id", "scenario_id", "hour", "topology"):
+        if key not in result:
+            raise SimulationInputError(f"result is missing {key}")
+    path = Path(db_path)
+    if not path.is_file():
+        raise SimulationUnavailableError(f"control-room database is unavailable: {path}")
+    con = duckdb.connect(str(path), read_only=True)
+    try:
+        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+        missing_tables = {"ingest_log", "scenarios", "weather_source_runs", "cascade_runs"} - tables
+        if missing_tables:
+            return _unqualified_payload(result, f"missing tables: {', '.join(sorted(missing_tables))}")
+        artifacts = {
+            source_file: sha256
+            for source_file, sha256 in con.execute(
+                "SELECT source_file, sha256 FROM ingest_log "
+                "WHERE source = 'activsg2000' AND source_release = 'current' "
+                "AND source_file IN ('case_ACTIVSg2000.m', 'ACTIVSg2000.aux')"
+            ).fetchall()
+        }
+        scenario = con.execute(
+            "SELECT source_name, source_ref, source_version FROM scenarios WHERE scenario_id = ?",
+            [result["scenario_id"]],
+        ).fetchone()
+        weather = con.execute(
+            "SELECT source, source_release, receipt_path, grid_signature FROM weather_source_runs "
+            "WHERE scenario_id = ? ORDER BY valid_ts LIMIT 1",
+            [result["scenario_id"]],
+        ).fetchone()
+        persisted = con.execute(
+            "SELECT source_name, source_ref, source_version, fixture_batch_id FROM cascade_runs "
+            "WHERE run_id = ? AND hour = ?",
+            [result["run_id"], result["hour"]],
+        ).fetchone()
+    finally:
+        con.close()
+    reasons: list[str] = []
+    if set(artifacts) != {"case_ACTIVSg2000.m", "ACTIVSg2000.aux"}:
+        reasons.append("current MATPOWER/AUX receipts are incomplete")
+    if scenario is None:
+        reasons.append("scenario is unavailable")
+    if weather is None:
+        reasons.append("weather source-run receipt is unavailable")
+    if persisted is None:
+        reasons.append("cascade result is not persisted")
+    return {
+        "run_id": result["run_id"],
+        "scenario_id": result["scenario_id"],
+        "hour": result["hour"],
+        "topology": {
+            "label": result["topology"],
+            "source_kind": "simulated",
+            "case": {"source_file": "case_ACTIVSg2000.m", "sha256": artifacts.get("case_ACTIVSg2000.m")},
+            "coordinates": {"source_file": "ACTIVSg2000.aux", "sha256": artifacts.get("ACTIVSg2000.aux"), "coord_source": "tamu_aux"},
+        },
+        "scenario_provenance": (
+            {"source_name": scenario[0], "source_ref": scenario[1], "source_version": scenario[2]}
+            if scenario is not None else None
+        ),
+        "weather_source_run": (
+            {"source": weather[0], "source_release": weather[1], "receipt_path": weather[2], "grid_signature": weather[3]}
+            if weather is not None else None
+        ),
+        "persisted_provenance": (
+            {"source_name": persisted[0], "source_ref": persisted[1], "source_version": persisted[2], "fixture_batch_id": persisted[3]}
+            if persisted is not None else None
+        ),
+        "qualification": {"playback_qualified": not reasons, "reasons": reasons},
+    }
+
+
 def persist_result(
     result: CascadeResult, db_path: str | Path, *, counterfactual_site_id: int | None = None) -> None:
     """Persist an exact ``cascade_runs`` row, failing closed on schema drift."""
@@ -337,6 +477,28 @@ def _in_service_graph(net: Any) -> nx.Graph:
     return graph
 
 
+def _largest_radial_load_tie(net: Any) -> tuple[str, float] | None:
+    """Find the largest load behind one actual in-service synthetic branch."""
+    sources = {int(value) for value in net.ext_grid.loc[net.ext_grid.in_service, "bus"]}
+    sources.update(int(value) for value in net.gen.loc[net.gen.in_service, "bus"])
+    load_by_bus = net.load[net.load.in_service].groupby("bus").p_mw.sum().to_dict()
+    incident: dict[int, list[str]] = {}
+    for table in ("line", "impedance"):
+        for index, row in net[table][net[table].in_service].iterrows():
+            element_id = str(net[table].at[index, "flux_element_id"])
+            incident.setdefault(int(row.from_bus), []).append(element_id)
+            incident.setdefault(int(row.to_bus), []).append(element_id)
+    candidates = [
+        (float(load_mw), bus_id, elements[0])
+        for bus_id, load_mw in load_by_bus.items()
+        if int(bus_id) not in sources and len(elements := incident.get(int(bus_id), [])) == 1
+    ]
+    if not candidates:
+        return None
+    load_mw, _, element_id = max(candidates, key=lambda item: (item[0], item[2]))
+    return element_id, round(load_mw, 6)
+
+
 def _island_load_loss(net: Any, stage: int) -> tuple[float, set[int], list[CascadeEvent]]:
     graph = _in_service_graph(net)
     source_buses = {int(value) for value in net.ext_grid.loc[net.ext_grid.in_service, "bus"]}
@@ -409,6 +571,19 @@ def _metadata_from_database(db_path: str | Path, net: Any) -> tuple[dict[int, st
         return counties, critical
     finally:
         con.close()
+
+
+def _unqualified_payload(result: Mapping[str, Any], reason: str) -> dict[str, Any]:
+    return {
+        "run_id": result["run_id"],
+        "scenario_id": result["scenario_id"],
+        "hour": result["hour"],
+        "topology": {"label": result["topology"], "source_kind": "simulated"},
+        "scenario_provenance": None,
+        "weather_source_run": None,
+        "persisted_provenance": None,
+        "qualification": {"playback_qualified": False, "reasons": [reason]},
+    }
 
 
 def _number_token(value: float) -> str:
