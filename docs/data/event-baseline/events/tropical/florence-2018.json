@@ -27,14 +27,14 @@
       "start_utc": "2018-09-17T00:00:00Z",
       "end_utc": "2018-09-20T00:00:00Z"
     },
-    "disposition": "candidate_only",
-    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record.",
+    "disposition": "accepted",
+    "selection_basis": "NCEI zone-level Hurricane Florence report intersects the canonical New Hanover County window, and exhaustive EAGLE-I scan observed all 24 outage samples.",
     "exclusions": [
       "Texas Uri and Beryl are not recataloged as new events."
     ],
     "uncertainties": [
       "NHC advisory scope is system/weather evidence, not county outage evidence.",
-      "EAGLE-I matched-coverage receipt pending."
+      "Zone report is not countywide; no customer denominator is available."
     ]
   },
   "source_receipts": [
@@ -56,6 +56,40 @@
       "gaps": [
         "No downloaded advisory artifact hash retained in this candidate-only receipt."
       ]
+    },
+    {
+      "receipt_id": "ncei-florence-2018-details",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz",
+      "release": "Storm Events Details 2018, c20260323",
+      "retrieved_at_utc": "2026-09-06T07:45:00Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4",
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events reported event interval and zone scope",
+      "timezone_conversion": "CZ_TIMEZONE EST-5 retained and converted to UTC by adding five hours",
+      "filters": "EVENT_ID 786760, Inland New Hanover Hurricane report",
+      "grid_index_mapping": "NCEI zone NCZ107 partially covers county FIPS 37129; no physical-grid mapping",
+      "gaps": ["Forecast zone does not establish countywide weather conditions."]
+    },
+    {
+      "receipt_id": "eaglei-florence-2018-37129-1218z",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547879",
+      "release": "10.6084/m9.figshare.24237376.v4; exhaustive annual scan",
+      "retrieved_at_utc": "2026-09-06T07:40:06Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "filtered_sha256": "c46f98b75505474409c8f421333dc296b6ff65b0aba6a9bd97b6ba27da05ba9e",
+      "bytes": 999210542,
+      "etag": "\"726543e4a392e220108b035ba4c52e43\"",
+      "units": "customers_out in customers; run_start_time UTC",
+      "timezone_conversion": "none; source time is UTC",
+      "filters": "FIPS 37129; [2018-09-14T12:00:00Z,2018-09-14T18:00:00Z); exhaustive annual scan",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": ["Customer denominator unavailable in this annual source."]
     }
   ],
   "records": [
@@ -66,43 +100,46 @@
       "scenario_id": "florence-2018-replay",
       "window_start_utc": "2018-09-14T12:00:00Z",
       "window_end_utc": "2018-09-14T18:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "accepted",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "nhc-florence-2018-archive"
+        "nhc-florence-2018-archive",
+        "ncei-florence-2018-details",
+        "eaglei-florence-2018-37129-1218z"
       ],
-      "source_evidence_status": "unavailable",
-      "source_row_keys": [],
-      "source_slices": [],
+      "source_evidence_status": "available",
+      "source_row_keys": ["eaglei-florence-2018-37129-1218z:37129|2018-09-14 12:00:00"],
+      "source_slices": [{"receipt_id":"eaglei-florence-2018-37129-1218z","county_fips":"37129","start_utc":"2018-09-14T12:00:00Z","end_utc":"2018-09-14T18:00:00Z"}],
       "weather": {
-        "coverage": "uncovered",
+        "coverage": "covered",
         "source_receipt_ids": [
-          "nhc-florence-2018-archive"
+          "nhc-florence-2018-archive",
+          "ncei-florence-2018-details"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "NHC archived advisory is weather/system evidence for this North Carolina coastal candidate; it is not a county measurement.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "notes": "NCEI reports Hurricane Florence for Inland New Hanover during the canonical window; zone scope is not countywide.",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {"source_event_ids":["ncei:786760"],"source_window":{"start_utc":"2018-09-14T11:15:00Z","end_utc":"2018-09-15T14:00:00Z"},"spatial_scope":"zone","scope_identifier":"NCZ107","limitations":"Inland New Hanover forecast zone partially covers FIPS 37129 and is not a countywide observation."}
       },
       "outage": {
-        "coverage": "uncovered",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
+        "coverage": "covered",
+        "source_receipt_ids": ["eaglei-florence-2018-37129-1218z"],
+        "expected_samples": 24,
+        "observed_samples": 24,
         "missing_timestamps": [],
-        "notes": "EAGLE-I county-window extraction has not yet been matched.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
+        "notes": "Exhaustive annual scan returned all 24 expected 15-minute observations for FIPS 37129.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
         "event_report": null
       },
-      "matched_coverage_decision": "unavailable",
+      "matched_coverage_decision": "matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
-        "observed_outage_customers": null,
+        "observed_outage_customers": 114640,
         "customer_denominator": {
           "status": "unavailable",
           "value": null
