@@ -1,0 +1,128 @@
+{
+  "transmission_line_segment": {
+    "x": 0,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "substation_transformer_yard": {
+    "x": 64,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "military_base": {
+    "x": 128,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "hospital": {
+    "x": 192,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "water_treatment_plant": {
+    "x": 256,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "coal_plant_retiring_site": {
+    "x": 320,
+    "y": 0,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "nuclear_smr_module": {
+    "x": 0,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "data_center_campus": {
+    "x": 64,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "residential_neighborhood": {
+    "x": 128,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "commercial_buildings": {
+    "x": 192,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "factory_industrial_facility": {
+    "x": 256,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "natural_gas_plant": {
+    "x": 320,
+    "y": 64,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "wind_turbine": {
+    "x": 0,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "solar_array": {
+    "x": 64,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "battery_storage": {
+    "x": 128,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "warehouse_logistics_center": {
+    "x": 192,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "ev_charging_station": {
+    "x": 256,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  },
+  "school_emergency_services": {
+    "x": 320,
+    "y": 128,
+    "width": 64,
+    "height": 64,
+    "pixelRatio": 2
+  }
+}

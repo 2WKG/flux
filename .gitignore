@@ -40,3 +40,5 @@ web/public/**/*.gltf
 .cloudflared/
 deploy/cloudflared/config.yml
 deploy/cloudflared/*.json
+# Build-copied Flux pack (models, previews, metadata and sprite rasters).
+web/public/assets/flux-grid/
