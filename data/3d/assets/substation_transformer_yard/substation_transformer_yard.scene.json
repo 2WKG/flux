@@ -1,0 +1,28 @@
+{
+  "format": "flux:3d-archetype-source:v1",
+  "archetype_id": "substation_transformer_yard",
+  "author_orientation": "-Z forward, Y up, right-handed",
+  "pivot": "ground_center",
+  "bounds_m": {"min": [-45, 0, -60], "max": [45, 24, 60]},
+  "materials": [
+    {"name": "MAT_STATUS", "base_color": "neutral_gray", "runtime_tinted": true},
+    {"name": "MAT_METAL", "base_color": "galvanized_metal", "runtime_tinted": false},
+    {"name": "MAT_GRAVEL", "base_color": "neutral_gravel", "runtime_tinted": false}
+  ],
+  "nodes": [
+    {"name": "YARD_GROUND", "primitive": "box", "position_m": [0, 0.1, 0], "size_m": [90, 0.2, 120], "material": "MAT_GRAVEL"},
+    {"name": "HV_BUS_IN", "primitive": "beam", "position_m": [-20, 12, 38], "size_m": [50, 0.35, 0.35], "material": "MAT_STATUS"},
+    {"name": "HV_BUS_OUT", "primitive": "beam", "position_m": [20, 12, -38], "size_m": [50, 0.35, 0.35], "material": "MAT_STATUS"},
+    {"name": "TRANSFORMER_A", "primitive": "transformer", "position_m": [-14, 1.5, 0], "size_m": [16, 3, 12], "material": "MAT_STATUS"},
+    {"name": "TRANSFORMER_B", "primitive": "transformer", "position_m": [14, 1.5, 0], "size_m": [16, 3, 12], "material": "MAT_STATUS"},
+    {"name": "CONTROL_BUILDING", "primitive": "box", "position_m": [28, 3, 24], "size_m": [20, 6, 12], "material": "MAT_METAL"},
+    {"name": "CONN_HV_IN_0", "primitive": "empty", "position_m": [-30, 0, 50]},
+    {"name": "CONN_HV_OUT_0", "primitive": "empty", "position_m": [30, 0, -50]},
+    {"name": "CONN_MV_FEED_0", "primitive": "empty", "position_m": [40, 0, 18]}
+  ],
+  "lods": {
+    "lod0": "full buswork, transformers, and control building",
+    "lod1": "transformers, buses, and control-building massing",
+    "lod2": "yard footprint, two transformer masses, and line attachments"
+  }
+}
