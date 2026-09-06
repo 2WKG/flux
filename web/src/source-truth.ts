@@ -59,10 +59,19 @@ export function deriveSourceTruth(provenance: DerivableProvenance): SourceTruth 
  * Display copy for each IA token, keyed by the union so a token cannot be
  * forgotten. These strings are chrome for a status the data asserted; no
  * screen may write one directly.
+ *
+ * This map is the single owner of the six display strings -- the ownership
+ * `src/layers/status-glyphs.ts:10-13` already names. The values are the IA's
+ * "UI label" column verbatim (`docs/design/minnesota-demo-narrative-ia.md`,
+ * the truth-label table), which hyphenates the first two. They previously read
+ * "Source supported"/"Source screened" here while `src/layers/LayerControls.tsx`
+ * carried the hyphenated IA spelling, so the same status read two ways; the IA
+ * is the authority and this owner now matches it. `src/layers/legend.test.mjs`
+ * pins these values against that table by label, not by line number.
  */
 export const STATUS_COPY: Record<AssetStatus, string> = {
-  source_supported: "Source supported",
-  source_screened: "Source screened",
+  source_supported: "Source-supported",
+  source_screened: "Source-screened",
   hypothetical: "Hypothetical",
   synthetic: "Synthetic",
   unavailable: "Unavailable",
