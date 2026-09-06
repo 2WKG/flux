@@ -110,12 +110,12 @@ function declarations(selector, context = "") {
 const declared = (selector, declaration, context = "") =>
   declarations(selector, context).some((entry) => entry.replace(/:\s*/, ": ") === declaration);
 
-test("the primary runtime puts ControlRoom before its one spatial stage", () => {
+test("the primary runtime puts its spatial stage before contextual controls", () => {
   assert.match(markup, /data-demo-runtime="primary"/);
-  assert.match(markup, /aria-label="Flux control room"[\s\S]*aria-label="Primary spatial stage"/);
+  assert.match(markup, /aria-label="Primary spatial stage"[\s\S]*aria-label="Flux control room"/);
   assert.match(markup, /aria-label="Scene mode"/);
   assert.ok(declared(".primary-demo", "display: grid"));
-  assert.ok(declared(".primary-demo__support", "display: grid"));
+  assert.ok(declared(".primary-demo__workspace", "display: grid"));
 });
 
 test("the compact and stacked breakpoints carry real declarations, not just a prelude", () => {
@@ -178,14 +178,17 @@ test("the chat dock stays in flow and nothing but the overlay covers the page", 
   assert.deepEqual(fixed, [".overlay"], "only the overlay may cover the page");
 });
 
-test("the chat dock starts collapsed and its aria-controls target always exists", () => {
+test("the standalone dock can start collapsed while the primary workspace opens its compact chat rail", () => {
   const collapsed = shell.renderDock({ open: false, onToggle: () => {} });
   assert.match(collapsed, /class="chat-dock collapsed"/);
   assert.match(collapsed, /aria-expanded="false"/);
   assert.match(collapsed, /aria-controls="chat-dock-body"/);
   assert.match(collapsed, /id="chat-dock-body"[^>]*hidden/, "the aria-controls target must exist while collapsed");
-  // The App composes the dock in its collapsed state.
-  assert.match(markup, /class="chat-dock collapsed"/);
+  // The map-first workspace keeps the compact chat rail available on first
+  // paint, so an operator can ask about the selected regional context without
+  // opening another surface.
+  assert.match(markup, /class="chat-dock expanded"/);
+  assert.match(markup, /aria-expanded="true"/);
 });
 
 test("clicking the collapsed dock expands it to the explicit unavailable state", () => {

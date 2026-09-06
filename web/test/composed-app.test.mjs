@@ -56,9 +56,9 @@ test("every landed panel is mounted in the one App", () => {
     "run trace": /class="run-trace"/,
     "failure state": /class="failure-state"/,
     "inspector": /class="asset-inspector"/,
-    "physical inventory panel": /aria-label="Source-backed physical inventory"/,
-    "inventory coverage disclosure": /aria-label="Coverage and geometry availability"/,
-    "inventory map slot": /class="grid-map"/,
+    "continental inventory map": /aria-label="Continental grid map"/,
+    "inventory source boundary": /CONUS context: Census TIGER\/Line 2024 boundaries/,
+    "Texas and Minnesota region controls": /Texas and Minnesota highlights show server-provided physical-inventory geometry/,
   };
   const missing = Object.entries(mounted).filter(([, pattern]) => !pattern.test(markup)).map(([name]) => name);
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);
@@ -77,10 +77,10 @@ test("the composed primary route does not label a mixed source surface as a synt
   assert.match(markup, /<main data-source-status="unavailable" data-primary-demo="true">/);
 });
 
-test("the primary route puts physical inventory and its source boundary in the spatial stage", () => {
+test("the primary route puts the continental inventory boundary in the spatial stage", () => {
   assert.match(markup, /aria-label="Primary spatial stage"/);
-  assert.match(markup, /aria-label="Source-backed physical inventory"/);
-  assert.match(markup, /Physical inventory only; electrical model: none/);
+  assert.match(markup, /aria-label="Continental grid map"/);
+  assert.match(markup, /No physical connectivity is inferred/);
 });
 
 test("the composed screen renders no status label but the ones its data supports", () => {
