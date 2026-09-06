@@ -39,6 +39,29 @@ Since 2WKG-355 the same App also carries the evidence surfaces — chat, run tra
   `FLUX_GRID_API_ORIGIN` is accepted as an alias for the name PR #245 used.
 - Reuse the existing Cloudflare Tunnel and its configured local origin for `bouncepulse.com`; this task does not create or modify tunnel infrastructure.
 
+## Optional GNN training stack
+
+The GNN toolchain is opt-in: `uv sync --extra gnn` installs it for graph-model
+training, while the demo, API, and ordinary pipeline environments omit it. GNN
+callers must import `torch` and `torch_geometric` at the training entry point,
+never from a module imported by those ordinary paths.
+
+| Package | Pinned version | Verification |
+| --- | --- | --- |
+| `torch` | `2.7.1` | Imported successfully on macOS arm64 / Python 3.12.13; `torch.cuda.is_available()` was `False`. |
+| `torch-geometric` | `2.6.1` | Imported successfully with the pinned Torch version on the same environment. |
+
+The verified macOS wheel is CPU/MPS-capable and did not expose CUDA. No CUDA
+index or accelerator package is configured in Flux; choose one explicitly for
+any future Linux GPU environment rather than changing this optional baseline.
+
+Verification recorded 2026-09-06:
+
+```sh
+uv sync --extra gnn
+uv run --extra gnn python -c 'import torch, torch_geometric; print(torch.__version__, torch_geometric.__version__, torch.cuda.is_available())'
+```
+
 ## Demo boundary
 
 The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. **No live calculation is performed anywhere**: every route the browser reads is a persisted-artifact read, and the browser derives no label, geometry, or number of its own. That fixed snapshot is a synthetic-grid illustration, not a representation of a real grid, and it says so on the screen.

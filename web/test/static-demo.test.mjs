@@ -31,12 +31,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
+import { readBuiltScripts } from "./built-assets.mjs";
+
 const dist = fileURLToPath(new URL("../dist/", import.meta.url));
 const webRoot = new URL("../", import.meta.url);
 
+// The entry mounts the shell and the pages are their own modules (2WKG-478), so
+// "the demo's source" is the entry plus every page, and "the built bundle" is
+// `assets/app.js` plus the chunks the split emits beside it.
+const sources = () => Promise.all(
+  ["../src/main.tsx", "../src/pages/MainPage.tsx", "../src/pages/ExplainerPage.tsx"]
+    .map((name) => readFile(new URL(name, import.meta.url), "utf8")),
+).then((parts) => parts.join("\n"));
+
 const files = () => Promise.all([
-  readFile(new URL("../src/main.tsx", import.meta.url), "utf8"),
-  readFile(new URL("../dist/assets/app.js", import.meta.url), "utf8"),
+  sources(),
+  readBuiltScripts(),
   readFile(new URL("../../data/demo/bundle.json", import.meta.url), "utf8").then(JSON.parse),
 ]);
 

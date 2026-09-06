@@ -26,7 +26,7 @@ await build({
     contents: `
       import { createElement } from "react";
       import { renderToStaticMarkup } from "react-dom/server";
-      import { App } from "./src/main";
+      import { App } from "./src/pages/MainPage";
       export { descriptorFor, descriptorsFor, LayerDescriptorRefusal } from "./src/layers/descriptor-adapter";
       export { LAYER_REGISTRY, buildRegistrySnapshots } from "./src/layers/registry";
       export { STATUS_COPY } from "./src/source-truth";

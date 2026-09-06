@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -80,7 +80,19 @@ test("a bundle that does not use MapLibre carries neither runtime file", { timeo
 
 test("the shipped app build carries both MapLibre runtime files", async () => {
   // The one App mounts the map, so the demo bundle needs them beside app.js.
-  const app = await readFile(new URL("../dist/assets/app.js", import.meta.url), "utf8");
+  // "The bundle" is the entry *and* its chunks: 2WKG-478 split the pages into
+  // dynamic imports, so the worker URL now survives into whichever chunk the map
+  // code landed in, which is exactly the set `scripts/build.mjs` itself scans
+  // before copying. Reading only `app.js` here would have failed on a build
+  // that ships the worker correctly.
+  const assets = await readdir(new URL("../dist/assets/", import.meta.url));
+  const app = (
+    await Promise.all(
+      assets
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => readFile(new URL(`../dist/assets/${name}`, import.meta.url), "utf8")),
+    )
+  ).join("\n");
   assert.ok(app.includes("maplibre-gl-worker.mjs"), "the app bundle no longer resolves the MapLibre worker");
   for (const name of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
     const info = await stat(new URL(`../dist/assets/${name}`, import.meta.url)).catch(() => null);

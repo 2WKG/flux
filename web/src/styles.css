@@ -367,8 +367,29 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .grid-results button { margin: 0 .45rem .45rem 0; padding: .4rem .55rem; border: 1px solid var(--line-strong); border-radius: .3rem; background: var(--panel-raised); color: var(--ink); cursor: pointer }
 .grid-release { color: var(--muted); font: 700 .68rem var(--font-mono); overflow-wrap: anywhere }
 
+/* Site chrome shared by every page: the nav and the truth-label legend the shell
+   renders around whichever page is routed (2WKG-478). Both sit outside `main`,
+   so they carry its width and gutters themselves. */
+.site-nav { max-width: 1520px; margin: auto; padding: 0 28px; height: auto; min-height: 52px; flex-wrap: wrap; gap: 12px }
+.site-links { display: flex; align-items: center; gap: 6px; list-style: none; margin: 0; padding: 0 }
+.site-link { display: inline-block; color: var(--muted); text-decoration: none; font-size: .8rem; padding: 7px 11px; border-radius: 999px; border: 1px solid transparent; transition: color .18s, border-color .18s, background .18s }
+.site-link:hover { color: var(--ink); background: #12293d }
+.site-link.current { color: var(--ink); border-color: #315673; background: #0e2438 }
+.page-pending { max-width: 1520px; margin: auto; padding: 28px; color: var(--muted) }
+.truth-legend { max-width: 1520px; margin: auto; padding: 4px 28px 32px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px }
+.truth-legend ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0 }
+.truth-legend li { color: var(--ink); border: 1px solid #315673; background: #0d2033; border-radius: 999px; padding: 4px 10px; font: 700 .65rem var(--font-mono); letter-spacing: .04em }
+.truth-note { color: var(--dim); font-size: .74rem; margin: 0 }
+
+/* Explainer page. The teaching content itself is 2WKG-482. */
+.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 8px 0 16px }
+.method-entry { border: 1px solid #234962; background: var(--panel); border-radius: 12px; padding: 16px }
+.method-entry h2 { font-size: 1.05rem; margin: 0 0 8px; letter-spacing: -.02em }
+.method-entry p { color: var(--muted); line-height: 1.65; font-size: .85rem; margin: 0 }
+
 @media (max-width: 1180px) {
   main { padding: 18px 22px 32px }
+  .site-nav, .truth-legend, .page-pending { padding-left: 22px; padding-right: 22px }
   .workspace { grid-template-columns: minmax(0, 1fr) minmax(280px, 320px) }
   .card { padding: 11px 12px; gap: 9px }
   .card-figure strong { font-size: 1.7rem }
@@ -378,6 +399,8 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 }
 @media (max-width: 980px) {
   main { padding: 18px }
+  .site-nav, .truth-legend, .page-pending { padding-left: 18px; padding-right: 18px }
+  .site-nav { padding-top: 10px; padding-bottom: 10px }
   .rail { grid-template-columns: 1fr }
   .workspace { grid-template-columns: 1fr }
   .pipeline { display: block }
