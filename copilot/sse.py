@@ -215,7 +215,7 @@ class CopilotEventStream:
         return self._failure("refusal", cause)
 
     def iteration_limit_reached(self, cause: BaseException | None = None) -> SseEvent:
-        """End an active stream after exhausting the fixed model-turn budget."""
+        """End an active stream after exhausting its budget; both limits use deadline."""
         return self._failure("iteration_limit", cause)
 
     def _validate_tool_call(self, call_id: str, tool: str) -> None:

@@ -158,27 +158,42 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
 
 
 @pytest.mark.parametrize(
-    ("method", "code", "message"),
+    ("method", "code", "message", "retryable"),
     [
         (
             "disconnected",
             "cancelled",
             "The answer attempt was cancelled before it completed.",
+            True,
         ),
         (
             "timed_out",
             "deadline",
             "The answer could not finish within the request deadline.",
+            True,
         ),
         (
             "provider_failed",
             "upstream_error",
             "The answer provider is unavailable.",
+            True,
+        ),
+        (
+            "refused",
+            "refusal",
+            "The answer provider declined this request.",
+            False,
+        ),
+        (
+            "iteration_limit_reached",
+            "deadline",
+            "The answer reached its iteration limit.",
+            False,
         ),
     ],
 )
 def test_named_failures_emit_one_safe_terminal_error(
-    method: str, code: str, message: str
+    method: str, code: str, message: str, retryable: bool
 ) -> None:
     stream = CopilotEventStream()
     stream.start()
@@ -192,7 +207,7 @@ def test_named_failures_emit_one_safe_terminal_error(
         "v": 1,
         "seq": 2,
         "status": "failed",
-        "error": {"code": code, "message": message, "retryable": True},
+        "error": {"code": code, "message": message, "retryable": retryable},
     }
     serialized = event.encode()
     assert all(
@@ -200,6 +215,16 @@ def test_named_failures_emit_one_safe_terminal_error(
     )
     with pytest.raises(StreamStateError, match="terminal"):
         stream.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(stream, method)()
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.disconnected()
+
+    finished = CopilotEventStream()
+    finished.start()
+    finished.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(finished, method)(secret_failure)
 
 
 def test_failed_tool_result_is_non_terminal_and_settles_the_pending_call() -> None:
@@ -222,6 +247,60 @@ def test_failed_tool_result_is_non_terminal_and_settles_the_pending_call() -> No
         "message": "The tool could not complete.",
     }
     assert stream.done(verified=True).event == "done"
+
+
+@pytest.mark.parametrize("code", ["", "TIMEOUT", "boom", "upstream_error", "cancelled"])
+def test_failed_tool_result_rejects_codes_outside_the_vocabulary(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {})
+
+    with pytest.raises(ValueError, match="unsupported tool error code"):
+        stream.failed_tool_result(
+            "call-1", "score_site", code, "tool failed", elapsed_ms=1
+        )
+
+    settled = stream.failed_tool_result(
+        "call-1", "score_site", "timeout", "tool failed", elapsed_ms=1
+    )
+    assert settled.data["error"]["code"] == "timeout"
+
+
+@pytest.mark.parametrize(
+    "code", ["timeout", "invalid_input", "unavailable", "tool_error"]
+)
+def test_failed_tool_result_accepts_each_vocabulary_code(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {})
+
+    failed = stream.failed_tool_result(
+        "call-1", "score_site", code, "tool failed", elapsed_ms=1
+    )
+
+    assert failed.data["error"] == {"code": code, "message": "tool failed"}
+
+
+def test_failed_tool_result_bounds_the_message_and_elapsed_time() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {})
+
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.failed_tool_result("call-1", "score_site", "timeout", "", elapsed_ms=1)
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.failed_tool_result(
+            "call-1", "score_site", "timeout", "x" * 1025, elapsed_ms=1
+        )
+    with pytest.raises(ValueError, match="non-negative"):
+        stream.failed_tool_result(
+            "call-1", "score_site", "timeout", "tool failed", elapsed_ms=-1
+        )
+
+    accepted = stream.failed_tool_result(
+        "call-1", "score_site", "timeout", "x" * 1024, elapsed_ms=1
+    )
+    assert len(accepted.data["error"]["message"]) == 1024
 
 
 def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_terminal() -> (
