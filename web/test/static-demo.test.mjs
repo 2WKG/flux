@@ -194,3 +194,33 @@ test("serving dist/ statically yields the SPA shell for /api/demo, never a demo 
     await new Promise((resolve) => server.close(resolve));
   }
 });
+
+// The block above exercises the built artifact under a plain file server. This one
+// exercises the origin the runbook actually tells an operator to start
+// (`npm --prefix web run start` → `node server.mjs`), which is a different program:
+// it refuses API-shaped paths outright instead of falling back to the shell. The
+// freeze-readiness runbook quotes this response, so the two must not drift.
+test("the shipped origin refuses /api paths with an explicit 503, not the SPA shell", async () => {
+  const { createApp } = await import("../server.mjs");
+  const server = createApp().listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const shell = await fetch(`${base}/`);
+    assert.equal(shell.status, 200);
+    assert.match(shell.headers.get("content-type"), /^text\/html/);
+    const shellBody = await shell.text();
+
+    for (const route of ["/api", "/api/demo", "/api/demo?scenario=a", "/api/demo/"]) {
+      const response = await fetch(`${base}${route}`);
+      const body = await response.text();
+      assert.equal(response.status, 503, `${route} must be refused, not served`);
+      assert.match(response.headers.get("content-type"), /^text\/plain/, route);
+      assert.equal(body, "The static Flux demo does not serve API routes.", route);
+      assert.notEqual(body, shellBody, `${route} must not fall back to the SPA shell`);
+    }
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
