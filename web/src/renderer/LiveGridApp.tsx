@@ -115,8 +115,8 @@ function LiveGridApp() {
   }, [load]);
   const updateLayer = (layer: string, checked: boolean) => setLayers((current) => checked ? [...current, layer] : current.filter((id) => id !== layer));
   useEffect(() => {
-    if (featureBounds && bbox === null) mapRef.current?.fitBounds(featureBounds, { padding: 64, maxZoom: 11, duration: 0 });
-  }, [featureBounds, state, bbox]);
+    if (featureBounds && (bbox === null || query.trim() !== "")) mapRef.current?.fitBounds(featureBounds, { padding: 64, maxZoom: 11, duration: 0 });
+  }, [featureBounds, state, bbox, query]);
   return <main className="grid-app" data-runtime="spatial-api">
     <header><p>Flux physical inventory</p><h1>Source-backed map</h1><span>Read-only spatial API · physical inventory; electrical model: none</span></header>
     <section className="grid-controls" aria-label="Map controls"><label>State <select value={state} onChange={(event) => setState(event.target.value as State)}><option value="tx">Texas</option><option value="mn">Minnesota</option></select></label>
