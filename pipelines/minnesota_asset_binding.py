@@ -11,7 +11,6 @@ import json
 from pathlib import Path
 from typing import Any
 
-
 CONTRACT_ID = "flux:3d-asset-archetypes:v1"
 MATERIAL_SLOT = "MAT_STATUS"
 

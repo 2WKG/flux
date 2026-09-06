@@ -7,7 +7,6 @@ import pytest
 
 from pipelines.minnesota_asset_binding import AssetBindingError, bind_asset
 
-
 ROOT = Path(__file__).resolve().parents[2]
 
 
