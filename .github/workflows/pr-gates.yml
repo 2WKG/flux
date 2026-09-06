@@ -251,6 +251,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The PR head itself, not GitHub's synthetic merge commit: the freeze
+          # manifest records the sha256 of files as they are *on this branch*, and
+          # a merge commit carries master's newer copy of them instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Frozen contract files require a spec amendment in the same PR
         run: |
