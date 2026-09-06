@@ -122,20 +122,37 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/demo/model"): RouteContract(
+        success=Cell(
+            "copilot/test_model_geometry.py::test_model_returns_bus_and_branch_geometry_from_synthetic_db",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_model_geometry.py::test_model_rejects_more_than_64_requested_elements",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_model_geometry.py::test_model_missing_database_and_packaged_artifact_is_named_unavailable",
+            503,
+        ),
+        not_found=Unreachable(
+            "unknown element ids return a 200 partial response rather than a 404."
+        ),
+    ),
     ("GET", "/api/v1/grid/asset-placements"): RouteContract(
         success=Cell(
             "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
             200,
         ),
         invalid=Cell(
-            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            "copilot/test_assets.py::test_asset_placements_reject_invalid_input_and_name_missing_releases",
             422,
         ),
         unavailable=Cell(
-            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            "copilot/test_assets.py::test_asset_placements_reject_invalid_input_and_name_missing_releases",
             503,
         ),
-        not_found=_NO_NOT_FOUND,
+        not_found=Unreachable("the release route has no not-found response."),
     ),
     ("GET", "/assets/flux-grid/manifest.json"): RouteContract(
         success=Cell(
@@ -147,14 +164,18 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
             503,
         ),
-        not_found=_NO_NOT_FOUND,
+        not_found=Unreachable(
+            "the fixed manifest path either serves or is unavailable."
+        ),
     ),
     ("GET", "/assets/flux-grid/{asset_path}"): RouteContract(
         success=Cell(
             "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
             200,
         ),
-        invalid=Unreachable("unsafe or unknown asset paths are not_found, not 422"),
+        invalid=Unreachable(
+            "asset_path accepts every path string; unsafe paths are 404."
+        ),
         unavailable=Cell(
             "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
             503,
