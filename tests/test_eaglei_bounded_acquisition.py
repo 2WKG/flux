@@ -351,7 +351,7 @@ def test_the_receipt_object_carries_no_fields_the_schema_forbids(
     """`additionalProperties: false` is the reason #199's fields are siblings."""
     result = run_bounded(FakeSource(body), tmp_path, monkeypatch)
 
-    assert set(result["receipt"]) == set(VENDORED_RECEIPT_SCHEMA["required"])
-    assert "capture_method" not in result["receipt"]
+    assert set(result["receipt"]) == set(receipt_schema()["required"])
+    assert "capture_method" in result["receipt"]  # required since #232 merged
     assert result["capture_method"]
     assert result["verification"]
