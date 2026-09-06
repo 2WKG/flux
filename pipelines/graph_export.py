@@ -7,6 +7,7 @@ import hashlib
 import json
 import math
 import shutil
+import tempfile
 from collections import Counter
 from pathlib import Path
 from statistics import fmean, pstdev
@@ -59,6 +60,35 @@ def _write_json(path: Path, value: object) -> str:
     payload = _canonical_bytes(value)
     path.write_bytes(payload)
     return hashlib.sha256(payload).hexdigest()
+
+
+def _validate_output_target(source: Path, target: Path) -> None:
+    if target == source or source.is_relative_to(target):
+        raise ValueError("output directory must not contain the source database")
+    if not target.exists():
+        return
+    if not target.is_dir():
+        raise ValueError(f"output path is not a directory: {target}")
+
+    expected_files = {
+        "edges.json",
+        "manifest.json",
+        "nodes.json",
+        "normalization.json",
+    }
+    if {entry.name for entry in target.iterdir()} != expected_files:
+        raise ValueError(f"refusing to replace a non-export directory: {target}")
+    try:
+        manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise ValueError(
+            f"refusing to replace an invalid export directory: {target}"
+        ) from error
+    if (
+        manifest.get("schema_version") != DATASET_SCHEMA_VERSION
+        or manifest.get("topology_label") != TOPOLOGY_LABEL
+    ):
+        raise ValueError(f"refusing to replace a non-export directory: {target}")
 
 
 def _required_tables(con: duckdb.DuckDBPyConnection) -> None:
@@ -192,14 +222,13 @@ def export_texas_graph_dataset(
     db_path: str | Path, out_dir: str | Path
 ) -> dict[str, Any]:
     """Write a content-addressed graph dataset without changing the source database."""
-    source = Path(db_path)
+    source = Path(db_path).resolve()
     if not source.is_file():
         raise FileNotFoundError(f"DuckDB database not found: {source}")
-    target = Path(out_dir)
-    temporary = target.with_name(f".{target.name}.tmp")
-    if temporary.exists():
-        shutil.rmtree(temporary)
-    temporary.mkdir(parents=True)
+    target = Path(out_dir).resolve()
+    _validate_output_target(source, target)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = Path(tempfile.mkdtemp(prefix=f".{target.name}.", dir=target.parent))
     try:
         with duckdb.connect(str(source), read_only=True) as con:
             _required_tables(con)

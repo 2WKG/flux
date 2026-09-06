@@ -2,6 +2,9 @@
 
 `python -m pipelines.graph_export --db data/duck/grid.duckdb --out data/graph/texas`
 exports the populated Texas adapter as a graph dataset. The source database is opened read-only.
+The output cannot be the source database's directory (or another directory containing it). A rerun
+replaces only a prior, complete graph export with the matching schema and topology label; it refuses
+to delete any other existing directory.
 
 The output is deliberately labelled `synthetic (ACTIVSg2000)`: it is a Texas-shaped research topology,
 not ERCOT topology or a physical asset inventory. The command refuses an absent or empty source database

@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from pipelines.db import connect
 from pipelines.graph_export import export_texas_graph_dataset
 
@@ -84,3 +86,48 @@ def test_export_keeps_missing_values_explicit_and_persists_stats(
     }
     assert stats["edge_features"]["rate_a_mw"]["count"] == 0
     assert stats["edge_features"]["rate_a_mw"]["mean"] is None
+
+
+def test_export_refuses_output_that_contains_the_source_database(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    database_hash = hashlib.sha256(database.read_bytes()).hexdigest()
+
+    with pytest.raises(ValueError, match="must not contain the source database"):
+        export_texas_graph_dataset(database, tmp_path)
+
+    assert database.exists()
+    assert hashlib.sha256(database.read_bytes()).hexdigest() == database_hash
+
+
+def test_export_refuses_to_replace_non_export_directory(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    target = tmp_path / "dataset"
+    target.mkdir()
+    sentinel = target / "keep.txt"
+    sentinel.write_text("do not delete")
+
+    with pytest.raises(ValueError, match="refusing to replace a non-export directory"):
+        export_texas_graph_dataset(database, target)
+
+    assert sentinel.read_text() == "do not delete"
+
+
+def test_export_replaces_only_a_prior_owned_export(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _fixture_db(database)
+    target = tmp_path / "dataset"
+
+    first_manifest = export_texas_graph_dataset(database, target)
+    second_manifest = export_texas_graph_dataset(database, target)
+
+    assert second_manifest == first_manifest
+    assert set(_files(target)) == {
+        "edges.json",
+        "manifest.json",
+        "nodes.json",
+        "normalization.json",
+    }
