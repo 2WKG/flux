@@ -3,6 +3,8 @@
   "contract_id": "flux:3d-asset-archetypes:v1",
   "semantic_name": "Coal plant and retiring plant site",
   "category": "generation",
+  "minnesota_issue": "2WKG-381",
+  "catalog_limit": "Retirement state is a server-asserted attribute of the placement, never a variant baked into the mesh.",
   "container": "glb",
   "model_filename": "coal_plant_retiring_site.glb",
   "preview_filename": "coal_plant_retiring_site.preview.png",
@@ -15,9 +17,22 @@
     "handedness": "right",
     "pivot": "ground_center"
   },
-  "footprint_m": { "length": 260, "width": 180 },
-  "connectors": ["HV_OUT"],
-  "lod_triangles": { "lod0": 38000, "lod1": 14000, "lod2": 4200 },
+  "footprint_m": {
+    "length": 260,
+    "width": 180
+  },
+  "connectors": [
+    "HV_OUT"
+  ],
+  "lod_triangle_budget": {
+    "lod0": 38000,
+    "lod1": 14000,
+    "lod2": 4200
+  },
+  "triangles_lod0": null,
+  "triangles_lod1": null,
+  "triangles_lod2": null,
+  "lod_measurement_status": "No mesh exists yet, so no triangle count has been measured: null means not measured, never a measured zero. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
   "material_slots": [
     {
       "name": "MAT_STATUS",
@@ -32,7 +47,7 @@
   "minnesota_context": {
     "render_mode": "catalog_preview",
     "truth_label": "unavailable",
-    "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+    "disclosure": "Catalogue preview — not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
   },
   "export_recipe": {
     "required_outputs": [
@@ -40,6 +55,7 @@
       "coal_plant_retiring_site.preview.png"
     ],
     "preview_renderer": "scripts/render_coal_retiring_site_preview.py",
-    "binary_policy": "The .glb is generated/exported outside Git and validated from this metadata before import."
+    "model_producer": null,
+    "binary_policy": "No .glb is produced by this change and none is committed. Producing, checksumming and importing the binary is 2WKG-374; until then the model output is declared, not delivered."
   }
 }
