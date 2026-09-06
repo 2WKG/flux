@@ -8,6 +8,7 @@ import {
   type SceneContext,
   buildAskRequest,
 } from "./ask-contract";
+import "./chat.css";
 import type { TerminalErrorCode } from "../ask/run-state/types";
 import type { AssetStatus } from "../labels";
 import { STATUS_COPY } from "../source-truth";

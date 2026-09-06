@@ -48,9 +48,6 @@ from copilot.persisted_fixtures import (
 )
 
 Request = Callable[[TestClient], object]
-PHYSICAL_INVENTORY_ROOT = (
-    Path(__file__).resolve().parents[1] / "data/artifacts/physical_inventory"
-)
 
 #: The geography ``persisted_read_route_database`` files its rows under.
 REGION = "mn"
@@ -65,12 +62,6 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
     ("GET", "/health"): (lambda client: client.get("/health"), 200),
     ("GET", "/layers/{layer_name}"): (
         lambda client: client.get("/layers/buses"),
-        200,
-    ),
-    ("GET", "/api/v1/grid/layers/{layer}"): (
-        lambda client: client.get(
-            "/api/v1/grid/layers/line", params={"state": "tx", "version": "1.1.0"}
-        ),
         200,
     ),
     ("POST", "/site-score"): (
@@ -263,13 +254,7 @@ def test_startup_and_every_registered_route_leave_the_working_tree_unchanged(
     before = _tree(tmp_path)
     assert before, "the fixture database itself must be in the snapshot"
 
-    app = create_app(
-        Settings(
-            _env_file=None,
-            duckdb_path=database,
-            physical_inventory_root=PHYSICAL_INVENTORY_ROOT,
-        )
-    )
+    app = create_app(Settings(_env_file=None, duckdb_path=database))
     assert _tree(tmp_path) == before, "startup wrote to the working tree"
     assert set(READ_REQUESTS) == registered_routes()
 
@@ -291,15 +276,7 @@ def test_the_fixture_drives_every_route_past_its_unavailable_guard(
     """
     database = tmp_path / "fixture.duckdb"
     _populate(database)
-    client = TestClient(
-        create_app(
-            Settings(
-                _env_file=None,
-                duckdb_path=database,
-                physical_inventory_root=PHYSICAL_INVENTORY_ROOT,
-            )
-        )
-    )
+    client = TestClient(create_app(Settings(_env_file=None, duckdb_path=database)))
 
     for route, (request, _) in READ_REQUESTS.items():
         response = request(client)

@@ -1,6 +1,7 @@
 import { useEffect, useId } from "react";
 import { isAssetStatus, type AssetStatus } from "../labels";
 import { STATUS_COPY } from "../source-truth";
+import "./layer-controls.css";
 
 /**
  * The vocabulary is owned by `../labels.ts` and imported, never restated here.

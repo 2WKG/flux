@@ -15,7 +15,7 @@ export function RunTrace({ state, onCancel }: RunTraceProps) {
   const cancel = () => onCancel?.(state.identity);
 
   return (
-    <section className="run-trace" aria-label="Run progress" data-run-phase={state.phase} data-source-status={state.sourceStatus}>
+    <section aria-label="Run progress" data-run-phase={state.phase} data-source-status={state.sourceStatus}>
       <p>Run {state.phase === "cancelling" ? "cancellation requested" : state.phase}</p>
       <p role="status">Source status: {STATUS_COPY[state.sourceStatus]}</p>
       {active && onCancel ? <button type="button" onClick={cancel} disabled={state.phase === "cancelling"}>Cancel run</button> : null}

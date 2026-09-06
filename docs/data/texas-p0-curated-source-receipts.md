@@ -60,3 +60,7 @@ Storm Events selects historical NWS crosswalk editions by pinned effective
 interval and fails closed outside their verified windows; archive hosting is
 recorded in the receipt.
 No successful source receipt authorizes a synthetic-to-real connectivity claim.
+
+The Minnesota counterpart, which reuses six of these seven national artifacts at
+the same county grain, is
+[`minnesota-p0-curated-source-receipts.md`](./minnesota-p0-curated-source-receipts.md).

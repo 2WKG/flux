@@ -152,26 +152,19 @@ export function Inspector({ asset, onSelectRelationship, className, title = "Ins
   </aside>;
 }
 
-/**
- * The inspector's own visual system used to be a fifth set of rival colours
- * (`#0b1d2e`/`#315673`/`#edf5ff`/`#9eb5c8`) and its own `system-ui` font
- * override. Every value here is now the shared `:root` token from
- * `src/styles.css`, so the panel matches the page it is composed into and the
- * font is inherited rather than restated.
- */
 const styles: Record<string, CSSProperties> = {
-  panel: { background: "var(--panel-solid)", color: "var(--ink)", border: "1px solid var(--line-strong)", borderRadius: 12, padding: 18, maxWidth: 480 },
+  panel: { background: "#0b1d2e", color: "#edf5ff", border: "1px solid #315673", borderRadius: 12, padding: 18, fontFamily: "system-ui, sans-serif", maxWidth: 480 },
   header: { display: "flex", justifyContent: "space-between", gap: 12, alignItems: "start" },
-  kicker: { margin: 0, color: "var(--accent)", fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" },
-  title: { margin: "5px 0", fontSize: 22 }, identity: { margin: 0, color: "var(--muted)", fontSize: 14 },
-  badge: { border: "1px solid var(--accent)", borderRadius: 999, color: "var(--ink)", padding: "4px 8px", fontSize: 12, whiteSpace: "nowrap" },
-  disclosure: { borderLeft: "3px solid var(--accent)", color: "var(--muted)", lineHeight: 1.45, margin: "16px 0", paddingLeft: 10 },
+  kicker: { margin: 0, color: "#72d9ff", fontSize: 12, fontWeight: 700, letterSpacing: ".08em", textTransform: "uppercase" },
+  title: { margin: "5px 0", fontSize: 22 }, identity: { margin: 0, color: "#9eb5c8", fontSize: 14 },
+  badge: { border: "1px solid #72d9ff", borderRadius: 999, color: "#dceeff", padding: "4px 8px", fontSize: 12, whiteSpace: "nowrap" },
+  disclosure: { borderLeft: "3px solid #72d9ff", color: "#c9d8e5", lineHeight: 1.45, margin: "16px 0", paddingLeft: 10 },
   summary: { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, margin: "0 0 16px" },
-  section: { borderTop: "1px solid var(--line-soft)", marginTop: 16, paddingTop: 14 }, heading: { fontSize: 14, margin: "0 0 10px" },
-  list: { margin: 0 }, row: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)", gap: 10, padding: "7px 0", borderTop: "1px solid var(--line-soft)" },
-  term: { color: "var(--muted)" }, definition: { margin: 0, overflowWrap: "anywhere" }, note: { color: "var(--muted)", display: "block", marginTop: 3 },
-  empty: { color: "var(--muted)", lineHeight: 1.45 }, cards: { display: "grid", gap: 8, listStyle: "none", margin: 0, padding: 0 },
-  card: { background: "var(--panel-raised)", borderRadius: 8, display: "grid", gap: 3, padding: 10, color: "var(--muted)", fontSize: 13 }, code: { overflowWrap: "anywhere", color: "var(--accent)" },
-  relationships: { display: "grid", gap: 8, listStyle: "none", margin: 0, padding: 0 }, relationshipButton: { width: "100%", alignItems: "center", background: "var(--panel-raised)", border: "1px solid var(--line-strong)", borderRadius: 8, color: "inherit", cursor: "pointer", display: "flex", font: "inherit", justifyContent: "space-between", gap: 8, padding: 10, textAlign: "left" },
-  caveats: { color: "var(--muted)", margin: 0, paddingLeft: 20, lineHeight: 1.45 },
+  section: { borderTop: "1px solid #23405a", marginTop: 16, paddingTop: 14 }, heading: { fontSize: 14, margin: "0 0 10px" },
+  list: { margin: 0 }, row: { display: "grid", gridTemplateColumns: "minmax(0, 1fr) minmax(0, 1.4fr)", gap: 10, padding: "7px 0", borderTop: "1px solid #183249" },
+  term: { color: "#9eb5c8" }, definition: { margin: 0, overflowWrap: "anywhere" }, note: { color: "#9eb5c8", display: "block", marginTop: 3 },
+  empty: { color: "#9eb5c8", lineHeight: 1.45 }, cards: { display: "grid", gap: 8, listStyle: "none", margin: 0, padding: 0 },
+  card: { background: "#10283b", borderRadius: 8, display: "grid", gap: 3, padding: 10, color: "#c9d8e5", fontSize: 13 }, code: { overflowWrap: "anywhere", color: "#8be2ff" },
+  relationships: { display: "grid", gap: 8, listStyle: "none", margin: 0, padding: 0 }, relationshipButton: { width: "100%", alignItems: "center", background: "#10283b", border: "1px solid #315673", borderRadius: 8, color: "inherit", cursor: "pointer", display: "flex", font: "inherit", justifyContent: "space-between", gap: 8, padding: 10, textAlign: "left" },
+  caveats: { color: "#c9d8e5", margin: 0, paddingLeft: 20, lineHeight: 1.45 },
 };

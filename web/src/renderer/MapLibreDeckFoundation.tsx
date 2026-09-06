@@ -1,13 +1,13 @@
 import { useCallback, useMemo, useState } from "react";
-import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import { ScatterplotLayer } from "@deck.gl/layers";
 import type { LayersList } from "@deck.gl/core";
 import type { StyleSpecification } from "maplibre-gl";
 import Map from "react-map-gl/maplibre";
 import { OFFLINE_BASEMAP_STYLE } from "./basemap";
 import { acceptedPoints, type SceneView } from "./scene-view";
-import { acceptedPaths, type ScenePath } from "./grid-scene";
 import { DeckOverlay } from "./DeckOverlay";
-import "../styles.css";
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./renderer.css";
 
 /** Observed overlay health. `request_failed` is one of the six shared status tokens. */
 type OverlayState = "initializing" | "initialized" | "request_failed";
@@ -17,14 +17,6 @@ export interface MapLibreDeckFoundationProps {
   readonly view: SceneView;
   /** Defaults to the offline, geometry-free style. A remote style is opt-in. */
   readonly basemapStyle?: string | StyleSpecification;
-  /**
-   * Server-produced line geometry, under the same placement refusal the points
-   * are under (`acceptedPaths`). Added so the physical-inventory map renders
-   * through this foundation instead of a second map beside it.
-   */
-  readonly paths?: readonly ScenePath[];
-  /** Fit the camera to these bounds once, when they change. */
-  readonly fitBounds?: readonly [readonly [number, number], readonly [number, number]] | null;
 }
 
 /**
@@ -32,7 +24,7 @@ export interface MapLibreDeckFoundationProps {
  * positions. It has no synthetic-XY conversion, feature fallback, model fetch,
  * or asset placement, and its default basemap issues no network request.
  */
-export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE, paths = [], fitBounds = null }: MapLibreDeckFoundationProps) {
+export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE }: MapLibreDeckFoundationProps) {
   const [basemapError, setBasemapError] = useState<string | null>(null);
   const [overlayState, setOverlayState] = useState<OverlayState>("initializing");
   const [overlayError, setOverlayError] = useState<string | null>(null);
@@ -43,22 +35,9 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
   }, []);
 
   const drawable = useMemo(() => acceptedPoints(view), [view]);
-  const drawablePaths = useMemo(() => acceptedPaths(paths, view), [paths, view]);
   const layers = useMemo<LayersList>(() => {
-    const list: LayersList = [];
-    if (drawablePaths.length > 0) {
-      list.push(new PathLayer({
-        id: "accepted-scene-paths",
-        data: drawablePaths,
-        getPath: (entry: ScenePath) => entry.path as [number, number][],
-        getColor: [110, 214, 255, 220],
-        getWidth: 3,
-        widthUnits: "pixels",
-        pickable: true,
-      }));
-    }
-    if (drawable.length === 0) return list;
-    return [...list, new ScatterplotLayer({
+    if (drawable.length === 0) return [];
+    return [new ScatterplotLayer({
       id: "accepted-scene-nodes",
       data: drawable,
       getPosition: point => point.position as [number, number],
@@ -69,19 +48,17 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
       // The adapter guarantees EPSG:4326; MapboxOverlay synchronizes MapView with MapLibre.
       coordinateSystem: "lnglat",
     })];
-  }, [drawable, drawablePaths]);
+  }, [drawable]);
 
   const overlayText = overlayState === "initialized"
-    ? `initialized with ${drawable.length + drawablePaths.length} accepted feature${drawable.length + drawablePaths.length === 1 ? "" : "s"}`
+    ? `initialized with ${drawable.length} accepted feature layer${drawable.length === 1 ? "" : "s"}`
     : overlayState === "request_failed"
       ? `unavailable (request_failed): ${overlayError ?? "deck reported an error"}`
       : "initializing";
 
   return <section className="map-foundation" aria-label="Map and renderer status">
     <Map
-      initialViewState={fitBounds
-        ? { bounds: fitBounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 48, maxZoom: 11 } }
-        : { longitude: -94.2, latitude: 46.2, zoom: 5.6 }}
+      initialViewState={{ longitude: -94.2, latitude: 46.2, zoom: 5.6 }}
       mapStyle={basemapStyle}
       onError={(event) => setBasemapError(event.error.message)}
     >

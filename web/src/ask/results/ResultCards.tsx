@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { AskResult, ResultActionHandler, ResultCitation } from "./types";
 import { isSupportedResultAction, traceableNumberLiterals } from "./types";
+import "./result-cards.css";
 
 export interface ResultCardsProps {
   results: readonly AskResult[];
