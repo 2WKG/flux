@@ -22,7 +22,9 @@ def db(path):
     c.execute(
         "INSERT INTO site_candidates VALUES (1,'fixture site','coal_retired','27001','fixture:site','test','1','2026-01-01','batch')"
     )
-    c.execute("INSERT INTO site_scores VALUES (1,'mn_fixture',300,10,'[]',2,3,4,5,'topology','[\"fixture limitation\"]','fixture:site-score','site-score-test','1','2026-01-01','batch')")
+    c.execute(
+        "INSERT INTO site_scores VALUES (1,'mn_fixture',300,10,'[]',2,3,4,5,'topology','[\"fixture limitation\"]','fixture:site-score','site-score-test','1','2026-01-01','batch')"
+    )
     c.close()
 
 

@@ -35,6 +35,9 @@ def top_lines(
     if isinstance(result, UnavailableOutput):
         raise UnavailableError(
             result.unavailable.reason,
-            details={"artifact": "line_upgrade_scores", "reason": result.unavailable.code},
+            details={
+                "artifact": "line_upgrade_scores",
+                "reason": result.unavailable.code,
+            },
         )
     return result.model_dump(mode="json")
