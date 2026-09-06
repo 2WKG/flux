@@ -9,6 +9,9 @@ from copilot.api.envelope import (
     ResponseStatus,
 )
 from copilot.api.errors import (
+    API_VERSION_HEADER,
+    ARTIFACT_HEADER,
+    REQUEST_ID_HEADER,
     ApiError,
     InternalError,
     InvalidInputError,
@@ -21,6 +24,9 @@ from copilot.api.errors import (
 
 __all__ = [
     "API_VERSION",
+    "API_VERSION_HEADER",
+    "ARTIFACT_HEADER",
+    "REQUEST_ID_HEADER",
     "ApiError",
     "Failure",
     "FailureCode",

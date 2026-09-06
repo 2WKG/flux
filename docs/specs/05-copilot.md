@@ -141,6 +141,8 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 
 For either mode, strip comments; reject unless the statement, after `sqlglot`-free heuristics, starts with `SELECT` or `WITH`, contains none of `INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|ATTACH|COPY|PRAGMA|INSTALL|LOAD|CALL|EXPORT`, contains a single statement (no `;` except trailing), and the connection is `duckdb.connect(path, read_only=True)`. The denylist is load-bearing, not belt-and-braces: verified on duckdb 1.5.5 that a `read_only=True` connection rejects `INSERT` ("Cannot execute statement of type INSERT on database … attached in read-only mode") and `ATTACH`, but **`COPY (SELECT …) TO '/path'` still writes a file** on a read-only connection — only the denylist stops it. Wrap as `SELECT * FROM (<q>) LIMIT 201` to detect truncation; there is no DuckDB `statement_timeout` (verified: `SET statement_timeout` → "unrecognized configuration parameter", and no `%timeout%` entry in `duckdb_settings()`); use `asyncio.wait_for` plus `conn.interrupt()` (method exists on `DuckDBPyConnection`) on timeout.
 
+Production registry mode rejects every query shape except a deployment-approved template; approved templates, including full-view aggregates, run under the 200-row response cap and enforced five-second interruptible deadline. The response cap does not claim to bound scan work. Each attempt emits a structured execution record containing only template id, parameter count, row count, duration, provenance artifact ids, and safe outcome; it never records raw SQL, bound values, paths, secrets, or driver exception text. Logging callback failure cannot change the tool result.
+
 `regulatory_path` in `score_site` is a lookup from `site_candidates.kind` (spec 04 defines it): `coal_retired|coal_retiring → "ADVANCE Act brownfield / DOE coal-to-nuclear"`, `nuclear_existing → "NRC early site permit, existing licensed site"`, `federal → "DOE authorization on federal land (EO 14301)"`, `defense → "DoD installation (EO 14299 / Army Janus)"`. The model must still `cite` before repeating it.
 
 ### System prompt (`agent/system_prompt.py`) — contents
@@ -227,6 +229,11 @@ provenance and limitations. It does not invoke the compute behavior of `POST /ca
 which remains this table's existing route contract. `GET /predictions` excludes
 unqualified evaluation artifacts; a missing or unqualified prediction artifact returns the
 documented unavailable failure envelope rather than an empty success.
+
+Every response carries `X-Request-ID` and `X-Flux-Api-Version: v1` without wrapping a
+success body. `X-Flux-Artifact` appears only on a successful `GET /cascade` response
+and equals that payload's resolved immutable `artifact_id`; it is omitted elsewhere,
+including every failure response.
 
 `POST /ask` request:
 
