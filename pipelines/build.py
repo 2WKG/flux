@@ -23,8 +23,8 @@ from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
 from pipelines.joins import join_bus_county, join_critical_loads_to_bus
 from pipelines.nri import load_nri
-from pipelines.storm_events import load_storm_events
 from pipelines.state_scope import scope
+from pipelines.storm_events import load_storm_events
 
 P0_RAW_INPUTS_CATALOG = Path(__file__).resolve().parents[1] / "datasets" / "catalog.json"
 
@@ -227,7 +227,8 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
         _copy_database(live_db, stage_db)
         if live_parquet.exists(): shutil.copytree(live_parquet, stage_parquet)
         else: stage_parquet.mkdir()
-        counts = _build_mutating(str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet), states)
+        args = (str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
+        counts = _build_mutating(*args) if states is None else _build_mutating(*args, states)
         checks = run_checks(str(stage_db))
         if not all(check.passed for check in checks):
             raise RuntimeError("staged P0 quality checks failed: " + "; ".join(check.name for check in checks if not check.passed))

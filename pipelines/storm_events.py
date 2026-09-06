@@ -121,10 +121,11 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int, sta
             con.unregister("_storm_events_incoming")
         con.execute("DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
                     ["noaa_storm_events", f"{year}:zone:%"])
+        scope_label = "Texas" if selected_scope.is_texas_only else "scoped"
         for zone, count in unmatched_zones.items():
             con.execute("INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
                         ["noaa_storm_events", f"{year}:zone:{zone}",
-                         f"{count} scoped zone-type Storm Events had no county crosswalk mapping"])
+                         f"{count} {scope_label} zone-type Storm Events had no county crosswalk mapping"])
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
