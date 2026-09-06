@@ -386,7 +386,8 @@ def _utc_timestamp(value: object, field: str) -> datetime:
     return timestamp.astimezone(UTC).replace(tzinfo=None)
 
 
-def _score_components(inputs: AggregateInputs) -> dict[str, Any]:
+def expected_aggregate_score_components(inputs: AggregateInputs) -> dict[str, Any]:
+    """Return the exact score-component contract derived from approved evidence."""
     return {
         "artifact_version": "v1",
         "aggregate_manifest": {
@@ -512,7 +513,7 @@ def _write_aggregate_record(
                 METRIC_NAME,
                 inputs.peak_demand_mw,
                 METRIC_UNIT,
-                _canonical_json(_score_components(inputs)),
+                _canonical_json(expected_aggregate_score_components(inputs)),
                 "source_supported",
             ],
         )
