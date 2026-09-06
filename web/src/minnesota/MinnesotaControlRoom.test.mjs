@@ -31,6 +31,12 @@ test("the route shell is aggregate-only and names the missing server contract", 
   assert.match(markup, /No server read contract currently supplies a Minnesota aggregate result/);
   assert.match(markup, /Compare baseline/);
   assert.match(markup, /Inspect feature unavailable/);
+  assert.match(markup, /Later infrastructure catalogue/);
+  assert.match(markup, /data-placement-count="0"/);
+  assert.match(markup, /battery_storage/);
+  assert.match(markup, /warehouse_logistics_center/);
+  assert.match(markup, /school_emergency_services/);
+  assert.match(markup, /ev_charging_station/);
   assert.doesNotMatch(markup, /synthetic five-bus|ACTIVSg2000/i);
 });
 
