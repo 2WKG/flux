@@ -22,8 +22,13 @@ def test_composes_disjoint_inputs_with_digest_lineage_and_state_alias() -> None:
     eia = _component("eia860:plant:1", "tx:generation")
     combined = assemble_artifacts([route, eia], release_version="1.1.0")
     assert combined["artifact_id"] == "tx:physical-inventory:1.1.0"
-    assert combined["input_artifact_sha256s"] == sorted([route["content_sha256"], eia["content_sha256"]])
-    assert {item["asset_id"] for item in combined["assets"]} == {"hifld:line:1", "eia860:plant:1"}
+    assert combined["input_artifact_sha256s"] == sorted(
+        [route["content_sha256"], eia["content_sha256"]]
+    )
+    assert {item["asset_id"] for item in combined["assets"]} == {
+        "hifld:line:1",
+        "eia860:plant:1",
+    }
     assert all(item["status"] != "complete" for item in combined["coverage"])
 
 
