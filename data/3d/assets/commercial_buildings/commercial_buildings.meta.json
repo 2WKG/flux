@@ -8,6 +8,7 @@
   "triangles_lod1": 9000,
   "triangles_lod2": 2600,
   "footprint_m": {"length": 120, "width": 100},
+  "bounds_m": {"min": [-49.0, 0.0, -49.0], "max": [49.0, 32.0, 54.0]},
   "connectors": [{"name": "CONN_MV_FEED_0", "role": "MV_FEED", "position_m": [0.0, 0.0, 50.0]}],
   "material_slots": [{"name": "MAT_STATUS", "default": "neutral", "binding": "placement.status_label"}],
   "author": "Flux 2WKG-385",
