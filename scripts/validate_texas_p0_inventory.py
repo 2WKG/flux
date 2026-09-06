@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate the checked-in Texas P0 evidence inventory and emit a JSON report."""
 
 from __future__ import annotations
