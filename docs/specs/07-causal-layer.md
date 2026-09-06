@@ -1,6 +1,6 @@
 # 07 — Causal layer (Bayesian network, hardening effect estimate, counterfactual replay)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Causal outputs must remain within a selected state's declared data and model contract. The repository's Texas topology adapter requires its source artifacts and build; [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
 Status: build spec, weekend scope, with an explicit "what is real vs slideware" ledger.
 Depends on: `01-data-ingest.md` (tables), `02-outage-model.md` (`outage_predictions`,
