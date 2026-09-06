@@ -16,6 +16,8 @@ Status: draft, weekend build. Owner: web lane. Depends on spec 05 (copilot API) 
 > built bundle. None of the deck.gl/MapLibre map described below is wired, and none of the routes
 > in *Inputs* is called by the shipped entry.
 
+> **Visual direction.** [UI style guide](../design/ui-style-guide.md) and its [token reference](../design/ui-tokens.css) guide visual and interaction decisions for future UI work only. They do not change the API, data, geography, scenario, or provenance contracts, and the token file is not imported by the current application.
+
 ## Purpose
 
 The one screen the judges see. For a selected state with validated topology, a deck.gl + MapLibre map can show a scenario/hour timeline, line loading, county outage risk, storm polygon, cascade playback, site pins, critical loads, line-upgrade ranking, and the "Ask" box wired to `POST /ask`. The repository's 2000-bus Texas adapter requires its source artifacts and build. The checked-in five-bus preview is geographic-neutral and cannot be relabelled as a state result.
