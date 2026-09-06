@@ -732,7 +732,7 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
     assert response.status_code == 503
     assert _details(response) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "cascade_artifact_unavailable",
     }
     assert response.headers["X-Flux-Api-Version"] == API_VERSION
     assert "X-Flux-Artifact" not in response.headers
@@ -773,14 +773,31 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
     assert latest.status_code == 503
     assert _details(latest) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "topology_cascade_unsupported",
     }
     # The run exists but is unqualified: named, not 404.
     assert named.status_code == 503
     assert _details(named) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "topology_cascade_unsupported",
         "run_id": run.run_id,
+    }
+
+
+def test_not_applicable_model_cannot_be_relabelled_as_a_cascade(
+    tmp_path: Path,
+) -> None:
+    """The other contract-defined non-topology mode is unsupported too."""
+    database = tmp_path / "not-applicable-cascade.duckdb"
+    run = _Run("mn_winter_2023_snow-s0-0a11ca7e", model_mode="not_applicable")
+    _cascade_database(database, (run,))
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported",
     }
 
 
@@ -808,7 +825,7 @@ def test_unavailable_manifest_is_not_a_qualified_cascade(tmp_path: Path) -> None
 
     assert response.status_code == 503
     assert "X-Flux-Artifact" not in response.headers
-    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+    assert _details(response)["reason"] == "cascade_artifact_unavailable"
 
 
 def test_manifest_without_provenance_is_not_a_qualified_cascade(
@@ -825,7 +842,7 @@ def test_manifest_without_provenance_is_not_a_qualified_cascade(
 
     assert response.status_code == 503
     assert "X-Flux-Artifact" not in response.headers
-    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+    assert _details(response)["reason"] == "cascade_artifact_unavailable"
 
 
 def test_cascade_artifact_with_empty_limitations_is_invalid(tmp_path: Path) -> None:
@@ -882,7 +899,7 @@ def test_cascade_without_a_run_for_the_scenario_is_unavailable(tmp_path: Path) -
     assert response.status_code == 503
     assert _details(response) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "cascade_not_computed",
     }
 
 

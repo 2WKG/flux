@@ -28,6 +28,13 @@ selected columns, so the served run is deterministic by construction rather than
 whatever ``LIMIT 1`` happens to reach first.  That is documented, not pretended
 to be temporal.
 
+When no run qualifies, ``cascade_not_computed`` means there is no persisted
+``cascade_runs`` row for the scenario; ``topology_cascade_unsupported`` means a
+persisted model is aggregate or otherwise non-topology; and
+``cascade_artifact_unavailable`` means a persisted row lacks available, validated
+Minnesota topology metadata.  Each is a read-only unavailable response, never a
+fabricated zero or a request to compute a run.
+
 Failures use the shared failure envelope (``copilot.api``) with a named
 ``reason`` in ``details``; malformed parameters are the shared 422
 ``invalid_input`` envelope and are rejected before the database is opened.
@@ -135,6 +142,14 @@ _QUALIFIED_RUN_SQL: Final = """
 _RUN_EXISTS_SQL: Final = (
     "SELECT 1 FROM cascade_runs WHERE scenario_id = ? AND run_id = ? LIMIT 1"
 )
+_RUN_ARTIFACT_STATUS_SQL: Final = """
+    SELECT m.model_mode, m.availability, r.validation_status
+    FROM cascade_runs AS c
+    LEFT JOIN mn_model_results AS r ON r.model_run_id = c.run_id
+    LEFT JOIN mn_artifact_manifests AS m ON m.artifact_id = r.artifact_id
+    WHERE c.scenario_id = ?
+      AND {run_filter}
+"""
 _HOURS_SQL: Final = """
     SELECT hour, tripped_element_ids_json, lost_load_mw, counties_dark_json,
            critical_loads_lost_json, source_name, source_ref
@@ -156,8 +171,14 @@ _MESSAGES: Final = {
     "no_qualified_prediction": (
         "No persisted prediction cites a qualified evaluation artifact."
     ),
-    "topology_cascade_unsupported_or_absent": (
-        "No qualified persisted topology cascade run exists for the scenario."
+    "cascade_not_computed": (
+        "No persisted cascade run has been computed for the scenario."
+    ),
+    "topology_cascade_unsupported": (
+        "The persisted model does not support topology cascade results."
+    ),
+    "cascade_artifact_unavailable": (
+        "The persisted cascade artifact is unavailable for the scenario."
     ),
     "invalid_topology_artifact": (
         "The topology cascade artifact metadata does not match the documented contract."
@@ -389,6 +410,18 @@ def _topology_labels(
     raise _ArtifactInvalid("no provenance row identifies the topology")
 
 
+def _unqualified_cascade_reason(
+    rows: list[tuple[object, ...]],
+) -> str:
+    """Classify a persisted but unservable cascade without inferring a result."""
+
+    if not rows:
+        return "cascade_not_computed"
+    if any(model_mode in {"aggregate", "not_applicable"} for model_mode, _, _ in rows):
+        return "topology_cascade_unsupported"
+    return "cascade_artifact_unavailable"
+
+
 @router.get("/cascade")
 def cascade(
     request: Request,
@@ -414,16 +447,26 @@ def cascade(
                 params,
             ).fetchone()
             if chosen is None:
-                if run_id is not None and (
-                    con.execute(_RUN_EXISTS_SQL, [scenario_id, run_id]).fetchone()
+                if (
+                    run_id is not None
+                    and con.execute(_RUN_EXISTS_SQL, [scenario_id, run_id]).fetchone()
                     is None
                 ):
                     raise NotFoundError(
                         "The requested cascade run does not exist for the scenario.",
                         details={"scenario_id": scenario_id, "run_id": run_id},
                     )
+                status_params = (
+                    [scenario_id] if run_id is None else [scenario_id, run_id]
+                )
+                status_rows = con.execute(
+                    _RUN_ARTIFACT_STATUS_SQL.format(
+                        run_filter="TRUE" if run_id is None else "c.run_id = ?"
+                    ),
+                    status_params,
+                ).fetchall()
                 raise _unavailable(
-                    "topology_cascade_unsupported_or_absent",
+                    _unqualified_cascade_reason(status_rows),
                     artifact=artifact,
                     **({} if run_id is None else {"run_id": run_id}),
                 )
