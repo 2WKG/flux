@@ -1,0 +1,101 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tornado-hail",
+  "event": {
+    "event_id": "mn-2024-05-21-tornadoes",
+    "parent_system_id": "sys-2024-05-21-southern-mn-severe",
+    "primary_hazard": "tornado",
+    "secondary_hazards": [
+      "convective wind"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2024-05-21T12:00:00Z",
+      "end_utc": "2024-05-23T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2024-05-21T20:00:00Z",
+      "end_utc": "2024-05-22T01:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2024-05-22T01:00:00Z",
+      "end_utc": "2024-05-23T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS MPX documents tornadoes in Martin and Goodhue Counties and a Wisconsin tornado; a path is not countywide impact.",
+    "uncertainties": [
+      "No EAGLE-I match retained.",
+      "Tornado path evidence alone does not establish county label coverage."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-mpx-may-2024",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "url": "https://www.weather.gov/mpx/21May2024",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS event page; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Narrative, EF ratings, and local storm reports.",
+      "timezone_conversion": "Page times are local; UTC envelope declared separately.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "NCEI source IDs and coverage receipts pending."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2024-05-21-tornadoes-27091-1800",
+      "county_fips": "27091",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "mn-2024-05-21-tornadoes-replay",
+      "window_start_utc": "2024-05-21T18:00:00Z",
+      "window_end_utc": "2024-05-22T00:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "notes": "No retained HRRR receipt.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "No EAGLE-I range result retained; not zero.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}

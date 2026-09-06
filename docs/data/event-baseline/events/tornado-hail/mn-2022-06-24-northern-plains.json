@@ -1,0 +1,103 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tornado-hail",
+  "event": {
+    "event_id": "mn-2022-06-24-northern-plains",
+    "parent_system_id": "sys-2022-06-24-northern-plains-severe",
+    "primary_hazard": "tornado",
+    "secondary_hazards": [
+      "hail",
+      "convective wind",
+      "flood"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2022-06-24T00:00:00Z",
+      "end_utc": "2022-06-26T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-06-24T05:00:00Z",
+      "end_utc": "2022-06-25T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-06-25T06:00:00Z",
+      "end_utc": "2022-06-26T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS Grand Forks documents tornadoes, hail to 2.75 inches, damaging wind, and flash flooding across northwest and west-central Minnesota.",
+    "uncertainties": [
+      "Mixed hazards require parent-system grouping.",
+      "No matched county coverage yet."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-fgf-jun24-2022",
+      "provider": "NOAA National Weather Service Grand Forks",
+      "url": "https://www.weather.gov/fgf/June242022Severe",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS event page; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Narrative, EF rating, mph, and hail inches.",
+      "timezone_conversion": "Page times local; UTC envelope declared separately.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "NCEI source IDs and coverage receipts pending."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2022-06-24-northern-plains-27087-0000",
+      "county_fips": "27087",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "mn-2022-06-24-northern-plains-replay",
+      "window_start_utc": "2022-06-24T00:00:00Z",
+      "window_end_utc": "2022-06-24T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "notes": "No retained HRRR receipt.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "No EAGLE-I result retained; not zero.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}
