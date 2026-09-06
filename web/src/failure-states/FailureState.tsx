@@ -38,6 +38,7 @@ export function FailureState({ state, onRetry, onReset }: FailureStateProps) {
 
   return (
     <section
+      className="failure-state"
       aria-label="Request state"
       data-request-state={state.kind}
       data-request-status={status ?? undefined}
