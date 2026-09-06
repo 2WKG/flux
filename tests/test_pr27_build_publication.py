@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
 
 from pipelines import build as build_module
-from pipelines.db import connect
+from pipelines.db import CONTRACT_TABLES, connect
 
 
 def _seed_live_release(tmp_path: Path) -> tuple[Path, Path]:
@@ -63,7 +64,7 @@ def _staged_builder(marker: str):
     return build_stage
 
 
-def _passing_checks(_db_path: str) -> list[SimpleNamespace]:
+def _passing_checks(_db_path: str, _states=None) -> list[SimpleNamespace]:
     return [SimpleNamespace(name="fixture", passed=True)]
 
 
@@ -113,7 +114,7 @@ def test_failed_staged_validation_never_publishes(tmp_path, monkeypatch):
     monkeypatch.setattr(
         build_module,
         "run_checks",
-        lambda _path: [SimpleNamespace(name="reject", passed=False)],
+        lambda _path, _states=None: [SimpleNamespace(name="reject", passed=False)],
     )
 
     with pytest.raises(RuntimeError, match="staged P0 quality checks failed"):
@@ -161,6 +162,9 @@ def test_successful_publish_preserves_existing_namespaces_and_parquet(
     namespaces, marker, files = _published_state(db_path, parquet_dir)
     assert namespaces == ("preserve-me",)
     assert marker == "new"
+    # The staged manifest is promoted together with the Parquet export.
+    manifest = json.loads(files.pop("manifest.json"))
+    assert set(manifest["tables"]) == set(CONTRACT_TABLES)
     assert files == {"unrelated.parquet": b"unchanged-sentinel", "new.parquet": b"new"}
 
 
