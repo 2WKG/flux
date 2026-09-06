@@ -239,6 +239,7 @@ def _populate(database: Path) -> None:
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))
     try:
+        connection.execute("UPDATE buses SET coord_source = 'tamu_aux'")
         _add_score_artifact(
             connection,
             CRITICAL_ARTIFACT,
