@@ -11,6 +11,7 @@ from pathlib import Path
 from types import MappingProxyType
 
 import duckdb
+import pytest
 from fastapi.testclient import TestClient
 
 from copilot.app import create_app
@@ -292,8 +293,31 @@ class _FailingBackend:
         raise RuntimeError("backend secret must not reach the stream")
 
 
+# `create_app` now builds the narration provider from configuration, so these
+# tests must not inherit a developer's own credentials: an ambient
+# `GEMINI_API_KEY` would otherwise decide whether an injected `provider=None`
+# backend reaches the unavailable terminal.
+_PROVIDER_ENV = (
+    "COPILOT_PROVIDER",
+    "COPILOT_MODEL",
+    "ANTHROPIC_API_KEY",
+    "GEMINI_API_KEY",
+    "gemini-api-key",
+)
+
+
+@pytest.fixture(autouse=True)
+def _clean_provider_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in _PROVIDER_ENV:
+        monkeypatch.delenv(name, raising=False)
+
+
+def _settings(**overrides: object) -> Settings:
+    return Settings(_env_file=None, **overrides)  # type: ignore[arg-type]
+
+
 def _client(path: Path, backend: object | None) -> TestClient:
-    return TestClient(create_app(Settings(duckdb_path=path), ask_backend=backend))
+    return TestClient(create_app(_settings(duckdb_path=path), ask_backend=backend))
 
 
 def _database(path: Path) -> None:
@@ -631,7 +655,7 @@ def test_ask_live_stream_heartbeats_and_cancels_a_blocked_provider(
         heartbeat_sent = asyncio.Event()
         provider = _BlockingProvider()
         app = create_app(
-            Settings(duckdb_path=tmp_path / "missing.duckdb"),
+            _settings(duckdb_path=tmp_path / "missing.duckdb"),
             ask_backend=_ImmediateBackend(provider, lifecycle_sent),
         )
         sent: list[bytes] = []
