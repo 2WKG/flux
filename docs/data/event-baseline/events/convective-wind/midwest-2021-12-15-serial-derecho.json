@@ -84,22 +84,13 @@
       "filtered_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3",
       "bytes": 1141058232,
       "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
-      "units": {
-        "customers_out": "customers",
-        "run_start_time": "UTC"
-      },
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
       "timezone_conversion": "none; EAGLE-I documentation states UTC",
-      "filters": {
-        "county_fips": [
-          "27043"
-        ],
-        "states": [
-          "Minnesota"
-        ],
-        "window": "UTC half-open"
-      },
-      "grid_index_mapping": null,
-      "gaps": "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel.",
+      "filters": "{\"county_fips\": [\"27043\"], \"states\": [\"Minnesota\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
       "acquisition": {
         "acquisition_complete": true,
         "acquisition_method": "exhaustive_annual_stream",

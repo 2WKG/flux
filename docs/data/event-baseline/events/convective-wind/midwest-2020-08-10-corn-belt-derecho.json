@@ -70,6 +70,40 @@
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2020-42547894-20200810t150000-20200810t210000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547894",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:15:09.231827Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "filtered_sha256": "efb31bebc04eb0eece4f8bb813e1e76d265b0904d5efae8b68985b51d1a1531b",
+      "bytes": 1170699724,
+      "etag": "\"69efd86260f9814aa3990bf6d7827b82-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"19113\"], \"states\": [\"Iowa\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547894",
+        "source_file": "eaglei_outages_2020.csv",
+        "source_file_id": 42547894,
+        "source_file_bytes": 1170699724,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+        "raw_artifact_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+        "source_sidecar_sha256": "6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9",
+        "filtered_artifact_uri": "data/raw/event-baseline/midwest-2020-08-10-corn-belt-derecho-19113-20200810150000_eaglei_2020_20200810T150000_20200810T210000.csv",
+        "filtered_artifact_sha256": "efb31bebc04eb0eece4f8bb813e1e76d265b0904d5efae8b68985b51d1a1531b"
+      }
     }
   ],
   "records": [
@@ -80,7 +114,7 @@
       "scenario_id": "midwest-2020-08-10-corn-belt-derecho-replay",
       "window_start_utc": "2020-08-10T15:00:00Z",
       "window_end_utc": "2020-08-10T21:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
@@ -95,11 +129,13 @@
         "event_report": null
       },
       "outage": {
-        "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "notes": "No EAGLE-I range result is retained for this county-window; absence is not zero.",
-        "expected_samples": null,
-        "observed_samples": null,
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-2020-42547894-20200810t150000-20200810t210000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan returned all 24 expected 15-minute observations for FIPS 19113. County weather evidence remains unavailable, so this cannot be matched or accepted.",
+        "expected_samples": 24,
+        "observed_samples": 24,
         "missing_timestamps": [],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
@@ -108,7 +144,7 @@
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "UncoveredLabel",
+        "status": "unavailable",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
