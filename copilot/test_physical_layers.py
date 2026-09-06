@@ -134,7 +134,14 @@ def test_minnesota_viewport_transforms_native_esri_geometry_to_wgs84() -> None:
     }
     assert item["native_geometry"] != item["display_geometry"]
     assert body["coverage"][0]["status"] == "partial"
-    assert body["coverage"][0]["denominator_count"] == 31
+    # The map service returned 31 lines, but it publishes no authoritative
+    # in-scope denominator.  Do not promote the observed count to coverage.
+    assert body["coverage"][0]["observed_count"] == 31
+    assert body["coverage"][0]["denominator_count"] is None
+    assert body["coverage"][0]["source_scope"] == (
+        "Mille Lacs County Utilities MapServer layer 2 only; not countywide or "
+        "statewide completeness"
+    )
 
 
 def test_unavailable_geometry_is_honest_and_never_viewport_co_located() -> None:
