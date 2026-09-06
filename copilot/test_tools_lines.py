@@ -6,7 +6,7 @@ or constraint change in `pipelines/db.py` fails this suite instead of leaving a
 hand-typed shadow schema green.
 """
 
-from datetime import UTC, datetime
+from datetime import datetime
 
 import duckdb
 import pytest
@@ -91,7 +91,10 @@ def _add_ranking(
     contract = {
         "ranking_version": "v1",
         "contract_version": "1.0.0",
-        "computed_at": datetime(2026, 1, 1, tzinfo=UTC),
+        # Naive on purpose: the column is a naive TIMESTAMP, and
+        # `artifact_version = str(computed_at)` is compared across fixtures,
+        # so a tz-aware value would shift with the host timezone.
+        "computed_at": datetime(2026, 1, 1),  # noqa: DTZ001 naive TIMESTAMP column
         "simulation_run_id": run_id,
         "grid_input_sha256": SHA,
         "weather_input_sha256": None,
@@ -143,15 +146,18 @@ def _db(path, *, scenarios=("uri_2021",), source_kind="fixture"):
     con.close()
 
 
-# (line_id, score, dlr cost, simulation run, congestion method), designed so the
-# ranked order ["3", "2", "1", "4"] differs from any line_id or insertion order:
-# 3 has the best score; 1, 2 and 4 tie on score, 2 is cheaper, and 1 vs 4 tie on
-# score AND cost so only the line_id key separates them.
+# (line_id, score, dlr cost, reconductor cost, best tech, simulation run,
+# congestion method), designed so the ranked order ["3", "2", "1", "4"] differs
+# from any line_id or insertion order: 3 has the best score; 1, 2 and 4 tie on
+# score, 2 is cheaper, and 1 vs 4 tie on score AND cost so only the line_id key
+# separates them. Line 4 is a `reconductor` line whose own cost ties line 1 but
+# whose dlr cost is the cheapest of all, so the cost key must read the cost of
+# the row's best tech rather than a fixed column.
 RANKED_ROWS = {
-    1: (20.0, 1_000_000.0, None, "exact"),
-    2: (20.0, 500_000.0, "run-2", "exact"),
-    3: (30.0, 1_000_000.0, None, "twin_proxy"),
-    4: (20.0, 1_000_000.0, None, "fuzzy"),
+    1: (20.0, 1_000_000.0, 2_000_000.0, "dlr", None, "exact"),
+    2: (20.0, 500_000.0, 2_000_000.0, "dlr", "run-2", "exact"),
+    3: (30.0, 1_000_000.0, 2_000_000.0, "dlr", None, "twin_proxy"),
+    4: (20.0, 1.0, 1_000_000.0, "reconductor", None, "fuzzy"),
 }
 RANKED_ORDER = ["3", "2", "1", "4"]
 
@@ -160,10 +166,19 @@ def _ranked_db(path, insertion_order):
     con = connect(path)
     _seed_buses(con)
     for line_id in insertion_order:
-        score, dlr_cost, run_id, method = RANKED_ROWS[line_id]
+        score, dlr_cost, reconductor_cost, best_tech, run_id, method = RANKED_ROWS[
+            line_id
+        ]
         _add_line(con, line_id)
         _add_ranking(
-            con, line_id, score=score, dlr_cost=dlr_cost, run_id=run_id, method=method
+            con,
+            line_id,
+            score=score,
+            dlr_cost=dlr_cost,
+            reconductor_cost=reconductor_cost,
+            best_tech=best_tech,
+            run_id=run_id,
+            method=method,
         )
     con.close()
 
@@ -243,6 +258,12 @@ def test_ranking_orders_by_score_then_cost_then_line_id_and_truncates(tmp_path):
     result = TopLinesReader(path).top_lines("ERCOT", "any", 10)
     assert result.status == "available"
     assert [line.line_id for line in result.lines] == RANKED_ORDER
+    assert [line.intervention_type for line in result.lines] == [
+        "dlr",
+        "dlr",
+        "dlr",
+        "reconductor",
+    ]
     assert [line.source_class for line in result.lines] == [
         "proxy",
         "simulated",
@@ -278,13 +299,17 @@ def test_rows_are_scoped_to_the_selected_scenario_partition(tmp_path):
     path = tmp_path / "grid.duckdb"
     con = connect(path)
     _seed_buses(con)
-    for line_id in (1, 2, 3):
+    for line_id in (1, 2, 3, 4):
         _add_line(con, line_id)
     _add_ranking(con, 1, scenario="uri_2021", score=20.0)
     _add_ranking(con, 2, scenario="uri_2021", score=19.0)
     # A second same-region scenario with no score is not a ranking partition, so
     # `uri_2021` stays unambiguous; its rows must not leak into the ranking.
     _add_ranking(con, 3, scenario="beryl_2024", score=None)
+    # The same scenario_id in another region (scenarios carry no region) with a
+    # score that would rank first: the rows query must filter by region too, not
+    # rely on the partition query alone.
+    _add_ranking(con, 4, scenario="uri_2021", region="PJM", score=99.0)
     con.close()
     result = TopLinesReader(path).top_lines("ERCOT", "any", 10)
     assert result.status == "available"
