@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import base64
 import gzip
+import hashlib
 import json
 from functools import lru_cache
 from pathlib import Path
@@ -21,6 +22,7 @@ from shapely.geometry import box, shape
 from shapely.ops import transform as transform_geometry
 
 from copilot.api import InvalidInputError, NotFoundError, UnavailableError
+from pipelines.physical_inventory import artifact_sha256
 
 router = APIRouter(prefix="/api/v1/grid/layers", tags=["physical-layers"])
 MAX_LIMIT = 100
@@ -47,6 +49,31 @@ def _read_release(path_text: str) -> dict[str, Any]:
         raise _unavailable("unreadable_release") from exc
     if not isinstance(release, dict) or not isinstance(release.get("assets"), list):
         raise _unavailable("invalid_release")
+    return release
+
+
+def _verified_release(root: Path, state: str, version: str) -> dict[str, Any]:
+    """Read a release only when both published digests agree with its manifest."""
+    path = _artifact_path(root, state, version)
+    manifest_path = root / f"manifest-{version}.json"
+    if not path.is_file() or not manifest_path.is_file():
+        raise _unavailable("release_not_found", state=state, version=version)
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entry = next(item for item in manifest["artifacts"] if item["state"] == state)
+        compressed_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
+    except (OSError, KeyError, StopIteration, TypeError, json.JSONDecodeError) as exc:
+        raise _unavailable("invalid_manifest", state=state, version=version) from exc
+    release = _read_release(str(path))
+    if (
+        not str(entry.get("published_path", "")).endswith(
+            f"/{state}/physical-inventory-{version}.json.gz"
+        )
+        or entry.get("compressed_sha256") != compressed_sha256
+        or entry.get("canonical_content_sha256") != release.get("content_sha256")
+        or artifact_sha256(release) != release.get("content_sha256")
+    ):
+        raise _unavailable("release_hash_mismatch", state=state, version=version)
     return release
 
 
@@ -165,10 +192,7 @@ def get_physical_layer(
     """Return a deterministic page of source-backed physical assets."""
     viewport = _parse_bbox(bbox)
     settings = request.app.state.settings
-    path = _artifact_path(settings.physical_inventory_root, state, version)
-    if not path.is_file():
-        raise _unavailable("release_not_found", state=state, version=version)
-    release = _read_release(str(path))
+    release = _verified_release(settings.physical_inventory_root, state, version)
     if (
         release.get("geography_id") != state
         or release.get("artifact_version") != version
