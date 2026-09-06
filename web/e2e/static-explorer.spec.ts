@@ -173,6 +173,7 @@ test("the explainer deep-links and navigation retain URL state without a documen
 
   await page.goto("/explainer?scenario=uri_2021&h=3#method");
   await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /The grid is a graph/i })).toBeVisible();
   await expect(page).toHaveTitle("Flux | How the math works");
   await expect(page.getByRole("link", { name: "How the math works" })).toHaveAttribute("aria-current", "page");
   await expect(page.locator("main")).toHaveAttribute("data-source-status", "unavailable");

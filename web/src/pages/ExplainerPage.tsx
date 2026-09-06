@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 
+import { GnnSection } from "../explainer/gnn";
 import { FailureState } from "../failure-states/FailureState";
 import { STATUS_COPY } from "../source-truth";
 import { runToyCascade, TOY_BUSES, TOY_LINES, type CascadeStage, type SolvedLine } from "./toyCascade";
@@ -43,10 +44,11 @@ export function ExplainerPage() {
   const [stageIndex, setStageIndex] = useState(0);
   if (result.error) return <main><FailureState state={{ kind: "failed", code: "toy_cascade_failed", message: result.error.message }} /></main>;
   const stage = result.stages[stageIndex];
-  return <main data-source-status="synthetic"><header className="shell-intro"><p className="eyebrow">{STATUS_COPY.synthetic.toUpperCase()} / LOW-COMPLEXITY DC CASCADE</p><h1>Follow a five-bus cascade, one equation at a time.</h1><p>This small teaching network is deliberately synthetic. It recreates the chain a DC screening model follows—balance injections, solve line flows, compare a rating, trip an overload, and solve again—without claiming to describe a real grid.</p></header>
+  return <main data-source-status="unavailable"><header className="shell-intro"><p className="eyebrow">{STATUS_COPY.synthetic.toUpperCase()} / LOW-COMPLEXITY DC CASCADE</p><h1>How the math works: follow a five-bus cascade, one equation at a time.</h1><p>This small teaching network is deliberately synthetic. It recreates the chain a DC screening model follows—balance injections, solve line flows, compare a rating, trip an overload, and solve again—without claiming to describe a real grid.</p></header>
     <section className="method" aria-label="Method status">{METHOD.map(([title, body]) => <article key={title} className="method-entry"><h2>{title}</h2><p>{body}</p></article>)}</section>
     <section className="pipeline" aria-label="Cascade controls"><div><p className="eyebrow">STEP THROUGH THE TOY CASCADE</p><h2>{stage.title}</h2><p>Choose a stage to inspect the recalculated bus balances and every active line’s arithmetic.</p></div><div role="group" aria-label="Cascade stage"><button type="button" onClick={() => setStageIndex(Math.max(0, stageIndex - 1))} disabled={stageIndex === 0}>Previous</button>{" "}<button type="button" onClick={() => setStageIndex(Math.min(result.stages.length - 1, stageIndex + 1))} disabled={stageIndex === result.stages.length - 1}>Next</button><p aria-live="polite">Stage {stageIndex + 1} of {result.stages.length}</p></div></section>
     <NetworkDiagram stage={stage} /><Arithmetic stage={stage} />
+    <GnnSection />
     <section className="pipeline" aria-label="Simplifications"><div><p className="eyebrow">WHAT THIS LEAVES OUT</p><h2>A DC screening lesson, not an operational grid model.</h2></div><ul><li>No reactive power or voltage constraints.</li><li>No dynamics, stability, or restoration timeline.</li><li>No protection settings or relay behavior; the toy rule trips one most-overloaded line.</li><li>Islands balance through proportional load shedding or generation curtailment.</li><li>All topology, ratings, and injections here are synthetic teaching inputs.</li></ul></section>
   </main>;
 }
