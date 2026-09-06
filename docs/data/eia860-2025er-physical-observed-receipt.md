@@ -4,6 +4,9 @@
 records the official EIA archive URL, retrieval checksum, source scope, and the
 counts produced by `pipelines.eia860_physical` on 2026-09-06.
 
+The versioned artifacts, compressed source-intake sidecars, and checked hashes
+are listed in [`acceptance_receipts/eia860-2025er-physical-inventory.json`](acceptance_receipts/eia860-2025er-physical-inventory.json).
+
 | State | Schedule 2 plant rows | Schedule 3.1 generator rows | Schedule 3.4 storage rows | Invalid/out-of-range plant points |
 | --- | ---: | ---: | ---: | ---: |
 | Texas | 1,514 | 3,393 | 460 | 1 |
