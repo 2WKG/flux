@@ -23,6 +23,8 @@
  * transforms what the server sent and invents nothing.
  */
 
+import type { AssetStatus } from "../labels.js";
+
 /** The CRS the layer contract declares; anything else is refused, not reprojected. */
 export const REQUIRED_CRS = "EPSG:4326";
 
@@ -52,6 +54,19 @@ export const STATUS_LABELS = [
 ] as const;
 
 export type StatusLabel = (typeof STATUS_LABELS)[number];
+
+type AssertTrue<T extends true> = T;
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * The JSON slot vocabulary above and the browser's UI status vocabulary
+ * (`src/labels.ts`) are two lists with two owners that must coincide: the 3D
+ * contract's `MAT_STATUS` slot binds exactly the UI set
+ * (`docs/design/minnesota-gate-0-approval.md:51-66`). They are deliberately not
+ * merged -- this one mirrors a server-side JSON artifact -- so this assertion
+ * makes a drift a `tsc --noEmit` failure instead of a runtime tint bug.
+ */
+type _StatusLabelsMatchUiVocabulary = AssertTrue<Equals<StatusLabel, AssetStatus>>;
 
 /**
  * `mn_score_results.regulatory_label` values the server binding admits as

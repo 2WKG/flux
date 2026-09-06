@@ -12,7 +12,10 @@ process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true 
 // that shim is POSIX-only, so spawning it fails with ENOENT on a Windows checkout.
 execFileSync(
   process.execPath,
-  ["./node_modules/typescript/bin/tsc", "src/scene/minnesota-adapter.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
+  // `--rootDir src` pins the emitted layout, the way src/navigation/search.test.mjs
+  // already does: the adapter now names the shared vocabulary (src/labels.ts), so
+  // tsc would otherwise re-root the output on whatever the common directory is.
+  ["./node_modules/typescript/bin/tsc", "src/scene/minnesota-adapter.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--rootDir", "src", "--outDir", outputDirectory],
   { cwd: new URL("../..", import.meta.url), stdio: "inherit" },
 );
 const {
@@ -23,7 +26,7 @@ const {
   adaptBoundPlacement,
   adaptLayerToScene,
   allowsTopologyRendering,
-} = await import(pathToFileURL(join(outputDirectory, "minnesota-adapter.js")).href);
+} = await import(pathToFileURL(join(outputDirectory, "scene", "minnesota-adapter.js")).href);
 
 /**
  * Shaped exactly like copilot/routes/layers.py builds a bare GeoJSON layer,

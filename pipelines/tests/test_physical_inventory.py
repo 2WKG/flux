@@ -288,3 +288,15 @@ def test_rolls_back_a_partially_written_artifact() -> None:
         con.execute("SELECT count(*) FROM physical_inventory_sources").fetchone()[0]
         == 0
     )
+
+
+def test_rejects_source_geometry_that_claims_a_derivation_method() -> None:
+    """`source` status means the source supplied the geometry, not a transform."""
+    artifact = _artifact()
+    artifact["assets"][0]["geometry_status"] = "source"
+    artifact["assets"][0]["geometry_derivation_method"] = "snapped to a county centroid"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    with pytest.raises(
+        PhysicalInventoryError, match="must not claim a derivation method"
+    ):
+        validate_artifact(artifact)
