@@ -7,6 +7,9 @@ web/node_modules/
 web/dist/
 web/test-results/
 web/playwright-report/
+# Local 3D asset deliveries; the contract forbids committing binaries
+build/
+web/dist-harness/
 __pycache__/
 *.pyc
 .env
