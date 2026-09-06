@@ -31,6 +31,7 @@ _ARTIFACT_SCHEMA_PATH = (
     / "docs"
     / "causal-evidence-artifact.schema.json"
 )
+_default_reader: CausalArtifactReader | None = None
 
 
 @dataclass(frozen=True)
@@ -110,6 +111,41 @@ class CausalArtifactReader:
         if not validation.estimable:
             return _unavailable_for_validation(validation)
         return _available_response(artifact, registration)
+
+
+def configure_causal_artifacts(
+    registrations: tuple[RegisteredCausalArtifact, ...],
+) -> None:
+    """Install deployment-owned causal artifact bindings for the tool process."""
+
+    global _default_reader
+    _default_reader = CausalArtifactReader(registrations)
+
+
+def causal_query(
+    kind: str,
+    county_fips: str | None = None,
+    scenario_id: str = "uri_2021",
+    site_id: str | None = None,
+    capacity_mw: int | None = None,
+    treatment: str | None = None,
+) -> CausalData | UnavailableOutput:
+    """Run the frozen causal-query signature as a bounded artifact lookup."""
+
+    if _default_reader is None:
+        return unavailable_output(
+            "artifact_unavailable", "Causal artifact bindings are unavailable."
+        )
+    return _default_reader.query(
+        {
+            "kind": kind,
+            "county_fips": county_fips,
+            "scenario_id": scenario_id,
+            "site_id": site_id,
+            "capacity_mw": capacity_mw,
+            "treatment": treatment,
+        }
+    )
 
 
 def _load_schema() -> dict[str, Any]:
