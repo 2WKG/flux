@@ -23,14 +23,18 @@ await build({
 });
 const room = await import(compiled.href);
 
-test("the route shell is aggregate-only and names the missing server contract", () => {
+test("the route shell is aggregate-only and reserves feature inspection as unavailable", () => {
   const markup = room.render({ search: "", location: { pathname: "/minnesota", hash: "" } });
   assert.match(markup, /data-scene-mode="aggregate"/);
   assert.match(markup, /Minnesota aggregate baseline/);
   assert.match(markup, /mn:aggregate:manifest:v1/);
-  assert.match(markup, /No server read contract currently supplies a Minnesota aggregate result/);
-  assert.match(markup, /Compare baseline/);
+  assert.match(markup, /Loading/);
+  assert.match(markup, /Reload accepted aggregate record/);
   assert.match(markup, /Inspect feature unavailable/);
+  assert.match(markup, /data-placement-count="0"/);
+  for (const id of ["battery_storage", "warehouse_logistics_center", "school_emergency_services", "ev_charging_station"]) {
+    assert.match(markup, new RegExp(id));
+  }
   assert.doesNotMatch(markup, /synthetic five-bus|ACTIVSg2000/i);
 });
 
