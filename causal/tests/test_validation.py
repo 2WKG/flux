@@ -47,7 +47,7 @@ def _study() -> dict:
         "assumptions": ["conditional exchangeability"],
         "diagnostics": [{"name": "balance", "status": "pass", "evidence": "recorded"}],
         "availability": {"status": "available"},
-        "estimate": {"estimand": "ATE", "method": "difference in differences"},
+        "estimate": {"estimand": "ATE", "method": "twfe_only"},
     }
 
 
@@ -99,3 +99,21 @@ def test_minimally_valid_artifact_requires_explicit_method_and_passing_diagnosti
     result = validate_artifact(study)
     assert not result.estimable
     assert result.unavailable_codes == (MISSING_IDENTIFICATION,)
+
+
+def test_unsupported_method_and_malformed_availability_fail_closed() -> None:
+    study = _study()
+    study["estimate"]["method"] = "not_a_supported_method"
+
+    assert validate_artifact(study).unavailable_codes == (MISSING_IDENTIFICATION,)
+
+    study = _study()
+    study["availability"] = None
+    assert validate_artifact(study).unavailable_codes == (MISSING_IDENTIFICATION,)
+
+
+def test_incoherent_sample_counts_fail_closed() -> None:
+    study = _study()
+    study["sample"].update(n_total=0, n_treated=1, n_control=1)
+
+    assert validate_artifact(study).unavailable_codes == (MISSING_DATA_COVERAGE,)

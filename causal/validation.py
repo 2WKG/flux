@@ -28,6 +28,10 @@ INSUFFICIENCY_CODES = (
     MISSING_DIAGNOSTICS,
 )
 
+SUPPORTED_ESTIMATION_METHODS = frozenset(
+    {"backdoor.econml.dml.LinearDML", "twfe_only"}
+)
+
 
 @dataclass(frozen=True)
 class PrerequisiteDiagnostic:
@@ -127,7 +131,7 @@ def validate_artifact(artifact: Mapping[str, Any]) -> ValidationResult:
             )
         )
 
-    if artifact.get("availability", {}).get("status") != "available" and not diagnostics:
+    if _mapping(artifact.get("availability")).get("status") != "available" and not diagnostics:
         diagnostics.append(
             PrerequisiteDiagnostic(
                 MISSING_IDENTIFICATION,
@@ -187,6 +191,8 @@ def _has_covered_data(
         _nonempty(sample.get("unit"))
         and _nonempty(sample.get("period"))
         and all(isinstance(sample.get(field), int) and sample[field] >= 0 for field in ("n_total", "n_treated", "n_control"))
+        and sample.get("n_total", 0) > 0
+        and sample.get("n_treated", 0) + sample.get("n_control", 0) <= sample.get("n_total", 0)
     )
     source_complete = bool(source_ids) and all(
         _nonempty(source.get(field))
@@ -216,4 +222,7 @@ def _diagnostics_pass(artifact: Mapping[str, Any]) -> bool:
 
 
 def _explicit_method(estimate: Mapping[str, Any]) -> bool:
-    return _nonempty(estimate.get("method")) and _nonempty(estimate.get("estimand"))
+    return (
+        estimate.get("method") in SUPPORTED_ESTIMATION_METHODS
+        and _nonempty(estimate.get("estimand"))
+    )
