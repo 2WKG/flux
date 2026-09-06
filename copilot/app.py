@@ -21,9 +21,11 @@ from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
+from copilot.routes.comparisons import router as comparisons_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
+from copilot.routes.lines import router as lines_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
 
@@ -66,6 +68,8 @@ def create_app(
     app.include_router(health_router)
     app.include_router(layers_router)
     app.include_router(interventions_router)
+    app.include_router(lines_router)
+    app.include_router(comparisons_router)
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
