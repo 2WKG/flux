@@ -39,7 +39,9 @@ def _fixture(con: duckdb.DuckDBPyConnection) -> None:
     # Inserted worst-first on purpose: without `list_sort` the aggregate keeps
     # insertion order and the assertion below flips.
     con.execute(
-        "INSERT INTO gens VALUES (1, 'wind', 10), (1, 'gas', 20), (3, 'solar', 30)"
+        "INSERT INTO gens VALUES (1, 'wind', 10), (1, 'gas', 20), (1, 'solar', 0),"
+        " (1, 'nuclear', 0), (1, 'coal', 0), (1, 'hydro', 0), (1, 'oil', 0),"
+        " (1, 'biomass', 0), (3, 'solar', 30)"
     )
     con.execute("INSERT INTO loads VALUES (1, 5), (2, 8), (3, 0)")
     con.execute(
@@ -66,8 +68,19 @@ def test_node_annotations_are_deterministic_and_do_not_hide_both_roles() -> None
     assert {node.role for node in annotations} <= set(NODE_ROLES)
     both = annotations[0]
     assert both.generation_capacity_mw == 30
-    # `wind` was inserted before `gas`; only `list_sort` makes this order true.
-    assert both.fuel_mix == ("gas", "wind")
+    # `list(DISTINCT fuel)` returns these eight in hash order
+    # (solar, nuclear, biomass, coal, hydro, oil, gas, wind); only `list_sort`
+    # makes the alphabetical order below true.
+    assert both.fuel_mix == (
+        "biomass",
+        "coal",
+        "gas",
+        "hydro",
+        "nuclear",
+        "oil",
+        "solar",
+        "wind",
+    )
     assert both.nominal_draw_mw == 5
     assert both.county_name == "Travis"
     assert both.field_provenance["role"] == "derived"
