@@ -110,7 +110,7 @@ test("each page is its own chunk: the entry carries neither, and no chunk carrie
   const scenarioMarker = fixture.fixtureHash;
   // 2WKG-482 replaces the old placeholder with the actual five-bus cascade.
   // Keep the split-chunk assertion tied to content users can now reach.
-  const explainerMarker = "Follow a five-bus cascade, one equation at a time.";
+  const explainerMarker = "How the math works: follow a five-bus cascade, one equation at a time.";
 
   const chunks = new Map();
   for (const name of names) chunks.set(name, await readFile(new URL(name, assets), "utf8"));

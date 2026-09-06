@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { builtScriptNames } from "../../test/built-assets.mjs";
 
-const marker = "Follow a five-bus cascade, one equation at a time.";
+const marker = "How the math works: follow a five-bus cascade, one equation at a time.";
 const forbiddenImports = /(?:from\s*|import\s*\()["'](?:deck\.gl|@deck\.gl\/|maplibre-gl|react-map-gl)/;
 
 test("the explainer teaching module has no 3D-rendering import and remains a lazy chunk", async () => {
