@@ -46,7 +46,12 @@ def create_app(
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
-        expose_headers=[REQUEST_ID_HEADER, API_VERSION_HEADER, ARTIFACT_HEADER],
+        expose_headers=[
+            REQUEST_ID_HEADER,
+            API_VERSION_HEADER,
+            ARTIFACT_HEADER,
+            "X-Flux-Attempt-Id",
+        ],
     )
 
     @app.exception_handler(StarletteHTTPException)
