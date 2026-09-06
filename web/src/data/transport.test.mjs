@@ -10,8 +10,8 @@ import { pathToFileURL } from "node:url";
 const outputDirectory = mkdtempSync(join(tmpdir(), "flux-transport-"));
 process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true }));
 execFileSync(
-  "./node_modules/.bin/tsc",
-  ["src/data/transport.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
+  process.execPath,
+  ["./node_modules/typescript/bin/tsc", "src/data/transport.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
   { cwd: new URL("../..", import.meta.url), stdio: "inherit" },
 );
 const { DEFAULT_SSE_IDLE_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, RequestTimeoutError, ResponseSizeError, fetchWithPolicy } = await import(
