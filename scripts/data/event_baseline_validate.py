@@ -65,10 +65,10 @@ def _window(window: Any, where: str) -> tuple[datetime, datetime]:
     return start, end
 
 
-def _validate_receipts(receipts: Any, where: str) -> set[str]:
+def _validate_receipts(receipts: Any, where: str) -> dict[str, dict[str, Any]]:
     if not isinstance(receipts, list) or not receipts:
         raise ValidationError(f"{where}: source_receipts must be a non-empty list")
-    known: set[str] = set()
+    known: dict[str, dict[str, Any]] = {}
     for index, receipt in enumerate(receipts):
         prefix = f"{where}[{index}]"
         if not isinstance(receipt, dict):
@@ -78,7 +78,7 @@ def _validate_receipts(receipts: Any, where: str) -> set[str]:
         )
         if receipt_id in known:
             raise ValidationError(f"{prefix}: duplicate receipt_id {receipt_id}")
-        known.add(receipt_id)
+        known[receipt_id] = receipt
         for field in (
             "provider",
             "url",
@@ -105,6 +105,42 @@ def _validate_receipts(receipts: Any, where: str) -> set[str]:
         for field in ("release", "bytes", "etag"):
             _require(receipt, field, prefix)
     return known
+
+
+def _validate_eaglei_acquisition(receipt: dict[str, Any], where: str) -> None:
+    acquisition = receipt.get("acquisition")
+    required = (
+        "acquisition_complete",
+        "acquisition_method",
+        "source_system_id",
+        "source_file",
+        "source_file_id",
+        "source_file_bytes",
+        "integrity_basis",
+        "raw_artifact_uri",
+        "raw_artifact_sha256",
+        "source_sidecar_uri",
+        "source_sidecar_sha256",
+        "filtered_artifact_uri",
+        "filtered_artifact_sha256",
+    )
+    if (
+        not isinstance(acquisition, dict)
+        or acquisition.get("acquisition_complete") is not True
+    ):
+        raise ValidationError(
+            f"{where}: definitive EAGLE-I evidence requires complete acquisition proof"
+        )
+    for field in required:
+        if field not in acquisition or acquisition[field] in {None, ""}:
+            raise ValidationError(f"{where}.acquisition: missing {field}")
+    for field in (
+        "raw_artifact_sha256",
+        "source_sidecar_sha256",
+        "filtered_artifact_sha256",
+    ):
+        if not re.fullmatch(r"[0-9a-f]{64}", acquisition[field]):
+            raise ValidationError(f"{where}.acquisition.{field}: expected SHA-256")
 
 
 def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
@@ -290,9 +326,10 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
         raise ValidationError(
             f"{source}.event: windows must nest context → event → recovery"
         )
-    known_receipts = _validate_receipts(
+    receipt_map = _validate_receipts(
         _require(bundle, "source_receipts", source), f"{source}.source_receipts"
     )
+    known_receipts = set(receipt_map)
     records = _require(bundle, "records", source)
     if not isinstance(records, list) or not records:
         raise ValidationError(f"{source}.records: expected non-empty list")
@@ -542,6 +579,16 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
             raise ValidationError(
                 f"{prefix}: UncoveredLabel may not masquerade as accepted"
             )
+        if outage_state in {"covered", "UncoveredLabel"}:
+            for receipt_id in record["outage"]["source_receipt_ids"]:
+                receipt = receipt_map[receipt_id]
+                if (
+                    "eagle-i" in receipt["provider"].casefold()
+                    or "eaglei" in receipt["url"].casefold()
+                ):
+                    _validate_eaglei_acquisition(
+                        receipt, f"{prefix}.outage[{receipt_id}]"
+                    )
         _validate_label(record["label"], outage_state, f"{prefix}.label")
         _validate_forecast(
             record["forecast"], record["mode"], known_receipts, f"{prefix}.forecast"

@@ -96,6 +96,13 @@ conversion, filters, and grid-index mapping. Record unavailable fields as
 `null` with an explanatory gap rather than inventing them. Accepted rows cite
 their receipts through `provenance_receipt_ids`.
 
+For an EAGLE-I receipt used to assert definitive outage coverage or an
+`UncoveredLabel`, add `acquisition`: complete annual-stream method, source
+system/file IDs and catalog bytes, integrity basis, and approved-storage URIs
+plus SHA-256 values for raw source, source sidecar, and filtered artifact.
+This is optional for ordinary/candidate receipts but required for decisive
+EAGLE-I claims; raw bytes remain outside Git.
+
 Each county-window also retains `source_row_keys`: stable keys for the exact
 source rows used (for example provider, release, county FIPS, and timestamp),
 and `source_slices`: receipt ID plus county/time slice. These are evidence
