@@ -111,6 +111,20 @@ def _is_template_id(value: str) -> bool:
     )
 
 
+def _bound_parameters(value: object) -> list[str | int | float | bool | None] | None:
+    """Return only the finite, bounded scalar list the public model accepts."""
+
+    if not isinstance(value, list) or len(value) > 25:
+        return None
+    for parameter in value:
+        if parameter is None or isinstance(parameter, (str, bool, int)):
+            continue
+        if isinstance(parameter, float) and math.isfinite(parameter):
+            continue
+        return None
+    return value
+
+
 def _positional_placeholder_count(query: str) -> int:
     """Count only ``?`` tokens outside SQL literals and comments.
 
@@ -471,6 +485,12 @@ class MinnesotaSqlExecutor:
                 "unsupported_request",
                 "SQL accepts exactly one of query or template_id",
             )
+        parameters = _bound_parameters(getattr(payload, "parameters", None))
+        if parameters is None:
+            return self._unavailable(
+                "unsupported_request",
+                "SQL parameters must be bounded finite JSON scalars",
+            )
         if self._queries:
             if payload.template_id is None:
                 return self._unavailable(
@@ -482,7 +502,6 @@ class MinnesotaSqlExecutor:
                     "unsupported_request", "SQL template is not registered"
                 )
             query = template.sql
-            parameters = payload.parameters
             if len(parameters) != template.parameter_count:
                 return self._unavailable(
                     "unsupported_request", "SQL template parameter count does not match"
@@ -495,7 +514,6 @@ class MinnesotaSqlExecutor:
         else:
             assert payload.query is not None
             query = payload.query
-            parameters = payload.parameters
             if parameters:
                 return self._unavailable(
                     "unsupported_request",

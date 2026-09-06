@@ -263,6 +263,30 @@ def test_parameters_are_bounded_finite_json_scalars(parameters: object) -> None:
         SqlInput(template_id="summary_by_id", parameters=parameters)
 
 
+@pytest.mark.parametrize(
+    "parameters",
+    [None, [float("nan")], [["nested"]], [{"named": "value"}], list(range(26))],
+)
+def test_bypassed_parameter_validation_still_fails_before_a_connection(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch, parameters: object
+) -> None:
+    calls = _forbid_connect(monkeypatch)
+    bypassed = SqlInput.model_construct(
+        query=None, template_id="summary_by_id", parameters=parameters
+    )
+
+    result = asyncio.run(
+        MinnesotaSqlExecutor(db_path, [_view()], [_parameterized_template()]).execute(
+            bypassed
+        )
+    )
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.code == "unsupported_request"
+    assert calls == []
+
+
 def test_legacy_mode_names_the_missing_registry_instead_of_dropping_template_id(
     db_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
