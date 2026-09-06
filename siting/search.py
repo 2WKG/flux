@@ -77,29 +77,33 @@ def search_locations(
     if (
         policy.feasibility is None
         and _find_callable(net, "placement_feasibility", "feasibility") is None
-        and _import_callable("twin.feasibility", "evaluate_feasibility")
-        is None
+        and (
+            _import_callable("twin.feasibility", "evaluate_feasibility") is None
+            or _get(net, "bus", default=None) is None
+        )
     ):
         raise SearchUnavailable("placement feasibility policy is unavailable")
     candidates = _candidate_rows(net, kind, policy)
     if not candidates:
         return []
 
-    baseline_peak = _cascade(net, scenario_id, hour, tuple(edits), policy)
-    baseline_redundancy: object | None = (
-        _baseline_redundancy(
-            net, candidates, kind, unit_mw, scenario_id, hour, tuple(edits), policy
-        )
-        if kind == "producer"
-        else None
-    )
-
-    preliminary: list[dict[str, object]] = []
+    # Placement and corridor screens run before either the shared baseline or
+    # a candidate counterfactual.  This keeps rejected candidates out of the
+    # comparison population and avoids spending a cascade on an invalid edit.
+    eligible: list[dict[str, object]] = []
     for candidate in candidates:
         edit = _candidate_edit(candidate, kind, unit_mw, policy)
         candidate_edits = (*edits, edit)
         feasibility = _feasibility(
-            net, candidate, edit, kind, unit_mw, scenario_id, hour, candidate_edits, policy
+            net,
+            candidate,
+            edit,
+            kind,
+            unit_mw,
+            scenario_id,
+            hour,
+            candidate_edits,
+            policy,
         )
         if not _feasible(feasibility):
             continue
@@ -109,8 +113,6 @@ def search_locations(
             balance = _balance(
                 net, candidate, unit_mw, scenario_id, hour, candidate_edits, policy
             )
-            # Missing or ambiguous corridor evidence is a rejection, not a
-            # guessed safe path.
             if not _passed(
                 balance,
                 "p4_passed",
@@ -119,7 +121,43 @@ def search_locations(
                 "corridor_ok",
             ):
                 continue
+        eligible.append(
+            {
+                "candidate": candidate,
+                "edit": edit,
+                "edits": candidate_edits,
+                "feasibility": feasibility,
+                "balance": balance,
+            }
+        )
+    if not eligible:
+        return []
 
+    eligible_candidates = [
+        _as_mapping(row["candidate"])
+        for row in eligible
+    ]
+    baseline_peak = _cascade(net, scenario_id, hour, tuple(edits), policy)
+    baseline_redundancy: object | None = (
+        _baseline_redundancy(
+            net,
+            eligible_candidates,
+            kind,
+            unit_mw,
+            scenario_id,
+            hour,
+            tuple(edits),
+            policy,
+        )
+        if kind == "producer"
+        else None
+    )
+
+    preliminary: list[dict[str, object]] = []
+    for row in eligible:
+        candidate = _as_mapping(row["candidate"])
+        candidate_edits = row["edits"]
+        assert isinstance(candidate_edits, tuple)
         counterfactual = _cascade(net, scenario_id, hour, candidate_edits, policy)
         redundancy = _redundancy(
             net, candidate, kind, unit_mw, scenario_id, hour, candidate_edits, policy
@@ -132,17 +170,9 @@ def search_locations(
             redundancy,
             balance,
         )
-        preliminary.append(
-            {
-                "candidate": candidate,
-                "edit": edit,
-                "edits": candidate_edits,
-                "feasibility": feasibility,
-                "balance": balance,
-                "peak_counterfactual": counterfactual,
-                "peak_components": components,
-            }
-        )
+        row["peak_counterfactual"] = counterfactual
+        row["peak_components"] = components
+        preliminary.append(row)
 
     if not preliminary:
         return []
@@ -157,7 +187,14 @@ def search_locations(
     baseline_full = _cascade(net, scenario_id, None, tuple(edits), policy)
     baseline_full_redundancy: object | None = (
         _baseline_redundancy(
-            net, candidates, kind, unit_mw, scenario_id, None, tuple(edits), policy
+            net,
+            eligible_candidates,
+            kind,
+            unit_mw,
+            scenario_id,
+            None,
+            tuple(edits),
+            policy,
         )
         if kind == "producer"
         else None
