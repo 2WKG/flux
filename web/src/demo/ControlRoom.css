@@ -25,8 +25,9 @@
 .control-room__section-heading { justify-content: space-between; align-items: start; }
 .control-room__section-heading select { color: #d8ecff; background: #10263d; border: 1px solid #426482; border-radius: 7px; padding: .35rem; }
 .control-room__description { margin-top: .5rem; color: #b6c6d7; }
-.control-room__timeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(5.3rem, 1fr)); gap: .4rem; margin: 1rem 0; }
-.control-room__timeline button { display: grid; gap: .25rem; color: #c8daed; background: #0b1a2b; border: 1px solid #203f5c; border-radius: 9px; padding: .5rem; text-align: center; }
+.control-room__timeline { display: flex; gap: .4rem; margin: 1rem 0; overflow-x: auto; padding-bottom: .35rem; }
+.control-room__timeline button { display: grid; flex: 0 0 5.3rem; gap: .25rem; color: #c8daed; background: #0b1a2b; border: 1px solid #203f5c; border-radius: 9px; padding: .5rem; text-align: center; }
+.control-room__timeline-more { flex: 0 0 14rem; margin: 0; color: #aebfd3; font-size: .75rem; }
 .control-room__timeline button.is-selected { outline: 2px solid #77d7ff; background: #153b5d; }
 .control-room__timeline span { color: #8bdcff; font-size: 1.5rem; line-height: 1; }
 .control-room__timeline time, .control-room__timeline small { font-size: .7rem; color: #aebfd3; }

@@ -117,9 +117,10 @@ function statusCopy(availability: DemoAvailability): string {
 }
 
 function Evidence({ notes, limitations }: { notes?: readonly ProvenanceNote[]; limitations?: readonly string[] }) {
-  if ((!notes || notes.length === 0) && (!limitations || limitations.length === 0)) return null;
+  const meaningfulNotes = notes?.filter((note) => note.label.trim() !== "" || (note.detail?.trim() ?? "") !== "") ?? [];
+  if (meaningfulNotes.length === 0 && (!limitations || limitations.length === 0)) return null;
   return <div className="control-room__evidence">
-    {notes && notes.length > 0 ? <p><strong>Source:</strong> {notes.map((note) => note.detail ? `${note.label} — ${note.detail}` : note.label).join(" · ")}</p> : null}
+    {meaningfulNotes.length > 0 ? <p><strong>Source:</strong> {meaningfulNotes.map((note) => note.detail ? `${note.label} — ${note.detail}` : note.label).join(" · ")}</p> : null}
     {limitations && limitations.length > 0 ? <p><strong>Limit:</strong> {limitations.join(" ")}</p> : null}
   </div>;
 }
@@ -157,6 +158,7 @@ export function ControlRoom({
   const region = regions.find((item) => item.id === selectedRegionId) ?? regions[0];
   const scenario = scenarios.find((item) => item.id === selectedScenarioId) ?? scenarios[0];
   const [selectedWeatherId, setSelectedWeatherId] = useState<string | undefined>(scenario?.weather[0]?.id);
+  const [weatherWindowStart, setWeatherWindowStart] = useState(0);
   const [eventIndex, setEventIndex] = useState(0);
   const [selectedPromptId, setSelectedPromptId] = useState<string | undefined>();
   const weather = scenario?.weather.find((frame) => frame.id === selectedWeatherId) ?? scenario?.weather[0];
@@ -174,6 +176,7 @@ export function ControlRoom({
   const selectScenario = (scenarioId: string) => {
     const next = scenarios.find((item) => item.id === scenarioId);
     setSelectedWeatherId(next?.weather[0]?.id);
+    setWeatherWindowStart(0);
     setEventIndex(0);
     onScenarioChange?.(scenarioId);
   };
@@ -215,9 +218,10 @@ export function ControlRoom({
         </div>
         <p className="control-room__description">{scenario.description}</p>
         <div className="control-room__timeline" role="list" aria-label="Weather timeline">
-          {scenario.weather.map((frame) => <button key={frame.id} type="button" role="listitem" className={frame.id === weather?.id ? "is-selected" : ""} aria-pressed={frame.id === weather?.id} onClick={() => setSelectedWeatherId(frame.id)}>
+          {scenario.weather.slice(weatherWindowStart, weatherWindowStart + 12).map((frame) => <button key={frame.id} type="button" role="listitem" className={frame.id === weather?.id ? "is-selected" : ""} aria-pressed={frame.id === weather?.id} onClick={() => setSelectedWeatherId(frame.id)}>
             <time>{frame.timeLabel}</time><span aria-hidden="true">{WEATHER_GLYPHS[frame.symbol]}</span><strong>{frame.condition}</strong><small>{statusCopy(frame.availability)}</small>
           </button>)}
+          {scenario.weather.length > 12 ? <label className="control-room__timeline-more">Hour {weatherWindowStart + 1}–{Math.min(weatherWindowStart + 12, scenario.weather.length)} of {scenario.weather.length}<input type="range" min="0" max={Math.max(0, scenario.weather.length - 12)} value={weatherWindowStart} onChange={(event) => setWeatherWindowStart(Number(event.target.value))} /></label> : null}
         </div>
         {weather ? <div className={`control-room__weather-readout status-${weather.availability}`}>
           <span className="control-room__weather-glyph" aria-hidden="true">{WEATHER_GLYPHS[weather.symbol]}</span>

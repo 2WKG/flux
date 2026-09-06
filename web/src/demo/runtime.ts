@@ -60,6 +60,38 @@ export function createPrimaryDemoRuntime(input: PrimaryDemoRuntimeInput): Contro
   };
 }
 
+/** Maps the persisted `/cascade` readback only when its own qualifier is true. */
+export function cascadePlaybackFromPayload(payload: {
+  readonly run_id?: string;
+  readonly playback_qualified?: boolean;
+  readonly topology?: string;
+  readonly provenance?: readonly { readonly source_name?: string; readonly source_ref?: string }[];
+  readonly limitations?: readonly string[];
+  readonly hours?: readonly {
+    readonly hour?: number;
+    readonly lost_load_mw?: number;
+    readonly counties_dark?: readonly string[];
+    readonly tripped_element_ids?: readonly { readonly element_id?: string; readonly kind?: string; readonly stage?: number; readonly cause?: string; readonly loading_percent?: number }[];
+  }[];
+}): CascadePlayback {
+  const hour = payload.hours?.[0];
+  const qualified = payload.playback_qualified === true && hour !== undefined;
+  const events = qualified ? (hour.tripped_element_ids ?? []).flatMap((event, index) => event.element_id ? [{
+    id: `${event.stage ?? 0}-${index}-${event.element_id}`,
+    stageLabel: `Stage ${event.stage ?? 0} · ${event.kind ?? "element"}`,
+    summary: `${event.element_id} ${event.cause ?? "event"}${event.loading_percent === undefined ? "" : ` at ${event.loading_percent}% loading`}.`,
+    availability: "available" as const,
+  }] : []) : [];
+  return {
+    availability: qualified && events.length > 0 ? "available" : "unavailable",
+    title: "Synthetic Texas cascade playback",
+    unavailableMessage: qualified ? "The qualified run contains no displayable event IDs." : "The cascade readback is not qualified for playback.",
+    events,
+    provenance: payload.provenance?.flatMap((item) => item.source_name || item.source_ref ? [{ label: item.source_name ?? "", detail: item.source_ref }] : []),
+    limitations: [...(payload.limitations ?? []), ...(payload.topology ? [payload.topology] : [])],
+  };
+}
+
 /** Maps the actual `/demo/forecast` nested `data.forecast` record without inference. */
 export function historicalForecastFromPayload(payload: {
   readonly status: string;

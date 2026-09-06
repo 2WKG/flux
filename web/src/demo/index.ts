@@ -3,7 +3,7 @@ export { PrimaryDemo } from "./PrimaryDemo";
 export { TexasModelStage, qualifiedSceneEvents, resolveSceneEvents } from "./TexasModelStage";
 export { HistoricalForecastPanel } from "./HistoricalForecast";
 export { SyntheticTexasModelMap } from "./SyntheticTexasModelMap";
-export { createPrimaryDemoRuntime, historicalForecastFromPayload, texasModelSceneFromPayload } from "./runtime";
+export { cascadePlaybackFromPayload, createPrimaryDemoRuntime, historicalForecastFromPayload, texasModelSceneFromPayload } from "./runtime";
 export type {
   CascadeEvent,
   CascadePlayback,
