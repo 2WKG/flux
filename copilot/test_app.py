@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 import duckdb
 import pytest
@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from httpx import Response
 from pydantic import ValidationError
 
+import copilot.config
 from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
@@ -130,19 +131,113 @@ def test_settings_accept_a_real_absolute_database_path(tmp_path: Path) -> None:
     assert settings.duckdb_path.name == "grid.duckdb"
 
 
+@pytest.mark.parametrize(
+    "configured_path", ["C:/flux/data/grid.duckdb", r"C:\flux\data\grid.duckdb"]
+)
+def test_settings_accept_a_windows_absolute_database_path(
+    monkeypatch: pytest.MonkeyPatch, configured_path: str
+) -> None:
+    """On Windows a drive letter starts a real absolute local path, not a target.
+
+    ``os.name`` is the only thing the validator asks about the platform, so
+    patching it runs the Windows branch on the Linux CI runner instead of
+    skipping it there forever.  The absoluteness question is answered by
+    ``PureWindowsPath``, which is what a real Windows ``Path`` is.
+    """
+    monkeypatch.setattr(copilot.config.os, "name", "nt")
+
+    settings = Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert settings.duckdb_path == Path(configured_path)
+    assert PureWindowsPath(configured_path).is_absolute()
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [
+        "md:my_db",
+        "ducklake:metadata.ducklake",
+        ":memory:",
+        "motherduck://token=private-db-token",
+        "s3://bucket/grid.duckdb",
+        "duckdb://host/grid.duckdb",
+        "C:x.duckdb",
+    ],
+)
+def test_settings_reject_connection_targets_on_windows(
+    monkeypatch: pytest.MonkeyPatch, configured_path: str
+) -> None:
+    """The Windows exemption admits absolute drive paths and nothing else.
+
+    ``C:x.duckdb`` is the drive-*relative* form: it carries a drive letter but
+    is not absolute, so it must stay refused even on Windows.
+    """
+    monkeypatch.setattr(copilot.config.os, "name", "nt")
+
+    with pytest.raises(
+        ValidationError, match="not a DuckDB connection target"
+    ) as error:
+        Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert "private-db-token" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [r"\\server\share\grid.duckdb", "//server/share/grid.duckdb"],
+)
+@pytest.mark.parametrize("platform_name", ["nt", "posix"])
+def test_settings_reject_unc_network_shares_on_every_platform(
+    monkeypatch: pytest.MonkeyPatch, configured_path: str, platform_name: str
+) -> None:
+    """A UNC share carries no colon, so only a named check keeps it off the wire."""
+    monkeypatch.setattr(copilot.config.os, "name", platform_name)
+
+    with pytest.raises(ValidationError, match="duckdb_path_network_target"):
+        Settings(_env_file=None, duckdb_path=configured_path)
+
+
 @pytest.mark.parametrize("configured_path", ["C:/flux/data/grid.duckdb", "Z:/x.duckdb"])
 def test_settings_reject_a_drive_letter_prefix_that_is_not_absolute_here(
-    configured_path: str,
+    monkeypatch: pytest.MonkeyPatch, configured_path: str
 ) -> None:
-    """A ``<letter>:`` prefix is a connection-target shape on this platform.
+    """Off Windows a ``<letter>:`` prefix is not an absolute path at all.
 
     ``Path("Z:/x.duckdb").is_absolute()`` is ``False`` on POSIX, so admitting it
     would have the service create a relative directory literally named ``Z:``.
-    The guard is deliberately platform-independent: the same string is refused
-    everywhere rather than being validated differently per operating system.
+    This is the pin from #212 and it is asserted for POSIX explicitly rather
+    than skipped by platform, so it also holds when the suite runs on Windows.
     """
+    monkeypatch.setattr(copilot.config.os, "name", "posix")
     with pytest.raises(ValidationError, match="not a DuckDB connection target"):
         Settings(_env_file=None, duckdb_path=configured_path)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [
+        "md:my_db",
+        "ducklake:metadata.ducklake",
+        ":memory:",
+        "motherduck://token=private-db-token",
+        "s3://bucket/grid.duckdb",
+    ],
+)
+def test_settings_reject_connection_targets_on_every_platform(
+    configured_path: str,
+) -> None:
+    """The connection-target spellings carry no drive letter, so Windows refuses
+    them too: none of these strings is an absolute path on any platform."""
+    assert not Path(configured_path).is_absolute()
+    # The Windows half of that claim needs Windows semantics to assert it: on
+    # CI `Path` is `PosixPath`, which cannot answer for the other platform.
+    assert not PureWindowsPath(configured_path).is_absolute()
+    with pytest.raises(
+        ValidationError, match="not a DuckDB connection target"
+    ) as error:
+        Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert "private-db-token" not in str(error.value)
 
 
 def test_settings_normalise_surrounding_whitespace_in_the_database_path() -> None:
