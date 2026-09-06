@@ -10,8 +10,9 @@ import { pathToFileURL } from "node:url";
 const outputDirectory = mkdtempSync(join(tmpdir(), "flux-client-state-"));
 process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true }));
 execFileSync(
-  "./node_modules/.bin/tsc",
+  process.execPath,
   [
+    "./node_modules/typescript/bin/tsc",
     "src/data/transport.ts",
     "src/data/validation.ts",
     "src/data/client-state.ts",
