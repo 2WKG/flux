@@ -1,43 +1,46 @@
 import { useCallback, useMemo, useState } from "react";
 import { ScatterplotLayer } from "@deck.gl/layers";
 import type { LayersList } from "@deck.gl/core";
+import type { StyleSpecification } from "maplibre-gl";
 import Map from "react-map-gl/maplibre";
-import type { SceneAdaptation } from "../scene/minnesota-adapter";
+import { OFFLINE_BASEMAP_STYLE } from "./basemap";
+import { acceptedPoints, type SceneView } from "./scene-view";
 import { DeckOverlay } from "./DeckOverlay";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./renderer.css";
 
-export const OPEN_FREE_MAP_DARK = "https://tiles.openfreemap.org/styles/dark";
+/** Observed overlay health. `request_failed` is one of the six shared status tokens. */
+type OverlayState = "initializing" | "initialized" | "request_failed";
 
 export interface MapLibreDeckFoundationProps {
-  /** Output of the authoritative adapter. The renderer does not parse source payloads. */
-  readonly adaptation: SceneAdaptation;
-  readonly basemapStyle?: string;
-}
-
-function reasonFor(adaptation: SceneAdaptation): string {
-  if (adaptation.kind === "rejected") return adaptation.detail;
-  if (adaptation.kind === "aggregate_zones") return "Accepted aggregate coverage has no renderable geometry.";
-  if (adaptation.nodes.some((node) => node.truthLabel !== "source_backed")) {
-    return "Synthetic or unlabeled topology is not rendered as a geographic feature layer.";
-  }
-  return "Accepted point placements are available; 3D asset placement remains unavailable until a verified asset artifact is supplied.";
+  /** The renderer's view of the adapter's output; see `scene-view.ts`. */
+  readonly view: SceneView;
+  /** Defaults to the offline, geometry-free style. A remote style is opt-in. */
+  readonly basemapStyle?: string | StyleSpecification;
 }
 
 /**
- * MapLibre + deck.gl foundation. It renders only authoritative accepted point positions.
- * It has no synthetic-XY conversion, feature fallback, model fetch, or asset placement.
+ * MapLibre + deck.gl foundation. It renders only server-accepted point
+ * positions. It has no synthetic-XY conversion, feature fallback, model fetch,
+ * or asset placement, and its default basemap issues no network request.
  */
-export function MapLibreDeckFoundation({ adaptation, basemapStyle = OPEN_FREE_MAP_DARK }: MapLibreDeckFoundationProps) {
+export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE }: MapLibreDeckFoundationProps) {
   const [basemapError, setBasemapError] = useState<string | null>(null);
-  const [overlayReady, setOverlayReady] = useState(false);
-  const markOverlayReady = useCallback(() => setOverlayReady(true), []);
+  const [overlayState, setOverlayState] = useState<OverlayState>("initializing");
+  const [overlayError, setOverlayError] = useState<string | null>(null);
+  const markOverlayReady = useCallback(() => setOverlayState("initialized"), []);
+  const markOverlayFailed = useCallback((message: string) => {
+    setOverlayState("request_failed");
+    setOverlayError(message);
+  }, []);
+
+  const drawable = useMemo(() => acceptedPoints(view), [view]);
   const layers = useMemo<LayersList>(() => {
-    if (adaptation.kind !== "topology_scene" || adaptation.nodes.some((node) => node.truthLabel !== "source_backed")) return [];
+    if (drawable.length === 0) return [];
     return [new ScatterplotLayer({
       id: "accepted-scene-nodes",
-      data: adaptation.nodes,
-      getPosition: node => node.position,
+      data: drawable,
+      getPosition: point => point.position as [number, number],
       getRadius: 75,
       radiusUnits: "meters",
       getFillColor: [134, 187, 255, 210],
@@ -45,7 +48,13 @@ export function MapLibreDeckFoundation({ adaptation, basemapStyle = OPEN_FREE_MA
       // The adapter guarantees EPSG:4326; MapboxOverlay synchronizes MapView with MapLibre.
       coordinateSystem: "lnglat",
     })];
-  }, [adaptation]);
+  }, [drawable]);
+
+  const overlayText = overlayState === "initialized"
+    ? `initialized with ${drawable.length} accepted feature layer${drawable.length === 1 ? "" : "s"}`
+    : overlayState === "request_failed"
+      ? `unavailable (request_failed): ${overlayError ?? "deck reported an error"}`
+      : "initializing";
 
   return <section className="map-foundation" aria-label="Map and renderer status">
     <Map
@@ -53,14 +62,15 @@ export function MapLibreDeckFoundation({ adaptation, basemapStyle = OPEN_FREE_MA
       mapStyle={basemapStyle}
       onError={(event) => setBasemapError(event.error.message)}
     >
-      <DeckOverlay layers={layers} onInitialized={markOverlayReady} />
+      <DeckOverlay layers={layers} onInitialized={markOverlayReady} onFailed={markOverlayFailed} />
     </Map>
     <div className="map-foundation-notice" role="status">
       <strong>Map context</strong>
-      <span>OpenFreeMap basemap; attribution remains enabled. No accepted feature layer is inferred from the basemap.</span>
-      <span>Deck overlay: {overlayReady ? "initialized with zero accepted feature layers" : "initializing"}.</span>
+      <span>Scene state: {view.status}</span>
+      <span>Offline geometry-free basemap; no tiles, glyphs, sprites, or geography are fetched. No accepted feature layer is inferred from the basemap.</span>
+      <span>Deck overlay: {overlayText}.</span>
       {basemapError && <span>Basemap unavailable: {basemapError}</span>}
-      <span>Scene availability: {reasonFor(adaptation)}</span>
+      <span>Scene availability: {view.detail}</span>
       <span>3D model assets are unavailable until an accepted placement and verified immutable artifact are supplied.</span>
     </div>
   </section>;
