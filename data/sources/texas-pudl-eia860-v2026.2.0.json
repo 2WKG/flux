@@ -1,0 +1,28 @@
+{
+  "retrieved_at": "2026-09-06T04:37:05Z",
+  "provider": "Catalyst Cooperative PUDL",
+  "source_urls": [
+    "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_plants.parquet",
+    "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_generators.parquet"
+  ],
+  "vintage": "PUDL v2026.2.0 EIA-860 yearly outputs",
+  "license_access": "CC-BY-4.0 for PUDL outputs; underlying source terms also apply",
+  "files": {
+    "out_eia__yearly_plants.parquet": {
+      "bytes": 3228519,
+      "sha256": "66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc"
+    },
+    "out_eia__yearly_generators.parquet": {
+      "bytes": 10247414,
+      "sha256": "6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8"
+    }
+  },
+  "validation": {
+    "loader": "pipelines.eia860.load_eia860_plants",
+    "scope": "TX",
+    "texas_plants_loaded": 1584,
+    "generator_inventory_rows_loaded": 628701,
+    "result": "passed"
+  },
+  "uncertainty": "Plant coordinates and attributes support facility context only. They do not establish synthetic-bus connectivity, transmission ratings, or an interconnection finding."
+}
