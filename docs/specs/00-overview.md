@@ -260,13 +260,23 @@ GET  /layers/{name}?scenario_id=&hour=&run_id=&unit_mw=&tech=&res=
        name ∈ {buses, lines, gens, counties, critical_loads, outage_risk, cascade, sites,
                line_upgrades, storm, national_hex, eaglei}          (GeoJSON / Arrow IPC / JSON — see 05)
 POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
+GET  /cascade?scenario_id=                            → {status:"available", run_id, scenario_id, artifact_id, model_mode:"topology", provenance:[…], limitations:[…]}
 POST /site-score   {site_id, unit_mw, scenario_id}    → score_site(...) dict
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
+GET  /predictions?scenario_id=&county_fips=&model_kind=&limit= → {status:"available", predictions:[qualified persisted rows]}
 GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
 GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
 ```
+
+The additive Minnesota `GET` routes are persisted-artifact reads. `GET /cascade`
+selects a persisted cascade only when its model result is validated, its manifest is
+available with `model_mode: "topology"`, and its nonempty provenance and limitations
+are present; it never starts a cascade calculation. `POST /cascade` retains the
+compute-route contract above. `GET /predictions` returns only persisted predictions
+whose evaluation is qualified; absent or unqualified artifacts are unavailable rather
+than an empty success.
 
 Python entry points (owning spec's CLI wins; this list is the run order):
 

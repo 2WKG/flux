@@ -210,12 +210,22 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `GET /scenarios` | — | `[{scenario_id, name, kind, ts_start, ts_end, hours:int, has_cascade:bool, has_predictions:bool}]` |
 | `GET /layers/{name}` | see table | GeoJSON / Arrow / JSON |
 | `POST /cascade` | `{element_ids:[str], scenario_id, hour}` | `run_cascade` dict |
+| `GET /cascade` (Minnesota artifact read) | `scenario_id` (required) | `{status:"available", run_id, scenario_id, artifact_id, model_mode:"topology", provenance:[…], limitations:[…]}` |
 | `POST /site-score` | `{site_id, unit_mw, scenario_id}` | `score_site` dict |
 | `POST /predict` | `{county_fips, scenario_id, horizon_h?}` | `predict_outage` dict (UI uses it for the county click card) |
+| `GET /predictions` (Minnesota artifact read) | `scenario_id?`, `county_fips?`, `model_kind?` (`lightgbm` or `heuristic`), `limit=1..1000` | `{status:"available", predictions:[qualified persisted rows]}` |
 | `GET /lines/top` | `region, tech=any, n=10` | `top_lines` dict |
 | `POST /compare` (A8) | `{scenario_id, intervention_ids:[str]}` | `compare_interventions` dict (UI: "compare a site with a line upgrade" card) |
 | `GET /elements/critical` (A8) | `region, n=10` | `top_critical_elements` dict (UI: critical-elements panel) |
 | `POST /ask` | see below | `text/event-stream` |
+
+The Minnesota `GET` routes above are read-only artifact retrieval. `GET /cascade`
+returns only the latest persisted run for a scenario whose model result is validated and
+whose available topology manifest has nonempty provenance and limitations. It does not
+invoke the compute behavior of `POST /cascade`, which remains this table's existing
+route contract. `GET /predictions` excludes unqualified evaluation artifacts; a missing
+or unqualified prediction artifact returns the documented unavailable failure envelope
+rather than an empty success.
 
 `POST /ask` request:
 
