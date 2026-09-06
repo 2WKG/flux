@@ -1,0 +1,456 @@
+{
+  "schemaVersion": 1,
+  "artifactId": "flux:synthetic-cross-scenario-validation:v1",
+  "inputArtifactId": "flux:synthetic-scenario-input:v1",
+  "inputHash": "f5b2c271416b",
+  "modelMode": "synthetic_power_balance_preview",
+  "units": {
+    "demandMw": "MW",
+    "unservedMw": "MW",
+    "unservedMwhOverHorizon": "MWh",
+    "horizonHours": "h",
+    "fractionDemandUnserved": "fraction",
+    "improvementMw": "MW"
+  },
+  "baseMetrics": [
+    {
+      "scenarioId": "baseline",
+      "label": "Baseline",
+      "demandMw": 1365,
+      "unservedMw": 188,
+      "unservedMwhOverHorizon": 752,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.137729,
+      "improvementMw": 0
+    },
+    {
+      "scenarioId": "a",
+      "label": "Candidate A",
+      "demandMw": 1365,
+      "unservedMw": 51,
+      "unservedMwhOverHorizon": 204,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.037363,
+      "improvementMw": 137
+    },
+    {
+      "scenarioId": "b",
+      "label": "Candidate B",
+      "demandMw": 1365,
+      "unservedMw": 82,
+      "unservedMwhOverHorizon": 328,
+      "horizonHours": 4,
+      "fractionDemandUnserved": 0.060073,
+      "improvementMw": 106
+    }
+  ],
+  "sensitivity": {
+    "axes": {
+      "drivenFields": [
+        "assumptions.demandMw",
+        "assumptions.baselineAvailableGenerationMw",
+        "interventions[].modeledContributionMw"
+      ],
+      "notConsumed": [
+        "assumptions.demandMultiplier",
+        "assumptions.generationAvailabilityFraction"
+      ],
+      "note": "The grid scales the fields in drivenFields directly. The fixture's displayed demandMultiplier and generationAvailabilityFraction are not read by generate_demo.py and therefore do not enter any metric here."
+    },
+    "baseRanking": "a_better",
+    "grid": [
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 237.45,
+            "unservedMwhOverHorizon": 949.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.183112,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 114.15,
+            "unservedMwhOverHorizon": 456.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.088028,
+            "improvementMw": 123.3
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 142.05,
+            "unservedMwhOverHorizon": 568.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.109543,
+            "improvementMw": 95.4
+          }
+        ]
+      },
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 119.75,
+            "unservedMwhOverHorizon": 479.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.092346,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 119.75
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 13.75,
+            "unservedMwhOverHorizon": 55.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.010603,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 0.95,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "tie",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1296.75,
+            "unservedMw": 2.05,
+            "unservedMwhOverHorizon": 8.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.001581,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 2.05
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1296.75,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 2.05
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 305.7,
+            "unservedMwhOverHorizon": 1222.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.223956,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 182.4,
+            "unservedMwhOverHorizon": 729.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.133626,
+            "improvementMw": 123.3
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 210.3,
+            "unservedMwhOverHorizon": 841.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.154066,
+            "improvementMw": 95.4
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 188.0,
+            "unservedMwhOverHorizon": 752.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.137729,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 51.0,
+            "unservedMwhOverHorizon": 204.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.037363,
+            "improvementMw": 137.0
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 82.0,
+            "unservedMwhOverHorizon": 328.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.060073,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 1.0,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "tie",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1365.0,
+            "unservedMw": 70.3,
+            "unservedMwhOverHorizon": 281.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.051502,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1365.0,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 70.3
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1365.0,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 70.3
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 0.9,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 373.95,
+            "unservedMwhOverHorizon": 1495.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.260911,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 250.65,
+            "unservedMwhOverHorizon": 1002.6,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.174882,
+            "improvementMw": 123.3
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 278.55,
+            "unservedMwhOverHorizon": 1114.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.194349,
+            "improvementMw": 95.4
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 1.0,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 256.25,
+            "unservedMwhOverHorizon": 1025.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.178789,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 119.25,
+            "unservedMwhOverHorizon": 477.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.083203,
+            "improvementMw": 137.0
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 150.25,
+            "unservedMwhOverHorizon": 601.0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.104832,
+            "improvementMw": 106.0
+          }
+        ]
+      },
+      {
+        "demandScale": 1.05,
+        "generationAvailabilityScale": 1.1,
+        "aVsB": "a_better",
+        "scenarios": [
+          {
+            "scenarioId": "baseline",
+            "label": "Baseline",
+            "demandMw": 1433.25,
+            "unservedMw": 138.55,
+            "unservedMwhOverHorizon": 554.2,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.096668,
+            "improvementMw": 0.0
+          },
+          {
+            "scenarioId": "a",
+            "label": "Candidate A",
+            "demandMw": 1433.25,
+            "unservedMw": 0,
+            "unservedMwhOverHorizon": 0,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.0,
+            "improvementMw": 138.55
+          },
+          {
+            "scenarioId": "b",
+            "label": "Candidate B",
+            "demandMw": 1433.25,
+            "unservedMw": 21.95,
+            "unservedMwhOverHorizon": 87.8,
+            "horizonHours": 4,
+            "fractionDemandUnserved": 0.015315,
+            "improvementMw": 116.6
+          }
+        ]
+      }
+    ],
+    "rankReversals": [],
+    "tieCount": 2,
+    "structuralNote": "Structural guarantee, not evidence: the fixture computes shed = max(0, demandMw - (baselineAvailableGenerationMw + modeledContributionMw)) and this grid scales both candidates' modeledContributionMw by the same availability factor, so the candidate with the larger modeledContributionMw is never worse in any cell for any positive scale. An empty rankReversals list is therefore expected by construction; the grid can only produce ties (both candidates at zero unserved MW), never a reversal.",
+    "finding": "No A/B rank reversal in this grid; expected by construction, see structuralNote."
+  },
+  "unseenScenario": {
+    "id": "unseen_fixture_colder_shortfall_v1",
+    "perturbation": {
+      "demandScale": 1.08,
+      "generationAvailabilityScale": 0.94
+    },
+    "aVsB": "a_better",
+    "scenarios": [
+      {
+        "scenarioId": "baseline",
+        "label": "Baseline",
+        "demandMw": 1474.2,
+        "unservedMw": 367.82,
+        "unservedMwhOverHorizon": 1471.28,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.249505,
+        "improvementMw": 0.0
+      },
+      {
+        "scenarioId": "a",
+        "label": "Candidate A",
+        "demandMw": 1474.2,
+        "unservedMw": 239.04,
+        "unservedMwhOverHorizon": 956.16,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.162149,
+        "improvementMw": 128.78
+      },
+      {
+        "scenarioId": "b",
+        "label": "Candidate B",
+        "demandMw": 1474.2,
+        "unservedMw": 268.18,
+        "unservedMwhOverHorizon": 1072.72,
+        "horizonHours": 4,
+        "fractionDemandUnserved": 0.181916,
+        "improvementMw": 99.64
+      }
+    ],
+    "scope": "Unseen deterministic perturbation of the checked-in synthetic fixture; it is not a temporal or geographic holdout."
+  },
+  "runtimeScaling": {
+    "committed": false,
+    "method": "Same Python process, one warm-up per size, then perf_counter_ns around result_payload().",
+    "caveat": "This measures fixture materialization only. It does not run or estimate a power-flow, OPF, cascade, or real network solver.",
+    "timingsArtifact": "Not committed: machine identity and wall-clock medians are written to data/demo/synthetic-cross-scenario-timings.local.json by `python -m model.validate_robustness --timings` and are git-ignored."
+  },
+  "transferBoundary": {
+    "temporal": "Not evaluated: the fixture is a four-hour static balance, not a time-indexed holdout.",
+    "geographic": "Not evaluated: the fixture is explicitly not Minnesota, New York, Texas, ERCOT, MISO, or an actual interconnection model.",
+    "computational": "Measured only as in-process fixture materialization across replicated five-bus shapes; no solver scale claim. Timings are not part of this artifact.",
+    "ranking": "Structural guarantee, not evidence: the fixture computes shed = max(0, demandMw - (baselineAvailableGenerationMw + modeledContributionMw)) and this grid scales both candidates' modeledContributionMw by the same availability factor, so the candidate with the larger modeledContributionMw is never worse in any cell for any positive scale. An empty rankReversals list is therefore expected by construction; the grid can only produce ties (both candidates at zero unserved MW), never a reversal.",
+    "assumptionsNotConsumed": "The fixture's displayed demandMultiplier and generationAvailabilityFraction are not consumed by the model, so this grid says nothing about them.",
+    "futureFeasible": "A Minnesota or New York case remains future/feasible-only until an actual verified case and execution are completed."
+  }
+}

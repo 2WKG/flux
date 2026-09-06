@@ -16,6 +16,7 @@ from typing import Literal
 
 import duckdb
 
+from copilot.tools.schemas import Unavailable, UnavailableCode
 from pipelines.db import SCHEMA_VERSION
 
 
@@ -33,13 +34,35 @@ class ConsumerResult:
 
     consumer: str
     status: str
-    unavailable_code: str | None = None
+    unavailable_code: UnavailableCode | None = None
     reason: str | None = None
     diagnostic_kind: Literal["artifact_unavailable", "contract_violation"] | None = None
 
     @property
     def available(self) -> bool:
         return self.status == "available"
+
+    @property
+    def unavailable(self) -> Unavailable | None:
+        """The shared ``Unavailable{code, reason, retryable}`` contract shape.
+
+        This is the object every product consumer surfaces for an unavailable
+        result (``copilot/tools/schemas.py``); ``None`` for an available one.
+        The reason is bounded to the contract's maximum length.
+        """
+
+        if self.status == "available":
+            return None
+        if self.unavailable_code is None or not self.reason:
+            raise ValueError(
+                f"unavailable result for {self.consumer} is missing its code or reason"
+            )
+        reason = (
+            self.reason
+            if len(self.reason) <= UNAVAILABLE_REASON_MAX_LENGTH
+            else (self.reason[: UNAVAILABLE_REASON_MAX_LENGTH - 3] + "...")
+        )
+        return Unavailable(code=self.unavailable_code, reason=reason, retryable=False)
 
 
 @dataclass(frozen=True)
@@ -62,6 +85,14 @@ class ContractReport:
 
 ReadPath = Callable[[duckdb.DuckDBPyConnection], None]
 
+# ``Unavailable.reason`` is bounded; mirror the bound from the shared contract
+# so a long DuckDB message cannot make the shape unbuildable.
+UNAVAILABLE_REASON_MAX_LENGTH = next(
+    item.max_length
+    for item in Unavailable.model_fields["reason"].metadata
+    if getattr(item, "max_length", None) is not None
+)
+
 
 # These values deliberately stay separate from ``unavailable_code``.  The
 # latter is the stable consumer-envelope code, while this category lets a UI
@@ -74,6 +105,38 @@ CONTRACT_VIOLATION = "contract_violation"
 # NULL when an upstream record did not publish them.  These identifiers are
 # not optional: without them a fixture row cannot be traced or reproduced.
 REQUIRED_PROVENANCE_FIELDS = ("source_name", "source_ref", "fixture_batch_id")
+
+# Decimal-degree coordinates must be stored as numbers.  A TEXT or BOOLEAN
+# ``lon``/``lat`` is a contract breach, not an unreadable artifact, and must be
+# named before any range comparison would raise a raw binder error.
+COORDINATE_FIELDS = ("lon", "lat")
+NUMERIC_COLUMN_TYPES = frozenset(
+    {
+        "DOUBLE",
+        "FLOAT",
+        "REAL",
+        "DECIMAL",
+        "NUMERIC",
+        "TINYINT",
+        "SMALLINT",
+        "INTEGER",
+        "BIGINT",
+        "HUGEINT",
+        "UTINYINT",
+        "USMALLINT",
+        "UINTEGER",
+        "UBIGINT",
+        "UHUGEINT",
+    }
+)
+# DuckDB errors that mean the fixture exists and opened but its content does
+# not satisfy the contract.  Every other ``duckdb.Error`` (IO, connection,
+# corrupt file) is an unavailable artifact.
+CONTRACT_BINDING_ERRORS = (
+    duckdb.BinderException,
+    duckdb.ConversionException,
+    duckdb.InvalidInputException,
+)
 
 
 def _read_elements(elements: Sequence[ContractElement]) -> ReadPath:
@@ -96,34 +159,63 @@ def _read_elements(elements: Sequence[ContractElement]) -> ReadPath:
 CONSUMER_REQUIREMENTS: dict[str, tuple[ContractElement, ...]] = {
     "twin": (
         ContractElement("buses", ("bus_id", "base_kv", "lon", "lat")),
-        ContractElement("lines", ("line_id", "from_bus", "to_bus", "r_pu", "x_pu", "rate_a_mw")),
+        ContractElement(
+            "lines", ("line_id", "from_bus", "to_bus", "r_pu", "x_pu", "rate_a_mw")
+        ),
         ContractElement("gens", ("gen_id", "bus_id", "pmax_mw")),
         ContractElement("loads", ("load_id", "bus_id", "p_mw_nominal")),
     ),
     "outage": (
         ContractElement("counties", ("county_fips", "name", "pop")),
-        ContractElement("weather_hourly", ("county_fips", "ts", "wind_ms", "gust_ms", "temp_c", "ice_mm")),
-        ContractElement("hazard_static", ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga")),
+        ContractElement(
+            "weather_hourly",
+            ("county_fips", "ts", "wind_ms", "gust_ms", "temp_c", "ice_mm"),
+        ),
+        ContractElement(
+            "hazard_static",
+            ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga"),
+        ),
         ContractElement("scenarios", ("scenario_id", "kind", "ts_start", "ts_end")),
     ),
     "siting": (
-        ContractElement("site_candidates", ("site_id", "county_fips", "bus_id", "capacity_slot_mw")),
-        ContractElement("hazard_static", ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga")),
-        ContractElement("cascade_runs", ("run_id", "scenario_id", "lost_load_mw", "counterfactual_site_id")),
+        ContractElement(
+            "site_candidates", ("site_id", "county_fips", "bus_id", "capacity_slot_mw")
+        ),
+        ContractElement(
+            "hazard_static",
+            ("county_fips", "nri_score", "wildfire_hazard", "seismic_pga"),
+        ),
+        ContractElement(
+            "cascade_runs",
+            ("run_id", "scenario_id", "lost_load_mw", "counterfactual_site_id"),
+        ),
     ),
     "api": (
-        ContractElement("outage_predictions", ("scenario_id", "county_fips", "ts", "p_out", "customers_at_risk")),
-        ContractElement("cascade_runs", ("run_id", "scenario_id", "hour", "lost_load_mw")),
-        ContractElement("site_scores", ("site_id", "scenario_id", "unit_mw", "safety_score", "grid_value_score")),
-        ContractElement("line_upgrade_scores", ("line_id", "mw_per_musd", "ferc_screen_pass")),
+        ContractElement(
+            "outage_predictions",
+            ("scenario_id", "county_fips", "ts", "p_out", "customers_at_risk"),
+        ),
+        ContractElement(
+            "cascade_runs", ("run_id", "scenario_id", "hour", "lost_load_mw")
+        ),
+        ContractElement(
+            "site_scores",
+            ("site_id", "scenario_id", "unit_mw", "safety_score", "grid_value_score"),
+        ),
+        ContractElement(
+            "line_upgrade_scores", ("line_id", "mw_per_musd", "ferc_screen_pass")
+        ),
     ),
     "retrieval": (
-        ContractElement("corpus_chunks", ("chunk_id", "doc", "title", "page", "text", "embedding")),
+        ContractElement(
+            "corpus_chunks", ("chunk_id", "doc", "title", "page", "text", "embedding")
+        ),
     ),
 }
 
 CONSUMER_READ_PATHS: dict[str, ReadPath] = {
-    consumer: _read_elements(elements) for consumer, elements in CONSUMER_REQUIREMENTS.items()
+    consumer: _read_elements(elements)
+    for consumer, elements in CONSUMER_REQUIREMENTS.items()
 }
 
 
@@ -131,11 +223,15 @@ def _contract_version_error(con: duckdb.DuckDBPyConnection) -> str | None:
     tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
     if "schema_meta" not in tables:
         return 'missing table "schema_meta" required for contract version'
-    columns = {row[1] for row in con.execute("PRAGMA table_info('schema_meta')").fetchall()}
+    columns = {
+        row[1] for row in con.execute("PRAGMA table_info('schema_meta')").fetchall()
+    }
     for column in ("key", "value"):
         if column not in columns:
             return f'missing field "schema_meta.{column}" required for contract version'
-    row = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+    row = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
     if row is None:
         return 'missing contract element "schema_meta.contract_version"'
     if row[0] != SCHEMA_VERSION:
@@ -147,7 +243,7 @@ def _artifact_unavailable(consumer: str, reason: str) -> ConsumerResult:
     return ConsumerResult(
         consumer=consumer,
         status="unavailable",
-        unavailable_code="invalid_prerequisite",
+        unavailable_code="artifact_unavailable",
         reason=reason,
         diagnostic_kind=ARTIFACT_UNAVAILABLE,
     )
@@ -163,28 +259,43 @@ def _contract_violation(consumer: str, reason: str) -> ConsumerResult:
     )
 
 
-def _columns_for_table(con: duckdb.DuckDBPyConnection, table: str) -> set[str]:
-    return {row[1] for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()}
+def _column_types(con: duckdb.DuckDBPyConnection, table: str) -> dict[str, str]:
+    """Map each column to its declared DuckDB type family (``DECIMAL(18,3)`` -> ``DECIMAL``)."""
+
+    return {
+        row[1]: str(row[2]).split("(", 1)[0].strip().upper()
+        for row in con.execute(f"PRAGMA table_info('{table}')").fetchall()
+    }
 
 
 def _require_contract_elements(
     con: duckdb.DuckDBPyConnection,
     elements: Sequence[ContractElement],
 ) -> str | None:
-    """Return the first missing named element before a consumer read runs."""
+    """Return the first missing or mistyped named element before a consumer read runs."""
 
     tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+    types_by_table: dict[str, dict[str, str]] = {}
+    # Consumer columns first (across every table), then provenance, so the
+    # first named element is the one the consumer's own read would miss.
     for element in elements:
         if element.table not in tables:
             return f'missing table "{element.table}"'
-        columns = _columns_for_table(con, element.table)
+        types = types_by_table.setdefault(
+            element.table, _column_types(con, element.table)
+        )
         for column in element.columns:
-            if column not in columns:
+            if column not in types:
                 return f'missing field "{element.table}.{column}"'
+        for column in COORDINATE_FIELDS:
+            if column in element.columns and types[column] not in NUMERIC_COLUMN_TYPES:
+                return (
+                    f'field "{element.table}.{column}" has type {types[column]}, '
+                    "expected a numeric EPSG:4326 coordinate"
+                )
     for element in elements:
-        columns = _columns_for_table(con, element.table)
         for column in REQUIRED_PROVENANCE_FIELDS:
-            if column not in columns:
+            if column not in types_by_table[element.table]:
                 return f'missing field "{element.table}.{column}"'
     return None
 
@@ -219,7 +330,7 @@ def _coordinate_contract_error(
             if row is not None:
                 return (
                     f'field "{element.table}.{field}" is not a valid '
-                    f'EPSG:4326 {axis} in [{lower}, {upper}]'
+                    f"EPSG:4326 {axis} in [{lower}, {upper}]"
                 )
     return None
 
@@ -252,11 +363,15 @@ def check_consumer_contracts(path: str | Path) -> ContractReport:
     """
 
     fixture_path = Path(path)
+    # Detected through the filesystem, never by matching DuckDB's own error text.
     if not fixture_path.is_file():
-        reason = f'fixture database unavailable: {fixture_path} does not exist'
+        reason = f"fixture database unavailable: {fixture_path} does not exist"
         return ContractReport(
             fixture_path=fixture_path,
-            results=tuple(_artifact_unavailable(consumer, reason) for consumer in CONSUMER_READ_PATHS),
+            results=tuple(
+                _artifact_unavailable(consumer, reason)
+                for consumer in CONSUMER_READ_PATHS
+            ),
         )
 
     results: list[ConsumerResult] = []
@@ -267,19 +382,32 @@ def check_consumer_contracts(path: str | Path) -> ContractReport:
                 if version_error is not None:
                     results.append(_contract_violation(consumer, version_error))
                     continue
-                requirements_error = _require_contract_elements(con, CONSUMER_REQUIREMENTS[consumer])
+                requirements_error = _require_contract_elements(
+                    con, CONSUMER_REQUIREMENTS[consumer]
+                )
                 if requirements_error is not None:
                     results.append(_contract_violation(consumer, requirements_error))
                     continue
-                coordinate_error = _coordinate_contract_error(con, CONSUMER_REQUIREMENTS[consumer])
+                coordinate_error = _coordinate_contract_error(
+                    con, CONSUMER_REQUIREMENTS[consumer]
+                )
                 if coordinate_error is not None:
                     results.append(_contract_violation(consumer, coordinate_error))
                     continue
-                provenance_error = _provenance_contract_error(con, CONSUMER_REQUIREMENTS[consumer])
+                provenance_error = _provenance_contract_error(
+                    con, CONSUMER_REQUIREMENTS[consumer]
+                )
                 if provenance_error is not None:
                     results.append(_contract_violation(consumer, provenance_error))
                     continue
                 read_path(con)
+        except CONTRACT_BINDING_ERRORS as error:
+            results.append(
+                _contract_violation(
+                    consumer,
+                    f"fixture read for {consumer} did not bind against the contract: {error}",
+                )
+            )
         except duckdb.Error as error:
             results.append(
                 _artifact_unavailable(
