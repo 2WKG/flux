@@ -1,0 +1,37 @@
+{
+  "manifest_kind": "published_physical_inventory_artifacts",
+  "release_version": "1.1.0",
+  "compression": "gzip -n (deterministic mtime=0)",
+  "artifacts": [
+    {
+      "state": "tx",
+      "artifact_id": "tx:physical-inventory:1.1.0",
+      "published_path": "data/artifacts/physical_inventory/tx/physical-inventory-1.1.0.json.gz",
+      "source_handoff_path": "/Users/joshua/flux-2wkg-441/data/physical-inventory/releases/tx/physical-inventory-1.1.0.json",
+      "compressed_sha256": "5289f8495ba9a63607d33540fc622f4142f77747f7f407e3edb64873527c8b33",
+      "canonical_content_sha256": "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496",
+      "canonical_json_bytes": 14398951,
+      "compressed_bytes": 3697376,
+      "asset_count": 11949,
+      "input_artifact_sha256s": [
+        "2a4741058ccf4cce99cbc7e7f4ede0f695e738f66521a1d696d423e2afa70c90",
+        "713cdbd5c6c08856e28ccd346af5b89bcf841cbe0879c08a5f9a511d94cced5a"
+      ]
+    },
+    {
+      "state": "mn",
+      "artifact_id": "mn:physical-inventory:1.1.0",
+      "published_path": "data/artifacts/physical_inventory/mn/physical-inventory-1.1.0.json.gz",
+      "source_handoff_path": "/Users/joshua/flux-2wkg-441/data/physical-inventory/releases/mn/physical-inventory-1.1.0.json",
+      "compressed_sha256": "aeab767671b755de484db5262d234a2ad643a95cf543c413959350058829f374",
+      "canonical_content_sha256": "4a58995d7cb82eaa5e79d5b9a8777a37d85dee64726c0a459ec57766019130ff",
+      "canonical_json_bytes": 1039934,
+      "compressed_bytes": 38203,
+      "asset_count": 2447,
+      "input_artifact_sha256s": [
+        "b904e146bfc992ea7f423ecda0cd2f32502459bd690a776c9b2bf0b743425da2",
+        "d92fe0a639f1528b45a2a75231b2903f9f571a8211f5e6f6ec54072375104ded"
+      ]
+    }
+  ]
+}

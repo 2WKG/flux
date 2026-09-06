@@ -2,6 +2,8 @@
   "artifact": {
     "artifact_id": "tx:physical-inventory:1.1.0",
     "artifact_version": "1.1.0",
+    "published_path": "data/artifacts/physical_inventory/tx/physical-inventory-1.1.0.json.gz",
+    "published_compressed_sha256": "5289f8495ba9a63607d33540fc622f4142f77747f7f407e3edb64873527c8b33",
     "content_sha256": "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496",
     "contract_version": "1.0.0",
     "electrical_model_mode": "none",
