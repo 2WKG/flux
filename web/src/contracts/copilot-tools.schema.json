@@ -1624,8 +1624,7 @@
             }
           },
           "required": [
-            "query",
-            "template_id"
+            "query"
           ]
         },
         {
@@ -1638,7 +1637,6 @@
             }
           },
           "required": [
-            "query",
             "template_id"
           ]
         }
