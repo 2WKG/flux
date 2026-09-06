@@ -74,9 +74,23 @@ const ADOPTED_CLASSES = [
   "asset-inspector", "run-trace", "failure-state",
 ];
 
+/**
+ * The class's *own* rule: the one whose subject -- the last compound in the
+ * selector -- carries the class. `.flux-chat-header p` styles a paragraph, not
+ * the header, so it does not count. Without this the check has no teeth:
+ * emptying `.flux-chat-header` while a descendant rule survives passes.
+ */
+function ownRules(name) {
+  const pattern = new RegExp(`\\.${name}(?![A-Za-z0-9_-])`);
+  return rules.filter((rule) => {
+    const subject = rule.selector.split(/[\s>+~]+/).filter(Boolean).pop() ?? "";
+    return pattern.test(subject);
+  });
+}
+
 test("every adopted class owns at least one real declaration, not an empty block", () => {
   const empty = ADOPTED_CLASSES.filter((name) => {
-    const owned = rules.filter((rule) => new RegExp(`\\.${name.replace(/[-_]/g, "[-_]")}(?![A-Za-z0-9_-])`).test(rule.selector));
+    const owned = ownRules(name);
     return owned.length === 0 || owned.every((rule) => rule.declarations.length === 0);
   });
   assert.deepEqual(empty, [], `adopted classes with no declaration of their own: ${empty.join(", ")}`);
