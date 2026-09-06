@@ -7,13 +7,10 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
-from copilot.routes.lines import router
 
 
 def _client(path: Path) -> TestClient:
-    app = create_app(Settings(duckdb_path=path))
-    app.include_router(router)
-    return TestClient(app)
+    return TestClient(create_app(Settings(duckdb_path=path)))
 
 
 def _database(path: Path) -> None:
