@@ -192,10 +192,9 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_interventions.py::test_critical_elements_use_persisted_values_with_stable_paging",
             200,
         ),
-        invalid=Gap(
-            "2WKG-422: region/n/offset are bounded by Query constraints "
-            "(copilot/routes/comparisons.py:571), but no test pins the 422 envelope "
-            "for an out-of-bounds page."
+        invalid=Cell(
+            "copilot/test_interventions.py::test_critical_elements_rejects_an_out_of_bounds_page_with_shared_envelope",
+            422,
         ),
         unavailable=Cell(
             "copilot/test_interventions.py::test_canonical_unavailable_critical_manifest_needs_no_domain_row",
@@ -370,9 +369,7 @@ def test_every_contract_gap_cites_a_tracking_key() -> None:
     ]
     for route, state, slot in gaps:
         assert "2WKG-" in slot.reason, (route, state)
-    assert {(route, state) for route, state, _ in gaps} == {
-        (("GET", "/elements/critical"), "invalid"),
-    }
+    assert not gaps
 
 
 def test_every_unreachable_cell_states_a_reason() -> None:
