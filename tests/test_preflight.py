@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import UTC, datetime, timedelta
 
 import duckdb
 
@@ -95,6 +96,79 @@ def test_cli_returns_nonzero_for_required_scenario_weather(monkeypatch):
     })
 
     assert preflight.main(["--state", "TX", "--require-scenario-weather"]) == 1
+
+
+def _weather_scenario_database(tmp_path, *, weather_fips: str, weather_start: datetime):
+    database = tmp_path / "weather.duckdb"
+    scenario_start = datetime(2024, 2, 1, tzinfo=UTC)
+    scenario_end = scenario_start + timedelta(hours=2)
+    con = connect(database)
+    try:
+        for fips, state in (("48001", "TX"), ("27001", "MN")):
+            con.execute(
+                """INSERT INTO counties (county_fips, name, state, pop, geom_wkb, source_name, source_ref, fixture_batch_id)
+                   VALUES (?, ?, ?, 1, 'x', 'fixture', 'fixture', 'fixture')""",
+                [fips, state, state],
+            )
+        con.execute(
+            """INSERT INTO scenarios (scenario_id, name, kind, ts_start, ts_end, source_name, source_ref, fixture_batch_id)
+               VALUES ('weather_window', 'Weather window', 'historical', ?, ?, 'fixture', 'fixture', 'fixture')""",
+            [scenario_start, scenario_end],
+        )
+        for hour in range(3):
+            con.execute(
+                """INSERT INTO weather_hourly (county_fips, ts, wind_ms, source_name, source_ref, fixture_batch_id)
+                   VALUES (?, ?, 1.0, 'fixture', 'fixture', 'fixture')""",
+                [weather_fips, weather_start + timedelta(hours=hour)],
+            )
+    finally:
+        con.close()
+    return database
+
+
+def test_scenario_weather_rejects_complete_weather_from_another_state(tmp_path):
+    database = _weather_scenario_database(
+        tmp_path, weather_fips="27001", weather_start=datetime(2024, 2, 1, tzinfo=UTC)
+    )
+
+    result = preflight._scenario_weather_readiness(
+        database, ("weather_window",), preflight.scope(["TX"])
+    )
+
+    state = result["scenarios"][0]["states"][0]
+    assert result["status"] == "unavailable"
+    assert state["weather_rows"] == 0
+    assert state["ready"] is False
+
+
+def test_scenario_weather_accepts_complete_in_scope_window(tmp_path):
+    database = _weather_scenario_database(
+        tmp_path, weather_fips="48001", weather_start=datetime(2024, 2, 1, tzinfo=UTC)
+    )
+
+    result = preflight._scenario_weather_readiness(
+        database, ("weather_window",), preflight.scope(["Texas"])
+    )
+
+    state = result["scenarios"][0]["states"][0]
+    assert result["status"] == "ready"
+    assert state["weather_rows"] == state["expected_weather_rows"] == 3
+    assert state["ready"] is True
+
+
+def test_scenario_weather_rejects_in_scope_weather_outside_scenario_window(tmp_path):
+    database = _weather_scenario_database(
+        tmp_path, weather_fips="48001", weather_start=datetime(2024, 1, 1, tzinfo=UTC)
+    )
+
+    result = preflight._scenario_weather_readiness(
+        database, ("weather_window",), preflight.scope(["TX"])
+    )
+
+    state = result["scenarios"][0]["states"][0]
+    assert result["status"] == "unavailable"
+    assert state["weather_rows"] == 0
+    assert state["ready"] is False
 
 
 def test_operations_alignment_blocks_dashboard_when_curated_source_has_no_canonical_id(tmp_path):
