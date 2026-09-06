@@ -6,6 +6,8 @@ from pathlib import Path
 from copilot.tools.causal_query import (
     CausalArtifactReader,
     RegisteredCausalArtifact,
+    causal_query,
+    configure_causal_artifacts,
     evidence_from_artifact,
 )
 from copilot.tools.schemas import CausalQueryInput
@@ -120,6 +122,15 @@ def test_unregistered_selection_is_rejected_without_reading_a_path(
     result = _reader(tmp_path / "does-not-exist.json").query(
         CausalQueryInput(kind="effect", treatment="firm_generation_100mw")
     )
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "unsupported_request"
+
+
+def test_public_tool_returns_unavailable_until_deployment_registers_artifacts() -> None:
+    configure_causal_artifacts(())
+
+    result = causal_query("effect", treatment="hardening_saidi")
 
     assert result.status == "unavailable"
     assert result.unavailable.code == "unsupported_request"
