@@ -23,10 +23,28 @@ async function expectNoPageErrors(page: Page): Promise<void> {
   expect(pageErrors.get(page) ?? []).toEqual([]);
 }
 
-test("the primary route keeps a compact source-backed weather strip and named Minnesota boundary", async ({ page }) => {
-  await page.goto("/");
+async function openControlRoom(page: Page) {
+  const details = page.getByText("Region, weather, and cascade details", { exact: true });
+  await details.click();
   const room = page.getByLabel("Flux control room");
   await expect(room).toBeVisible();
+  return room;
+}
+
+async function expectMapFirst(page: Page) {
+  const map = page.getByLabel("Continental grid map");
+  await expect(map).toBeVisible();
+  await expect(map).toHaveAttribute("data-map-scope", "CONUS source inventory");
+  const bounds = await map.boundingBox();
+  expect(bounds).not.toBeNull();
+  expect(bounds!.y).toBeLessThan(180);
+  expect(bounds!.height).toBeGreaterThan(300);
+}
+
+test("the primary route keeps the CONUS workspace first and named Minnesota boundary in its compact details rail", async ({ page }) => {
+  await page.goto("/");
+  await expectMapFirst(page);
+  const room = await openControlRoom(page);
   await expect(room.getByText(/Weather, grid context, and evidence/i)).toBeVisible();
   if (!hasLiveApi) {
     await expect(room.getByText(/Weather unavailable/i)).toBeVisible();
@@ -70,7 +88,7 @@ test("Texas model navigation uses only canonical synthetic geometry and carries 
   await expect(dock.getByRole("button", { name: "Send" })).toBeEnabled();
   await dock.getByRole("button", { name: "Send" }).click();
   await expect(dock.getByText("Answer complete", { exact: true })).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByLabel("Flux control room").getByText(/Live synthetic Texas cascade/i)).toBeVisible();
+  await expect((await openControlRoom(page)).getByText(/Live synthetic Texas cascade/i)).toBeVisible();
   await expect(stage.getByLabel("Live synthetic cascade events")).toBeVisible();
   await expectNoPageErrors(page);
   await expectSameOriginOnly(page);
@@ -93,7 +111,7 @@ for (const viewport of [
   test(`${viewport.name} primary route has no horizontal overflow`, async ({ page }) => {
     await page.setViewportSize(viewport);
     await page.goto("/");
-    await expect(page.getByLabel("Flux control room")).toBeVisible();
+    await expectMapFirst(page);
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     await expectNoPageErrors(page);
   });

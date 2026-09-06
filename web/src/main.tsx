@@ -25,6 +25,7 @@ import { resultsFromRun } from "./data/ask-result";
 import { loadGridLayer, GRID_LAYERS, type GridState } from "./data/grid-client";
 import type { SpatialItem, SpatialPage } from "./data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "./renderer/GridInventoryPanel";
+import { ContinentalGridMap } from "./renderer/ContinentalGridMap";
 import { SyntheticModelScene } from "./renderer/SyntheticModelScene";
 import {
   HistoricalForecastPanel,
@@ -409,7 +410,9 @@ export function App() {
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
-  const [chatOpen, toggleChat] = useReducer(chatReducer, false);
+  // The workspace begins with a usable plain-English query, rather than a
+  // closed utility: the map remains dominant and the dock stays in its rail.
+  const [chatOpen, toggleChat] = useReducer(chatReducer, true);
 
   // --- Server-backed state. All of it lives in this shell; every panel below is
   // presentational and is handed the result of a real request or the named
@@ -854,17 +857,11 @@ export function App() {
         }
       }}
       texasModelScene={texasModelScene}
-      spatialStage={<GridInventoryPanel
-        load={gridLoad}
-        state={gridState}
-        layers={gridLayers}
-        query={gridQuery}
-        selected={gridSelected}
-        onStateChange={(next) => { setGridState(next); setGridLayers(GRID_LAYERS[next]); setGridSelected(null); }}
-        onLayersChange={setGridLayers}
-        onQueryChange={setGridQuery}
-        onSelect={setGridSelected}
-        onRetry={() => setGridAttempt((value) => value + 1)}
+      spatialStage={<ContinentalGridMap
+        className="primary-demo__continental-map"
+        selectedRegion={controlRoomRegion}
+        onRegionSelect={onPrimaryRegionChange}
+        onAssetSelect={setGridSelected}
       />}
       inspectorSlot={<><Inspector asset={inspectorAsset} className="asset-inspector" title="Evidence availability" /><HistoricalForecastPanel forecast={historicalForecast} countyFipses={selectedCountyFipses} selectedCountyFips={forecastCountyFips} onCountyChange={setForecastCountyFips} /></>}
       chatSlot={<ChatDockView
