@@ -1,0 +1,13 @@
+{
+  "retrieved_at": "2026-09-06T04:40:00Z",
+  "provider": "NOAA National Centers for Environmental Information",
+  "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+  "vintage": "Storm Events 2021 c20260323 and 2024 c20260728 publication files",
+  "license_access": "Public NCEI dataset; cite the dataset. No file-level SPDX license is asserted.",
+  "files": {
+    "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz": {"bytes": 10563953, "sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715", "decompressed_bytes": 60617079, "decompressed_sha256": "7ebbe8d432248d394ecae4e43387f1087941848ec5f03352baaec2353f71d87e"},
+    "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz": {"bytes": 12693243, "sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c", "decompressed_bytes": 69861911, "decompressed_sha256": "e278ecef5b99b6b7a5bfdeff0e7b75da1b14f36a0c893f272c9afb92abf7f3e3"}
+  },
+  "validation": {"loader": "pipelines.storm_events.load_storm_events", "scope": "TX", "schema_columns": 51, "source_tx_rows": {"2021": 4623, "2024": 5678}, "loaded_expanded_rows": {"2021": 4629, "2024": 5726, "total": 10355}, "assignment_methods": {"2021": {"direct_county": 2545, "nws_crosswalk": 2084}, "2024": {"direct_county": 3342, "nws_crosswalk": 2384}}, "rejected_unsupported": {"count": 22, "source_year": 2021, "zone_ids": [215, 216, 256, 257], "event_ids": [943342, 943337, 943347, 943358, 943360, 944588, 986584, 944593, 945008, 944595, 956126, 945009, 944613, 956139, 944639, 944640, 943271, 960749, 960751, 960748, 950189, 991186]}, "focused_tests": "10 passed", "result": "passed_with_documented_crosswalk_gap"},
+  "uncertainty": "Events use local standard-time CZ_TIMEZONE and are converted to UTC. The listed 22 2021 zone events are retained as explicit unsupported/rejected source rows because the declared bp16ap26 crosswalk lacks legacy Texas zone IDs 215, 216, 256, and 257. No replacement mapping was inferred. Candidate 2021 URLs bp16ap21 through bp16ap25 and bp21ap16 through bp25ap16 returned HTTP 404 on 2026-09-06."
+}
