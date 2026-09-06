@@ -1,0 +1,39 @@
+{
+  "archetype_id": "water_treatment_plant",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Water treatment plant",
+  "category": "critical_load",
+  "source_scene": "water_treatment_plant.scene.json",
+  "export": {
+    "container": "glb",
+    "specification": "glTF 2.0",
+    "model_file": "water_treatment_plant.glb",
+    "preview_file": "water_treatment_plant.preview.png",
+    "preview_source": "water_treatment_plant.preview.svg",
+    "preview_pixels": 512,
+    "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
+  },
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {"length": 140, "width": 100},
+  "connectors": [
+    {"name": "CONN_MV_FEED_0", "role": "MV_FEED", "position_m": [42, 0, 28]}
+  ],
+  "material_slots": [{
+    "name": "MAT_STATUS",
+    "default": "neutral",
+    "runtime_tinted": true,
+    "allowed_labels": ["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]
+  }],
+  "triangles": {"lod0": 28000, "lod1": 10500, "lod2": 3000},
+  "author": "Flux team",
+  "license": "MIT",
+  "source_of_shape": "Original generic Flux procedural water-treatment archetype; it depicts no real facility, process capacity, service population, operator, or Minnesota placement.",
+  "limit": "Process stages are generic geometry, not a treatment-capacity, water-quality, service-population, ownership, or Minnesota placement claim."
+}
