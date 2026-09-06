@@ -1,6 +1,6 @@
 {
   "request_schema_version": "flux-460-final-requests/v1",
-  "source": "canonical event bundles; controls replaced with final e1e70d7; fire replaced with 3ff3541",
+  "source": "canonical bundles; final controls and fire revisions",
   "requests": [
     {
       "event_id": "mn-sd-ia-2014-flood-27137-20140616000000",
