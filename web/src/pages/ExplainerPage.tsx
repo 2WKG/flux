@@ -19,7 +19,7 @@ import { FailureState } from "../failure-states/FailureState";
 const METHOD = [
   { title: "The scenario math", body: "The scenario explorer solves nothing at runtime. It reads a checked-in fixture whose unmet demand, corridor loadings and candidate contributions were computed offline and frozen." },
   { title: "The causal layer", body: "Experimental. It produces evidence artifacts offline; no causal estimate is computed in the browser and none is displayed on this page." },
-  { title: "The JEPA predictor", body: "Experimental. A joint-embedding predictor over outage counts is trained and evaluated outside this build. No prediction from it reaches any page here." },
+  { title: "The JEPA predictor", body: "Experimental. A recorded evaluation is shown in the JEPA section below; it is not a shipped outage probability." },
   { title: "The GNN / grid foundation-model direction", body: "Aspirational. A graph export exists as a dataset; there is no trained grid foundation model behind this demo, and nothing on the site is produced by one." },
 ];
 

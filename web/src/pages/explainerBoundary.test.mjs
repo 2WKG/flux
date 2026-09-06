@@ -16,6 +16,13 @@ const solverShapes = [
   /connectedComponents|balanceComponents/,
 ];
 
+test("the explainer page mounts JEPA and does not deny its recorded evaluation", async () => {
+  const pageSource = await readFile(new URL("./ExplainerPage.tsx", import.meta.url), "utf8");
+  assert.match(pageSource, /import \{ JepaSection \} from "\.\.\/explainer\/jepa";/);
+  assert.match(pageSource, /<JepaSection \/>/);
+  assert.doesNotMatch(pageSource, /This page does not present a prediction from it\.|No prediction from it reaches any page here\./);
+});
+
 test("the explainer cascade section imports no 3D renderer and carries no solver of its own", async () => {
   const pageSource = await readFile(new URL("../explainer/cascade/CascadeSection.tsx", import.meta.url), "utf8");
   const traceSource = await readFile(new URL("../explainer/cascade/toyCascadeTrace.ts", import.meta.url), "utf8");
