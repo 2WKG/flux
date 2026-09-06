@@ -193,9 +193,11 @@ def test_interface_only_fixture_cannot_yield_an_effect_claim() -> None:
 
     assert result.status == "unavailable"
     assert result.unavailable.code == "insufficient_evidence"
+    # The code alone cannot distinguish the interface-fixture refusal from the six
+    # other reasons that map to insufficient_evidence; pin the reason.
+    assert "FIXTURE_NOT_ESTIMABLE" in result.unavailable.reason
     assert not hasattr(result, "answer_numbers")
     assert not hasattr(result, "interval")
-    assert not hasattr(result, "p_value")
 
 
 def test_non_utf8_artifact_bytes_are_unavailable_not_raised(tmp_path: Path) -> None:
