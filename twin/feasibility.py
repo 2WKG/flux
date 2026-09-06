@@ -358,9 +358,14 @@ def _net_bus_index(net: Any, bus_id: Any) -> Any:
 
 
 def _capacity_mw(proposal: Mapping[str, Any]) -> float | None:
-    return _number(
-        proposal.get("pmax_mw", proposal.get("p_mw", proposal.get("rate_a_mw")))
-    )
+    # ``GridEdit`` serializes optional fields as explicit ``None`` values.
+    # ``Mapping.get(..., fallback)`` therefore cannot select ``p_mw`` for an
+    # add-load edit when ``pmax_mw`` is present-but-null.
+    for field in ("pmax_mw", "p_mw", "rate_a_mw"):
+        value = _number(proposal.get(field))
+        if value is not None:
+            return value
+    return None
 
 
 def _smallest_conductor_rating(
