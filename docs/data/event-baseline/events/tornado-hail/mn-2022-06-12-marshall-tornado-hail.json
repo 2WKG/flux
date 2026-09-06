@@ -72,6 +72,40 @@
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220612t180000-20220613t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:14:00.659083Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "{\"customers_out\": \"customers\", \"run_start_time\": \"UTC\"}",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": "{\"county_fips\": [\"27089\"], \"states\": [\"Minnesota\"], \"window\": \"UTC half-open\"}",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-06-12-marshall-tornado-hail-27089-20220612180000_eaglei_2022_20220612T180000_20220613T000000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      }
     }
   ],
   "records": [
@@ -82,7 +116,7 @@
       "scenario_id": "mn-2022-06-12-marshall-tornado-hail-replay",
       "window_start_utc": "2022-06-12T18:00:00Z",
       "window_end_utc": "2022-06-13T00:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
@@ -111,11 +145,38 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "notes": "EAGLE-I range extraction observed 0 of 24 expected 15-minute observations; this is UncoveredLabel, not zero outage.",
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20220612t180000-20220613t000000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 0 of 24 expected 15-minute observations for FIPS 27089. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2022-06-12T18:00:00Z",
+          "2022-06-12T18:15:00Z",
+          "2022-06-12T18:30:00Z",
+          "2022-06-12T18:45:00Z",
+          "2022-06-12T19:00:00Z",
+          "2022-06-12T19:15:00Z",
+          "2022-06-12T19:30:00Z",
+          "2022-06-12T19:45:00Z",
+          "2022-06-12T20:00:00Z",
+          "2022-06-12T20:15:00Z",
+          "2022-06-12T20:30:00Z",
+          "2022-06-12T20:45:00Z",
+          "2022-06-12T21:00:00Z",
+          "2022-06-12T21:15:00Z",
+          "2022-06-12T21:30:00Z",
+          "2022-06-12T21:45:00Z",
+          "2022-06-12T22:00:00Z",
+          "2022-06-12T22:15:00Z",
+          "2022-06-12T22:30:00Z",
+          "2022-06-12T22:45:00Z",
+          "2022-06-12T23:00:00Z",
+          "2022-06-12T23:15:00Z",
+          "2022-06-12T23:30:00Z",
+          "2022-06-12T23:45:00Z"
+        ],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
