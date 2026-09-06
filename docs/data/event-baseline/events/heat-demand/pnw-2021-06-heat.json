@@ -19,7 +19,7 @@
       "start_utc": "2021-06-30T00:00:00Z",
       "end_utc": "2021-07-02T00:00:00Z"
     },
-    "disposition": "candidate_only",
+    "disposition": "accepted",
     "selection_basis": "NOAA Climate.gov documents four days of record Pacific Northwest heat; EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window.",
     "exclusions": [
       "County-grid HRRR weather receipt pending",
@@ -30,7 +30,8 @@
       "Customer denominator unavailable"
     ],
     "source_event_ids": [
-      "pnw-2021-06-heat"
+      "pnw-2021-06-heat",
+      "ncei-stormevents:961302"
     ]
   },
   "source_receipts": [
@@ -84,6 +85,25 @@
         "filtered_artifact_uri": "data/raw/event-baseline/pnw-2021-06-heat-41051-20210629000000_eaglei_2021_20210629T000000_20210629T060000.csv",
         "filtered_artifact_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775"
       }
+    },
+    {
+      "receipt_id": "ncei-stormevents-2021-961302",
+      "provider": "NOAA NCEI Storm Events",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "release": "Storm Events details 2021 c20260323",
+      "retrieved_at_utc": "2026-09-06T08:18:58Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "filtered_sha256": "8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124",
+      "bytes": 10563953,
+      "etag": null,
+      "units": "Storm Events local begin/end; event type and NWS zone scope",
+      "timezone_conversion": "CZ_TIMEZONE PST-8 converted by +8 hours to UTC",
+      "filters": "EVENT_ID=961302",
+      "grid_index_mapping": "Historical OR006 NWS zone-to-Multnomah FIPS 41051 crosswalk; artifact SHA256 847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595",
+      "gaps": [
+        "Zone report is not a sampled county weather time series; crosswalk is a historical mapping."
+      ]
     }
   ],
   "records": [
@@ -94,11 +114,12 @@
       "scenario_id": "pnw-2021-06-heat-replay",
       "window_start_utc": "2021-06-29T00:00:00Z",
       "window_end_utc": "2021-06-29T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "accepted",
       "mode": "replay",
       "provenance_receipt_ids": [
         "climategov-pnw-2021",
-        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000"
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000",
+        "ncei-stormevents-2021-961302"
       ],
       "source_evidence_status": "available",
       "source_row_keys": [
@@ -136,17 +157,28 @@
         }
       ],
       "weather": {
-        "coverage": "uncovered",
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
         "source_receipt_ids": [
-          "climategov-pnw-2021"
+          "ncei-stormevents-2021-961302"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "Observed regional heat source supports candidacy; county-grid weather receipt pending.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "event_report": {
+          "source_event_ids": [
+            "ncei-stormevents:961302"
+          ],
+          "source_window": {
+            "start_utc": "2021-06-26T20:00:00Z",
+            "end_utc": "2021-06-30T02:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "OR006 Greater Portland Metro Area mapped to Multnomah County FIPS 41051",
+          "limitations": "NCEI records an NWS zone report, not a sampled county time series; county mapping uses the archived historical crosswalk."
+        },
+        "notes": "Observed NCEI Excessive Heat report interval intersects the canonical county window."
       },
       "outage": {
         "coverage": "covered",
@@ -161,7 +193,7 @@
         "event_report": null,
         "notes": "Complete 24/24 native 15-minute observations."
       },
-      "matched_coverage_decision": "unavailable",
+      "matched_coverage_decision": "matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
