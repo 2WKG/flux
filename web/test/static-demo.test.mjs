@@ -74,15 +74,18 @@ test("the built demo ships the current fixture and asks for nothing off-origin",
   assert.ok(app.includes(fixture.execution.provenance.artifactId));
 });
 
-test("the UI does not claim an API connection it does not have", async () => {
+test("the UI requires the model API and names its unavailable state", async () => {
   const [source, app] = await files();
   for (const text of [source, app]) {
     assert.ok(!text.includes("API connected"), "static build must not say it is connected to an API");
     assert.ok(!/GET \/api\/demo/.test(text), "static build must not describe consuming GET /api/demo");
   }
-  // The scenario explorer is still bundled: it needs no API to paint, which is
-  // what this claim is scoped to.
-  assert.ok(app.includes("no API required"));
+  // The default Texas topology is read from the model route. A static origin
+  // must state that dependency and render a named unavailable state instead of
+  // substituting the old five-bus lesson.
+  assert.ok(app.includes("model API required"));
+  assert.ok(app.includes("Texas model topology unavailable"));
+  assert.ok(!app.includes("no API required"));
 });
 
 /**
@@ -188,6 +191,36 @@ test("serving dist/ statically yields the SPA shell for /api/demo, never a demo 
       assert.equal(body, shellBody, `${route} must fall back to the SPA shell`);
       assert.throws(() => JSON.parse(body), `${route} returned parseable JSON`);
       assert.ok(!body.includes('"status":"available"'), `${route} looks like the demo API envelope`);
+    }
+  } finally {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
+  }
+});
+
+// The block above exercises the built artifact under a plain file server. This one
+// exercises the origin the runbook actually tells an operator to start
+// (`npm --prefix web run start` → `node server.mjs`), which is a different program:
+// it refuses API-shaped paths outright instead of falling back to the shell. The
+// freeze-readiness runbook quotes this response, so the two must not drift.
+test("the shipped origin refuses /api paths with an explicit 503, not the SPA shell", async () => {
+  const { createApp } = await import("../server.mjs");
+  const server = createApp().listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    const shell = await fetch(`${base}/`);
+    assert.equal(shell.status, 200);
+    assert.match(shell.headers.get("content-type"), /^text\/html/);
+    const shellBody = await shell.text();
+
+    for (const route of ["/api", "/api/demo", "/api/demo?scenario=a", "/api/demo/"]) {
+      const response = await fetch(`${base}${route}`);
+      const body = await response.text();
+      assert.equal(response.status, 503, `${route} must be refused, not served`);
+      assert.match(response.headers.get("content-type"), /^text\/plain/, route);
+      assert.equal(body, "The static Flux demo does not serve API routes.", route);
+      assert.notEqual(body, shellBody, `${route} must not fall back to the SPA shell`);
     }
   } finally {
     server.closeAllConnections();

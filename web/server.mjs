@@ -14,6 +14,7 @@
 // allowance, which is strictly worse.
 import express from "express";
 import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
@@ -22,15 +23,38 @@ const dist = fileURLToPath(new URL("./dist/", import.meta.url));
  * The read paths that may be forwarded, and the methods each accepts. Nothing
  * else is proxied — a path not in this table is served the SPA shell, so a new
  * upstream route cannot be reached by accident.
+ *
+ * This table is also the single definition of the *public* path surface
+ * (2WKG-274). The Cloudflare Tunnel in `deploy/cloudflared/config.example.yml`
+ * publishes exactly the GET entries below, derived by `INGRESS_PATH_PATTERN`,
+ * so the edge cannot reach a path this same-origin forward refuses. `ingress`
+ * is the same expression as `pattern`, written in the RE2 dialect cloudflared
+ * uses and without the leading slash the joined alternation supplies;
+ * `web/test/ingress-allowlist.test.mjs` asserts the two agree and that the
+ * checked-in config carries the derived string verbatim.
  */
-const PROXIED = [
-  { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
-  { pattern: /^\/health$/, methods: ["GET"] },
-  { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
-  { pattern: /^\/scenarios$/, methods: ["GET"] },
-  { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+export const PROXIED = [
+  { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, ingress: "api/v1/grid/layers/[^/]+", methods: ["GET"] },
+  { pattern: /^\/api\/v1\/grid\/asset-placements$/, ingress: "api/v1/grid/asset-placements", methods: ["GET"] },
+  { pattern: /^\/assets\/flux-grid\/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)$/, ingress: "assets/flux-grid/(?:manifest\\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)", methods: ["GET"] },
+  { pattern: /^\/demo\/model$/, ingress: "demo/model", methods: ["GET"] },
+  { pattern: /^\/health$/, ingress: "health", methods: ["GET"] },
+  { pattern: /^\/layers\/[^/]+$/, ingress: "layers/[^/]+", methods: ["GET"] },
+  { pattern: /^\/scenarios$/, ingress: "scenarios", methods: ["GET"] },
+  { pattern: /^\/scenarios\/[^/]+$/, ingress: "scenarios/[^/]+", methods: ["GET"] },
+  // POST. Cloudflared filters paths, not methods, so publishing this at the edge
+  // would expose the Copilot ask surface to the public internet; it stays local.
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
+
+/**
+ * The `path:` regex the public edge must carry: exactly the GET half of
+ * `PROXIED`, in table order. A path the edge admits but this forward refuses
+ * would be a second, wider public API surface — the thing 2WKG-274 exists to
+ * prevent.
+ */
+export const INGRESS_PATH_PATTERN =
+  `^/(${PROXIED.filter((entry) => entry.methods.includes("GET")).map((entry) => entry.ingress).join("|")})$`;
 
 /** Upstream deadline. An upstream that never answers must not hold a socket open. */
 export const PROXY_TIMEOUT_MS = 30_000;
@@ -47,11 +71,11 @@ function proxied(pathname, method) {
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' blob:",
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
-  "script-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "object-src 'none'",
@@ -82,7 +106,7 @@ export function unavailableEnvelope({ message, reason, requestId }) {
 /** The named reason an allowlisted path carries when this deployment has no upstream at all. */
 export const NO_API_ORIGIN_REASON = "no_api_origin_configured";
 
-export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN } = {}) {
+export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN, proxyTimeoutMs = PROXY_TIMEOUT_MS } = {}) {
   const app = express();
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
@@ -104,7 +128,7 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
         headers,
         body,
         duplex: body ? "half" : undefined,
-        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+        signal: AbortSignal.timeout(proxyTimeoutMs),
       }).then((response) => {
         res.status(response.status);
         const type = response.headers.get("content-type");
@@ -113,8 +137,24 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
         if (retryAfter) res.setHeader("retry-after", retryAfter);
         if (!response.body) return res.end();
         // Streamed, so a text/event-stream answer is not buffered to completion
-        // before the browser sees its first frame.
-        Readable.fromWeb(response.body).pipe(res);
+        // before the browser sees its first frame. Keep the promise observed:
+        // an AbortSignal timeout can reject a Web Readable after headers.
+        const stream = Readable.fromWeb(response.body);
+        void pipeline(stream, res).catch(() => {
+          // A complete error envelope is possible only before headers. Once a
+          // partial GLB/event response is sent, destroy it rather than claiming
+          // a successful complete body; pipeline has consumed the stream error.
+          if (!res.headersSent && !res.destroyed) {
+            res.status(504).setHeader("content-type", "application/json");
+            res.end(JSON.stringify(unavailableEnvelope({
+              message: "The configured API origin timed out while streaming its response.",
+              reason: "upstream_unreachable",
+              requestId: "proxy-upstream-stream-timeout",
+            })));
+          } else if (!res.writableEnded) {
+            res.destroy();
+          }
+        });
       }).catch((error) => {
         // The upstream's absence is reported in the shape the browser's own
         // validator reads, so it becomes a named unavailable state rather than
@@ -162,5 +202,11 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT || 4173);
-  createApp().listen(port, () => console.log(`Flux is running at http://localhost:${port}`));
+  // Loopback by default. `listen(port)` with no host binds the unspecified address
+  // (`::`, dual-stack), so this unauthenticated demo origin answered on the LAN while
+  // README.md and docs/runbooks/local-startup.md promised loopback-only endpoints.
+  // Binding an interface is now an explicit opt-in through HOST.
+  const host = process.env.HOST || "127.0.0.1";
+  const shown = host === "127.0.0.1" || host === "::1" ? "localhost" : host;
+  createApp().listen(port, host, () => console.log(`Flux is running at http://${shown}:${port}`));
 }

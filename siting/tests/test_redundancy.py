@@ -146,3 +146,56 @@ def test_flux_network_uses_immutable_outage_and_cascade_adapters(tmp_path) -> No
     assert result["components"]["n_minus_one_survivability"] == 0.0
     assert result["worst_contingency"]["branch_id"] == "line:1"
     assert result["worst_contingency"]["cascade_metrics"]["lost_load_mw"] == 10.0
+
+
+def test_one_twin_contingency_solve_failure_keeps_topology_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from twin import cascade
+    from twin.contracts import SimulationSolveError
+
+    net = SimpleNamespace(
+        branches=[
+            {"id": "direct", "from_bus": "load", "to_bus": "source_a", "dptf": 90.0},
+            {
+                "id": "spur",
+                "from_bus": "source_a",
+                "to_bus": "spur_bus",
+                "dptf": 80.0,
+            },
+        ],
+        sources=[{"bus": "source_a"}],
+        flux_element_lookup={},
+        flux_bus_metadata={},
+    )
+
+    monkeypatch.setattr(
+        cascade,
+        "island_primitives",
+        lambda _net, _edits: [],
+    )
+
+    calls: list[str] = []
+
+    def run_cascade(_net, edits):
+        calls.append(edits[0].element_id)
+        if edits[0].element_id == "line:direct":
+            raise SimulationSolveError("forced fixture solve failure")
+        return {
+            "lost_load_mw": 0.0,
+            "served_load_mw": 10.0,
+            "edit_hash": "successful-contingency",
+        }
+
+    monkeypatch.setattr(cascade, "run_cascade", run_cascade)
+
+    result = score_redundancy(net, "load", max_contingencies=2)
+
+    assert result["evidence"]["status"] == "available_with_twin_cascade"
+    assert result["evidence"]["cascade_unavailable_contingencies"] == 1
+    assert calls == ["line:direct", "line:spur"]
+    assert result["worst_contingency"]["cascade_metrics"] == {
+        "status": "unavailable",
+        "reason": "simulation_solve_error",
+    }
+    assert result["worst_contingency"]["branch_id"] == "line:direct"

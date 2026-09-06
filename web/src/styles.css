@@ -350,6 +350,28 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
    inventory panel salvaged from PR #245. */
 .map-foundation { position: relative; block-size: 100%; min-block-size: 28rem; border-radius: 12px; overflow: hidden }
 .map-foundation .maplibregl-map { block-size: 100%; min-block-size: 28rem }
+.texas-topology-map { position: relative; min-block-size: 42rem; overflow: hidden; border-radius: 10px }
+.texas-topology-map .maplibregl-map { block-size: 42rem }
+.texas-asset-focus { position: absolute; z-index: 5; inset: 4.5rem .75rem auto auto; padding: .5rem .7rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); cursor: pointer }
+.texas-asset-focus:disabled { color: var(--muted); cursor: not-allowed }
+.texas-topology-map > p { position: absolute; z-index: 2; inset: auto .75rem .75rem .75rem; margin: 0; padding: .6rem .75rem; max-inline-size: 50rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: .78rem }
+.texas-model-intro { position: absolute; z-index: 4; inset: 3.8rem auto auto max(1rem, calc((100dvw - 1520px) / 2)); max-inline-size: min(34rem, calc(100dvw - 2rem)); margin: 0; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); pointer-events: none }
+.texas-model-intro h1 { margin: .15rem 0; font-size: clamp(1.15rem, 2vw, 1.65rem) }
+.texas-model-intro p:last-child { margin: .25rem 0 0; color: var(--muted); font-size: .8rem; line-height: 1.35 }
+.model-workspace { display: block; margin-inline: calc((100dvw - min(100dvw, 1520px)) / -2); }
+.model-workspace .scene-viewport { position: relative; min-height: calc(100dvh - 52px); padding: 0; border-radius: 0 }
+.model-workspace .texas-topology-map, .model-workspace .texas-topology-map .maplibregl-map { min-block-size: calc(100dvh - 52px); block-size: calc(100dvh - 52px); border-radius: 0 }
+.model-workspace .map-head, .model-workspace .legend, .model-workspace .layer-controls, .model-workspace .layer-list, .model-workspace .layer-suppressions, .model-workspace .timeline { position: absolute; z-index: 3; margin: 0; max-inline-size: min(28rem, calc(100% - 2rem)); background: rgb(9 17 29 / 93%); border: 1px solid var(--line-strong); border-radius: .5rem; padding: .6rem .75rem }
+.model-workspace .map-head { inset: .75rem auto auto .75rem }
+.model-workspace .legend { inset: auto auto .75rem .75rem }
+/* Leave the MapLibre zoom/compass controls at the top-right interactive. */
+.model-workspace .layer-controls { inset: 4.5rem .75rem auto auto }
+.texas-topology-map .maplibregl-ctrl-top-right { z-index: 4 }
+.model-workspace .layer-list, .model-workspace .layer-suppressions, .model-workspace .timeline { display: none }
+.model-workspace .inspector { display: none }
+.texas-model-unavailable { display: grid; gap: .65rem; min-block-size: 28rem; place-content: center; padding: 2rem; border: 1px solid var(--amber); border-radius: .6rem; color: var(--ink) }
+.texas-model-unavailable span { color: var(--muted) }
+.texas-model-unavailable button { width: fit-content; padding: .45rem .7rem; border: 1px solid var(--line-strong); border-radius: .4rem }
 .map-foundation-notice { position: absolute; inset: auto .75rem .75rem .75rem; z-index: 2; display: grid; gap: .25rem; max-inline-size: 52rem; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: 13px; line-height: 1.35 }
 .map-foundation-notice strong { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase }
 .grid-inventory { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
@@ -439,4 +461,41 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
   .map-foundation, .map-foundation .maplibregl-map { min-block-size: 20rem }
   .map-foundation-notice { inset-inline: .5rem; inset-block-end: .5rem }
   .grid-map { min-height: 20rem }
+}
+
+/* Main assistant (folded in from src/main-assistant/main-assistant.css:
+   `test/stylesheet-unification.test.mjs` requires one physical sheet). */
+.flux-main-assistant {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.flux-main-assistant__header p {
+  margin: 0;
+  color: var(--ink-muted, #627386);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.flux-main-assistant__header h2,
+.flux-main-assistant__grounding,
+.flux-main-assistant__scene-action p {
+  margin: 0;
+}
+
+.flux-main-assistant__grounding,
+.flux-main-assistant__scene-action {
+  border: 1px solid var(--border-subtle, #b8c3cc);
+  border-radius: 0.4rem;
+  padding: 0.7rem 0.8rem;
+}
+
+.flux-main-assistant__grounding {
+  color: var(--ink-muted, #425466);
+}
+
+.flux-main-assistant__scene-action {
+  background: var(--surface-subtle, #f5f7f8);
 }

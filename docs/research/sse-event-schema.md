@@ -91,6 +91,45 @@ Failure is explicit. A producer never substitutes a plausible value, fallback
 score, or fabricated result. `result` is a bounded safe-to-display
 serialization, not an unlimited backend response.
 
+#### `scene_action` (additive)
+
+A `tool_result` with `ok: true` MAY nest exactly one `scene_action` object in its
+`result`. It is the only channel by which a tool result may declare a scene
+change; a consumer never infers one from a tool name, answer prose, or any other
+nested object. Absence is normal and means no scene change was declared.
+
+Required: `action_id`, `kind`, `tool_call_id`, `reversible`, `status`.
+`tool_call_id` MUST equal the enclosing event's `call_id`, so an action can only
+be declared by its own observed call. `status` is `available` or `unavailable`;
+`unavailable` MAY carry a `reason`.
+
+`kind` is drawn from ONE vocabulary, shared by every producer and every consumer:
+
+| `kind` | required identity | meaning |
+| --- | --- | --- |
+| `focus` | none beyond `action_id` | a client-side view focus |
+| `filter` | none beyond `action_id` | a client-side view filter |
+| `compare` | none beyond `action_id` | a client-side comparison view |
+| `scenario_edit` | `edit_hash` | names a saved edit |
+| `cascade` | `cascade_id` | names a cascade run |
+
+The identity rule is normative and applies to every kind, with no per-kind
+exemption: an action whose `status` is `available` and whose kind's required
+identity is absent is not available, and a consumer MUST render it as
+`unavailable` with a reason naming the missing field. One identity never stands
+in for another — an `edit_hash` names an edit, not a run — and a refused action
+carries no identifier at all, so nothing on screen can be read as the identity
+that is missing.
+
+The web client implements this in exactly one place, `web/src/ask/results/types.ts`
+(`SceneActionKind`, `missingSceneActionIdentity`); `ResultCards`, the
+`AgentSimulationAdapter` seam and `MainAssistant` all read it from there. A new
+kind is added to that table and that module, and nowhere else.
+
+```json
+{"v":1,"seq":9,"call_id":"call_01J8...","tool":"cascade","ok":true,"result":{"scene_action":{"action_id":"action-7","kind":"cascade","tool_call_id":"call_01J8...","cascade_id":"run_01J9...","reversible":true,"status":"available"}},"elapsed_ms":124}
+```
+
 ### `citation`
 
 A retrieved source that may support an external claim. Required: `v`, `seq`,
@@ -131,9 +170,41 @@ replace an answer, tool value, citation, or success state.
 ## Completion, heartbeats, and reconnect
 
 Every attempt emits exactly one terminal event: one `done` or one `error`,
-never both. No application event may follow it. If cancellation or connection
-loss prevents delivery of a terminal event, the client marks the attempt
-incomplete, not completed. Servers should stop work promptly on disconnect.
+never both. No application event may follow it. Servers should stop work
+promptly on disconnect.
+
+**Normative — a terminal-less stream is `request_failed`.** If the stream closes
+(EOF, abort, or connection loss) with neither a terminal `done` nor a terminal
+`error`, the server has broken this contract, and the client marks the attempt
+**failed**, not completed and not merely incomplete. The client emits the frozen
+UI token `request_failed` — never `unavailable`, which is reserved for a cause
+the server itself declared — carrying the named code
+`stream_ended_without_terminal` so the surface shows which failure it is rather
+than a bare sentence. The client never fabricates the terminal event it did not
+receive: any text already delivered is retained as incomplete. Decided as OQ-1
+in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)
+on 2026-09-06. The rule and its reducer landed in
+`web/src/ask/run-state/reducer.ts` (the `stream_closed` action) and
+`web/src/failure-states/adapters.ts` (`fromStreamClose`); **no transport
+dispatches it yet.** The live SSE reader closes its stream at
+`web/src/data/transport.ts:226-228` with no reducer attached, so today a
+terminal-less stream still leaves the run in `active`. Wiring that close to
+`stream_closed` is follow-up **FU-4** in
+[`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md),
+and it is done when the chat dock mounts the run reducer (PR #252).
+
+**Which side owns a terminal-less close.** The rule above holds when the
+*server* walks away: an EOF or a connection loss with the client still
+listening is the server breaking its one-terminal-per-attempt contract, and the
+client is entitled to declare `request_failed`. A close the *client* caused is
+different: on a user Stop the browser aborts the request, and
+`copilot/routes/ask.py:117-119` re-raises `asyncio.CancelledError` without
+emitting a terminal, because there is no longer a reader to receive one. Under
+the rule as written that abort reads as "Request failed" rather than the
+stopped-on-purpose copy. The client cannot tell the two apart on its own —
+only a terminal `error` with code `cancelled` may report a confirmed
+cancellation — so the server should emit that terminal before re-raising:
+follow-up **FU-5**, server-side, not changed here.
 
 While active and otherwise silent for 15 seconds, a server should send a
 comment heartbeat:
