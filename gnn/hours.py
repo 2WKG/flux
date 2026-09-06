@@ -118,7 +118,7 @@ def select_hours(
         available = by_band[band]
         if not available:
             continue
-        want = min(max(int(round(weights.get(band, 0.0) * count)), 1), len(available))
+        want = min(max(round(weights.get(band, 0.0) * count), 1), len(available))
         rng = random.Random(derive_seed(seed, "hours", band))
         chosen.extend(rng.sample(available, want))
     rng = random.Random(derive_seed(seed, "hours", "order"))
