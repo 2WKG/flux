@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { GeoJsonLayer } from "@deck.gl/layers";
-import type { LayersList } from "@deck.gl/core";
-import Map, { type MapRef } from "react-map-gl/maplibre";
-import { DeckOverlay } from "./DeckOverlay";
+import Map, { Layer, Source, type MapRef } from "react-map-gl/maplibre";
 import { OFFLINE_BASEMAP_STYLE } from "./basemap";
 import { geometryAccounting, pageFrom, renderableFeatures, type SpatialItem, type SpatialPage } from "./spatial-scene";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -62,6 +59,12 @@ function boundsOf(features: ReturnType<typeof renderableFeatures>): [[number, nu
   return [[Math.min(...longitudes), Math.min(...latitudes)], [Math.max(...longitudes), Math.max(...latitudes)]];
 }
 
+function coordinatesOf(value: unknown): [number, number][] {
+  if (!Array.isArray(value)) return [];
+  if (value.length >= 2 && typeof value[0] === "number" && typeof value[1] === "number") return [[value[0], value[1]]];
+  return value.flatMap(coordinatesOf);
+}
+
 function LiveGridApp() {
   const [state, setState] = useState<State>("tx");
   const [layers, setLayers] = useState<readonly string[]>(LAYERS.tx);
@@ -84,7 +87,14 @@ function LiveGridApp() {
   const items = useMemo(() => load.kind === "ready" ? load.pages.flatMap((page) => page.items) : [], [load]);
   const filtered = useMemo(() => query.trim() ? items.filter((item) => item.asset_id.toLowerCase().includes(query.trim().toLowerCase()) || item.asset_kind.toLowerCase().includes(query.trim().toLowerCase())) : items, [items, query]);
   const features = useMemo(() => renderableFeatures(filtered), [filtered]);
+  const featureCollection = useMemo(() => ({ type: "FeatureCollection" as const, features: features.map((feature) => ({ ...feature, properties: { asset_id: feature.id } })) }), [features]);
   const featureBounds = useMemo(() => boundsOf(features), [features]);
+  const overlayGeometry = useMemo(() => {
+    if (!featureBounds) return [];
+    const [[west, south], [east, north]] = featureBounds;
+    const dx = Math.max(east - west, 0.000001); const dy = Math.max(north - south, 0.000001);
+    return features.map((feature) => ({ feature, points: coordinatesOf(feature.geometry.coordinates).map(([x, y]) => [((x - west) / dx) * 1000, (1 - (y - south) / dy) * 1000] as const) }));
+  }, [features, featureBounds]);
   const accounting = geometryAccounting(items);
   const release = load.kind === "ready" && load.pages[0] ? load.pages[0] : null;
   const coverage = useMemo(() => {
@@ -103,10 +113,6 @@ function LiveGridApp() {
       return [{ assetClass: value.asset_class as string, status: value.status as string, scope: value.source_scope as string, reason: value.reason as string, observed: value.observed_count, denominator: value.denominator_count, unknown: value.unknown_count, unavailable: value.unavailable_count }];
     });
   }, [load]);
-  const deckLayers = useMemo<LayersList>(() => [new GeoJsonLayer({ id: "physical-inventory-display-geometry", data: features as never, pickable: true,
-    stroked: true, filled: true, lineWidthMinPixels: 2, pointRadiusMinPixels: 5, getLineColor: [112, 213, 255, 235], getFillColor: [255, 191, 94, 220], getPointRadius: 60,
-    onClick: ({ object }) => object && setSelected((object as { properties: SpatialItem }).properties),
-  })], [features]);
   const updateLayer = (layer: string, checked: boolean) => setLayers((current) => checked ? [...current, layer] : current.filter((id) => id !== layer));
   useEffect(() => {
     if (featureBounds && bbox === null) mapRef.current?.fitBounds(featureBounds, { padding: 64, maxZoom: 11, duration: 0 });
@@ -116,7 +122,7 @@ function LiveGridApp() {
     <section className="grid-controls" aria-label="Map controls"><label>State <select value={state} onChange={(event) => setState(event.target.value as State)}><option value="tx">Texas</option><option value="mn">Minnesota</option></select></label>
       <fieldset><legend>Layers</legend>{LAYERS[state].map((layer) => <label key={layer}><input type="checkbox" checked={layers.includes(layer)} onChange={(event) => updateLayer(layer, event.target.checked)} /> {layer}</label>)}</fieldset>
       <label>Search rendered inventory <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Asset ID or kind" /></label></section>
-    <section className="grid-map" aria-label="Source-backed physical inventory map"><Map key={state} ref={mapRef} initialViewState={state === "tx" ? { longitude: -99, latitude: 31, zoom: 5 } : { longitude: -94, latitude: 46, zoom: 5.6 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMoveEnd={(event) => { const b = event.target.getBounds(); setBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",")); }}><DeckOverlay layers={deckLayers} /></Map>
+    <section className="grid-map" aria-label="Source-backed physical inventory map"><Map key={state} ref={mapRef} initialViewState={state === "tx" ? { longitude: -99, latitude: 31, zoom: 5 } : { longitude: -94, latitude: 46, zoom: 5.6 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMoveEnd={(event) => { const b = event.target.getBounds(); setBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",")); }}><Source id="physical-inventory-source" type="geojson" data={featureCollection as never}><Layer id="physical-inventory-lines" type="line" paint={{ "line-color": "#3ee3ff", "line-width": 4 }} /></Source></Map><svg className="grid-geometry-overlay" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-label="Visible source geometry">{overlayGeometry.map(({ feature, points }) => feature.geometry.type.includes("Point") ? points.map(([x, y], index) => <circle key={`${feature.id}:${index}`} cx={x} cy={y} r="9" onClick={() => setSelected(feature.properties)} />) : <polyline key={feature.id} points={points.map((point) => point.join(",")).join(" ")} onClick={() => setSelected(feature.properties)} />)}</svg>
       <div className="grid-map-note" role="status">{load.kind === "loading" ? "Loading source-backed inventory…" : load.kind === "failure" ? <><span>Unavailable: {load.message}</span>{load.retryable && <button type="button" onClick={() => setRefresh((value) => value + 1)}>Retry inventory request</button>}</> : <><strong>{release?.artifact_id} · {release?.artifact_version}</strong><span>{accounting.renderable} rendered from {accounting.totalLoaded} loaded {bbox ? "viewport" : "state"} records; {accounting.unavailableGeometry} loaded records have unavailable geometry and no marker was created.</span><span>Release SHA-256: {release?.release_sha256}; coverage disclosure follows.</span></>}</div></section>
     <section className="grid-coverage" aria-label="Coverage and geometry availability"><h2>Coverage and geometry availability</h2>{coverage.map((row) => <article key={`${row.assetClass}:${row.scope}`}><strong>{row.assetClass} · {row.status}</strong><p>{row.scope}</p><p>Observed: {String(row.observed ?? "Unknown")} / denominator: {String(row.denominator ?? "Unknown")}; unknown: {String(row.unknown ?? "Unknown")}; unavailable: {String(row.unavailable ?? "Unknown")}</p><p>{row.reason}</p></article>)}</section>
     <section className="grid-results" aria-label="Rendered inventory search results"><h2>Rendered inventory</h2>{features.slice(0, 25).map((feature) => <button key={feature.id} type="button" onClick={() => setSelected(feature.properties)}>{feature.id} · {feature.properties.asset_kind}</button>)}{features.length > 25 && <p>Showing the first 25 matching rendered features. Refine search to narrow this list.</p>}</section>
