@@ -12,8 +12,10 @@ from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
+from copilot.dispatcher import ToolCallingProvider, ToolDispatcher, ToolLoopOverrun
 from copilot.runtime import AsyncNarrationProvider, ToolTurn, stream_turn
 from copilot.sse import CopilotEventStream, SseEvent
+from copilot.verify import verify
 
 router = APIRouter(tags=["ask"])
 
@@ -149,6 +151,71 @@ async def _stream_backend(
         yield _encoded_event(event)
 
 
+async def _stream_dispatcher(
+    dispatcher: ToolDispatcher,
+    provider: ToolCallingProvider,
+    payload: AskRequest,
+) -> AsyncIterator[ServerSentEvent]:
+    """Run only provider-declared tools through the bounded shared dispatcher."""
+
+    stream = CopilotEventStream()
+    yield _encoded_event(stream.start())
+    context = (
+        payload.context.model_dump(exclude_none=True)
+        if payload.context is not None
+        else {}
+    )
+    history = tuple(item.model_dump() for item in payload.history)
+    try:
+        results, answer = await dispatcher.run(
+            provider,
+            question=payload.question,
+            history=history,
+            context=context,
+        )
+    except asyncio.CancelledError:
+        raise
+    except ToolLoopOverrun:
+        # A provider that keeps calling tools is a distinct failure from a
+        # malformed call: the operator must be able to tell them apart.
+        yield _encoded_event(
+            stream.error(
+                "protocol_error",
+                "The model kept requesting tools past the bounded tool-call loop.",
+                retryable=False,
+            )
+        )
+        return
+    except ValueError:
+        yield _encoded_event(
+            stream.error(
+                "tool_error", "The requested tool action was invalid.", retryable=False
+            )
+        )
+        return
+    except Exception:  # noqa: BLE001 - provider/handler internals stay server-side.
+        yield _encoded_event(stream.provider_failed())
+        return
+
+    for result in results:
+        yield _encoded_event(
+            stream.tool_call(result.call_id, result.name, result.arguments)
+        )
+        yield _encoded_event(
+            stream.tool_result(result.call_id, result.name, result.result, elapsed_ms=0)
+        )
+    yield _encoded_event(stream.text(answer))
+    report = verify(answer, (result.result for result in results), ())
+    yield _encoded_event(
+        stream.done(
+            verified=report.verified,
+            unverified_numbers=report.unverified_numbers,
+            unverified_citations=report.unverified_citations,
+            reason=report.reason,
+        )
+    )
+
+
 def _heartbeat() -> ServerSentEvent:
     """A transport-only comment: it deliberately has no application id."""
 
@@ -182,11 +249,19 @@ def ask(
 
     backend = getattr(request.app.state, "ask_backend", None)
     provider = _answering_provider(request, backend)
-    if backend is None:
-        events = _unavailable_events("The local Copilot backend is not configured.")
-        content = _encoded_events(events)
-    else:
+    if backend is not None:
         content = _stream_backend(backend, payload, provider)
+    else:
+        # An injected tool-calling transport is the only other way this weekend
+        # backend can answer.  It never displaces `ask_backend`: it is consulted
+        # only where the app would otherwise emit the unavailable terminal.
+        dispatcher = getattr(request.app.state, "tool_dispatcher", None)
+        tool_provider = getattr(request.app.state, "tool_provider", None)
+        if isinstance(dispatcher, ToolDispatcher) and tool_provider is not None:
+            content = _stream_dispatcher(dispatcher, tool_provider, payload)
+        else:
+            events = _unavailable_events("The local Copilot backend is not configured.")
+            content = _encoded_events(events)
     # Run metadata, not stream data: the SSE event vocabulary stays identical
     # across providers, and these headers are deliberately absent from the CORS
     # expose list, so the browser cannot branch on which model answered while an
