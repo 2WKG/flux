@@ -53,11 +53,13 @@ const site = await import(compiled.href);
 const route = (id) => site.ROUTES.find((entry) => entry.id === id);
 
 test("each page has its own path, and an unmatched path falls back to the explorer", () => {
-  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer"]);
+  assert.deepEqual(site.ROUTES.map((entry) => entry.path), ["/", "/explainer", "/minnesota"]);
   assert.equal(site.routeForPath("/").id, "main");
   assert.equal(site.routeForPath("/explainer").id, "explainer");
+  assert.equal(site.routeForPath("/minnesota").id, "minnesota");
   // A deep link with a trailing slash is the same page, not a miss.
   assert.equal(site.routeForPath("/explainer/").id, "explainer");
+  assert.equal(site.routeForPath("/minnesota/").id, "minnesota");
   // Page paths outside the route table are the explorer rather than a blank screen.
   // `web/server.mjs` intercepts API-shaped requests before they reach this matcher.
   assert.equal(site.routeForPath("/nothing-here").id, "main");

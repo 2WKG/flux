@@ -8,9 +8,14 @@ import pytest
 from shapely.geometry import Polygon
 
 from pipelines.minnesota_asset_binding import (
+    MINNESOTA_BBOX,
+    PACK_ARCHIVE_PATH,
     AssetBindingError,
     bind_asset,
+    bind_city_essentials,
+    bind_city_essentials_from_files,
     bind_from_files,
+    load_pack_binaries,
 )
 from pipelines.minnesota_schema import ensure_minnesota_schema
 
@@ -18,6 +23,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 CATALOG_PATH = ROOT / "data/3d/asset-archetypes-v1.json"
 INVENTORY_PATH = ROOT / "data/sources/minnesota-accepted-artifact-inventory.json"
+CITY_ESSENTIALS_REQUEST_PATH = (
+    ROOT / "data/3d/requests/minnesota-city-essentials-v1.json"
+)
 
 ACCEPTED_ARTIFACT = "mn:scene:coverage:v1"
 ACCEPTED_SCENE = "mn:scene:coverage:v1:facility-1"
@@ -31,6 +39,10 @@ def _catalog() -> dict:
 
 def _inventory() -> dict:
     return json.loads(INVENTORY_PATH.read_text())
+
+
+def _city_essentials_request() -> dict:
+    return json.loads(CITY_ESSENTIALS_REQUEST_PATH.read_text())
 
 
 def _model(archetype_id: str = "transmission_line_segment") -> dict:
@@ -414,3 +426,241 @@ def test_bind_from_files_previews_when_storage_has_no_manifest(tmp_path):
 
     assert binding["render_mode"] == "catalog_preview"
     assert "no mn_artifact_manifests row" in binding["disclosure"]
+
+
+# --- Gate 6 city-essential pack ------------------------------------------------
+
+
+def test_city_essentials_request_semantically_binds_all_seven_as_safe_previews(
+    tmp_path,
+):
+    """The committed Gate 6 request is complete but invents no Minnesota place."""
+    binding = bind_city_essentials(
+        _db(tmp_path),
+        _catalog(),
+        _inventory(),
+        _city_essentials_request(),
+        binaries=_binaries(),
+    )
+
+    assert binding["summary"] == {"total": 7, "placed": 0, "catalog_previews": 7}
+    assert [asset["archetype_id"] for asset in binding["assets"]] == [
+        "data_center_campus",
+        "residential_neighborhood",
+        "commercial_buildings",
+        "factory_industrial_facility",
+        "natural_gas_plant",
+        "wind_turbine",
+        "solar_array",
+    ]
+    assert {asset["semantic_type"] for asset in binding["assets"]} == {
+        "load",
+        "generation",
+    }
+    assert all(asset["render_mode"] == "catalog_preview" for asset in binding["assets"])
+    assert all("coordinates" not in asset for asset in binding["assets"])
+
+
+def test_city_essentials_request_rejects_a_partial_or_substituted_pack(tmp_path):
+    request = _city_essentials_request()
+    request["assets"] = request["assets"][:-1]
+
+    with pytest.raises(AssetBindingError, match="exactly the seven Gate 6 archetypes"):
+        bind_city_essentials(
+            _db(tmp_path), _catalog(), _inventory(), request, binaries=_binaries()
+        )
+
+
+def test_city_essentials_file_entry_point_uses_the_committed_request(tmp_path):
+    db_path = tmp_path / "mn.duckdb"
+    con = duckdb.connect(str(db_path))
+    ensure_minnesota_schema(con)
+    con.close()
+
+    binding = bind_city_essentials_from_files(
+        CATALOG_PATH, INVENTORY_PATH, CITY_ESSENTIALS_REQUEST_PATH, db_path
+    )
+
+    assert binding["summary"]["total"] == 7
+    assert binding["summary"]["catalog_previews"] == 7
+
+
+# --- Gate 6: the pack's own refusals, each reachable ---------------------------
+
+
+def _binaries() -> dict:
+    return load_pack_binaries(PACK_ARCHIVE_PATH)
+
+
+def test_city_essentials_request_rejects_an_unsupported_format(tmp_path):
+    request = _city_essentials_request()
+    request["format"] = "flux:minnesota-city-essentials-binding:v2"
+
+    with pytest.raises(AssetBindingError, match="unsupported format"):
+        bind_city_essentials(
+            _db(tmp_path),
+            _catalog(),
+            _inventory(),
+            request,
+            binaries=_binaries(),
+        )
+
+
+def test_city_essentials_request_rejects_a_foreign_contract_id(tmp_path):
+    request = _city_essentials_request()
+    request["contract_id"] = "flux:3d-asset-archetypes:v2"
+
+    with pytest.raises(AssetBindingError, match="contract_id does not match"):
+        bind_city_essentials(
+            _db(tmp_path),
+            _catalog(),
+            _inventory(),
+            request,
+            binaries=_binaries(),
+        )
+
+
+def test_city_essentials_request_rejects_a_duplicated_archetype(tmp_path):
+    request = _city_essentials_request()
+    request["assets"][-1] = json.loads(json.dumps(request["assets"][0]))
+
+    with pytest.raises(AssetBindingError, match="duplicates archetype"):
+        bind_city_essentials(
+            _db(tmp_path),
+            _catalog(),
+            _inventory(),
+            request,
+            binaries=_binaries(),
+        )
+
+
+def test_city_essentials_request_rejects_a_substituted_archetype(tmp_path):
+    """Truncation is not the only way to break the closed pack."""
+    request = _city_essentials_request()
+    substituted = next(
+        asset
+        for asset in request["assets"]
+        if asset["model"]["archetype_id"] == "solar_array"
+    )
+    substituted["model"]["archetype_id"] = "battery_storage"
+
+    with pytest.raises(
+        AssetBindingError,
+        match=r"missing=\['solar_array'\], unexpected=\['battery_storage'\]",
+    ):
+        bind_city_essentials(
+            _db(tmp_path),
+            _catalog(),
+            _inventory(),
+            request,
+            binaries=_binaries(),
+        )
+
+
+# --- Gate 6: unpublished binaries stay visible as such -------------------------
+
+
+def test_city_essentials_binding_names_the_unfetchable_pack_binaries(tmp_path):
+    """The seven glb_uris point at a pack whose archive is still unpublished."""
+    archive = json.loads((ROOT / "data/3d/packs/flux-grid-v1/archive.json").read_text())
+    assert archive["download_url"] is None
+    assert archive["publication_status"] == "binary_attachment_pending"
+
+    binding = bind_city_essentials(
+        _db(tmp_path),
+        _catalog(),
+        _inventory(),
+        _city_essentials_request(),
+        binaries=_binaries(),
+    )
+
+    assert binding["binaries"] == {
+        "publication_status": "binary_attachment_pending",
+        "download_url": None,
+        "fetchable": False,
+    }
+    assert all(asset["glb_binary"]["fetchable"] is False for asset in binding["assets"])
+    assert [asset["glb_binary"]["uri"] for asset in binding["assets"]] == [
+        asset["model"]["glb_uri"] for asset in _city_essentials_request()["assets"]
+    ]
+
+
+def test_city_essentials_binding_reports_a_published_pack_as_fetchable(tmp_path):
+    """The status is read from the archive, not hard-coded to 'pending'."""
+    archive_path = tmp_path / "archive.json"
+    archive_path.write_text(
+        json.dumps(
+            {
+                "publication_status": "published",
+                "download_url": "https://example.invalid/flux-grid-assets.zip",
+            }
+        )
+    )
+
+    binding = bind_city_essentials(
+        _db(tmp_path),
+        _catalog(),
+        _inventory(),
+        _city_essentials_request(),
+        binaries=load_pack_binaries(archive_path),
+    )
+
+    assert binding["binaries"]["fetchable"] is True
+    assert all(asset["glb_binary"]["fetchable"] is True for asset in binding["assets"])
+
+
+# --- Gate 6: the pack reaches the shared file entry point ----------------------
+
+
+def test_bind_from_files_dispatches_a_city_essentials_request(tmp_path):
+    """`bind_from_files` is the one file entry point; the pack goes through it."""
+    db_path = tmp_path / "mn.duckdb"
+    con = duckdb.connect(str(db_path))
+    ensure_minnesota_schema(con)
+    con.close()
+
+    binding = bind_from_files(
+        CATALOG_PATH, INVENTORY_PATH, CITY_ESSENTIALS_REQUEST_PATH, db_path
+    )
+
+    assert binding["format"] == "flux:minnesota-city-essentials-binding:v1"
+    assert binding["summary"] == {"total": 7, "placed": 0, "catalog_previews": 7}
+    assert binding["binaries"]["fetchable"] is False
+
+
+# --- Gate 6: the placement branch the committed request never takes ------------
+
+
+def test_city_essentials_places_a_member_given_accepted_minnesota_evidence(tmp_path):
+    """The committed request carries no placement; the code path still works.
+
+    Nothing on this branch supplies an accepted Minnesota placement for a city
+    essential, so this test builds the evidence rows itself. It exists so the
+    `placed` half of the summary is exercised rather than asserted-at-zero.
+    """
+    con = _db(tmp_path)
+    _manifest(con)
+    _score(con, "source_screened")
+
+    request = _city_essentials_request()
+    placed = next(
+        asset
+        for asset in request["assets"]
+        if asset["model"]["archetype_id"] == "wind_turbine"
+    )
+    placed["placement"] = _placement()
+
+    binding = bind_city_essentials(
+        con, _catalog(), _inventory(), request, binaries=_binaries()
+    )
+
+    assert binding["summary"] == {"total": 7, "placed": 1, "catalog_previews": 6}
+    (asset,) = [a for a in binding["assets"] if a["render_mode"] == "placed"]
+    assert asset["archetype_id"] == "wind_turbine"
+    assert asset["scene_id"] == ACCEPTED_SCENE
+    assert asset["material"]["status_label"] == "source_screened"
+    west, south, east, north = MINNESOTA_BBOX
+    assert west <= asset["coordinates"]["longitude"] <= east
+    assert south <= asset["coordinates"]["latitude"] <= north
+    # A placed asset still names an unfetchable binary.
+    assert asset["glb_binary"]["publication_status"] == "binary_attachment_pending"

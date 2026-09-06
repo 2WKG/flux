@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import { useState } from "react";
 import { LayerControls, type LayerDescriptor } from "./LayerControls";
+import "../styles.css";
 
 const evidence = {
   source: "Synthetic harness fixture",
