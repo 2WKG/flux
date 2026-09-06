@@ -181,6 +181,20 @@ def acquire_exhaustive(
             and (not fips or row["fips_code"] in fips)
             and start <= parse_source_time(row["run_start_time"]) < end
         ]
+    valid_rows = []
+    invalid_rows = 0
+    for row in selected:
+        try:
+            outage = int(row[customers_field])
+            denominator = (
+                int(row["total_customers"]) if "total_customers" in fieldnames else None
+            )
+            if outage < 0 or (denominator is not None and denominator <= 0):
+                raise ValueError
+        except (TypeError, ValueError):
+            invalid_rows += 1
+            continue
+        valid_rows.append(row)
     expected = {
         start + timedelta(minutes=15 * index)
         for index in range(int((end - start).total_seconds() // 900))
@@ -189,7 +203,7 @@ def acquire_exhaustive(
     for code in sorted(fips):
         times = {
             parse_source_time(row["run_start_time"])
-            for row in selected
+            for row in valid_rows
             if row["fips_code"] == code
         }
         coverage[code] = {
@@ -221,6 +235,7 @@ def acquire_exhaustive(
         "license": {"name": article["license"]["name"], "url": LICENSE_URL},
         "retrieved_at_utc": utc_now(),
         "acquisition_method": "exhaustive_annual_stream",
+        "acquisition_complete": True,
         "raw_artifact": str(raw_path),
         "raw_sha256": raw_hash.hexdigest(),
         "raw_bytes": raw_path.stat().st_size,
@@ -228,6 +243,8 @@ def acquire_exhaustive(
         "filtered_artifact": str(selected_path),
         "filtered_sha256": hashlib.sha256(selected_path.read_bytes()).hexdigest(),
         "filtered_rows": len(selected),
+        "valid_selected_rows": len(valid_rows),
+        "invalid_selected_rows": invalid_rows,
         "source_columns": fieldnames,
         "outage_field_source": customers_field,
         "source_row_identity": ["fips_code", "run_start_time"],
@@ -238,6 +255,39 @@ def acquire_exhaustive(
             "window": "UTC half-open",
         },
         "coverage_by_county": coverage,
+        "total_customers_summary": (
+            {
+                "present_rows": sum(
+                    1
+                    for row in valid_rows
+                    if row.get("total_customers") not in (None, "")
+                ),
+                "missing_rows": sum(
+                    1 for row in selected if row.get("total_customers") in (None, "")
+                ),
+                "min": min(
+                    (
+                        int(row["total_customers"])
+                        for row in valid_rows
+                        if row.get("total_customers") not in (None, "")
+                    ),
+                    default=None,
+                ),
+                "max": max(
+                    (
+                        int(row["total_customers"])
+                        for row in valid_rows
+                        if row.get("total_customers") not in (None, "")
+                    ),
+                    default=None,
+                ),
+            }
+            if "total_customers" in fieldnames
+            else None
+        ),
+        "customer_denominator": "native source total_customers only; no population substitution"
+        if "total_customers" in fieldnames
+        else "unavailable; no population substitution",
         "gaps": "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel.",
         "units": {customers_field: "customers", "run_start_time": "UTC"},
         "timezone_conversion": "none; EAGLE-I documentation states UTC",
