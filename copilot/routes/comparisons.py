@@ -23,11 +23,7 @@ from copilot.api.pagination import DeterministicOrder, PageRequest, SortTerm
 
 router = APIRouter(tags=["comparisons"])
 
-_REQUIRED_TABLES: Final = (
-    "mn_artifact_manifests",
-    "mn_artifact_provenance",
-    "mn_score_results",
-)
+_REQUIRED_TABLES: Final = ("mn_artifact_manifests",)
 _CRITICAL_ORDER: Final = DeterministicOrder(
     primary=(SortTerm("score_value", "DESC"),),
     tie_breaker=SortTerm("artifact_id", "ASC"),
@@ -65,6 +61,9 @@ def _unavailable(reason: str, *, artifact: str, **details: str) -> UnavailableEr
             "The persisted result does not contain the required identity or evidence."
         ),
         "artifact_unavailable": "The requested persisted result is unavailable.",
+        "ambiguous_identity": (
+            "More than one persisted result claims the requested identity."
+        ),
     }
     return UnavailableError(
         messages[reason], details={"artifact": artifact, "reason": reason, **details}
@@ -90,6 +89,16 @@ def _missing_tables(con: duckdb.DuckDBPyConnection) -> list[str]:
     return [table for table in _REQUIRED_TABLES if table not in present]
 
 
+def _has_tables(con: duckdb.DuckDBPyConnection, *tables: str) -> bool:
+    present = {
+        name
+        for (name,) in con.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+        ).fetchall()
+    }
+    return set(tables) <= present
+
+
 def _as_object(value: object, *, label: str) -> dict[str, Any]:
     if isinstance(value, str):
         try:
@@ -112,6 +121,14 @@ def _as_string_list(value: object, *, label: str) -> list[str]:
         not isinstance(item, str) or not item for item in value
     ):
         raise _PersistedInvalid(f"{label} must be a non-empty-string list")
+    return value
+
+
+def _require_identity_keys(
+    value: dict[str, Any], *, keys: set[str], label: str
+) -> dict[str, Any]:
+    if set(value) != keys:
+        raise _PersistedInvalid(f"{label} has incompatible keys")
     return value
 
 
@@ -187,27 +204,66 @@ def _comparison_score_rows(
 ) -> list[tuple[object, ...]]:
     placeholders = ", ".join("?" for _ in intervention_ids)
     return con.execute(
-        f"""SELECT m.artifact_id, m.availability, m.model_mode, m.limitations_json,
+        f"""SELECT m.artifact_id, m.availability, m.model_mode, m.identity_json, m.limitations_json,
                   s.metric, s.score_value, s.score_unit, s.score_components_json,
                   s.regulatory_label
              FROM mn_artifact_manifests AS m
              JOIN mn_score_results AS s USING (artifact_id)
              WHERE m.artifact_kind='score' AND m.geography_id='mn'
-               AND json_extract_string(s.score_components_json, '$.scenario_id')=?
-               AND json_extract_string(s.score_components_json, '$.intervention_id')
+               AND json_extract_string(m.identity_json, '$.source_identity.family')='comparison'
+               AND json_extract_string(m.identity_json, '$.source_identity.scenario_id')=?
+               AND json_extract_string(m.identity_json, '$.source_identity.intervention_id')
                    IN ({placeholders})
              ORDER BY m.artifact_id ASC""",
         [scenario_id, *intervention_ids],
     ).fetchall()
 
 
+def _unavailable_comparison_manifests(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    scenario_id: str,
+    intervention_ids: list[str],
+) -> list[tuple[object, ...]]:
+    placeholders = ", ".join("?" for _ in intervention_ids)
+    return con.execute(
+        f"""SELECT artifact_id, identity_json,
+                   json_extract_string(identity_json, '$.source_identity.intervention_id')
+              FROM mn_artifact_manifests
+             WHERE artifact_kind='score' AND geography_id='mn'
+               AND availability='unavailable' AND model_mode='not_applicable'
+               AND json_extract_string(identity_json, '$.source_identity.family')='comparison'
+               AND json_extract_string(identity_json, '$.source_identity.scenario_id')=?
+               AND json_extract_string(identity_json, '$.source_identity.intervention_id')
+                   IN ({placeholders})
+             ORDER BY artifact_id ASC""",
+        [scenario_id, *intervention_ids],
+    ).fetchall()
+
+
+def _unavailable_critical_manifests(
+    con: duckdb.DuckDBPyConnection, *, region: str
+) -> list[tuple[object, ...]]:
+    return con.execute(
+        """SELECT artifact_id, identity_json FROM mn_artifact_manifests
+             WHERE artifact_kind='score' AND geography_id=?
+               AND availability='unavailable' AND model_mode='not_applicable'
+               AND json_extract_string(identity_json, '$.source_identity.family')='critical_elements'
+               AND json_extract_string(identity_json, '$.source_identity.region')=?
+               AND json_extract_string(identity_json, '$.source_identity.status')='unavailable'
+             ORDER BY artifact_id ASC""",
+        [region, region],
+    ).fetchall()
+
+
 def _score_payload(
     con: duckdb.DuckDBPyConnection, row: tuple[object, ...]
-) -> tuple[dict[str, Any], dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     (
         artifact_id,
         availability,
         model_mode,
+        identity_json,
         limitations_json,
         metric,
         score_value,
@@ -239,7 +295,22 @@ def _score_payload(
         "provenance": _provenance(con, artifact_id),
         "limitations": _as_limitations(limitations_json),
     }
-    return payload, payload["score_components"]
+    identity = _as_object(identity_json, label="identity_json")
+    source_identity = _as_object(
+        identity.get("source_identity"), label="identity_json.source_identity"
+    )
+    return payload, payload["score_components"], source_identity
+
+
+def _unavailable_source_identity(value: object, *, keys: set[str]) -> dict[str, Any]:
+    identity = _as_object(value, label="identity_json")
+    return _require_identity_keys(
+        _as_object(
+            identity.get("source_identity"), label="identity_json.source_identity"
+        ),
+        keys=keys,
+        label="identity_json.source_identity",
+    )
 
 
 @router.post("/compare")
@@ -251,16 +322,20 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
         missing = _missing_tables(con)
         if missing:
             raise _unavailable("missing", artifact=missing[0])
-        rows = _comparison_score_rows(
-            con,
-            scenario_id=payload.scenario_id,
-            intervention_ids=payload.intervention_ids,
+        rows = (
+            _comparison_score_rows(
+                con,
+                scenario_id=payload.scenario_id,
+                intervention_ids=payload.intervention_ids,
+            )
+            if _has_tables(con, "mn_score_results", "mn_artifact_provenance")
+            else []
         )
         selected: dict[str, dict[str, Any]] = {}
         unsupported = False
         for row in rows:
             try:
-                score, components = _score_payload(con, row)
+                score, components, source_identity = _score_payload(con, row)
             except _DeclaredUnavailable as exc:
                 raise _unavailable(
                     "artifact_unavailable", artifact="comparison"
@@ -269,15 +344,30 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
                 raise _unavailable(
                     "invalid_persisted_result", artifact="mn_score_results"
                 ) from exc
-            if components.get("scenario_id") != payload.scenario_id:
-                continue
+            if (
+                components.get("scenario_id") != payload.scenario_id
+                or _require_identity_keys(
+                    source_identity,
+                    keys={"family", "scenario_id", "intervention_id"},
+                    label="comparison source identity",
+                ).get("family")
+                != "comparison"
+                or source_identity.get("scenario_id") != payload.scenario_id
+            ):
+                raise _unavailable("invalid_persisted_result", artifact="comparison")
             intervention_id = components.get("intervention_id")
-            if intervention_id not in payload.intervention_ids:
-                continue
+            if (
+                intervention_id not in payload.intervention_ids
+                or source_identity.get("intervention_id") != intervention_id
+            ):
+                raise _unavailable("invalid_persisted_result", artifact="comparison")
             if score["model_mode"] != "topology":
                 unsupported = True
                 continue
-            selected[str(intervention_id)] = {
+            key = str(intervention_id)
+            if key in selected:
+                raise _unavailable("ambiguous_identity", artifact="comparison")
+            selected[key] = {
                 **score,
                 "scenario_id": payload.scenario_id,
                 "intervention_id": str(intervention_id),
@@ -285,6 +375,29 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
         if unsupported:
             raise _unavailable("unsupported_model_mode", artifact="comparison")
         if set(selected) != set(payload.intervention_ids):
+            unavailable = _unavailable_comparison_manifests(
+                con,
+                scenario_id=payload.scenario_id,
+                intervention_ids=[
+                    item for item in payload.intervention_ids if item not in selected
+                ],
+            )
+            for _, identity_json, intervention_id in unavailable:
+                try:
+                    identity = _unavailable_source_identity(
+                        identity_json,
+                        keys={"family", "scenario_id", "intervention_id"},
+                    )
+                except _PersistedInvalid as exc:
+                    raise _unavailable(
+                        "invalid_persisted_result", artifact="comparison"
+                    ) from exc
+                if identity == {
+                    "family": "comparison",
+                    "scenario_id": payload.scenario_id,
+                    "intervention_id": intervention_id,
+                }:
+                    raise _unavailable("artifact_unavailable", artifact="comparison")
             raise _unavailable("no_qualified_result", artifact="comparison")
         return {
             "scenario_id": payload.scenario_id,
@@ -315,23 +428,47 @@ def critical_elements(
         if missing:
             raise _unavailable("missing", artifact=missing[0])
         clause, parameters = _CRITICAL_ORDER.clause(page)
-        rows = con.execute(
-            f"""SELECT m.artifact_id, m.availability, m.model_mode, m.limitations_json,
+        rows = (
+            con.execute(
+                f"""SELECT m.artifact_id, m.availability, m.model_mode, m.identity_json, m.limitations_json,
                        s.metric, s.score_value, s.score_unit, s.score_components_json,
                        s.regulatory_label
                   FROM mn_artifact_manifests AS m
                   JOIN mn_score_results AS s USING (artifact_id)
                   WHERE m.artifact_kind='score' AND m.geography_id=?
+                    AND json_extract_string(m.identity_json, '$.source_identity.family')='critical_elements'
+                    AND json_extract_string(m.identity_json, '$.source_identity.region')=?
                     AND s.metric='critical_element'
                   {clause}""",
-            [region, *parameters],
-        ).fetchall()
+                [region, region, *parameters],
+            ).fetchall()
+            if _has_tables(con, "mn_score_results", "mn_artifact_provenance")
+            else []
+        )
         if not rows:
+            for _, identity_json in _unavailable_critical_manifests(con, region=region):
+                try:
+                    identity = _unavailable_source_identity(
+                        identity_json,
+                        keys={"family", "region", "status"},
+                    )
+                except _PersistedInvalid as exc:
+                    raise _unavailable(
+                        "invalid_persisted_result", artifact="critical_elements"
+                    ) from exc
+                if identity == {
+                    "family": "critical_elements",
+                    "region": region,
+                    "status": "unavailable",
+                }:
+                    raise _unavailable(
+                        "artifact_unavailable", artifact="critical_elements"
+                    )
             raise _unavailable("no_qualified_result", artifact="critical_elements")
         elements: list[dict[str, Any]] = []
         for row in rows:
             try:
-                score, components = _score_payload(con, row)
+                score, components, source_identity = _score_payload(con, row)
                 if score["model_mode"] != "topology":
                     raise _unavailable(
                         "unsupported_model_mode", artifact="critical_elements"
@@ -339,6 +476,21 @@ def critical_elements(
                 element_id = _as_string(
                     components.get("element_id"), label="element_id"
                 )
+                if (
+                    _require_identity_keys(
+                        source_identity,
+                        keys={"family", "region", "scenario_id", "element_id"},
+                        label="critical source identity",
+                    ).get("family")
+                    != "critical_elements"
+                    or source_identity.get("region") != region
+                    or source_identity.get("element_id") != element_id
+                    or source_identity.get("scenario_id")
+                    != components.get("scenario_id")
+                ):
+                    raise _PersistedInvalid(
+                        "critical score identity disagrees with values"
+                    )
                 kind = components.get("kind")
                 if kind not in {"line", "bus", "gen"}:
                     raise _PersistedInvalid("kind must be line, bus, or gen")
