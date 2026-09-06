@@ -46,6 +46,7 @@
           "active_branch_count": 4,
           "branch_selection": "highest available DPTF-ranked in-service branches",
           "cascade": "not_run",
+          "cascade_unavailable_contingencies": 0,
           "contingencies_evaluated": 4,
           "hour": 0,
           "max_contingencies": 20,
