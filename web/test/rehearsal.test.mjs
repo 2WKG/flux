@@ -6,6 +6,7 @@ import { readFile } from "node:fs/promises";
 import test, { after } from "node:test";
 
 import { createApp } from "../server.mjs";
+import { builtScriptNames } from "./built-assets.mjs";
 
 const fixtureUrl = new URL("../../data/demo/bundle.json", import.meta.url);
 const servers = [];
@@ -52,13 +53,24 @@ test("the rehearsal static origin serves the demo but never substitutes an API o
   const app = await response(base, asset);
   assert.equal(app.status, 200);
   assert.match(app.type, /javascript/);
+
+  // The entry is split per page (2WKG-478), so the fixture rides in the scenario
+  // page's chunk. Every emitted script must be served, and the fixture must be in
+  // one of them.
+  const served = [];
+  for (const name of await builtScriptNames()) {
+    const chunk = await response(base, `/assets/${name}`);
+    assert.equal(chunk.status, 200, `${name} is not served`);
+    assert.match(chunk.type, /javascript/, `${name} is not served as a script`);
+    served.push(chunk.body);
+  }
   const fixture = JSON.parse(await readFile(fixtureUrl, "utf8"));
-  assert.ok(app.body.includes(fixture.fixtureHash), "the served bundle must identify its checked-in fixture");
+  assert.ok(served.join("\n").includes(fixture.fixtureHash), "the served bundle must identify its checked-in fixture");
 
   const staleDemoRoute = await response(base, "/api/demo");
-  assert.equal(staleDemoRoute.status, 200);
+  assert.equal(staleDemoRoute.status, 503);
   assert.doesNotMatch(staleDemoRoute.type, /json/);
-  assert.equal(staleDemoRoute.body, root.body);
+  assert.match(staleDemoRoute.body, /does not serve API routes/i);
 
   const ask = await response(base, "/ask", { method: "POST", body: "{}" });
   assert.equal(ask.status, 404);
