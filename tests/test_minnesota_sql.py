@@ -14,7 +14,12 @@ import duckdb
 import pytest
 
 from copilot.tools.schemas import ArtifactRef, SqlInput
-from copilot.tools.sql import ROW_LIMIT, ApprovedMinnesotaView, MinnesotaSqlExecutor
+from copilot.tools.sql import (
+    ROW_LIMIT,
+    ApprovedMinnesotaQuery,
+    ApprovedMinnesotaView,
+    MinnesotaSqlExecutor,
+)
 
 
 def _view() -> ApprovedMinnesotaView:
@@ -69,6 +74,47 @@ def test_no_registered_minnesota_views_fails_closed(db_path: Path) -> None:
     assert result.status == "unavailable"
     assert result.unavailable is not None
     assert result.unavailable.code == "artifact_unavailable"
+
+
+def test_named_template_registry_executes_declared_view_and_rejects_raw_sql(
+    db_path: Path,
+) -> None:
+    template = ApprovedMinnesotaQuery(
+        name="summary_rows",
+        sql="SELECT id, label FROM mn_summary ORDER BY id",
+        relations=frozenset({"mn_summary"}),
+    )
+    executor = MinnesotaSqlExecutor(db_path, [_view()], [template])
+
+    result = asyncio.run(executor.execute(SqlInput(template_id="summary_rows")))
+    raw = _execute(executor, "SELECT id, label FROM mn_summary")
+    unknown = asyncio.run(executor.execute(SqlInput(template_id="not_registered")))
+
+    assert result.status == "available"
+    assert result.rows[0] == [0, "row-0"]
+    assert raw.status == unknown.status == "unavailable"
+    assert raw.unavailable is not None and raw.unavailable.code == "unsupported_request"
+    assert (
+        unknown.unavailable is not None
+        and unknown.unavailable.code == "unsupported_request"
+    )
+
+
+def test_template_registry_rejects_mismatched_or_unapproved_relation_declarations(
+    db_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="not an approved view"):
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            [
+                ApprovedMinnesotaQuery(
+                    "wrong_relation",
+                    "SELECT * FROM mn_summary",
+                    frozenset({"mn_other"}),
+                )
+            ],
+        )
 
 
 def test_reads_only_registered_view_with_cte_comments_and_bound_row_cap(

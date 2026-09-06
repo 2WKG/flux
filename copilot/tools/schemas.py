@@ -129,7 +129,21 @@ class TopLinesInput(ContractModel):
 
 
 class SqlInput(ContractModel):
-    query: Annotated[str, Field(min_length=1, max_length=5_000)]
+    query: Annotated[
+        str | None,
+        Field(
+            min_length=1,
+            max_length=5_000,
+            description="Legacy free-form SQL; unavailable when a template registry is configured.",
+        ),
+    ] = None
+    template_id: Annotated[
+        str | None,
+        Field(
+            pattern=r"^[a-z][a-z0-9_]{0,63}$",
+            description="Named query advertised by the deployment's approved-template registry.",
+        ),
+    ] = None
 
 
 class CiteInput(ContractModel):
