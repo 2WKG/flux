@@ -152,8 +152,11 @@ mode, the caller supplies one advertised `template_id` matching
 Each template declares its complete approved-view relation set, which is
 validated against the parsed statement at registry construction. A deployment
 without a registry retains legacy `query` input and answers a `template_id`
-with an explicit unavailable result naming the missing registry. Bound values
-are not yet a public SQL input surface.
+with an explicit unavailable result naming the missing registry. Only a
+deployment-owned template may contain positional `?` markers. Its caller may
+send at most 25 finite JSON scalar values; the executor checks exact arity and
+binds them before execution. Legacy free-form `query` text cannot contain
+placeholders or values.
 
 `cite` corpus (in `data/raw/regs/`, chunked by spec 05): 10 CFR Part 100; DOE coal-to-nuclear reports
 (Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed rule
