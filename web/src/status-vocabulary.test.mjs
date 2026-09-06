@@ -214,20 +214,13 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   assert.ok(ASSET_STATUS_TOKENS.includes(token), `"${token}" is not one of the six IA status tokens`);
   assert.equal(token, "synthetic");
 
-  // Derivation site 1: the scenario-controls status chip, asserted as a slice so
-  // an unrelated occurrence of the word elsewhere on the page cannot satisfy it.
-  assert.match(
-    main,
-    new RegExp(`<span class="shell-status">${STATUS_COPY[token]} five-bus preview · not Minnesota data</span>`),
-    "the status chip does not render the owner's copy for the derived token",
-  );
-  // Derivation site 2: the nav source summary, which leads with the same label.
+  // The mounted root is the Texas model workspace. Its machine token and nav
+  // summary must agree without reviving the retired five-bus status chip.
+  assert.match(main, /<h1>ACTIVSg2000 network geometry<\/h1>/);
   const live = main.match(/<div class="live">([\s\S]*?)<\/div>/);
   assert.ok(live, "the nav no longer renders a source summary");
-  assert.equal(
-    textOf(live[1]),
-    `${STATUS_COPY[token]} · fixture source · no asserted topology · no API required for this scene`,
-  );
+  assert.equal(textOf(live[1]), `${STATUS_COPY[token]} ACTIVSg2000 static topology · model API required`);
+  assert.doesNotMatch(main, /five-bus preview|no asserted topology · no API required/i);
 
   // And the prohibited browser-invented status word never reaches the screen.
   assert.doesNotMatch(main, new RegExp(PROHIBITED_STATUS_WORD, "i"));
@@ -242,24 +235,22 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   assert.match(explainer, /data-request-state="unavailable"/);
   assert.match(explainer, /data-request-status="unavailable"/);
   assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
-  assert.match(explainer, /Nothing on this page is model output/);
+  assert.match(explainer, /This section replays that trace; it computes nothing\./);
+  assert.match(explainer, /Synthetic five-bus teaching network; not ACTIVSg2000, not a physical asset, and not an interconnection result\./);
 
   for (const rendered of [main, explainer]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
 });
 
-test("the main page's mounted inventory surface distinguishes loading, partial, unavailable, and failed reads", () => {
-  // The mount itself is the first claim: `GridInventoryPanel` renders exactly
-  // one root, and MainPage must carry it. Without this the whole inventory
-  // surface could be deleted from the product with this suite still green.
+test("inventory presentation states remain typed while the main page mounts the Texas model workspace", () => {
   const main = surface.renderMainPage();
-  assert.match(main, /<section class="grid-inventory" aria-label="Source-backed physical inventory">/);
-  // ...in its initial read state, the same branch the fixture below renders.
-  assert.match(main, /Requesting the source-backed inventory release\./);
+  assert.match(main, /Full synthetic Texas topology workspace/);
+  assert.match(main, /Texas model topology unavailable/);
+  assert.doesNotMatch(main, /<section class="grid-inventory" aria-label="Source-backed physical inventory">/);
 
-  // These are its real `gridLoad` branches, rendered with the same props
-  // MainPage supplies; they are not a second state vocabulary or a placeholder.
+  // These are the retained inventory component's real `gridLoad` branches; it
+  // remains independently testable without claiming it is the mounted Texas UI.
   const loading = surface.renderInventory({ kind: "loading" });
   assert.match(loading, /Requesting the source-backed inventory release\./);
 
