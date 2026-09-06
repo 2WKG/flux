@@ -8,14 +8,15 @@ conversion.
 
 Two acquisition modes exist and the receipt names which one ran:
 
-``bounded`` (default)
+``bounded`` (``--bounded-http-range``)
     Binary-searches the time-ordered annual file over HTTP ranges and never
     transfers more than ``--max-bytes``. Every range response must be a 206
-    whose ``Content-Range`` matches the request.
+    whose ``Content-Range`` matches the request. It is exploratory only: it
+    assesses neither coverage nor source absence, so it is opt-in.
 
-``exhaustive`` (``--allow-full-download``, or a pre-populated cache)
+``exhaustive`` (default)
     Streams or reuses the complete annual file. This is the only mode that may
-    establish source-wide coverage, and it is opt-in because it is unbounded.
+    establish source-wide coverage, so it is the default.
 
 It writes only the requested, complete CSV records and a JSON receipt; raw
 source bytes stay in the caller-selected cache directory, outside Git.
@@ -94,7 +95,7 @@ class ByteBudget:
             raise EagleiError(
                 f"bounded acquisition would exceed its {self.limit}-byte ceiling "
                 f"(already transferred {self.spent}, requested {count}); "
-                "pass --allow-full-download to stream the whole annual file"
+                "drop --bounded-http-range to stream the whole annual file"
             )
 
     def spend(self, count: int) -> None:
@@ -795,11 +796,11 @@ def acquire(
     states: set[str],
     fips: set[str],
     cache_dir: Path,
-    allow_full_download: bool = False,
+    allow_full_download: bool = True,
     max_bytes: int = DEFAULT_MAX_BOUNDED_BYTES,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
-    """Acquire a slice. Bounded by default; the full annual stream is opt-in."""
+    """Acquire a slice from a verified complete annual source by default."""
     if start >= end:
         raise ValueError("start must precede end")
     session = session if session is not None else requests.Session()
@@ -876,7 +877,19 @@ def acquire(
     ]
     valid_rows, invalid_rows = _valid_rows(selected, fieldnames, customers_out_field)
     report_fips = sorted(fips or {row["fips_code"] for row in valid_rows})
-    coverage = _coverage_report(valid_rows, report_fips, expected_times)
+    observed_coverage = _coverage_report(valid_rows, report_fips, expected_times)
+    # The bounded path cannot prove that its byte slice represents all source
+    # rows for a window.  Keep the rows it did observe as diagnostics, but do
+    # not turn a slice-local absence into an UncoveredLabel or a coverage claim.
+    coverage = {
+        code: {
+            "availability": "Unknown",
+            "coverage_state": "not_assessed_from_bounded_range",
+            "observed_intervals_in_retrieved_rows": item["observed_intervals"],
+            "expected_intervals_at_15_min": item["expected_intervals_at_15_min"],
+        }
+        for code, item in observed_coverage.items()
+    }
     denominator_summary = {
         code: {
             "observed_rows_with_total_customers": sum(
@@ -963,7 +976,7 @@ def acquire(
             (row["run_start_time"] for row in selected), default=None
         ),
         "coverage_by_county": coverage,
-        "coverage_summary": "Available" if coverage else "UncoveredLabel",
+        "coverage_summary": "Unknown",
         "customers_out_summary": {
             code: {
                 "min": min(
@@ -999,7 +1012,10 @@ def acquire(
             if "total_customers" in fieldnames
             else "unavailable in this annual slice; do not substitute population"
         ),
-        "absence_rule": ABSENCE_RULE,
+        "absence_rule": (
+            "A bounded byte slice cannot characterize missing rows; no source "
+            "absence or coverage classification is emitted."
+        ),
     }
     result = {
         "receipt": {
@@ -1021,12 +1037,11 @@ def acquire(
             "grid_index_mapping": (
                 "none; EAGLE-I rows are keyed by county FIPS, not a model grid index"
             ),
-            "gaps": _gap_entries(coverage)
-            + [
+            "gaps": [
                 (
-                    "bounded range acquisition: only the bracketed byte range "
-                    "was read, so this receipt cannot establish source-wide coverage"
-                )
+                    "bounded range acquisition: only the bracketed byte range was read, "
+                    "so source coverage and absence are not assessed"
+                ),
             ],
             "capture_method": "bounded_http_range_binary_search",
             "verification": {
@@ -1054,7 +1069,7 @@ def acquire(
     return result
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--year", type=int)
     parser.add_argument(
@@ -1085,17 +1100,19 @@ def main() -> None:
     )
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument(
-        "--allow-full-download",
+        "--bounded-http-range",
         action="store_true",
-        help="stream the whole multi-gigabyte annual CSV instead of bounded ranges",
+        help="exploratory only: binary-search bounded byte ranges instead of "
+        "streaming the whole annual CSV. A bounded receipt assesses neither "
+        "coverage nor source absence. The default is the exhaustive stream.",
     )
     parser.add_argument(
         "--max-bytes",
         type=int,
         default=DEFAULT_MAX_BOUNDED_BYTES,
-        help="byte ceiling for a bounded acquisition (ignored with --allow-full-download)",
+        help="byte ceiling for a bounded acquisition (only used with --bounded-http-range)",
     )
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.requests_json:
         print(
             json.dumps(
@@ -1119,7 +1136,7 @@ def main() -> None:
         states={state.strip() for state in args.states.split(",") if state.strip()},
         fips={code.strip().zfill(5) for code in args.fips.split(",") if code.strip()},
         cache_dir=args.cache_dir,
-        allow_full_download=args.allow_full_download,
+        allow_full_download=not args.bounded_http_range,
         max_bytes=args.max_bytes,
     )
     print(json.dumps(receipt, indent=2, sort_keys=True))
