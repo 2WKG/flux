@@ -39,18 +39,20 @@ curl --fail --location --output data/raw/pudl/v2026.2.0/out_eia__yearly_plants.p
   https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_plants.parquet
 curl --fail --location --output data/raw/pudl/v2026.2.0/out_eia__yearly_generators.parquet \
   https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_generators.parquet
-mkdir -p data/raw/eia930/2021_h1 data/raw/eia930/2024_h2 data/raw/storm_events/{2021,2024} data/raw/nws_zone_county/bp16ap26 data/raw/ntad_military_bases/fy2024
+mkdir -p data/raw/eia930/2021_h1 data/raw/eia930/2024_h2 data/raw/storm_events/{2021,2024} data/raw/nws_zone_county/{bp10nv20,bp05mr24} data/raw/ntad_military_bases/fy2024
 curl --fail --location --output data/raw/eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2021_Jan_Jun.csv
 curl --fail --location --output data/raw/eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jul_Dec.csv
 curl --fail --location --output data/raw/storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz
 curl --fail --location --output data/raw/storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz
-curl --fail --location --output data/raw/nws_zone_county/bp16ap26/bp16ap26.dbx https://www.weather.gov/source/gis/Shapefiles/County/bp16ap26.dbx
+curl --fail --location --output data/raw/nws_zone_county/bp10nv20/bp10nv20.dbx 'https://web.archive.org/web/20201019003757id_/https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx'
+curl --fail --location --output data/raw/nws_zone_county/bp05mr24/bp05mr24.dbx 'https://web.archive.org/web/20240928223402id_/https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx'
 curl --fail --location --output data/raw/ntad_military_bases/fy2024/texas.geojson 'https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson'
 uv run --extra dev python scripts/validate_texas_p0_inventory.py --raw-root data/raw
 ```
 
 HRRR remains unavailable despite a reproducible fixed-window manifest because
 this checkout lacks the county-grid index, loader, and aggregation transform.
-Storm Events has a current-crosswalk qualified-row receipt; historical NWS
-crosswalk editions require explicit provenance-aware event-window selection.
+Storm Events selects historical NWS crosswalk editions by pinned effective
+interval and fails closed outside their verified windows; archive hosting is
+recorded in the receipt.
 No successful source receipt authorizes a synthetic-to-real connectivity claim.
