@@ -52,3 +52,8 @@ The inventory's synthetic-topology caveat is binding: ACTIVSg2000 is a
 synthetic Texas-shaped network, not the real ERCOT network. A public geometry
 or nearest synthetic-bus association never establishes real electrical
 connectivity or a service connection.
+
+For the placement and truth-label policy of the reusable 3D archetypes, see
+[`texas-asset-taxonomy.md`](texas-asset-taxonomy.md). It cross-references this
+inventory without treating generic meshes as source evidence or changing the
+shared 3D asset contract.
