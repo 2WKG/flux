@@ -397,6 +397,14 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .method-entry h2 { font-size: 1.05rem; margin: 0 0 8px; letter-spacing: -.02em }
 .method-entry p { color: var(--muted); line-height: 1.65; font-size: .85rem; margin: 0 }
 
+/* Main-page assistant. Kept here so the shipped application has one stylesheet. */
+.flux-main-assistant { display: grid; gap: .8rem }
+.flux-main-assistant__header p { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase }
+.flux-main-assistant__header h2, .flux-main-assistant__grounding, .flux-main-assistant__scene-action { margin: 0 }
+.flux-main-assistant__grounding, .flux-main-assistant__scene-action { border: 1px solid var(--line-strong); border-radius: .4rem; padding: .7rem .8rem }
+.flux-main-assistant__grounding { color: var(--muted) }
+.flux-main-assistant__scene-action { background: var(--panel-raised) }
+
 @media (max-width: 1180px) {
   main { padding: 18px 22px 32px }
   .site-nav, .truth-legend, .page-pending { padding-left: 22px; padding-right: 22px }
