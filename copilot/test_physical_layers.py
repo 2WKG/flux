@@ -365,3 +365,31 @@ def test_published_digests_are_verified_once_per_release_not_per_request(
     assert after.status_code == 503
     # A cache keyed on the path alone would have served the stale 200 here.
     assert after.json()["error"]["details"]["reason"] == "release_hash_mismatch"
+
+
+def test_an_unprovenanced_asset_refuses_the_whole_layer_not_just_its_page(
+    tmp_path: Path,
+) -> None:
+    """Provenance is a claim about the release, so it is checked past the page.
+
+    The tampered asset sorts last and is nowhere near the first page; a check
+    that only ran over the served items would answer 200 and hide it.
+    """
+    root = _copy(tmp_path)
+    release = _read_release(root, "mn")
+    lines = [asset for asset in release["assets"] if asset["asset_class"] == "line"]
+    last = max(lines, key=lambda asset: asset["asset_id"])
+    first = min(lines, key=lambda asset: asset["asset_id"])
+    assert last["asset_id"] != first["asset_id"]
+    last["source_id"] = "no-such-source"
+    _republish(root, "mn", release)
+
+    response = _client_for(root).get(
+        "/api/v1/grid/layers/line?state=mn&version=1.1.0&limit=1"
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["details"] == {
+        "artifact": "physical_inventory",
+        "reason": "provenance_missing",
+    }
