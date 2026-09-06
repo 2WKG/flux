@@ -46,6 +46,23 @@
       "gaps": [
         "Raw binary hash and bytes not retained."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2018-42547879-20180101t120000-20180101t180000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547879",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:40:02Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 999210542,
+      "etag": "\"726543e4a392e220108b035ba4c52e43\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC.",
+      "filters": "Full annual 2018 traversal; Minnesota FIPS 27013; UTC [2018-01-01T12:00:00Z,2018-01-01T18:00:00Z).",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": ["Acquisition complete; no source rows exist for the 24 expected timestamps."]
     }
   ],
   "records": [
@@ -59,7 +76,8 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "ncei_stormevents_2018"
+        "ncei_stormevents_2018",
+        "eaglei-2018-42547879-20180101t120000-20180101t180000"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
@@ -82,20 +100,45 @@
         "notes": "The NCEI source interval intersects this canonical county window."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-2018-42547879-20180101t120000-20180101t180000"],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2018-01-01T12:00:00Z",
+          "2018-01-01T12:15:00Z",
+          "2018-01-01T12:30:00Z",
+          "2018-01-01T12:45:00Z",
+          "2018-01-01T13:00:00Z",
+          "2018-01-01T13:15:00Z",
+          "2018-01-01T13:30:00Z",
+          "2018-01-01T13:45:00Z",
+          "2018-01-01T14:00:00Z",
+          "2018-01-01T14:15:00Z",
+          "2018-01-01T14:30:00Z",
+          "2018-01-01T14:45:00Z",
+          "2018-01-01T15:00:00Z",
+          "2018-01-01T15:15:00Z",
+          "2018-01-01T15:30:00Z",
+          "2018-01-01T15:45:00Z",
+          "2018-01-01T16:00:00Z",
+          "2018-01-01T16:15:00Z",
+          "2018-01-01T16:30:00Z",
+          "2018-01-01T16:45:00Z",
+          "2018-01-01T17:00:00Z",
+          "2018-01-01T17:15:00Z",
+          "2018-01-01T17:30:00Z",
+          "2018-01-01T17:45:00Z"
+        ],
         "event_report": null,
-        "notes": "EAGLE-I coverage not collected; no zero-outage inference."
+        "notes": "Full annual traversal found no source rows; missing observations are UncoveredLabel and are not imputed as zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
+        "status": "UncoveredLabel",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
