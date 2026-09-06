@@ -33,6 +33,8 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { loadPrimaryScene, type PrimarySceneState } from "../data/primary-scene";
+import { PrimaryScene } from "../renderer/PrimaryScene";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
@@ -358,6 +360,12 @@ export function App() {
   const [modelAttempt, setModelAttempt] = useState(0);
   const [texasModel, setTexasModel] = useState<TexasModelPayload>({ status: "unavailable", reason: "Loading the synthetic Texas model." });
 
+  // The primary simulation scene (2WKG-479). It is state on this shell like
+  // every other panel's: the read lives in `src/data/primary-scene.ts` and the
+  // scene component below is handed its result or the named reason there is none.
+  const [primaryScene, setPrimaryScene] = useState<PrimarySceneState>({ kind: "loading" });
+  const [primarySceneAttempt, setPrimarySceneAttempt] = useState(0);
+
   const contextRevision = `${selected}:${attemptId}`;
 
   const scenario = data.scenarios[selected];
@@ -442,6 +450,20 @@ export function App() {
     return () => controller.abort();
   }, [gridState, gridLayers, gridAttempt]);
 
+  // The primary simulation's own read: the merged `/api/v1/grid/layers/{layer}`
+  // route, bounded and cursor-paged by `loadGridInventory`, with the synthetic
+  // topology rule applied by `loadPrimaryScene` rather than by this component.
+  useEffect(() => {
+    const controller = new AbortController();
+    setPrimaryScene({ kind: "loading" });
+    loadPrimaryScene({ signal: controller.signal })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        setPrimaryScene(state);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [primarySceneAttempt]);
   // This is a separate, explicitly synthetic topology surface. It never uses
   // physical-inventory coordinates or the 3D asset-placement feed.
   useEffect(() => {
@@ -592,6 +614,10 @@ export function App() {
 
       </section>
 
+      <PrimaryScene
+        scene={primaryScene}
+        onRetry={() => setPrimarySceneAttempt((value) => value + 1)}
+      />
       <section className="pipeline">
         <div>
           <p className="eyebrow">MODEL CONTRACT</p>

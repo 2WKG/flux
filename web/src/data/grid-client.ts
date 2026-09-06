@@ -61,13 +61,21 @@ export const GRID_STATE_BBOX: Readonly<Record<GridState, GridBbox | null>> = {
   tx: null,
 };
 
-/** The requests one view issues: one per layer, each bounded by its state's extent. */
+/**
+ * The requests one view issues: one per layer, each bounded by an extent.
+ *
+ * The extent defaults to the state's documented one (`GRID_STATE_BBOX`). A
+ * caller that knows a narrower extent -- a viewport, say -- passes it as
+ * `bbox` and every page request in the walk carries it, so rule 2 above holds
+ * for that call site too. Passing `null` explicitly means "no extent", which is
+ * the truth of the request rather than an invented rectangle.
+ */
 export function gridLayerRequestsFor(
   state: GridState,
   layers: readonly string[],
   signal?: AbortSignal,
+  bbox: GridBbox | null = GRID_STATE_BBOX[state],
 ): readonly GridLayerRequest[] {
-  const bbox = GRID_STATE_BBOX[state];
   return layers.map((layer) => ({ state, layer, bbox, signal }));
 }
 
@@ -164,11 +172,18 @@ export type GridInventoryLoad =
  * are then properties of a function a test can drive against a real transport.
  */
 export async function loadGridInventory(
-  request: { readonly state: GridState; readonly layers: readonly string[]; readonly signal?: AbortSignal },
+  request: {
+    readonly state: GridState;
+    readonly layers: readonly string[];
+    readonly signal?: AbortSignal;
+    /** An explicit extent for this read; omitted means the state's documented one. */
+    readonly bbox?: GridBbox | null;
+  },
   client: ReadApiClient = createReadApiClient(),
 ): Promise<GridInventoryLoad> {
+  const bbox = request.bbox === undefined ? GRID_STATE_BBOX[request.state] : request.bbox;
   const outcomes = await Promise.all(
-    gridLayerRequestsFor(request.state, request.layers, request.signal).map((each) => loadGridLayer(each, client)),
+    gridLayerRequestsFor(request.state, request.layers, request.signal, bbox).map((each) => loadGridLayer(each, client)),
   );
   const refused = outcomes.find((outcome) => outcome.kind === "refused");
   if (refused && refused.kind === "refused") return refused;

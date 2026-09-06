@@ -392,6 +392,22 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .grid-results button { margin: 0 .45rem .45rem 0; padding: .4rem .55rem; border: 1px solid var(--line-strong); border-radius: .3rem; background: var(--panel-raised); color: var(--ink); cursor: pointer }
 .grid-release { color: var(--muted); font: 700 .68rem var(--font-mono); overflow-wrap: anywhere }
 
+/* The primary simulation scene (2WKG-479): the deck.gl schematic mounted beside
+   the panels above, using the same panel vocabulary as .grid-inventory rather
+   than a second set of inline colours. */
+.primary-scene { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.primary-scene-canvas { position: relative; margin-top: 12px; min-height: 26rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: var(--panel-sunken); overflow: hidden }
+.primary-scene-pending { margin: 0; padding: .8rem; color: var(--muted); font-size: .82rem }
+.primary-scene-note { display: grid; gap: .2rem; margin-top: 10px; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: var(--panel-solid); color: var(--ink); font-size: .8rem }
+.primary-scene-note strong { font: 700 .72rem var(--font-mono); letter-spacing: .05em }
+.primary-scene-note button { margin-top: 6px; width: fit-content; padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink) }
+.primary-scene-release { color: var(--muted); font: 700 .68rem var(--font-mono); overflow-wrap: anywhere }
+.primary-scene-nodes { display: grid; gap: .3rem; margin: 12px 0 0; padding: 0; list-style: none }
+.primary-scene-node { display: flex; flex-wrap: wrap; gap: .5rem; align-items: baseline; padding: .35rem .55rem; border: 1px solid var(--line-soft); border-radius: .35rem; background: var(--panel-raised) }
+.primary-scene-node b { font: 700 .7rem var(--font-mono); color: var(--ink) }
+.primary-scene-label { color: var(--muted); font-size: .76rem }
+.primary-scene-remainder { color: var(--muted); font-size: .76rem }
+
 /* Site chrome shared by every page: the nav and the truth-label legend the shell
    renders around whichever page is routed (2WKG-478). Both sit outside `main`,
    so they carry its width and gutters themselves. */
@@ -461,6 +477,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
   .map-foundation, .map-foundation .maplibregl-map { min-block-size: 20rem }
   .map-foundation-notice { inset-inline: .5rem; inset-block-end: .5rem }
   .grid-map { min-height: 20rem }
+  .primary-scene-canvas { min-height: 18rem }
 }
 
 /* Main assistant (folded in from src/main-assistant/main-assistant.css:
