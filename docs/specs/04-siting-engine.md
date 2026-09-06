@@ -1,8 +1,8 @@
 # 04 — Siting Engine (`siting/`)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** A selected state needs validated geography, topology, and model inputs before siting results can be shown. The Texas material below documents the current ERCOT / ACTIVSg2000 case; [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a runnable Minnesota model.
 
-Status: draft · Scope: Texas-first (ERCOT / ACTIVSg2000) · Owner: siting team
+Status: draft · Scope: The repository's Texas / ERCOT / ACTIVSg2000 topology adapter requires its source artifacts and build. · Owner: siting team
 
 ## Purpose
 
