@@ -17,6 +17,7 @@ from copilot.api import (
 from copilot.api.errors import failure_response
 from copilot.config import Settings
 from copilot.routes.health import router as health_router
+from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.scenarios import router as scenarios_router
 
@@ -45,6 +46,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app.include_router(health_router)
     app.include_router(layers_router)
+    app.include_router(interventions_router)
     app.include_router(scenarios_router)
     return app
 

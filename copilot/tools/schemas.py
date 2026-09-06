@@ -257,12 +257,21 @@ class SqlData(ToolOutput):
 
 
 class RetrievalHit(ContractModel):
+    content_kind: Literal["fixture", "source"]
+    date: Annotated[str | None, Field(max_length=64)]
     doc: Annotated[str, Field(min_length=1, max_length=256)]
+    locator: Annotated[str, Field(min_length=1, max_length=256)]
+    provenance: dict[
+        Annotated[str, Field(min_length=1, max_length=128)],
+        Annotated[str, Field(min_length=1, max_length=2_048)],
+    ]
+    source: Annotated[str, Field(min_length=1, max_length=2_048)]
     title: Annotated[str, Field(min_length=1, max_length=512)]
     page: Annotated[int, Field(ge=1)]
     chunk_id: Annotated[str, Field(min_length=1, max_length=256)]
     score: float
     text: Annotated[str, Field(min_length=1, max_length=1_200)]
+    version: Annotated[str, Field(min_length=1, max_length=256)]
 
 
 class CiteData(ToolOutput):
@@ -301,12 +310,65 @@ class CriticalElementsData(ToolOutput):
     partial: bool = False
 
 
+class CausalVariable(ContractModel):
+    """A labeled causal treatment or outcome variable."""
+
+    name: Annotated[str, Field(min_length=1, max_length=256)]
+    definition: Annotated[str, Field(min_length=1, max_length=1_024)]
+    unit_or_category: Annotated[str, Field(min_length=1, max_length=256)]
+    source_id: Annotated[str, Field(min_length=1, max_length=256)]
+
+
+class CausalTargetPopulation(ContractModel):
+    description: Annotated[str, Field(min_length=1, max_length=1_024)]
+    geography: Annotated[str, Field(min_length=1, max_length=256)]
+    time_window: Annotated[str, Field(min_length=1, max_length=256)]
+
+
+class CausalQuestion(ContractModel):
+    treatment: CausalVariable
+    outcome: CausalVariable
+    target_population: CausalTargetPopulation
+
+
+class CausalSource(ContractModel):
+    source_id: Annotated[str, Field(min_length=1, max_length=256)]
+    name: Annotated[str, Field(min_length=1, max_length=512)]
+    version: Annotated[str, Field(min_length=1, max_length=256)]
+    locator: Annotated[str, Field(min_length=1, max_length=2_048)]
+    coverage: Annotated[str, Field(min_length=1, max_length=1_024)]
+
+
+class CausalSample(ContractModel):
+    unit: Annotated[str, Field(min_length=1, max_length=256)]
+    n_total: Annotated[int, Field(ge=0)]
+    n_treated: Annotated[int, Field(ge=0)]
+    n_control: Annotated[int, Field(ge=0)]
+    period: Annotated[str, Field(min_length=1, max_length=1_024)]
+
+
+class CausalDiagnostic(ContractModel):
+    name: Annotated[str, Field(min_length=1, max_length=256)]
+    status: Literal["pass"]
+    evidence: Annotated[str, Field(min_length=1, max_length=2_048)]
+
+
+class CausalCitation(ContractModel):
+    source_id: Annotated[str, Field(min_length=1, max_length=256)]
+    locator: Annotated[str, Field(min_length=1, max_length=2_048)]
+
+
 class CausalData(ToolOutput):
     answer_numbers: dict[str, float | int]
     method: Annotated[str, Field(min_length=1, max_length=256)]
     assumptions: list[str]
     interval: Annotated[list[float], Field(min_length=2, max_length=2)] | None = None
     evidence_rows: list[dict[str, JsonValue]]
+    question: CausalQuestion
+    sources: Annotated[list[CausalSource], Field(min_length=1, max_length=50)]
+    sample: CausalSample
+    diagnostics: Annotated[list[CausalDiagnostic], Field(min_length=1, max_length=50)]
+    citations: Annotated[list[CausalCitation], Field(min_length=1, max_length=50)]
 
 
 @dataclass(frozen=True)
