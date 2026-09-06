@@ -1,0 +1,33 @@
+{
+  "manifest_version": "diagnostic-near-miss-candidates/v1",
+  "issue": "2WKG-472",
+  "selection_plan": "controls-preselection-v1",
+  "cohort": "hazard_near_miss",
+  "disposition": "candidate_only",
+  "selection_rule": "Documented Minnesota convective episode from NCEI Storm Events, selected without EAGLE-I values, outage rate, denominator, or outcome threshold. These are diagnostic candidates, never causal controls and not assertions of low outage.",
+  "source_receipt": {
+    "provider": "NOAA NCEI",
+    "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+    "release": "StormEvents_details-ftp_v1.0_d2021_c20260323",
+    "retrieved_at_utc": "2026-09-06T07:12:02Z",
+    "license_or_access": "U.S. government public data",
+    "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+    "bytes": 10563953,
+    "timezone_conversion": "NCEI CZ_TIMEZONE CST-6 is interpreted as local UTC-06:00; UTC windows are six-hour half-open windows containing the reported local event time.",
+    "filters": "STATE=MINNESOTA; EVENT_TYPE in {Hail, Thunderstorm Wind}; candidate discovery only.",
+    "gaps": ["NCEI Storm Events documents a weather report, not county-wide weather coverage or an outage label.", "EAGLE-I availability is assessed after this selection and cannot revise it."]
+  },
+  "candidates": [
+    {"candidate_id": "near-miss-mn-2021-06-11-nobles-wind", "source_episode_id": "159834", "source_event_id": "966051", "primary_hazard": "thunderstorm_wind", "county_fips": "27105", "county_name": "Nobles", "window_start_utc": "2021-06-11T12:00:00Z", "window_end_utc": "2021-06-11T18:00:00Z", "selection_order": 1},
+    {"candidate_id": "near-miss-mn-2021-06-16-nobles-hail", "source_episode_id": "159838", "source_event_id": "966060", "primary_hazard": "hail", "county_fips": "27105", "county_name": "Nobles", "window_start_utc": "2021-06-16T18:00:00Z", "window_end_utc": "2021-06-17T00:00:00Z", "selection_order": 2},
+    {"candidate_id": "near-miss-mn-2021-08-24-murray-hail", "source_episode_id": "162684", "source_event_id": "982289", "primary_hazard": "hail", "county_fips": "27101", "county_name": "Murray", "window_start_utc": "2021-08-24T12:00:00Z", "window_end_utc": "2021-08-24T18:00:00Z", "selection_order": 3},
+    {"candidate_id": "near-miss-mn-2021-09-17-jackson-wind", "source_episode_id": "163247", "source_event_id": "985545", "primary_hazard": "thunderstorm_wind", "county_fips": "27063", "county_name": "Jackson", "window_start_utc": "2021-09-17T00:00:00Z", "window_end_utc": "2021-09-17T06:00:00Z", "selection_order": 4},
+    {"candidate_id": "near-miss-mn-2021-10-10-grant-wind", "source_episode_id": "164028", "source_event_id": "990297", "primary_hazard": "thunderstorm_wind", "county_fips": "27051", "county_name": "Grant", "window_start_utc": "2021-10-10T00:00:00Z", "window_end_utc": "2021-10-10T06:00:00Z", "selection_order": 5}
+  ],
+  "post_selection_status": {
+    "weather_coverage": "pending",
+    "outage_coverage": "pending",
+    "label_status": "UncoveredLabel until an EAGLE-I receipt proves emitted observations; a missing entry is not zero",
+    "denominator_status": "unavailable until a source receipt proves a valid denominator"
+  }
+}

@@ -1,0 +1,106 @@
+plan_id: controls-preselection-v1
+issue: 2WKG-472
+status: fixed_before_outage_lookup
+mode: replay
+purpose: >-
+  Select representative calendar controls and diagnostic hazard near misses
+  without describing either cohort as causal truth.
+
+canonical_identity:
+  county_fips: pending_shared_catalog_contract
+  scenario_id: pending_shared_catalog_contract
+  window_start_utc: pending_shared_catalog_contract
+  window_duration: PT6H
+  boundary_vintage: pending_shared_catalog_contract
+
+source_frame:
+  weather_episode_sources:
+    - provider: NOAA NCEI
+      source: Storm Events bulk CSV
+      url: https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/
+      role: documented hazard candidate and source event ID
+    - provider: NWS Twin Cities/Chanhassen
+      source: archive of past events
+      url: https://www.weather.gov/mpx/events
+      role: regional timing/classification candidate
+  label_source:
+    provider: ORNL
+    source: EAGLE-I
+    url: https://doi.ccs.ornl.gov/dataset/ccec86f0-e144-5de8-aee0-fb26028b26e1
+    role: post-selection coverage and label-availability assessment only
+
+cohorts:
+  calendar_control:
+    candidate_frame: >-
+      All canonical six-hour county windows in the approved region/season/time
+      frame that are outside every accepted event's context, event, and recovery
+      window and outside linked parent-system windows.
+    matching_variables:
+      - region
+      - calendar_season
+      - calendar_month
+      - UTC_window_slot
+      - county_fips
+    selection: deterministic_stratified_order
+    candidate_target_per_stratum: 5
+    priority_target_per_stratum: 3
+  hazard_near_miss:
+    candidate_frame: >-
+      Documented Storm Events or NWS weather episodes in an approved region that
+      match an accepted hazard's family, season, and regional stratum but are
+      not the accepted event or a linked parent system.
+    matching_variables:
+      - primary_hazard_family
+      - region
+      - calendar_season
+      - calendar_month
+      - UTC_window_slot
+    selection: deterministic_documented_episode_order
+    candidate_target_per_stratum: 5
+    priority_target_per_stratum: 3
+    prohibited_selection_fields:
+      - customers_out
+      - outage_rate
+      - outage_presence
+      - customer_denominator
+
+exclusions:
+  - accepted event context/event/recovery windows
+  - all windows sharing an accepted event parent_system_id
+  - overlap with any selected control or near-miss window for the same county
+  - missing county FIPS or unresolved boundary vintage
+  - non-UTC or non-six-hour-aligned windows
+  - Texas Uri and Beryl bundles as new independent events
+
+determinism:
+  seed: flux-2wkg-472-controls-v1
+  ordering_key: sha256(plan_id + cohort + stratum_key + county_fips + window_start_utc + source_event_id)
+  selection_order: ascending_hex_digest
+  stable_id: ctrl-{cohort}-{sha256(ordering_key)[0:16]}
+  rerun_behavior: >-
+    With the same contract, source snapshots, and candidate frame, the ordered
+    candidate list and IDs must be identical. A source/contract change requires
+    a new plan_id and superseding receipt.
+
+weights:
+  status: explicitly_unweighted
+  rationale: >-
+    This collection task does not estimate a population effect. Strata preserve
+    calendar/season/region representation, while any later analysis must choose
+    and document its own weighting.
+
+post_selection_coverage_assessment:
+  allowed: [source receipt, source release, retrieval time, hash_or_etag, county-window availability, UncoveredLabel, denominator_available]
+  forbidden: [cohort inclusion, cohort exclusion, rank change, resampling, outcome thresholding]
+  missing_label_value: UncoveredLabel
+  missing_denominator_value: unavailable
+
+acceptance_gate:
+  required_for_accepted_row:
+    - shared catalog identity fields resolved
+    - weather/source provenance receipt
+    - matched weather coverage decision
+    - matched outage coverage decision
+  if_unavailable: >-
+    Retain the candidate and an explicit exclusion/shortfall receipt; do not
+    fabricate an accepted control or zero-outage label.
