@@ -48,8 +48,8 @@ never from a module imported by those ordinary paths.
 
 | Package | Pinned version | Verification |
 | --- | --- | --- |
-| `torch` | `2.7.1` | Imported successfully on macOS arm64 / Python 3.12.13; `torch.cuda.is_available()` was `False`. |
-| `torch-geometric` | `2.6.1` | Imported successfully with the pinned Torch version on the same environment. |
+| `torch` | `2.7.1` | Imported successfully on macOS arm64 / Python 3.12.13 and Windows / Python 3.12.10; Windows reports `2.7.1+cpu`, `torch.cuda.is_available() == False`, `torch.version.cuda is None`, and default device `cpu`. |
+| `torch-geometric` | `2.6.1` | Imported successfully with the pinned Torch version on macOS and Windows. |
 
 The verified macOS wheel is CPU/MPS-capable and did not expose CUDA. No CUDA
 index or accelerator package is configured in Flux; choose one explicitly for
