@@ -56,24 +56,25 @@
       ]
     },
     {
-      "receipt_id": "eaglei-2023-44574907-20230719t000000-20230719t060000",
-      "provider": "ORNL EAGLE-I via Figshare",
-      "url": "https://ndownloader.figshare.com/files/44574907",
-      "release": "10.6084/m9.figshare.24237376.v4",
-      "retrieved_at_utc": "2026-09-06T07:17:35Z",
-      "license_or_access": "CC BY 4.0",
-      "raw_sha256": "2212a8c0df83ea2013372d7f8d0d023db34ae233c6784451eb301e446a641d47",
-      "filtered_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170",
-      "bytes": 1376256,
+      "bytes": 1199752423,
       "etag": "\"de1e6b64163602b3d09531ff4f90d670-2\"",
-      "units": "sum: customers; run_start_time: UTC",
-      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
-      "filters": "Texas FIPS 48201; 2023-07-19T00:00:00Z to 2023-07-19T06:00:00Z",
-      "grid_index_mapping": "not applicable",
+      "filtered_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170",
+      "filters": "states=Texas; county_fips=48201; window=UTC half-open [2023-07-19T00:00:00+00:00, 2023-07-19T06:00:00+00:00)",
       "gaps": [
-        "22 of 24 expected 15-minute observations; missing rows are UncoveredLabel",
-        "Customer denominator unavailable; no population substitution"
-      ]
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "15-minute run_start_time grid; basis: datasets/catalog.json ('Fifteen-minute county customers-out labels') and the observed annual-CSV grid",
+        "48201: partial_15_min_observation; missing 2 of 24 15-minute intervals"
+      ],
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_id": "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:03:31.874224Z",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "units": "sum: customers; run_start_time: UTC",
+      "url": "https://ndownloader.figshare.com/files/44574907"
     }
   ],
   "records": [
@@ -88,15 +89,15 @@
       "mode": "replay",
       "provenance_receipt_ids": [
         "eia-ercot-202307",
-        "eaglei-2023-44574907-20230719t000000-20230719t060000"
+        "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000"
       ],
       "source_evidence_status": "available",
       "source_row_keys": [
-        "eaglei-2023-44574907-20230719t000000-20230719t060000:48201-2023-07-19T00:00:00Z"
+        "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000:48201-2023-07-19T00:00:00Z"
       ],
       "source_slices": [
         {
-          "receipt_id": "eaglei-2023-44574907-20230719t000000-20230719t060000",
+          "receipt_id": "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000",
           "county_fips": "48201",
           "start_utc": "2023-07-19T00:00:00Z",
           "end_utc": "2023-07-19T06:00:00Z"
@@ -117,8 +118,10 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
         "source_receipt_ids": [
-          "eaglei-2023-44574907-20230719t000000-20230719t060000"
+          "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000"
         ],
         "expected_samples": 24,
         "observed_samples": 22,
@@ -126,10 +129,8 @@
           "2023-07-19T03:15:00Z",
           "2023-07-19T03:30:00Z"
         ],
-        "notes": "Selected EAGLE-I observation sample contains 22 of 24 expected timestamps; it is not an exhaustive annual scan and cannot establish a source-wide gap. Missing rows are UncoveredLabel.",
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
-        "event_report": null
+        "event_report": null,
+        "notes": "Exhaustive annual-stream acquisition completed; 22/24 15-minute source observations. Missing rows are UncoveredLabel, never zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
