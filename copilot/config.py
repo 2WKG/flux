@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     physical_inventory_root: Path = Field(
         default=Path("data/artifacts/physical_inventory")
     )
+    asset_pack_root: Path = Field(default=Path("web/public/assets/flux-grid"))
     # Provider selection is configuration, not code.  There is deliberately no
     # cross-provider fallback: an unconfigured active provider is reported
     # unavailable rather than silently answered by the other one, so a reader
