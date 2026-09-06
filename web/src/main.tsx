@@ -1,12 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import fixture from "../../data/demo/bundle.json";
-import { ResultCards } from "./ask/results";
-import { RunTrace } from "./ask/run-state/RunTrace";
-import { createRunState } from "./ask/run-state/reducer";
-import { ChatDock, type SceneContext } from "./chat/ChatDock";
-import { Inspector } from "./inspector/Inspector";
-import { AppShell } from "./shell/AppShell";
+import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "./source-truth";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
@@ -35,15 +30,11 @@ const BUSES: Record<string, Bus> = Object.fromEntries(data.network.buses.map((bu
 const BASELINE_LOADS = data.scenarios.baseline.metrics.lineLoadings;
 const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shedMw));
 
-function initialSceneContext(id: Id): SceneContext {
-  return {
-    geography: "No geographic coverage in this fixture",
-    layers: ["Synthetic five-bus topology"],
-    facility: null,
-    scenario: data.scenarios[id].label,
-    time: "Fixed synthetic snapshot",
-  };
-}
+/**
+ * The screen's one primary state label, derived from the bundle's persisted
+ * provenance by src/source-truth.ts. No surface writes its own status text.
+ */
+const SOURCE_TRUTH = deriveSourceTruth(data.execution.provenance);
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -132,7 +123,7 @@ function Network({ selected, view, onSelect, hover, setHover }: {
               key={line.id}
               className={`corridor tone-${tone}${active ? " active" : ""}`}
               tabIndex={0}
-              role="group"
+              role="button"
               aria-label={`${from.name} to ${to.name}: ${loading} percent utilization, ${delta === 0 ? "unchanged from" : `${signed(delta)} points versus`} baseline`}
               onMouseMove={track(line.id)}
               onFocus={focusLine(line)}
@@ -235,15 +226,44 @@ function CompareRail({ selected, onSelect }: { selected: Id; onSelect: (id: Id) 
   );
 }
 
-function App() {
+/** The dock's only state transition, kept pure so the toggle path is testable without a DOM. */
+export type ChatAction = "toggle";
+export function chatReducer(open: boolean, action: ChatAction): boolean {
+  return action === "toggle" ? !open : open;
+}
+
+/**
+ * The dock's markup as a pure function of its open state. The body is always
+ * rendered (hidden while collapsed) so `aria-controls` names a real element.
+ */
+export function ChatDockView({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <section className={`chat-dock ${open ? "expanded" : "collapsed"}`} aria-label="Evidence chat dock">
+      <button className="chat-toggle" onClick={onToggle} aria-expanded={open} aria-controls="chat-dock-body">
+        <span>
+          <span className="eyebrow">Evidence chat</span>
+          <strong>{open ? "Chat contract and limits" : "Ask about visible evidence"}</strong>
+        </span>
+        <span className="chat-state">{open ? "Collapse" : "Not available in this offline build"}</span>
+      </button>
+      <div id="chat-dock-body" className="chat-body" hidden={!open}>
+        <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
+        <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
+      </div>
+    </section>
+  );
+}
+
+function ChatDock() {
+  const [open, toggle] = useReducer(chatReducer, false);
+  return <ChatDockView open={open} onToggle={() => toggle("toggle")} />;
+}
+
+export function App() {
   const [selected, setSelected] = useState<Id>("baseline");
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
-  const [chatContext, setChatContext] = useState<SceneContext>(() => initialSceneContext("baseline"));
-  const [contextVersion, setContextVersion] = useState(0);
-  const disclosureTrigger = useRef<HTMLButtonElement>(null);
-  const disclosureClose = useRef<HTMLButtonElement>(null);
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -254,28 +274,11 @@ function App() {
   const select = useCallback((id: Id) => {
     setSelected(id);
     setHover(null);
-    setChatContext((current) => ({ ...current, scenario: data.scenarios[id].label }));
-    setContextVersion((version) => version + 1);
   }, []);
-
-  const updateChatContext = useCallback((next: SceneContext) => {
-    setChatContext(next);
-    setContextVersion((version) => version + 1);
-  }, []);
-
-  const openDetail = useCallback(() => setDetail(true), []);
-  const closeDetail = useCallback(() => {
-    setDetail(false);
-    requestAnimationFrame(() => disclosureTrigger.current?.focus());
-  }, []);
-
-  useEffect(() => {
-    if (detail) disclosureClose.current?.focus();
-  }, [detail]);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && detail) return closeDetail();
+      if (event.key === "Escape") return setDetail(false);
       if (detail || event.target instanceof HTMLSelectElement) return;
       const digit = ORDER[Number(event.key) - 1];
       if (digit) return select(digit);
@@ -286,7 +289,7 @@ function App() {
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [closeDetail, detail, selected, select]);
+  }, [detail, selected, select]);
 
   const relieved = useMemo(
     () =>
@@ -298,58 +301,48 @@ function App() {
   );
 
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
-  const contextRevision = `${data.fixtureHash}:${selected}:c${contextVersion}`;
-  const fixtureInspector = {
-    status: "synthetic" as const,
-    artifactLabel: "synthetic" as const,
-    id: data.fixtureHash,
-    name: "Synthetic five-bus fixture",
-    kind: "Static topology fixture",
-    scenario: scenario.label,
-    readiness: "Bundled static demo",
-    coverage: "No Minnesota or Texas geography",
-    message: "This fixture is synthetic. Its labels and metrics do not identify real facilities, corridors, or grid operations.",
-    fields: [
-      { label: "Unmet demand", value: String(scenario.metrics.shedMw), unit: scenario.units.shedMw, uncertainty: "Fixture output" },
-      { label: "Available supply", value: String(scenario.metrics.availableGenerationMw), unit: scenario.units.availableGenerationMw, uncertainty: "Fixture output" },
-      { label: "Candidate capacity", value: candidate ? String(candidate.capacityMw) : undefined, unit: candidate ? "MW" : undefined, status: candidate ? "available" as const : "unavailable" as const, uncertainty: "No interconnection conclusion" },
-    ],
-    provenance: [{ sourceName: "Checked-in synthetic bundle", sourceRef: data.execution.provenance.sourceRef, sourceVersion: data.execution.provenance.sourceVersion, coverage: "Five-bus synthetic fixture" }],
-    caveats: data.execution.limitations,
-  };
-  const staticRun = createRunState({ attemptId: "static-agent-unavailable", contextRevision }, "unavailable");
-  const staticResults = [{
-    id: `static-agent-${contextRevision}`,
-    answer: "",
-    scope: `Static demo agent · synthetic context ${contextRevision}`,
-    status: { availability: "unavailable" as const, reason: "The static fixture build has no live agent or API connection." },
-    citations: [],
-    provenance: [],
-    limitations: ["No live tool call was made.", "No result, recommendation, or scene action is available in static mode."],
-  }];
 
   return (
-    <>
-      <AppShell
-      title="Where does 300 MW cut the most unmet demand?"
-      source={{
-        status: "synthetic",
-        label: "Synthetic five-bus fixture · no API required",
-        detail: "Checked-in synthetic artifact; no live API or agent connection. Not a Minnesota or Texas topology, facility map, or interconnection result.",
-      }}
-      viewport={
-        <article className="map">
+    // `data-source-status` publishes the derived IA token to the DOM so a browser
+    // proof can pin the machine label, not the prose around it. It is written from
+    // SOURCE_TRUTH, which src/source-truth.ts derives from the bundle's provenance.
+    <main data-source-status={SOURCE_TRUTH.status}>
+      <nav>
+        <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
+        <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required</div>
+        <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
+      </nav>
+
+      <header className="shell-intro">
+        <p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p>
+        <h1>Where does 300 MW cut the most unmet demand?</h1>
+        <p>
+          One fixed cold-stress snapshot, three runs from the same assumptions. Pick a candidate to see the
+          corridors it relieves. Every figure is read from a checked-in synthetic artifact — no runtime request,
+          and no claim about a real grid.
+        </p>
+      </header>
+
+      <section className="shell-controls" aria-label="Scenario controls">
+        <div>
+          <p className="eyebrow">Scenario comparison</p>
+          <p>Choose a bundled run. All choices keep the same synthetic five-bus assumptions.</p>
+        </div>
+        <span className="shell-status">{STATUS_COPY[SOURCE_TRUTH.status]} five-bus preview · not Minnesota data</span>
+      </section>
+
+      <CompareRail selected={selected} onSelect={select} />
+
+      <section className="workspace" aria-label="Viewport-first scenario workspace">
+        <article className="map scene-viewport">
           <div className="map-head">
             <div>
               <p className="eyebrow">NETWORK STATE · {scenario.label.toUpperCase()}</p>
               <p className="hint">Line weight tracks utilization. Hover or tab a corridor for its reading.</p>
             </div>
-            <div className="map-actions">
-              <div className="toggle" role="group" aria-label="Corridor colouring">
-                <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
-                <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
-              </div>
-              <button ref={disclosureTrigger} className="ghost" onClick={openDetail}>Data, units &amp; limits</button>
+            <div className="toggle" role="group" aria-label="Corridor colouring">
+              <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
+              <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
             </div>
           </div>
 
@@ -360,39 +353,76 @@ function App() {
               ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
-        </article>
-      }
-      comparison={<CompareRail selected={selected} onSelect={select} />}
-      inspector={<Inspector asset={fixtureInspector} />}
-      chat={
-        <div className="agent-static">
-          <ChatDock context={chatContext} contextRevision={contextRevision} sourceLabel="Checked-in synthetic fixture" sourceStatus="synthetic" status="unavailable" onContextChange={updateChatContext} />
-          <section className="agent-static__trace" aria-label="Static agent run status">
-            <h3>Run status</h3>
-            <p>The static demo does not open a live agent connection.</p>
-            <RunTrace state={staticRun} />
+          <section className="timeline" aria-label="Scenario timeline">
+            <div>
+              <p className="eyebrow">Timeline</p>
+              <strong>Fixed {data.execution.assumptions.durationHours}-hour snapshot</strong>
+            </div>
+            <div className="timeline-track" aria-hidden="true"><i /></div>
+            <span>Bundled output · playback unavailable</span>
           </section>
-          <ResultCards results={staticResults} />
+        </article>
+
+        <aside className="inspector" aria-label="Scenario inspector">
+          <div className="outcome">
+            <p className="eyebrow">MODELED UNMET DEMAND</p>
+            <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
+            <p>{shedHours} {scenario.units.shedMwh} across the {data.execution.assumptions.durationHours}-hour window</p>
+            <div className={selected === "baseline" ? "delta flat" : "delta"}>
+              {selected === "baseline"
+                ? "Baseline reference"
+                : `−${scenario.metrics.improvementMw} ${scenario.units.improvementMw} vs baseline`}
+            </div>
+          </div>
+
+          <div className="stats">
+            <div><span>Demand</span><b>{scenario.metrics.demandMw} {scenario.units.demandMw}</b></div>
+            <div><span>Available supply</span><b>{supply} {scenario.units.availableGenerationMw}</b></div>
+          </div>
+
+          {candidate ? (
+            <div className="insight">
+              <p className="eyebrow">{candidate.name} · +{candidate.capacityMw} MW AT {BUSES[candidate.busId].name.toUpperCase()}</p>
+              <h2>{candidate.description}</h2>
+              <p>Modeled contribution {scenario.intervention?.modeledContributionMw} MW of the {candidate.capacityMw} MW sited. A fixture assumption, not an interconnection result.</p>
+              <ul className="relief">
+                {relieved.slice(0, 3).map(({ line, delta }) => (
+                  <li key={line.id}>
+                    <span>{BUSES[line.from].name} → {BUSES[line.to].name}</span>
+                    <em>{signed(delta)} pts</em>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="insight">
+              <p className="eyebrow">NO CAPACITY ADDED</p>
+              <h2>This is the reference run every candidate is measured against.</h2>
+              <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
+            </div>
+          )}
+        </aside>
+      </section>
+
+      <section className="pipeline">
+        <div>
+          <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
+          <h2>Same assumptions. Traceable synthetic output.</h2>
         </div>
-      }
-      />
+        <p>
+          {sameAssumptions
+            ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
+            : "Comparison unavailable: scenario assumptions differ."}{" "}
+          Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
+        </p>
+      </section>
+
+      <ChatDock />
 
       {detail && (
-        <div className="overlay" onMouseDown={closeDetail}>
-          <section
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Data disclosure"
-            onMouseDown={(event) => event.stopPropagation()}
-            onKeyDown={(event) => {
-              if (event.key !== "Tab") return;
-              // The disclosure currently has one native control; retain focus until it closes.
-              event.preventDefault();
-              disclosureClose.current?.focus();
-            }}
-          >
-            <button ref={disclosureClose} onClick={closeDetail} aria-label="Close disclosure">×</button>
+        <div className="overlay" onMouseDown={() => setDetail(false)}>
+          <section className="modal" role="dialog" aria-modal="true" aria-label="Data disclosure" onMouseDown={(event) => event.stopPropagation()}>
+            <button onClick={() => setDetail(false)} aria-label="Close disclosure">×</button>
             <p className="eyebrow">DATA DISCLOSURE</p>
             <h2>Provenance, assumptions, and limits</h2>
             <dl>
@@ -406,8 +436,10 @@ function App() {
           </section>
         </div>
       )}
-    </>
+    </main>
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+/** Mount only in a browser document; the render tests import App directly. */
+const mountPoint = typeof document === "undefined" ? null : document.getElementById("root");
+if (mountPoint) createRoot(mountPoint).render(<App />);

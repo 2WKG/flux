@@ -1,15 +1,15 @@
 import type { ReactNode } from "react";
+import type { AssetStatus } from "../labels";
 
 /** Values accepted from the scene/API contract; the inspector never derives one. */
-export type AssetStatus =
-  | "source_supported"
-  | "source_screened"
-  | "hypothetical"
-  | "synthetic"
-  | "unavailable"
-  | "request_failed";
+export type { AssetStatus };
 
-export type InspectorArtifactLabel = "source_backed" | "synthetic" | "unavailable";
+/**
+ * The artifact label the server asserts alongside the status. It is drawn from
+ * the same six-token IA vocabulary: the panel shows one primary label, so the
+ * two must agree, and a disagreement fails closed rather than picking a winner.
+ */
+export type InspectorArtifactLabel = AssetStatus;
 
 export type InspectorField = Readonly<{
   label: string;
@@ -44,6 +44,8 @@ export type InspectorAsset = Readonly<{
   artifactLabel?: InspectorArtifactLabel;
   scenario?: string;
   readiness?: string;
+  /** Server-asserted topology, e.g. the IA's `synthetic (ACTIVSg2000)`. */
+  topology?: string;
   coverage?: string;
   fields?: readonly InspectorField[];
   provenance?: readonly InspectorProvenance[];

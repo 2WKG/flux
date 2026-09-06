@@ -1,99 +1,129 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
-
-const fixtureDisclosure = /Synthetic five-bus fixture.*no API required/i;
-
-/** The <dd> paired with a summary <dt> inside a definition-list panel. */
-function summaryValue(panel: Locator, term: string): Locator {
-  return panel.locator("dt", { hasText: new RegExp(`^${term}$`) }).locator("xpath=following-sibling::dd[1]");
-}
+import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Pins the provenance tokens the product's honesty claim rests on, not the free-text
- * copy around them: the shell's machine status attribute, the rendered status word, and
- * the absence of any source-backed claim over a synthetic fixture.
+ * The browser proof for the static explorer.
+ *
+ * It builds the real dist, serves it with the real `server.mjs`, and drives a
+ * real browser. Two rules govern what it asserts:
+ *
+ *  1. Provenance is pinned on the machine token the IA governs
+ *     (`main[data-source-status]`, written from `deriveSourceTruth`), never on
+ *     the prose around it. Relabelling the synthetic fixture as source-backed
+ *     must fail here.
+ *  2. The no-network claim is an allowlist over request *origins*, not a
+ *     denylist over two path prefixes, and it is installed for every test.
  */
-async function expectSyntheticProvenance(page: Page): Promise<void> {
-  await expect(page.locator(".flux-shell")).toHaveAttribute("data-source-status", "synthetic");
-  await expect(page.locator(".flux-shell__source-status")).toHaveText("Synthetic");
-  await expect(page.getByText(/source[_ -]?backed|source[_ -]?supported|source[_ -]?screened/i)).toHaveCount(0);
+
+const SYNTHETIC_NAV_SUMMARY = /Synthetic · fixture source · no asserted topology · no API required/i;
+const SYNTHETIC_STATUS_PILL = /Synthetic five-bus preview · not Minnesota data/i;
+/** Any claim of source support over a synthetic fixture, in any spelling. */
+const SOURCE_BACKED_CLAIM = /source[_ -]?backed|source[_ -]?supported|source[_ -]?screened|Minnesota coverage/i;
+
+/** Every request the page made, recorded for the same-origin assertion. */
+const recorded = new WeakMap<Page, string[]>();
+
+test.beforeEach(async ({ page }) => {
+  const requests: string[] = [];
+  recorded.set(page, requests);
+  page.on("request", (request) => requests.push(request.url()));
+});
+
+/**
+ * The one off-origin dependency this build actually has: the Google Fonts
+ * stylesheet `web/src/styles.css:1` imports, and the woff2 files it pulls.
+ * It is listed here so the assertion states the exception instead of hiding
+ * it behind a path pattern. Nothing else may leave the origin, and no request
+ * may reach an `/ask` or `/api` path on any host.
+ */
+const SANCTIONED_OFF_ORIGINS = ["https://fonts.googleapis.com", "https://fonts.gstatic.com"];
+
+/** Requests leave the page's origin only for the sanctioned font hosts. */
+async function expectSameOriginOnly(page: Page): Promise<void> {
+  const baseOrigin = new URL(page.url()).origin;
+  const requests = recorded.get(page) ?? [];
+  const unexpected = requests.filter((url) => {
+    const origin = new URL(url).origin;
+    return origin !== baseOrigin && !SANCTIONED_OFF_ORIGINS.includes(origin);
+  });
+  expect(unexpected).toEqual([]);
+  // No agent, model, or data endpoint is contacted on any host.
+  const api = requests.filter((url) => /^\/(ask|api)(\/|$)/.test(new URL(url).pathname));
+  expect(api).toEqual([]);
 }
 
-test("static explorer supports scenario selection, inspection, and honest offline agent state", async ({ page }) => {
-  const requests: string[] = [];
-  page.on("request", (request) => requests.push(request.url()));
+/** The provenance tokens the product's honesty claim rests on. */
+async function expectSyntheticProvenance(page: Page): Promise<void> {
+  await expect(page.locator("main")).toHaveAttribute("data-source-status", "synthetic");
+  await expect(page.getByText(SYNTHETIC_NAV_SUMMARY)).toBeVisible();
+  await expect(page.getByText(SYNTHETIC_STATUS_PILL)).toBeVisible();
+  await expect(page.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
+}
 
+test("the static explorer selects scenarios and keeps its synthetic label through every selection", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText(fixtureDisclosure)).toBeVisible();
-  await expect(page.getByText(/Not a Minnesota or Texas topology/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
   await expectSyntheticProvenance(page);
 
   await page.getByRole("button", { name: /Candidate A/i }).first().click();
-  await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Synthetic five-bus fixture" })).toBeVisible();
-  const inspector = page.locator(".flux-shell__inspector");
-  await expect(inspector.getByText("Candidate A", { exact: true })).toBeVisible();
-  // The machine tokens, not the prose: relabelling the fixture as source-backed must fail here.
-  await expect(summaryValue(inspector, "Status")).toHaveText("Synthetic");
-  await expect(summaryValue(inspector, "Artifact")).toHaveText("synthetic");
+  await expect(page.getByText(/NETWORK STATE · CANDIDATE A/i)).toBeVisible();
+  const inspector = page.locator("aside.inspector");
+  // Wait on state only the post-click render can produce, then assert what survived it.
+  await expect(inspector.getByText(/CANDIDATE A · \+\d+ MW AT/i)).toBeVisible();
+  await expect(inspector.getByText(/MODELED UNMET DEMAND/i)).toBeVisible();
   await expectSyntheticProvenance(page);
-
-  const chat = page.locator(".flux-shell__chat");
-  const context = chat.locator(".flux-chat-context");
-  await chat.getByRole("button", { name: "Expand" }).click();
-  await expect(chat.getByText("Agent unavailable.")).toBeVisible();
-  await expect(chat.getByText(/The static demo does not open a live agent connection/i)).toBeVisible();
-  await expect(chat.getByText(/No live tool call was made/i)).toBeVisible();
-  await expect(chat.getByText("Source status: Unavailable", { exact: true })).toBeVisible();
-
-  await chat.getByRole("button", { name: "Edit" }).click();
-  const geography = chat.getByLabel("Geography");
-  await geography.fill("Review-only synthetic context");
-  await expect(geography).toHaveValue("Review-only synthetic context");
-  await chat.getByRole("button", { name: "Done editing" }).click();
-  // Wait for the post-action render (the revision bump) before asserting what survived it;
-  // an auto-retrying "still visible" check placed first passes against the pre-commit DOM.
-  await expect(chat.getByRole("button", { name: "Edit" })).toBeVisible();
-  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
-  await expect(summaryValue(context, "Geography")).toHaveText("Review-only synthetic context");
-
-  await chat.getByRole("button", { name: "Collapse" }).click();
-  await expect(chat.getByRole("button", { name: "Expand" })).toBeVisible();
-  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeHidden();
-  await chat.getByRole("button", { name: "Expand" }).click();
-  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
-  await expect(summaryValue(context, "Geography")).toHaveText("Review-only synthetic context");
 
   await page.getByRole("button", { name: /Candidate B/i }).first().click();
-  await expect(page.getByText(/NETWORK STATE.*CANDIDATE B/i)).toBeVisible();
-  await expect(chat.getByText(/revision .*:b:c3/i).first()).toBeVisible();
-  // The summary renders the dock's synced draft, so wait for the scenario the selection
-  // pushed into it. The revision alone is committed a render earlier than the draft sync,
-  // which is why asserting persistence on it raced the reset it was meant to catch.
-  await expect(summaryValue(context, "Scenario")).toHaveText("Candidate B");
-  await expect(summaryValue(context, "Geography")).toHaveText("Review-only synthetic context");
-  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expect(page.getByText(/NETWORK STATE · CANDIDATE B/i)).toBeVisible();
+  await expect(inspector.getByText(/CANDIDATE B · \+\d+ MW AT/i)).toBeVisible();
   await expectSyntheticProvenance(page);
 
-  expect(requests.some((url) => /\/(ask|api)(?:\/|$|\?)/.test(new URL(url).pathname))).toBeFalsy();
+  // Back to the reference run: the baseline copy is a different render, not a leftover.
+  await page.getByRole("button", { name: /Baseline/i }).first().click();
+  await expect(page.getByText(/NETWORK STATE · BASELINE/i)).toBeVisible();
+  await expect(inspector.getByText(/NO CAPACITY ADDED/i)).toBeVisible();
+  await expectSyntheticProvenance(page);
+
+  await expectSameOriginOnly(page);
 });
 
-test("keyboard selection and disclosure focus remain usable", async ({ page }) => {
+test("the chat dock states that it is unavailable rather than offering an answer", async ({ page }) => {
   await page.goto("/");
-  const candidate = page.getByRole("button", { name: /Candidate B/i }).first();
-  await candidate.focus();
+  const dock = page.locator("section.chat-dock");
+  await expect(dock).toHaveClass(/collapsed/);
+  const toggle = dock.getByRole("button", { name: /Ask about visible evidence/i });
+  await expect(toggle).toHaveAttribute("aria-expanded", "false");
+  await expect(dock.getByText(/Not available in this offline build/i)).toBeVisible();
+
+  await toggle.click();
+  await expect(dock).toHaveClass(/expanded/);
+  await expect(dock.getByText(/no Copilot endpoint, model result, or Minnesota artifact to query/i)).toBeVisible();
+  await expect(dock.getByText(/must show its tool trail, citations, status, and limitations instead of inventing an answer/i)).toBeVisible();
+
+  await dock.getByRole("button", { name: /Collapse/i }).click();
+  await expect(dock).toHaveClass(/collapsed/);
+  await expectSameOriginOnly(page);
+});
+
+test("keyboard selection works and the disclosure names the artifact it read", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: /Candidate B/i }).first().focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByText(/NETWORK STATE.*CANDIDATE B/i)).toBeVisible();
+  await expect(page.getByText(/NETWORK STATE · CANDIDATE B/i)).toBeVisible();
+  // Digit keys are the shell's own shortcut; 1 is the baseline run.
+  await page.keyboard.press("1");
+  await expect(page.getByText(/NETWORK STATE · BASELINE/i)).toBeVisible();
 
   const disclosure = page.getByRole("button", { name: "Data, units & limits" });
   await disclosure.click();
   const dialog = page.getByRole("dialog", { name: "Data disclosure" });
   await expect(dialog).toBeVisible();
-  await expect(page.getByRole("button", { name: "Close disclosure" })).toBeFocused();
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("button", { name: "Close disclosure" })).toBeFocused();
+  await expect(dialog.getByText("flux:synthetic-scenario-input:v1", { exact: false })).toBeVisible();
+  await expect(dialog.getByText(/not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model/i)).toBeVisible();
+  await expect(dialog.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
+
   await page.keyboard.press("Escape");
   await expect(dialog).toBeHidden();
-  await expect(disclosure).toBeFocused();
+  await expectSameOriginOnly(page);
 });
 
 for (const viewport of [
@@ -110,6 +140,7 @@ for (const viewport of [
       scrollWidth: document.documentElement.scrollWidth,
     }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
-    await expect(page.getByText(fixtureDisclosure)).toBeVisible();
+    await expectSyntheticProvenance(page);
+    await expectSameOriginOnly(page);
   });
 }
