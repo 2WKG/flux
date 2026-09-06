@@ -86,6 +86,7 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.get("/layers/buses"),
         200,
     ),
+    ("GET", "/demo/model"): (lambda client: client.get("/demo/model"), 200),
     ("GET", "/api/v1/grid/layers/{layer}"): (
         lambda client: client.get(
             "/api/v1/grid/layers/line", params={"state": "tx", "version": "1.1.0"}
@@ -239,6 +240,7 @@ def _populate(database: Path) -> None:
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))
     try:
+        connection.execute("UPDATE buses SET coord_source = 'tamu_aux'")
         _add_score_artifact(
             connection,
             CRITICAL_ARTIFACT,

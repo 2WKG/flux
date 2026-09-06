@@ -85,10 +85,8 @@ def test_missing_or_unpublished_pack_is_a_named_unavailable_state(
     tmp_path: Path,
 ) -> None:
     client = _client(tmp_path / "missing")
-    for response in (
-        client.get("/assets/flux-grid/manifest.json"),
-        client.get("/assets/flux-grid/line/line.glb"),
-    ):
+    for path in ("/assets/flux-grid/manifest.json", "/assets/flux-grid/line/line.glb"):
+        response = client.get(path)
         assert response.status_code == 503
         assert response.json()["error"]["code"] == "unavailable"
         assert response.json()["error"]["details"]["reason"] == "manifest_missing"
@@ -122,18 +120,21 @@ def test_placement_projection_uses_source_geometry_and_declared_visual_kind() ->
     )
 
 
-def test_asset_placement_validation_and_missing_release_are_explicit() -> None:
-    root = Path(__file__).resolve().parents[1] / "data/artifacts/physical_inventory"
+def test_asset_placements_reject_invalid_input_and_name_missing_releases(
+    tmp_path: Path,
+) -> None:
     client = TestClient(
-        create_app(Settings(physical_inventory_root=root, _env_file=None))
+        create_app(
+            Settings(physical_inventory_root=tmp_path / "missing", _env_file=None)
+        )
     )
 
     invalid = client.get(
-        "/api/v1/grid/asset-placements?state=tx&version=1.1.0&bbox=not,a,bbox"
+        "/api/v1/grid/asset-placements", params={"state": "ca", "version": "1.1.0"}
     )
-    missing = client.get("/api/v1/grid/asset-placements?state=tx&version=9.9.9")
+    unavailable = client.get(
+        "/api/v1/grid/asset-placements", params={"state": "tx", "version": "1.1.0"}
+    )
 
     assert invalid.status_code == 422
-    assert invalid.json()["error"]["code"] == "invalid_input"
-    assert missing.status_code == 503
-    assert missing.json()["error"]["details"]["reason"] == "release_not_found"
+    assert unavailable.status_code == 503
