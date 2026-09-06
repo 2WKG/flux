@@ -1,6 +1,6 @@
 # 2WKG-87 freeze-readiness handoff — 2026-09-06
 
-**Snapshot candidate:** `e484b31` (`origin/master`, merged into this branch on
+**Snapshot candidate:** `b26458a` (`origin/master`, merged into this branch on
 2026-09-06). It supersedes the earlier candidate
 `f8a3cfb2288…`, which was 63 commits stale by the time this handoff was written;
 one SHA, and this is it. Every command below was re-run at this substrate. This
@@ -61,7 +61,7 @@ than a 3 a.m. commit nobody notices.
 ```
 7a59e2edc921aad536068bb62ab66c286e04aaea934b6115cccf6fa11378403a  data/demo/bundle.json
 29c9305b903f59ff1a3642f58e8ae4f2055a334aa16962a32a9086ec5b8f4069  README.md
-246cb121e1605b5756c9c3e11eeb95c0640f689656a2378624c9d7ec2db941c7  web/server.mjs
+a577300b76273f9d5be1943e63c6b56b39933557949085619d1c0342c158fc9f  web/server.mjs
 ```
 <!-- freeze-manifest:end -->
 
