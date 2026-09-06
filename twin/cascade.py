@@ -324,10 +324,11 @@ def balance_report(net: Any) -> dict[str, Any]:
         "slack_mw": round(slack, 6),
         "served_load_mw": round(load, 6),
         "dc_balance_residual_mw": round(generation + slack - load, 6),
+        "topology": SYNTHETIC_TOPOLOGY_LABEL,
         "dispatch_assumption": "existing in-service generator dispatch; add_unit displaces it pro-rata before DC slack balancing",
         "limitations": [
             "DC balance is not economic dispatch or a unit-commitment/OPF result.",
-            "synthetic topology",
+            f"All topology is {SYNTHETIC_TOPOLOGY_LABEL}.",
         ],
     }
 
