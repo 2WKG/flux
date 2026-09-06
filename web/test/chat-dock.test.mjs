@@ -230,10 +230,15 @@ test("done is a state of its own, and the error notice shows the server's code, 
     assert.ok(idle.includes("Ready"));
     assert.ok(!idle.includes("Answer complete"));
 
+    assert.equal(container.querySelector(".flux-chat-notice"), null, "idle shows no terminal notice");
+
     await render(api.React.createElement(api.ChatDock, { ...base, status: "done" }));
     const done = container.textContent;
     assert.ok(done.includes("Answer complete"), "done must be visibly distinct from idle");
     assert.notEqual(done, idle);
+    const doneNotice = container.querySelector(".flux-chat-notice.is-done");
+    assert.ok(doneNotice, "done must render its own terminal notice, not fall through to idle");
+    assert.match(doneNotice.textContent, /terminal state/, "the done notice must state it is the run's terminal state");
 
     await render(api.React.createElement(api.ChatDock, {
       ...base, status: "error",
