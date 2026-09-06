@@ -110,22 +110,29 @@ export interface InterventionsData {
 export type JsonValue = unknown;
 
 export interface LineSummary {
+  artifact_id: string;
   congestion_usd_yr: number;
   cost_usd: number;
   ferc_screen_pass: boolean;
   from_bus: string;
+  intervention_type: "dlr" | "reconductor";
   kv: number;
   line_id: string;
   mw_per_musd: number;
+  scenario_id: string;
+  source_class: "observed" | "simulated" | "proxy";
   spark_eligible: boolean;
+  status: "available";
   to_bus: string;
   uplift_mw: number;
 }
 
 export interface LinesData {
+  artifact_id: string;
   lines: LineSummary[];
   provenance?: ArtifactRef[];
   region: string;
+  scenario_id: string;
   status: ToolStatus;
   tech: "dlr" | "reconductor" | "any";
   unavailable?: Unavailable | null;

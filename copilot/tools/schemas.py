@@ -225,6 +225,11 @@ class SiteScoreData(ToolOutput):
 
 class LineSummary(ContractModel):
     line_id: Annotated[str, Field(min_length=1, max_length=128)]
+    scenario_id: Annotated[str, Field(min_length=1, max_length=128)]
+    artifact_id: Annotated[str, Field(min_length=1, max_length=256)]
+    source_class: Literal["observed", "simulated", "proxy"]
+    intervention_type: Literal["dlr", "reconductor"]
+    status: Literal["available"]
     from_bus: Annotated[str, Field(min_length=1, max_length=128)]
     to_bus: Annotated[str, Field(min_length=1, max_length=128)]
     kv: Annotated[float, Field(gt=0)]
@@ -238,6 +243,8 @@ class LineSummary(ContractModel):
 
 class LinesData(ToolOutput):
     region: Annotated[str, Field(min_length=1, max_length=64)]
+    scenario_id: Annotated[str, Field(min_length=1, max_length=128)]
+    artifact_id: Annotated[str, Field(min_length=1, max_length=256)]
     tech: Literal["dlr", "reconductor", "any"]
     lines: list[LineSummary]
 

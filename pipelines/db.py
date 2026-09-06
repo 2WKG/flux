@@ -10,7 +10,7 @@ import pandas as pd
 
 from pipelines.common import sha256_file, utc_now
 
-SCHEMA_VERSION = "2.0.0"
+SCHEMA_VERSION = "2.1.0"
 CONTRACT_TABLES = (
     "buses",
     "lines",
@@ -53,7 +53,8 @@ LINE_UPGRADE_CONTRACT_COLUMNS = """
     simulation_run_id TEXT,
     grid_input_sha256 TEXT NOT NULL CHECK (regexp_full_match(grid_input_sha256, '[0-9a-f]{64}')),
     weather_input_sha256 TEXT CHECK (weather_input_sha256 IS NULL OR regexp_full_match(weather_input_sha256, '[0-9a-f]{64}')),
-    cost_params_sha256 TEXT NOT NULL CHECK (regexp_full_match(cost_params_sha256, '[0-9a-f]{64}'))
+    cost_params_sha256 TEXT NOT NULL CHECK (regexp_full_match(cost_params_sha256, '[0-9a-f]{64}')),
+    source_kind TEXT CHECK (source_kind IN ('fixture', 'observed', 'simulated', 'heuristic'))
 """
 
 SCHEMA_STATEMENTS = (
@@ -170,6 +171,7 @@ LINE_UPGRADE_CONTRACT_COLUMN_NAMES = (
     "grid_input_sha256",
     "weather_input_sha256",
     "cost_params_sha256",
+    "source_kind",
 )
 TABLE_COLUMNS = {
     "buses": (
