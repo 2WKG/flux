@@ -1,0 +1,32 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "Catalyst Cooperative PUDL",
+ "source_url": "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/",
+ "vintage": "PUDL v2026.2.0 nightly outputs of EIA-860",
+ "license_access": "CC-BY-4.0 (PUDL); underlying EIA data is U.S. government public data",
+ "files": {
+  "out_eia__yearly_plants.parquet": {
+   "bytes": 3228519,
+   "sha256": "66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc"
+  },
+  "out_eia__yearly_generators.parquet": {
+   "bytes": 10247414,
+   "sha256": "6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8"
+  }
+ },
+ "validation": {
+  "loader": "pipelines.eia860.load_eia860_plants",
+  "scope": "MN",
+  "minnesota_plants_loaded": 909,
+  "minnesota_capacity_mw": 26142,
+  "plants_without_county_fips": 1,
+  "largest_plants": [
+   "Sherburne County (coal, 2469.3 MW)",
+   "Black Dog (gas, 1680.6 MW)",
+   "Prairie Island (nuclear, 1186.2 MW)"
+  ],
+  "site_candidates_seeded": 0,
+  "result": "passed"
+ },
+ "uncertainty": "This is observed generation inventory at plant grain. `seed_site_candidates` is deliberately not run for Minnesota: intervention siting rides on the synthetic ACTIVSg2000 bus model, which is Texas-only. The national `eia_generator_inventory` relation is replaced wholesale by any state's load and is not state-scoped."
+}
