@@ -70,6 +70,42 @@
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
+    },
+    {
+      "bytes": 1102778792,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "filtered_sha256": "1ca557f7205a2895f471dbf6f2773d73a48685ab8062df8d563837244d5c5601",
+      "filters": "states=Minnesota; county_fips=27115; window=UTC half-open [2019-07-19T18:00:00+00:00, 2019-07-20T00:00:00+00:00)",
+      "gaps": [
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "15-minute run_start_time grid; basis: datasets/catalog.json ('Fifteen-minute county customers-out labels') and the observed annual-CSV grid",
+        "27115: partial_15_min_observation; missing 15 of 24 15-minute intervals"
+      ],
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_id": "eaglei-2019-42547885-minnesota-2019-07-19-northland-derecho-27115-20190719180000-20190719t180000-20190720t000000",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:01:05.062734Z",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547885",
+        "source_file": "eaglei_outages_2019.csv",
+        "source_file_id": 42547885,
+        "source_file_bytes": 1102778792,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+        "raw_artifact_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+        "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
+        "filtered_artifact_uri": "data/raw/event-baseline/minnesota-2019-07-19-northland-derecho-27115-20190719180000_eaglei_2019_20190719T180000_20190720T000000.csv",
+        "filtered_artifact_sha256": "1ca557f7205a2895f471dbf6f2773d73a48685ab8062df8d563837244d5c5601"
+      }
     }
   ],
   "records": [
@@ -80,7 +116,7 @@
       "scenario_id": "minnesota-2019-07-19-northland-derecho-replay",
       "window_start_utc": "2019-07-19T18:00:00Z",
       "window_end_utc": "2019-07-20T00:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
@@ -96,11 +132,29 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "notes": "No EAGLE-I range result is retained; absence is not zero.",
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "source_receipt_ids": [
+          "eaglei-2019-42547885-minnesota-2019-07-19-northland-derecho-27115-20190719180000-20190719t180000-20190720t000000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 9 of 24 expected 15-minute observations for FIPS 27115. The 15 absent intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 9,
+        "missing_timestamps": [
+          "2019-07-19T18:00:00Z",
+          "2019-07-19T18:15:00Z",
+          "2019-07-19T18:30:00Z",
+          "2019-07-19T18:45:00Z",
+          "2019-07-19T19:00:00Z",
+          "2019-07-19T19:15:00Z",
+          "2019-07-19T19:30:00Z",
+          "2019-07-19T22:00:00Z",
+          "2019-07-19T22:15:00Z",
+          "2019-07-19T22:30:00Z",
+          "2019-07-19T22:45:00Z",
+          "2019-07-19T23:00:00Z",
+          "2019-07-19T23:15:00Z",
+          "2019-07-19T23:30:00Z",
+          "2019-07-19T23:45:00Z"
+        ],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
