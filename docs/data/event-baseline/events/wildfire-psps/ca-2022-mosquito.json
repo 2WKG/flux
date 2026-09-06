@@ -77,12 +77,12 @@
         "notes": "CAL FIRE record supports candidate discovery only; no county-window weather coverage claimed."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-mosquito"],
+        "expected_samples": 24,
+        "observed_samples": 24,
         "missing_timestamps": [],
         "event_report": null,
         "notes": "Complete annual-source scan; denominator unavailable."

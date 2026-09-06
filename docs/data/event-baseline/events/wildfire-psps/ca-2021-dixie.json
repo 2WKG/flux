@@ -101,15 +101,15 @@
         "notes": "No eligible county-window weather evidence captured."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
         "source_receipt_ids": [
           "eaglei-dixie"
         ],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "expected_samples": 24,
+        "observed_samples": 15,
+        "missing_timestamps": ["2021-07-14T02:00:00Z", "2021-07-14T02:15:00Z", "2021-07-14T02:30:00Z", "2021-07-14T02:45:00Z", "2021-07-14T03:00:00Z", "2021-07-14T03:15:00Z", "2021-07-14T03:30:00Z", "2021-07-14T03:45:00Z", "2021-07-14T04:00:00Z"],
         "event_report": null,
         "notes": "Complete annual-source scan found 15 of 24; missing timestamps are UncoveredLabel, never zero."
       },
