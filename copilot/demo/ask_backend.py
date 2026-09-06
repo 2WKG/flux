@@ -10,13 +10,20 @@ unavailable result as the core, never a fixture-shaped cascade.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from pathlib import Path
 from types import MappingProxyType
 from typing import Protocol
 
+from copilot.demo.jepa import DEFAULT_JEPA_ARTIFACT, read_experimental_jepa_forecast
 from copilot.narration import GroundedNarration, narrate
 from copilot.routes.ask import AskRequest
 from copilot.runtime import AsyncNarrationProvider, ToolTurn
-from copilot.tools.schemas import CascadeData, ToolOutput, unavailable_output
+from copilot.tools.schemas import (
+    ArtifactRef,
+    CascadeData,
+    ToolOutput,
+    unavailable_output,
+)
 
 
 class CascadeRunner(Protocol):
@@ -46,13 +53,18 @@ class DemoAskBackend:
         self,
         cascade_runner: CascadeRunner,
         provider: AsyncNarrationProvider | None = None,
+        *,
+        jepa_artifact_path: Path = DEFAULT_JEPA_ARTIFACT,
     ) -> None:
         self._cascade_runner = cascade_runner
         self.provider = provider or DeterministicNarrationProvider()
+        self._jepa_artifact_path = jepa_artifact_path
 
     async def turn(self, payload: AskRequest) -> ToolTurn:
         """Build a tool turn. Unsupported prompts are explicit tool failures."""
 
+        if _asks_for_experimental_forecast(payload.question):
+            return _experimental_forecast_turn(payload, self._jepa_artifact_path)
         if not _asks_for_cascade(payload.question):
             return _unavailable_turn(
                 payload,
@@ -118,3 +130,55 @@ def _unavailable_turn(payload: AskRequest, reason: str) -> ToolTurn:
 def _asks_for_cascade(question: str) -> bool:
     text = question.casefold()
     return any(word in text for word in ("cascade", "outage", "trip", "fail", "redundan"))
+
+
+def _asks_for_experimental_forecast(question: str) -> bool:
+    text = question.casefold()
+    return any(word in text for word in ("jepa", "trajectory forecast", "count forecast"))
+
+
+def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
+    """Expose the JEPA artifact as its own labelled experimental SSE tool."""
+
+    result = read_experimental_jepa_forecast(path)
+    if result.status == "unavailable":
+        reason = result.reason or "Experimental forecast unavailable."
+        return ToolTurn(
+            call_id=f"forecast:{payload.attempt_id}",
+            tool="experimental_forecast",
+            input={"artifact": path.name},
+            narration=GroundedNarration(
+                status="unavailable",
+                text=reason,
+                evidence=MappingProxyType({}),
+                provenance=(),
+                citations=(),
+                limitations=result.limitations,
+                unavailable=unavailable_output("artifact_unavailable", reason).unavailable,
+            ),
+        )
+    provenance = tuple(
+        ArtifactRef(
+            artifact_id=item,
+            artifact_version=str(result.data["model_version"]),
+            source_kind="observed",
+            source_ref=item,
+        )
+        for item in result.provenance
+    )
+    return ToolTurn(
+        call_id=f"forecast:{payload.attempt_id}",
+        tool="experimental_forecast",
+        input={"artifact": path.name},
+        narration=GroundedNarration(
+            status="available",
+            text=(
+                "Experimental observed-count trajectory forecast is available. "
+                "It is not a weather forecast, outage probability, or cascade prediction."
+            ),
+            evidence=MappingProxyType(dict(result.data)),
+            provenance=provenance,
+            citations=(),
+            limitations=result.limitations,
+        ),
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 
@@ -63,8 +64,11 @@ def _events(response) -> list[tuple[str, dict[str, object]]]:
     return result
 
 
-def _client(runner: _ActualRunner) -> TestClient:
-    backend = DemoAskBackend(runner)
+def _client(runner: _ActualRunner, *, jepa_artifact_path: Path | None = None) -> TestClient:
+    backend = DemoAskBackend(
+        runner,
+        **({"jepa_artifact_path": jepa_artifact_path} if jepa_artifact_path else {}),
+    )
     return TestClient(
         create_app(Settings(duckdb_path="data/duck/grid.duckdb"), ask_backend=backend)
     )
@@ -123,3 +127,45 @@ def test_existing_ask_http_path_keeps_missing_selection_an_explicit_tool_unavail
     assert [event for event, _ in events] == ["lifecycle", "tool_call", "tool_result", "error"]
     assert events[2][1]["ok"] is False
     assert events[3][1]["error"]["code"] == "unavailable"
+
+
+def test_existing_ask_http_path_exposes_jepa_as_an_explicitly_experimental_tool(
+    tmp_path: Path,
+) -> None:
+    artifact = tmp_path / "jepa.json"
+    artifact.write_text(
+        json.dumps(
+            {
+                "artifact_kind": "experimental_jepa_count_forecast",
+                "status": "experimental",
+                "model_version": "jepa-count-v1",
+                "source": {"sha256": "b" * 64},
+                "scope": {"observed_county_fips": ["27053"]},
+                "split": {"strategy": "chronological_by_window"},
+                "metrics": {"holdout_count_mae": 1.0},
+                "forecast": {
+                    "county_fips": "27053",
+                    "predicted_customers_out": [1],
+                    "actual_customers_out": [1],
+                },
+                "limitations": ["Observed historical count forecast only."],
+            }
+        ),
+        encoding="utf-8",
+    )
+    response = _client(_ActualRunner(), jepa_artifact_path=artifact).post(
+        "/ask",
+        json={"attempt_id": ATTEMPT, "question": "Show the JEPA count forecast.", "history": []},
+    )
+
+    events = _events(response)
+    assert [event for event, _ in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "text",
+        "done",
+    ]
+    assert events[1][1]["tool"] == "experimental_forecast"
+    assert events[2][1]["result"]["status"] == "experimental"
+    assert "not a weather forecast" in events[3][1]["delta"]
