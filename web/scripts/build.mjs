@@ -1,9 +1,37 @@
 import { build } from "esbuild";
 import { cp, mkdir, rm } from "node:fs/promises";
-import { dirname } from "node:path";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertBrowserBundle } from "./assert-browser-bundle.mjs";
-const dist = new URL("../dist/", import.meta.url);
-await rm(dist, { recursive: true, force: true }); await mkdir(new URL("assets/", dist), { recursive: true }); await cp(new URL("../index.html", import.meta.url), new URL("index.html", dist));
-const result = await build({ entryPoints: [fileURLToPath(new URL("../src/main.tsx", import.meta.url))], bundle: true, format: "esm", platform: "browser", target: "es2020", outfile: fileURLToPath(new URL("assets/app.js", dist)), sourcemap: true, metafile: true });
-assertBrowserBundle(result.metafile, dirname(fileURLToPath(new URL("../package.json", import.meta.url))));
+
+const webRoot = path.dirname(fileURLToPath(new URL("../package.json", import.meta.url)));
+// Test seams only: FLUX_WEB_ENTRY / FLUX_WEB_DIST let the bundle-boundary test build a
+// probe entry into a scratch directory without touching src/ or dist/.
+const entry = process.env.FLUX_WEB_ENTRY ? path.resolve(process.env.FLUX_WEB_ENTRY) : path.join(webRoot, "src", "main.tsx");
+const dist = process.env.FLUX_WEB_DIST ? path.resolve(process.env.FLUX_WEB_DIST) : path.join(webRoot, "dist");
+
+await rm(dist, { recursive: true, force: true });
+await mkdir(path.join(dist, "assets"), { recursive: true });
+await cp(path.join(webRoot, "index.html"), path.join(dist, "index.html"));
+
+const result = await build({
+  entryPoints: [entry],
+  bundle: true,
+  format: "esm",
+  platform: "browser",
+  target: "es2020",
+  outfile: path.join(dist, "assets", "app.js"),
+  sourcemap: true,
+  metafile: true,
+  // Metafile input keys are relative to absWorkingDir; pin it to web/ so the boundary
+  // check does not depend on the caller's cwd (running from the repo root used to bypass it).
+  absWorkingDir: webRoot,
+});
+
+try {
+  assertBrowserBundle(result.metafile, webRoot);
+} catch (error) {
+  // Do not leave a bundle that crossed the boundary where server.mjs would serve it.
+  await rm(dist, { recursive: true, force: true });
+  throw error;
+}
