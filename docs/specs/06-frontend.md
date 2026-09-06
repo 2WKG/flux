@@ -4,6 +4,18 @@
 
 Status: draft, weekend build. Owner: web lane. Depends on spec 05 (copilot API) for every byte of data; the map never reads DuckDB directly.
 
+> **Legacy Texas scope (D-5).** The Texas/ERCOT/ACTIVSg2000 references below are the **legacy**
+> path that [`README.md`](README.md) declares superseded by
+> [`10-minnesota-demo.md`](10-minnesota-demo.md) as *planning* authority. They stay because they
+> describe what the server can serve today (`copilot/routes/layers.py:44`, `:59`); Minnesota
+> supersedes them as plan, not as behaviour.
+>
+> **What `web/` on `master` actually is.** The shipped page is the offline static explorer:
+> `web/src/main.tsx` imports `data/demo/bundle.json` at build time and
+> `web/test/static-demo.test.mjs:17-27` forbids the literal `fetch(` in both the source and the
+> built bundle. None of the deck.gl/MapLibre map described below is wired, and none of the routes
+> in *Inputs* is called by the shipped entry.
+
 ## Purpose
 
 The one screen the judges see. For a selected state with validated topology, a deck.gl + MapLibre map can show a scenario/hour timeline, line loading, county outage risk, storm polygon, cascade playback, site pins, critical loads, line-upgrade ranking, and the "Ask" box wired to `POST /ask`. The repository's 2000-bus Texas adapter requires its source artifacts and build. The checked-in five-bus preview is geographic-neutral and cannot be relabelled as a state result.
@@ -16,7 +28,7 @@ State-aware: the app must show only the selected state's available artifacts and
 | --- | --- | --- |
 | `GET /scenarios` | spec 05 | scenario picker |
 | `GET /layers/{name}` | spec 05 | GeoJSON for geometry; Arrow IPC for `outage_risk`, `eaglei`, `national_hex` |
-| `POST /site-score`, `POST /cascade`, `POST /predict`, `GET /lines/top` | spec 05 | click-driven cards |
+| `POST /site-score`, `GET /cascade`, `GET /predictions`, `GET /lines/top` | spec 05 | click-driven cards. `POST /cascade` and `POST /predict` were listed here and **do not exist** (D-3); the persisted reads `GET /cascade` (`copilot/routes/predictions.py:445`) and `GET /predictions` (`:248`) are what `master` serves |
 | `POST /ask` SSE | spec 05 | Ask box |
 | Basemap tiles | OpenFreeMap (re-verified 2026-09-05 by `curl`: all five style URLs return 200 `application/json`): `https://tiles.openfreemap.org/styles/positron` (light), `https://tiles.openfreemap.org/styles/dark` (dark, default for the demo), also `liberty`, `bright`, `fiord`. No API key. Attribution required (openfreemap.org, verified): "OpenFreeMap © OpenMapTiles Data from OpenStreetMap"; the styles' `openmaptiles` source points at `https://tiles.openfreemap.org/planet`, whose TileJSON carries that attribution string, so MapLibre's default `AttributionControl` renders it automatically — do not pass `attributionControl: false`. Glyphs: `https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`. | Fallback: Protomaps self-hosted PMTiles — `@protomaps/basemaps` 5.7.2 (npm latest, verified: ESM `index.d.ts` exports `layers(source, flavor, options?)` and `namedFlavor(name)`) `layers("protomaps", namedFlavor("dark"))` with a `pmtiles://` source (needs the `pmtiles` package's `Protocol` registered on maplibre) and glyphs `https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf` (curl 200). **Neither `@protomaps/basemaps` nor `pmtiles` is in `web/package.json` yet** — add both only if the fallback is built. The Protomaps *hosted* API URL/key page was not fetched — treat hosted Protomaps as `[UNVERIFIED]`; if OpenFreeMap is down at demo time, ship a Texas-extent PMTiles file in `web/public/` instead. |
 | `VITE_API_URL` | env | default `http://localhost:8000` |
@@ -80,7 +92,7 @@ URL sync: a tiny effect writes `view, scenario, h, site, cf` to `history.replace
 - `queries.ts`: react-query hooks. Static (`buses`, `lines`, `gens`, `counties`, `critical_loads`, `sites`) `staleTime: Infinity`. Scenario-keyed (`outage_risk`, `cascade`, `storm`, `eaglei`) keyed by `[name, scenarioId]` — fetched **once per scenario** for the whole time range; the hour scrub never hits the network.
 - `outage_risk` Arrow (≈254 counties × 72–168 hours ≈ 40k rows) is reshaped once into `Map<fips, Float32Array(hours)>` for O(1) lookup during scrub.
 - `cascade` JSON is expanded into `trippedAtHour: Map<elementId, hour>` and `darkAtHour: Map<fips, hour>`; a county is dark at `h` iff `darkAtHour.get(fips) <= h`.
-- `national_hex` Arrow is loaded lazily on first `view = "us"`; 404 (`not_built`) hides the toggle with a tooltip "national model not built".
+- `national_hex` Arrow is loaded lazily on first `view = "us"`; the **503 `unavailable` envelope with `details.reason: "not_built"`** (`copilot/routes/layers.py:236-237`, `copilot/api/errors.py:76-83`) hides the toggle with a tooltip "national model not built". It is not a 404, and it is not a bare `{"not_built": true}` body (D-2).
 - Prefetch on boot: everything for the boot scenario, plus `sites` for `unitMw=300`, so demo steps 2–4 need no spinner. Other scenarios prefetch after idle.
 
 ### Layers (`web/src/map/layers/`) — one file per layer, each exports `(state, data) => Layer | null`
@@ -200,7 +212,7 @@ Target: **60 fps while scrubbing the hour** on the Texas twin on a MacBook (M-se
 ## Interfaces
 
 - API: exactly spec 05's routes and shapes; TS types in `src/types/api.ts` are hand-mirrored (no codegen this weekend) with a single `assertShape` dev check per layer on first load. SSE types are hand-mirrored only from `docs/research/sse-event-schema.md` v1, never a second local protocol.
-- Env: `VITE_API_URL` (default `http://localhost:8000`), `VITE_BASEMAP_STYLE` (default `https://tiles.openfreemap.org/styles/dark`), `VITE_NATIONAL=1` to show the national toggle even if `/layers/national_hex` 404s (renders an empty layer with a "not built" label — for slide rehearsal only).
+- Env: `VITE_API_URL` (default `http://localhost:8000`), `VITE_BASEMAP_STYLE` (default `https://tiles.openfreemap.org/styles/dark`), `VITE_NATIONAL=1` to show the national toggle even if `/layers/national_hex` is unavailable (503, `details.reason: "not_built"`) (renders an empty layer with a "not built" label — for slide rehearsal only).
 - Scripts: `pnpm dev`, `pnpm build` (`tsc -b && vite build`), `pnpm preview` exist in `web/package.json`; **`pnpm typecheck` and `pnpm lint` do not yet** — add `"typecheck": "tsc -b --noEmit"` and an eslint script (no eslint config is installed either) before criterion 1 can be run.
 - Store actions are the only way to mutate state; panels never call the API for writes (there are none).
 

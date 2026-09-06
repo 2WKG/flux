@@ -1,0 +1,92 @@
+{
+  "archetype_id": "military_base",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Military base",
+  "category": "critical_load",
+  "minnesota_issue": "2WKG-378",
+  "catalog_limit": "A generic installation silhouette. It depicts no real facility, perimeter, or asset disposition.",
+  "container": "glb",
+  "model_filename": "military_base.glb",
+  "preview_filename": "military_base.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 200,
+    "width": 160
+  },
+  "connectors": [
+    "MV_FEED"
+  ],
+  "connector_geometry": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        -70.2,
+        2.2,
+        -78.0
+      ]
+    }
+  ],
+  "bounds_m": {
+    "min": [
+      -80.0,
+      0.0,
+      -100.0
+    ],
+    "max": [
+      80.0,
+      21.2289981842041,
+      100.0
+    ]
+  },
+  "lod_triangle_budget": {
+    "lod0": 30000,
+    "lod1": 11000,
+    "lod2": 3200
+  },
+  "triangles_lod0": 9428,
+  "triangles_lod1": 1520,
+  "triangles_lod2": 248,
+  "lod_measurement_status": "Measured by data/3d/packs/flux-grid-v1/validation/validate_pack.py from the GLBs the Blender pipeline builds. Those GLBs are not committed and the prepared archive is not published, so these counts are not re-derivable from this repository; data/3d/packs/flux-grid-v1/manifest.json records the per-LOD sha256 each count was taken from. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural support-campus architecture; no third-party source.",
+  "source_pack": {
+    "pack_id": "flux-grid-v1",
+    "manifest": "data/3d/packs/flux-grid-v1/manifest.json",
+    "lod_sha256": {
+      "lod0": "600dd3b0d5e13c545350962a591050b54208b55f034c11409e500b1d99a3b53b",
+      "lod1": "d221f0335fbb544cf1de79885eb78cad310fe0799910ee585c190c1f84457e97",
+      "lod2": "6b04349b6bc3ab934c4fa2061fdb95ec8fd470064426c016ad5cceb3c78fa328"
+    }
+  },
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview \u2014 not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "military_base.glb",
+      "military_base.preview.png"
+    ],
+    "preview_renderer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "model_producer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "binary_policy": "No .glb and no .preview.png is committed by this change. Both are built by the pack's Blender pipeline, which needs Blender and is not part of this repository's toolchain; the prepared archive is unpublished (data/3d/packs/flux-grid-v1/archive.json has download_url null), so the binaries are declared, not delivered."
+  }
+}
