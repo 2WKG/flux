@@ -264,6 +264,18 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/minnesota/aggregate"): RouteContract(
+        success=Cell(
+            "copilot/test_minnesota_aggregate.py::test_aggregate_route_is_mounted_by_the_production_app",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_minnesota_aggregate.py::test_production_app_reports_missing_aggregate_artifact_as_unavailable",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
     ("POST", "/ask"): RouteContract(
         success=Cell(
             "copilot/test_ask.py::test_ask_streams_real_sql_evidence_to_an_injected_provider",

@@ -40,6 +40,7 @@ from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.minnesota_aggregate import router as minnesota_aggregate_router
 from copilot.routes.minnesota_smr import router as minnesota_smr_router
 from copilot.routes.mn_comparisons import router as mn_comparisons_router
 from copilot.routes.physical_layers import router as physical_layers_router
@@ -118,6 +119,7 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(minnesota_aggregate_router)
     app.include_router(minnesota_smr_router)
     app.include_router(mn_comparisons_router)
     app.include_router(create_interactive_router(service=app.state.interactive_service))

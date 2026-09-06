@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from copilot.api import install_error_handlers
+from copilot.app import create_app
 from copilot.config import Settings
 from copilot.routes.minnesota_aggregate import router
 from pipelines.minnesota_schema import ensure_minnesota_schema
@@ -191,6 +192,32 @@ def test_aggregate_route_serves_the_persisted_aggregate_artifact(tmp_path: Path)
     assert body["base_mva"] is None
     assert body["solver_version"] is None
     assert body["converter_version"] is None
+
+
+def test_aggregate_route_is_mounted_by_the_production_app(tmp_path: Path) -> None:
+    database = tmp_path / "aggregate-app.duckdb"
+    _insert_artifact(database)
+
+    response = TestClient(create_app(Settings(duckdb_path=database))).get(
+        "/minnesota/aggregate"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["artifact_id"] == ARTIFACT_ID
+
+
+def test_production_app_reports_missing_aggregate_artifact_as_unavailable(
+    tmp_path: Path,
+) -> None:
+    response = TestClient(create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))).get(
+        "/minnesota/aggregate"
+    )
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "database_missing",
+    }
 
 
 def test_aggregate_route_refuses_missing_or_ambiguous_identity(tmp_path: Path) -> None:
