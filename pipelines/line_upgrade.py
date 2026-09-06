@@ -6,8 +6,13 @@ import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+import duckdb
+import pandas as pd
+
+from pipelines.db import replace_frame
 from pipelines.line_upgrade_contracts import (
     Congestion,
+    DlrIntervention,
     Intervention,
     LineKey,
     LineUpgradeProvenance,
@@ -48,13 +53,21 @@ def score_line(
 
     candidates: list[tuple[float, Intervention]] = []
     for intervention in interventions:
+        if (
+            isinstance(intervention, DlrIntervention)
+            and provenance.weather_input_sha256 is None
+        ):
+            continue
         score = mw_per_musd(intervention.uplift_mw, intervention.cost_usd)
         if score is not None:
             candidates.append((score, intervention))
     if not candidates:
-        return UnavailableLine(
-            key=key, provenance=provenance, reason=UnavailableReason.COST_UNKNOWN
+        reason = (
+            UnavailableReason.NO_WEATHER
+            if provenance.weather_input_sha256 is None
+            else UnavailableReason.COST_UNKNOWN
         )
+        return UnavailableLine(key=key, provenance=provenance, reason=reason)
 
     # Descending rounded score, then lower cost, then a stable intervention name.
     candidates.sort(
@@ -135,3 +148,26 @@ def persist_ranking(
         score_rows.append(result.to_score_row(storage))
         detail_rows.append(result.to_detail_row(storage))
     return PersistedRanking(tuple(score_rows), tuple(detail_rows), tuple(unavailable))
+
+
+def write_ranking(
+    con: duckdb.DuckDBPyConnection,
+    ranking: PersistedRanking,
+    storage: StorageProvenance,
+) -> tuple[int, int]:
+    """Replace the persisted score and detail artifacts with one ranking."""
+
+    write_args = storage.model_dump()
+    scores = replace_frame(
+        con,
+        "line_upgrade_scores",
+        pd.DataFrame(ranking.score_rows),
+        **write_args,
+    )
+    details = replace_frame(
+        con,
+        "line_upgrade_detail",
+        pd.DataFrame(ranking.detail_rows),
+        **write_args,
+    )
+    return scores, details
