@@ -5,6 +5,8 @@ data/parquet/
 node_modules/
 web/node_modules/
 web/dist/
+# Local 3D asset deliveries; the contract forbids committing binaries
+build/
 __pycache__/
 *.pyc
 .env
@@ -19,5 +21,3 @@ graphify-out/graph.html
 data/eda-report.json
 data/eda-summary.md
 data/demo/*.local.json
-# Local 3D asset deliveries; the contract forbids committing binaries
-build/
