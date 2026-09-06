@@ -4,7 +4,7 @@
 > specifies React + Vite served statically with no API; the description below is Node/Express with
 > `GET /api/demo`. Both cannot be true. Recorded, not resolved — see Linear 2WKG-296.
 
-Flux compares resilience scenarios on a synthetic fixture today and is structured for national-grid data ingestion next. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
+Flux compares resilience scenarios on a synthetic fixture today and is structured for state-scoped, source-backed data ingestion. A selected state needs its own validated source artifacts and configuration; the current fixture does not represent any state. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
 
 ## Run the desk
 

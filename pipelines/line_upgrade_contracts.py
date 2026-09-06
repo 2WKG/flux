@@ -100,10 +100,22 @@ class LineUpgradeProvenance(Frozen):
 
 
 class LineKey(Frozen):
-    """Identity of a scored line in the configured region."""
+    """Identity of one line-upgrade artifact within an analysis scenario.
+
+    ``line_id`` identifies the source-case branch. It is not by
+    itself sufficient identity for a ranking artifact: the same branch can be
+    ranked for a historical replay, forecast, or declared aggregate period.
+    ``scenario_id`` is therefore required even when the congestion source is
+    observed or a proxy.  It names the scope of the analysis; it does *not*
+    claim that the result came from a Flux simulation.
+    """
 
     line_id: int
-    region: str = Field(min_length=1, description='balancing authority, e.g. "ERCOT"')
+    region: str = Field(min_length=1, description="declared analysis region")
+    scenario_id: str = Field(
+        min_length=1,
+        description="stable scenario or declared aggregate-period identifier",
+    )
 
 
 class StorageProvenance(Frozen):
@@ -114,6 +126,9 @@ class StorageProvenance(Frozen):
     source_version: str | None = None
     source_retrieved_at: datetime | None = None
     fixture_batch_id: str = Field(min_length=1)
+    source_kind: Literal["fixture", "observed", "simulated", "heuristic"] | None = (
+        Field(default=None, exclude=True)
+    )
 
 
 # --------------------------------------------------------------------------
@@ -137,6 +152,7 @@ class SimulatedCongestion(Frozen):
 
     source: Literal[CongestionSource.SIMULATED] = CongestionSource.SIMULATED
     usd_per_year: Usd
+    scenario_id: str = Field(min_length=1)
     run_id: str = Field(min_length=1)
 
 
@@ -225,6 +241,13 @@ class ScoredLine(Frozen):
 
     @model_validator(mode="after")
     def _consistency(self) -> ScoredLine:
+        if (
+            isinstance(self.congestion, SimulatedCongestion)
+            and self.congestion.scenario_id != self.key.scenario_id
+        ):
+            raise ValueError(
+                "simulated congestion scenario_id must match the scored line scenario_id"
+            )
         if self.alternative and self.alternative.intervention == self.best.intervention:
             raise ValueError(
                 "alternative must be a different intervention type than best"
@@ -282,6 +305,12 @@ class ScoredLine(Frozen):
         # assumed-price proxy; neither may claim an exact/fuzzy market mapping.
         return "twin_proxy"
 
+    def _simulation_run_id(self) -> str | None:
+        """Persist a run identifier only for an actually simulated input."""
+        if isinstance(self.congestion, SimulatedCongestion):
+            return self.congestion.run_id
+        return None
+
     def to_score_row(self, storage: StorageProvenance) -> dict[str, object]:
         """Return a complete `line_upgrade_scores` row for `pipelines.db`."""
         dlr = self._intervention(InterventionType.DLR)
@@ -293,8 +322,11 @@ class ScoredLine(Frozen):
         )
         return {
             "line_id": self.key.line_id,
+            "scenario_id": self.key.scenario_id,
             "congestion_usd_yr": congestion_usd_yr,
-            "dlr_uplift_mw": dlr.uplift_mw if isinstance(dlr, DlrIntervention) else None,
+            "dlr_uplift_mw": dlr.uplift_mw
+            if isinstance(dlr, DlrIntervention)
+            else None,
             "reconductor_uplift_mw": (
                 reconductor.uplift_mw
                 if isinstance(reconductor, ReconductorIntervention)
@@ -309,6 +341,9 @@ class ScoredLine(Frozen):
             "mw_per_musd": self.mw_per_musd,
             "ferc_screen_pass": self.ferc_screen_pass,
             "spark_eligible": self.spark_eligible,
+            **self.provenance.model_dump(),
+            "simulation_run_id": self._simulation_run_id(),
+            "source_kind": storage.source_kind,
             **storage.model_dump(),
         }
 
@@ -318,6 +353,7 @@ class ScoredLine(Frozen):
         reconductor = self._intervention(InterventionType.RECONDUCTOR)
         return {
             "line_id": self.key.line_id,
+            "scenario_id": self.key.scenario_id,
             "owner": self.owner,
             "conductor_material": (
                 reconductor.conductor_material
@@ -343,6 +379,9 @@ class ScoredLine(Frozen):
             "payback_yr": self.payback_yr,
             "congestion_method": self._congestion_method(),
             "region": self.key.region,
+            **self.provenance.model_dump(),
+            "simulation_run_id": self._simulation_run_id(),
+            "source_kind": storage.source_kind,
             **storage.model_dump(),
         }
 
@@ -359,5 +398,8 @@ LineUpgradeRecord = ScoredLine | UnavailableLine
 
 
 def rank(lines: list[ScoredLine]) -> list[ScoredLine]:
-    """Total order, stable across runs (2WKG-181 tie-breaker)."""
+    """Rank one analysis scenario, stably, by the 2WKG-181 tie-breaker."""
+    scenario_ids = {line.key.scenario_id for line in lines}
+    if len(scenario_ids) > 1:
+        raise ValueError("rank requires lines from exactly one scenario_id")
     return sorted(lines, key=ScoredLine.sort_key)

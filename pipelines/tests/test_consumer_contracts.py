@@ -10,7 +10,7 @@ import pytest
 from copilot.tools.schemas import Unavailable
 from pipelines import consumer_contracts
 from pipelines.consumer_contracts import CONSUMER_READ_PATHS, check_consumer_contracts
-from pipelines.db import ensure_schema
+from pipelines.db import SCHEMA_VERSION, ensure_schema
 
 
 def _fixture_db(tmp_path: Path) -> Path:
@@ -44,7 +44,9 @@ def _twin_contract_db(
         con.execute(
             "CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
-        con.execute("INSERT INTO schema_meta VALUES ('contract_version', '1.0.0')")
+        con.execute(
+            "INSERT INTO schema_meta VALUES ('contract_version', ?)", [SCHEMA_VERSION]
+        )
         con.execute(
             f"CREATE TABLE buses (bus_id BIGINT, base_kv DOUBLE, lon {lon_type}, lat DOUBLE, {provenance})"
         )
@@ -84,7 +86,7 @@ def test_full_check_suite_opens_read_only_and_leaves_no_wal(tmp_path: Path) -> N
         with duckdb.connect(str(path), read_only=True) as con:
             assert con.execute(
                 "SELECT value FROM schema_meta WHERE key = 'contract_version'"
-            ).fetchone() == ("1.0.0",)
+            ).fetchone() == (SCHEMA_VERSION,)
 
         report = check_consumer_contracts(path)
     finally:
@@ -117,7 +119,9 @@ def test_missing_column_names_the_exact_contract_element(tmp_path: Path) -> None
         con.execute(
             "CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
         )
-        con.execute("INSERT INTO schema_meta VALUES ('contract_version', '1.0.0')")
+        con.execute(
+            "INSERT INTO schema_meta VALUES ('contract_version', ?)", [SCHEMA_VERSION]
+        )
         con.execute(
             "CREATE TABLE buses (bus_id BIGINT, base_kv DOUBLE, lon DOUBLE, lat DOUBLE)"
         )
@@ -218,7 +222,7 @@ def test_wrong_contract_version_is_named(tmp_path: Path) -> None:
     assert result.diagnostic_kind == "contract_violation"
     assert result.reason == (
         "contract violation: invalid contract element "
-        "\"schema_meta.contract_version\": expected 1.0.0, found '0.0.0'"
+        f"\"schema_meta.contract_version\": expected {SCHEMA_VERSION}, found '0.0.0'"
     )
 
 

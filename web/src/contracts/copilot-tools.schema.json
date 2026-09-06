@@ -128,6 +128,29 @@
       "title": "CascadeData",
       "type": "object"
     },
+    "CausalCitation": {
+      "additionalProperties": false,
+      "properties": {
+        "locator": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "locator"
+      ],
+      "title": "CausalCitation",
+      "type": "object"
+    },
     "CausalData": {
       "additionalProperties": false,
       "properties": {
@@ -150,6 +173,24 @@
             "type": "string"
           },
           "title": "Assumptions",
+          "type": "array"
+        },
+        "citations": {
+          "items": {
+            "$ref": "#/$defs/CausalCitation"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Citations",
+          "type": "array"
+        },
+        "diagnostics": {
+          "items": {
+            "$ref": "#/$defs/CausalDiagnostic"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Diagnostics",
           "type": "array"
         },
         "evidence_rows": {
@@ -193,6 +234,21 @@
           "title": "Provenance",
           "type": "array"
         },
+        "question": {
+          "$ref": "#/$defs/CausalQuestion"
+        },
+        "sample": {
+          "$ref": "#/$defs/CausalSample"
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/CausalSource"
+          },
+          "maxItems": 50,
+          "minItems": 1,
+          "title": "Sources",
+          "type": "array"
+        },
         "status": {
           "$ref": "#/$defs/ToolStatus"
         },
@@ -213,9 +269,43 @@
         "answer_numbers",
         "method",
         "assumptions",
-        "evidence_rows"
+        "evidence_rows",
+        "question",
+        "sources",
+        "sample",
+        "diagnostics",
+        "citations"
       ],
       "title": "CausalData",
+      "type": "object"
+    },
+    "CausalDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "status": {
+          "const": "pass",
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "status",
+        "evidence"
+      ],
+      "title": "CausalDiagnostic",
       "type": "object"
     },
     "CausalQueryInput": {
@@ -298,6 +388,180 @@
         "kind"
       ],
       "title": "CausalQueryInput",
+      "type": "object"
+    },
+    "CausalQuestion": {
+      "additionalProperties": false,
+      "properties": {
+        "outcome": {
+          "$ref": "#/$defs/CausalVariable"
+        },
+        "target_population": {
+          "$ref": "#/$defs/CausalTargetPopulation"
+        },
+        "treatment": {
+          "$ref": "#/$defs/CausalVariable"
+        }
+      },
+      "required": [
+        "treatment",
+        "outcome",
+        "target_population"
+      ],
+      "title": "CausalQuestion",
+      "type": "object"
+    },
+    "CausalSample": {
+      "additionalProperties": false,
+      "properties": {
+        "n_control": {
+          "minimum": 0,
+          "title": "N Control",
+          "type": "integer"
+        },
+        "n_total": {
+          "minimum": 0,
+          "title": "N Total",
+          "type": "integer"
+        },
+        "n_treated": {
+          "minimum": 0,
+          "title": "N Treated",
+          "type": "integer"
+        },
+        "period": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Period",
+          "type": "string"
+        },
+        "unit": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "n_total",
+        "n_treated",
+        "n_control",
+        "period"
+      ],
+      "title": "CausalSample",
+      "type": "object"
+    },
+    "CausalSource": {
+      "additionalProperties": false,
+      "properties": {
+        "coverage": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Coverage",
+          "type": "string"
+        },
+        "locator": {
+          "maxLength": 2048,
+          "minLength": 1,
+          "title": "Locator",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 512,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "version": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "name",
+        "version",
+        "locator",
+        "coverage"
+      ],
+      "title": "CausalSource",
+      "type": "object"
+    },
+    "CausalTargetPopulation": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "geography": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Geography",
+          "type": "string"
+        },
+        "time_window": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Time Window",
+          "type": "string"
+        }
+      },
+      "required": [
+        "description",
+        "geography",
+        "time_window"
+      ],
+      "title": "CausalTargetPopulation",
+      "type": "object"
+    },
+    "CausalVariable": {
+      "additionalProperties": false,
+      "description": "A labeled causal treatment or outcome variable.",
+      "properties": {
+        "definition": {
+          "maxLength": 1024,
+          "minLength": 1,
+          "title": "Definition",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "source_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "unit_or_category": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Unit Or Category",
+          "type": "string"
+        }
+      },
+      "required": [
+        "name",
+        "definition",
+        "unit_or_category",
+        "source_id"
+      ],
+      "title": "CausalVariable",
       "type": "object"
     },
     "CiteData": {
@@ -661,6 +925,12 @@
     "LineSummary": {
       "additionalProperties": false,
       "properties": {
+        "artifact_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
         "congestion_usd_yr": {
           "minimum": 0,
           "title": "Congestion Usd Yr",
@@ -681,6 +951,14 @@
           "title": "From Bus",
           "type": "string"
         },
+        "intervention_type": {
+          "enum": [
+            "dlr",
+            "reconductor"
+          ],
+          "title": "Intervention Type",
+          "type": "string"
+        },
         "kv": {
           "exclusiveMinimum": 0,
           "title": "Kv",
@@ -697,9 +975,29 @@
           "title": "Mw Per Musd",
           "type": "number"
         },
+        "scenario_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "source_class": {
+          "enum": [
+            "observed",
+            "simulated",
+            "proxy"
+          ],
+          "title": "Source Class",
+          "type": "string"
+        },
         "spark_eligible": {
           "title": "Spark Eligible",
           "type": "boolean"
+        },
+        "status": {
+          "const": "available",
+          "title": "Status",
+          "type": "string"
         },
         "to_bus": {
           "maxLength": 128,
@@ -715,6 +1013,11 @@
       },
       "required": [
         "line_id",
+        "scenario_id",
+        "artifact_id",
+        "source_class",
+        "intervention_type",
+        "status",
         "from_bus",
         "to_bus",
         "kv",
@@ -731,6 +1034,12 @@
     "LinesData": {
       "additionalProperties": false,
       "properties": {
+        "artifact_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
         "lines": {
           "items": {
             "$ref": "#/$defs/LineSummary"
@@ -750,6 +1059,12 @@
           "maxLength": 64,
           "minLength": 1,
           "title": "Region",
+          "type": "string"
+        },
+        "scenario_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Scenario Id",
           "type": "string"
         },
         "status": {
@@ -779,6 +1094,8 @@
       "required": [
         "status",
         "region",
+        "scenario_id",
+        "artifact_id",
         "tech",
         "lines"
       ],

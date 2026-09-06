@@ -10,7 +10,7 @@ import pandas as pd
 
 from pipelines.common import sha256_file, utc_now
 
-SCHEMA_VERSION = "1.0.0"
+SCHEMA_VERSION = "2.1.0"
 CONTRACT_TABLES = (
     "buses",
     "lines",
@@ -41,6 +41,20 @@ PROVENANCE_COLUMNS = """
     source_version TEXT,
     source_retrieved_at TIMESTAMP,
     fixture_batch_id TEXT NOT NULL
+"""
+
+# These fields are the typed line-upgrade calculation contract, separate from
+# the fixture-source provenance above.  They make an artifact reproducible
+# without reclassifying an observed or proxy congestion input as a twin run.
+LINE_UPGRADE_CONTRACT_COLUMNS = """
+    ranking_version TEXT NOT NULL,
+    contract_version TEXT NOT NULL,
+    computed_at TIMESTAMP NOT NULL,
+    simulation_run_id TEXT,
+    grid_input_sha256 TEXT NOT NULL CHECK (regexp_full_match(grid_input_sha256, '[0-9a-f]{64}')),
+    weather_input_sha256 TEXT CHECK (weather_input_sha256 IS NULL OR regexp_full_match(weather_input_sha256, '[0-9a-f]{64}')),
+    cost_params_sha256 TEXT NOT NULL CHECK (regexp_full_match(cost_params_sha256, '[0-9a-f]{64}')),
+    source_kind TEXT CHECK (source_kind IN ('fixture', 'observed', 'simulated', 'heuristic'))
 """
 
 SCHEMA_STATEMENTS = (
@@ -124,23 +138,41 @@ SCHEMA_STATEMENTS = (
         congestion_relief_pct DOUBLE, blackstart_reach_mw DOUBLE, {PROVENANCE_COLUMNS},
         PRIMARY KEY (site_id, scenario_id, unit_mw))""",
     f"""CREATE TABLE IF NOT EXISTS line_upgrade_scores (
-        line_id BIGINT PRIMARY KEY REFERENCES lines(line_id), congestion_usd_yr DOUBLE,
+        line_id BIGINT NOT NULL REFERENCES lines(line_id), scenario_id TEXT NOT NULL,
+        congestion_usd_yr DOUBLE,
         dlr_uplift_mw DOUBLE, reconductor_uplift_mw DOUBLE, dlr_cost_usd DOUBLE,
         reconductor_cost_usd DOUBLE, mw_per_musd DOUBLE, ferc_screen_pass BOOLEAN,
-        spark_eligible BOOLEAN, {PROVENANCE_COLUMNS})""",
+        spark_eligible BOOLEAN, {LINE_UPGRADE_CONTRACT_COLUMNS}, {PROVENANCE_COLUMNS},
+        PRIMARY KEY (line_id, scenario_id))""",
     f"""CREATE TABLE IF NOT EXISTS line_upgrade_detail (
-        line_id BIGINT PRIMARY KEY REFERENCES lines(line_id), owner TEXT, conductor_material TEXT,
+        line_id BIGINT NOT NULL REFERENCES lines(line_id), scenario_id TEXT NOT NULL,
+        owner TEXT, conductor_material TEXT,
         conductor_kcmil DOUBLE, static_rating_mw DOUBLE NOT NULL CHECK (static_rating_mw >= 0),
         aar_rating_mw DOUBLE, dlr_p50_mw DOUBLE, dlr_hours_above_static INTEGER,
         best_tech TEXT CHECK (best_tech IN ('dlr', 'reconductor')), payback_yr DOUBLE,
         congestion_method TEXT NOT NULL CHECK (congestion_method IN ('exact', 'fuzzy', 'twin_proxy', 'unmapped')),
-        region TEXT NOT NULL, {PROVENANCE_COLUMNS})""",
+        region TEXT NOT NULL, {LINE_UPGRADE_CONTRACT_COLUMNS}, {PROVENANCE_COLUMNS},
+        PRIMARY KEY (line_id, scenario_id))""",
+    # Equality-filter aid for `top_lines(scenario_id=...)`. DuckDB does not serve
+    # ORDER BY from an ART index, so this is not a ranking accelerator.
+    """CREATE INDEX IF NOT EXISTS line_upgrade_scores_scenario_rank
+        ON line_upgrade_scores (scenario_id, mw_per_musd, line_id)""",
     f"""CREATE TABLE IF NOT EXISTS corpus_chunks (
         chunk_id TEXT PRIMARY KEY, doc TEXT NOT NULL, title TEXT NOT NULL,
         page INTEGER NOT NULL CHECK (page > 0), chunk_ordinal INTEGER NOT NULL CHECK (chunk_ordinal >= 0),
         text TEXT NOT NULL, embedding FLOAT[1024], {PROVENANCE_COLUMNS}, UNIQUE (doc, page, chunk_ordinal))""",
 )
 
+LINE_UPGRADE_CONTRACT_COLUMN_NAMES = (
+    "ranking_version",
+    "contract_version",
+    "computed_at",
+    "simulation_run_id",
+    "grid_input_sha256",
+    "weather_input_sha256",
+    "cost_params_sha256",
+    "source_kind",
+)
 TABLE_COLUMNS = {
     "buses": (
         "bus_id",
@@ -234,6 +266,7 @@ TABLE_COLUMNS = {
     ),
     "line_upgrade_scores": (
         "line_id",
+        "scenario_id",
         "congestion_usd_yr",
         "dlr_uplift_mw",
         "reconductor_uplift_mw",
@@ -242,9 +275,11 @@ TABLE_COLUMNS = {
         "mw_per_musd",
         "ferc_screen_pass",
         "spark_eligible",
+        *LINE_UPGRADE_CONTRACT_COLUMN_NAMES,
     ),
     "line_upgrade_detail": (
         "line_id",
+        "scenario_id",
         "owner",
         "conductor_material",
         "conductor_kcmil",
@@ -256,6 +291,7 @@ TABLE_COLUMNS = {
         "payback_yr",
         "congestion_method",
         "region",
+        *LINE_UPGRADE_CONTRACT_COLUMN_NAMES,
     ),
     "corpus_chunks": (
         "chunk_id",
@@ -338,23 +374,42 @@ def connect(
     return con
 
 
+def stored_contract_version(con: duckdb.DuckDBPyConnection) -> str | None:
+    """Return the persisted `schema_meta.contract_version`, or None when no contract exists yet."""
+    has_meta = con.execute(
+        "SELECT count(*) FROM information_schema.tables WHERE table_name = 'schema_meta'"
+    ).fetchone()[0]
+    if not has_meta:
+        return None
+    existing = con.execute(
+        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+    ).fetchone()
+    return None if existing is None else existing[0]
+
+
 def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
-    """Create v1, refusing to silently use a different contract version."""
+    """Create the SCHEMA_VERSION contract, refusing to touch a database on another version.
+
+    The version guard runs before any DDL. On an existing database every
+    `CREATE TABLE IF NOT EXISTS` is a no-op, so a later statement (the scenario
+    index, for example) would otherwise bind against the old table shape and fail
+    with an unnamed duckdb error instead of this migration error. There is no
+    in-place migration: rebuild `data/duck/grid.duckdb` from its sources.
+    """
+    existing = stored_contract_version(con)
+    if existing is not None and existing != SCHEMA_VERSION:
+        raise RuntimeError(
+            f"DuckDB contract version is {existing!r}, expected {SCHEMA_VERSION!r}; migrate explicitly "
+            "(no in-place migration exists: delete the database and re-run the ingest)."
+        )
     for statement in SCHEMA_STATEMENTS:
         con.execute(statement)
     for statement in P0_HELPER_STATEMENTS:
         con.execute(statement)
-    existing = con.execute(
-        "SELECT value FROM schema_meta WHERE key = 'contract_version'"
-    ).fetchone()
     if existing is None:
         con.execute(
             "INSERT INTO schema_meta (key, value) VALUES ('contract_version', ?)",
             [SCHEMA_VERSION],
-        )
-    elif existing[0] != SCHEMA_VERSION:
-        raise RuntimeError(
-            f"DuckDB contract version is {existing[0]!r}, expected {SCHEMA_VERSION!r}; migrate explicitly."
         )
     validate_schema(con)
 

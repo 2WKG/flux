@@ -4,21 +4,23 @@
 
 ---
 
-# Idea 1 (Rank #1) — National Grid Digital Twin with Outage Prediction and Nuclear Siting
+# Idea 1 (Rank #1) — State-Configurable Grid Resilience Analysis
+
+> **Current product boundary:** This pitch describes a future product vision. Flux can ingest public context for a selected U.S. state when its declared source artifacts are supplied. The repository's only topology adapter is Texas / ACTIVSg2000 / ERCOT and requires its source artifacts and build; the checked-in five-bus preview represents no state. Texas examples below are an adapter and demo-design reference, not a product boundary.
 
 ## The pitch (90 seconds, spoken)
 
 America is about to add more electric load in ten years than it added in the last thirty — data centers, reindustrialization, and defense installations that cannot go dark. The grid that has to carry it is run by 3,000 separate utilities, none of whom can see the whole system, and the tools for deciding where to put new firm power are PDF reports and a 2022 government GIS screener with no grid data in it.
 
-We built the first national grid model that connects three questions nobody currently connects: where will the grid fail, what does that failure cascade into, and where should the next gigawatt of firm generation go so the whole system gets stronger. You pick a storm, we replay it across the grid and show which counties go dark and which substations carry the cascade. You pick a nuclear site, we show how much loss-of-load it removes, whether it clears NRC safety rules, and which defense installation it protects. It's the planning layer that sits above every utility — the operating picture for American power.
+Flux is a state-configurable planning layer that connects three questions nobody currently connects: where will the grid fail, what does that failure cascade into, and where should the next gigawatt of firm generation go so the system gets stronger. For a state with validated topology and source data, you pick a storm, replay it across the model, and show which counties go dark and which substations carry the cascade. You pick a nuclear site, then show modelled loss-of-load reduction, source-screened safety inputs, and the critical load it protects.
 
 ## What it does, in simple terms
 
-1. Shows the whole US grid on a map: lines, substations, power plants, and who serves each county.
-2. Predicts outages: given the weather forecast, which counties are likely to lose power and how many customers.
-3. Simulates cascades: if this substation or line fails, what else fails, and who ends up in the dark — including military bases and other critical loads.
-4. Ranks nuclear sites: for every retiring coal plant, existing nuclear site, and federal site, scores how *safe* it is (NRC rules) and how much it *strengthens the grid* (reduced loss-of-load, reduced congestion, faster black-start).
-5. Answers questions in English with citations: "Where should the next 2 GW of firm generation go in Texas and why?"
+1. Ingests public context for a selected state from declared source artifacts.
+2. Predicts outage risk where that state has validated weather and outage inputs.
+3. Simulates cascades only where a validated state topology is available, including critical-load context.
+4. Compares hypothetical firm-generation sites only within the selected model's documented data and regulatory limits.
+5. Answers questions in English with citations: "Which evidence supports this comparison in the selected state?"
 
 ## Design outline
 
