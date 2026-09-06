@@ -1,10 +1,12 @@
+from dataclasses import replace
 from datetime import datetime
 
 import pandas as pd
+import pytest
 from shapely.geometry import Polygon
 
-from pipelines.db import connect, replace_frame
 from pipelines.common import sha256_file
+from pipelines.db import connect, replace_frame
 from pipelines.storm_events import (
     NwsCrosswalkRelease,
     load_storm_events,
@@ -138,6 +140,25 @@ def test_loader_selects_releases_after_cst_and_cdt_utc_normalization(tmp_path):
         assert con.execute(
             "SELECT event_id FROM storm_events ORDER BY event_id"
         ).fetchall() == [(1,), (3,)]
+    finally:
+        con.close()
+
+
+def test_loader_rejects_substituted_crosswalk_bytes_before_writes(tmp_path):
+    detail, crosswalk = tmp_path / "events.csv.gz", tmp_path / "release.dbx"
+    crosswalk.write_text("TX|215|||||48001|CST-6\n")
+    pd.DataFrame([_zone_event(1, "2021-02-15 12:00:00", 215)]).to_csv(
+        detail, index=False, compression="gzip"
+    )
+    con = connect(tmp_path / "grid.duckdb")
+    try:
+        _seed_county(con)
+        release = replace(
+            _release("uri", crosswalk, "2021-02-11", "2021-02-21"), sha256="0" * 64
+        )
+        with pytest.raises(ValueError, match="bytes do not match"):
+            load_storm_events(con, str(detail), [release], 2021)
+        assert con.execute("SELECT count(*) FROM storm_events").fetchone() == (0,)
     finally:
         con.close()
 
