@@ -5,6 +5,8 @@ data/parquet/
 node_modules/
 web/node_modules/
 web/dist/
+# Local 3D asset deliveries; the contract forbids committing binaries
+build/
 __pycache__/
 *.pyc
 .env
