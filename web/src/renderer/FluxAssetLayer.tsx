@@ -288,7 +288,9 @@ async function makeLayers(
         }),
     ),
   );
-  return lod === "lod2" ? [...scenes, ...badges, labels] : [...scenes, labels];
+  // At the far placement LOD, labels pile up for coincident source geometry.
+  // The pickable model and backplate remain; names return with the closer LODs.
+  return lod === "lod2" ? [...scenes, ...badges] : [...scenes, labels];
 }
 
 export function FluxAssetLayer({

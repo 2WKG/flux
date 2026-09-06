@@ -54,3 +54,13 @@ try {
   await rm(dist, { recursive: true, force: true });
   throw error;
 }
+
+// Materialized from the versioned source kit before a release build. Keep the
+// assets separate from JavaScript and preserve manifest-relative paths.
+try {
+  await cp(path.join(webRoot, "public", "assets", "flux-grid"), path.join(dist, "assets", "flux-grid"), {
+    recursive: true, force: false, errorOnExist: true,
+  });
+} catch (error) {
+  if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
+}

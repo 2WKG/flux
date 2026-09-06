@@ -139,7 +139,7 @@ export function GridInventoryPanel({
     <div className="grid-map">
       {mounted
         ? <Suspense fallback={<p className="grid-release">Loading the map renderer.</p>}>
-            <LazyGridMap view={scene.view} paths={scene.paths} fitBounds={bounds} />
+            <LazyGridMap view={scene.view} paths={scene.paths} fitBounds={bounds} assetItems={filtered} onAssetSelect={onSelect} />
           </Suspense>
         : <p className="grid-release">The map renderer loads in the browser. {scene.view.detail}</p>}
     </div>

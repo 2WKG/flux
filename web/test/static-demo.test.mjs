@@ -144,7 +144,7 @@ test("with the API unreachable every data path names an unavailable state, never
 // A plain static file server over dist/ (what any CDN or `npx serve` would do): files
 // are served as-is and unknown paths fall back to the SPA shell. There is no
 // application code in this server; what is under test is the built artifact.
-const contentTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".map": "application/json" };
+const contentTypes = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".mjs": "text/javascript; charset=utf-8", ".map": "application/json", ".json": "application/json", ".png": "image/png", ".glb": "model/gltf-binary" };
 function staticServer() {
   return http.createServer((req, res) => {
     const pathname = decodeURIComponent(new URL(req.url, "http://localhost").pathname);
@@ -170,6 +170,18 @@ test("serving dist/ statically yields the SPA shell for /api/demo, never a demo 
     const script = await fetch(`${base}/assets/app.js`);
     assert.equal(script.status, 200);
     assert.match(script.headers.get("content-type"), /javascript/);
+
+    const sourceManifest = fileURLToPath(new URL("../public/assets/flux-grid/manifest.json", import.meta.url));
+    if (existsSync(sourceManifest)) {
+      const response = await fetch(`${base}/assets/flux-grid/manifest.json`);
+      assert.equal(response.status, 200);
+      assert.match(response.headers.get("content-type"), /application\/json/);
+      const manifest = await response.json();
+      const model = await fetch(`${base}/assets/flux-grid/${manifest.assets[0].lods.lod2.path}`);
+      assert.equal(model.status, 200);
+      assert.match(model.headers.get("content-type"), /model\/gltf-binary/);
+      assert.equal((await model.arrayBuffer()).byteLength, manifest.assets[0].lods.lod2.bytes);
+    }
 
     for (const route of ["/api/demo", "/api/demo?scenario=a", "/api/demo/"]) {
       const response = await fetch(`${base}${route}`);
