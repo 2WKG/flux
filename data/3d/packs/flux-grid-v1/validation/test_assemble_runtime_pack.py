@@ -13,6 +13,7 @@ import importlib.util
 import io
 import json
 import shutil
+import subprocess
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -115,7 +116,7 @@ class Fixture:
         path.write_text(json.dumps(self.catalog))
         return path
 
-    def run(self) -> dict:
+    def run(self, catalog_path: Path | None = None) -> dict:
         stream = io.StringIO()
         with redirect_stdout(stream):
             code = assemble.main(
@@ -129,7 +130,7 @@ class Fixture:
                     "--output",
                     str(self.output),
                     "--catalog",
-                    str(self.catalog_path()),
+                    str(catalog_path or self.catalog_path()),
                 ]
             )
         assert code == 0, code
@@ -160,6 +161,46 @@ class Assembly(unittest.TestCase):
         for line in inventory:
             expected, relative = line.split("  ", 1)
             self.assertEqual(sha(self.fixture.output / relative), expected, relative)
+
+    def test_locally_generated_pack_installs_through_checksum_path(self):
+        """The generated manifest must work with the existing safe installer."""
+        self.fixture.run(CATALOG)
+        manifest = json.loads((self.fixture.output / "manifest.json").read_text())
+        self.assertEqual(manifest["completion"], "complete_locally_generated")
+        self.assertEqual(
+            manifest["source_contract"],
+            {
+                "file": "data/3d/asset-archetypes-v1.json",
+                "sha256": sha(CATALOG),
+            },
+        )
+        self.assertEqual(manifest["totals"], {"archetypes": 18, "glb_files": 54})
+        # The JavaScript inventory parser deliberately accepts only LF records.
+        self.assertNotIn(b"\r\n", (self.fixture.output / "package.SHA256SUMS").read_bytes())
+
+        consumer = self.dir / "consumer"
+        (consumer / "web").mkdir(parents=True)
+        (consumer / "web" / "package.json").write_text("{}\n")
+        installer = PACK.parents[3] / "scripts" / "install_flux_grid_pack.mjs"
+        command = (
+            "import {installFluxGridPack} from "
+            + json.dumps(installer.as_uri())
+            + "; await installFluxGridPack("
+            + json.dumps(str(self.fixture.output))
+            + ", "
+            + json.dumps(str(consumer))
+            + ");"
+        )
+        completed = subprocess.run(
+            ["node", "--input-type=module", "-e", command],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        installed = consumer / "web" / "public" / "assets" / "flux-grid"
+        self.assertTrue((installed / "manifest.json").is_file())
+        self.assertEqual(len(list(installed.rglob("*.glb"))), 54)
 
     def test_a_model_replaced_after_the_audit_is_refused_by_name(self):
         """The blocker: `--audit` must not be a detached token.

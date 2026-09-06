@@ -26,6 +26,7 @@ cp data/3d/packs/flux-grid-v1/assets/symbols/{flux-grid.json,flux-grid@2x.json,d
 uv run --extra dev python data/3d/packs/flux-grid-v1/source/pipeline/assemble_runtime_pack.py \
   --build "$PACK" --audit "$PACK/validation/independent-audit.json" --symbols "$PACK/symbols" \
   --output "$RUNTIME" --zip "$ARTIFACT_ROOT/flux-grid-runtime-v1.zip"
+node scripts/install_flux_grid_pack.mjs "$RUNTIME"
 ```
 
 The assembler refuses a partial or failed GLB audit, and it refuses an audit

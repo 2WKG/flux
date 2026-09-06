@@ -122,7 +122,7 @@ def load_json(path: Path) -> dict[str, Any]:
 
 
 def build_manifest(
-    root: Path, audit: dict[str, Any], catalog: dict[str, Any]
+    root: Path, audit: dict[str, Any], catalog: dict[str, Any], catalog_sha256: str
 ) -> dict[str, Any]:
     by_id = {entry["id"]: entry for entry in catalog["archetypes"]}
     assets = []
@@ -160,6 +160,10 @@ def build_manifest(
         "contract_id": catalog["contractId"],
         "package_name": "flux-grid-assets-runtime",
         "completion": "complete_locally_generated",
+        "source_contract": {
+            "file": "data/3d/asset-archetypes-v1.json",
+            "sha256": catalog_sha256,
+        },
         "transform": {
             "unit": "meter",
             "up": "Y",
@@ -192,6 +196,10 @@ def build_manifest(
             "maplibre_sprite": "symbols/flux-grid",
         },
         "assets": assets,
+        "totals": {
+            "archetypes": len(assets),
+            "glb_files": sum(len(asset["lods"]) for asset in assets),
+        },
         "verification": {
             "audit": "validation/independent-audit.json",
             "asset_count": len(assets),
@@ -207,7 +215,9 @@ def write_inventory(root: Path) -> None:
         path for path in (root / "assets").rglob("*") if path.is_file()
     )
     lines = [f"{digest(path)}  {path.relative_to(root).as_posix()}" for path in files]
-    (root / "package.SHA256SUMS").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    (root / "package.SHA256SUMS").write_text(
+        "\n".join(lines) + "\n", encoding="utf-8", newline="\n"
+    )
 
 
 def write_zip(root: Path, path: Path) -> None:
@@ -267,7 +277,7 @@ def main(argv: list[str] | None = None) -> int:
         shutil.copy2(source, symbol_out / filename)
     (args.output / "validation").mkdir()
     shutil.copy2(args.audit, args.output / "validation" / "independent-audit.json")
-    manifest = build_manifest(args.output, audit, catalog)
+    manifest = build_manifest(args.output, audit, catalog, digest(args.catalog))
     (args.output / "manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="utf-8"
     )
