@@ -6,7 +6,7 @@
  */
 
 import type { Archetype, AssetArchetypeCatalog, LodLevel } from "./archetype-catalog.js";
-import { findArchetype, trianglesForLod } from "./archetype-catalog.js";
+import { findArchetype, isDeclaredLod, trianglesForLod } from "./archetype-catalog.js";
 
 export interface Placement {
   readonly archetypeId: string;
@@ -24,7 +24,8 @@ export interface ArchetypeBudgetLine {
 
 export type PlacementIssue =
   | { readonly kind: "unknown_archetype"; readonly archetypeId: string }
-  | { readonly kind: "invalid_count"; readonly archetypeId: string; readonly count: number };
+  | { readonly kind: "invalid_count"; readonly archetypeId: string; readonly count: number }
+  | { readonly kind: "invalid_lod"; readonly archetypeId: string; readonly lod: string };
 
 export interface OverBudgetContributor {
   readonly archetypeId: string;
@@ -53,8 +54,12 @@ function isValidCount(count: unknown): count is number {
 
 /**
  * Sum declared triangles across placements against the catalog's
- * sceneTriangleBudget. An unknown archetype id or a non-positive count is a
- * named issue and is excluded from the totals rather than silently coerced.
+ * sceneTriangleBudget. An unknown archetype id, a non-positive count, or a
+ * LOD label the archetype does not declare is a named issue and is excluded
+ * from the totals rather than silently coerced. `Placement.lod` is typed
+ * `LodLevel`, but placements originate in a server artifact parsed at
+ * runtime, so the label is re-checked here: an undeclared level would
+ * otherwise index to `undefined` and poison the totals with `NaN`.
  */
 export function buildSceneBudgetReport(
   catalog: AssetArchetypeCatalog,
@@ -71,6 +76,14 @@ export function buildSceneBudgetReport(
     }
     if (!isValidCount(placement.count)) {
       issues.push({ kind: "invalid_count", archetypeId: placement.archetypeId, count: placement.count });
+      continue;
+    }
+    if (!isDeclaredLod(archetype, placement.lod)) {
+      issues.push({
+        kind: "invalid_lod",
+        archetypeId: placement.archetypeId,
+        lod: String(placement.lod),
+      });
       continue;
     }
     const trianglesPerInstance = trianglesForLod(archetype, placement.lod);
