@@ -54,18 +54,23 @@ def _dod_filename(states=None) -> str:
     )
 
 
-def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
-    """Read the P0 raw-file contract from the shared dataset catalog."""
+def _p0_raw_inputs(
+    catalog: Path | None = None,
+) -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
+    """Read the P0 raw-file contract from the shared dataset catalog.
+
+    This is the only reader of ``p0_raw_inputs``; the preflight receipt imports
+    it so the builder and the receipt cannot drift apart.
+    """
+    catalog = catalog or P0_RAW_INPUTS_CATALOG
     try:
-        inputs = json.loads(P0_RAW_INPUTS_CATALOG.read_text())["p0_raw_inputs"]
+        inputs = json.loads(catalog.read_text(encoding="utf-8"))["p0_raw_inputs"]
         return tuple(
             (item["label"], tuple(tuple(path) for path in item["paths"]))
             for item in inputs
         )
     except (KeyError, OSError, TypeError, json.JSONDecodeError) as error:
-        raise RuntimeError(
-            f"invalid P0 raw-input catalog: {P0_RAW_INPUTS_CATALOG}"
-        ) from error
+        raise RuntimeError(f"invalid P0 raw-input catalog: {catalog}") from error
 
 
 def _missing_p0_inputs(

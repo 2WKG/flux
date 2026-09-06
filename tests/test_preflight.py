@@ -259,3 +259,224 @@ def test_non_texas_context_is_state_configurable_but_never_implies_topology(tmp_
     assert context["state"]["usps"] == "NY"
     assert context["public_context_status"] == "ready_to_stage"
     assert context["topology"]["status"] == "decision_required"
+
+
+def _fake_receipt(**readiness):
+    base = {
+        "exit_code_gate": "texas_p0_safe_to_stage",
+        "selected_states_public_context_ready": False,
+        "texas_p0_safe_to_stage": True,
+        "strict_provenance_ready": True,
+        "texas_full_flux_ready": True,
+    }
+    base.update(readiness)
+    return {
+        "readiness": base,
+        "requirements": {
+            "strict_provenance_requested": False,
+            "scenario_weather_required": False,
+        },
+    }
+
+
+def test_cli_exits_nonzero_when_texas_p0_is_not_safe_to_stage(monkeypatch):
+    monkeypatch.setattr(
+        preflight,
+        "build_receipt",
+        lambda *_args, **_kwargs: _fake_receipt(texas_p0_safe_to_stage=False),
+    )
+
+    assert preflight.main(["--state", "TX"]) == 1
+    assert preflight._exit_code(_fake_receipt(texas_p0_safe_to_stage=True)) == 0
+
+
+def test_empty_raw_dir_is_not_safe_to_stage_and_exits_nonzero(tmp_path):
+    receipt = preflight.build_receipt(tmp_path / "raw", states=preflight.scope(["TX"]))
+
+    assert receipt["readiness"]["exit_code_gate"] == "texas_p0_safe_to_stage"
+    assert receipt["readiness"]["texas_p0_safe_to_stage"] is False
+    assert preflight._exit_code(receipt) == 1
+
+
+def test_non_texas_scope_exit_code_follows_the_selected_state_context(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(
+        preflight,
+        "inspect_raw_inputs",
+        lambda *_args, **_kwargs: {
+            "all_present": False,
+            "no_checksum_mismatch": True,
+            "all_locked_with_provenance": False,
+            "artifacts": [{"status": "missing"}],
+        },
+    )
+    tiger, nri = tmp_path / "counties.zip", tmp_path / "nri.zip"
+    tiger.write_bytes(b"county-boundaries")
+    nri.write_bytes(b"hazards")
+
+    ready = preflight.build_receipt(
+        tmp_path / "raw",
+        states=preflight.scope(["MN", "New York"]),
+        context_tiger=tiger,
+        context_nri=nri,
+    )
+    incomplete = preflight.build_receipt(
+        tmp_path / "raw", states=preflight.scope(["MN"]), context_tiger=tiger
+    )
+    texas = preflight.build_receipt(
+        tmp_path / "raw",
+        states=preflight.scope(["TX"]),
+        context_tiger=tiger,
+        context_nri=nri,
+    )
+
+    assert (
+        ready["readiness"]["exit_code_gate"] == "selected_states_public_context_ready"
+    )
+    assert ready["readiness"]["texas_p0_safe_to_stage"] is False
+    assert ready["readiness"]["selected_states_public_context_ready"] is True
+    assert preflight._exit_code(ready) == 0
+    assert incomplete["readiness"]["selected_states_public_context_ready"] is False
+    assert preflight._exit_code(incomplete) == 1
+    assert texas["readiness"]["exit_code_gate"] == "texas_p0_safe_to_stage"
+    assert preflight._exit_code(texas) == 1
+
+
+def test_database_inspection_derives_write_performed_from_the_connection_mode(
+    tmp_path,
+):
+    database = tmp_path / "legacy.duckdb"
+    connect(database).close()
+
+    result = preflight.inspect_database(database)
+
+    assert result["status"] == "compatible"
+    assert result["access_mode"] == "read_only"
+    assert result["write_performed"] is False
+
+
+class _PassedCheck:
+    def __init__(self):
+        self.name = "fixture"
+        self.passed = True
+
+
+def test_texas_full_flux_ready_requires_scenario_weather_on_an_otherwise_ready_db(
+    tmp_path, monkeypatch
+):
+    monkeypatch.setattr(preflight, "run_checks", lambda _path: [_PassedCheck()])
+    monkeypatch.setattr(
+        preflight, "_operation_id_alignment", lambda _path: {"status": "ready"}
+    )
+    monkeypatch.setattr(
+        preflight,
+        "inspect_raw_inputs",
+        lambda *_args, **_kwargs: {
+            "all_present": True,
+            "no_checksum_mismatch": True,
+            "all_locked_with_provenance": True,
+            "artifacts": [],
+        },
+    )
+    database = _weather_scenario_database(
+        tmp_path, weather_fips="48001", weather_start=datetime(2024, 2, 1, tzinfo=UTC)
+    )
+
+    without_weather = preflight.build_receipt(
+        tmp_path / "raw",
+        database=database,
+        states=preflight.scope(["TX"]),
+        scenarios=("missing_scenario",),
+    )
+    with_weather = preflight.build_receipt(
+        tmp_path / "raw",
+        database=database,
+        states=preflight.scope(["TX"]),
+        scenarios=("weather_window",),
+    )
+
+    assert without_weather["built_database"]["status"] == "ready"
+    assert without_weather["readiness"]["dashboard_release_ready"] is True
+    assert without_weather["readiness"]["texas_full_flux_ready"] is False
+    assert with_weather["readiness"]["texas_full_flux_ready"] is True
+
+
+def test_database_open_elsewhere_is_reported_locked_not_rebuild(tmp_path):
+    database = tmp_path / "grid.duckdb"
+    holder = duckdb.connect(str(database))
+    try:
+        result = preflight.inspect_database(database)
+    finally:
+        holder.close()
+
+    assert result["status"] == "locked"
+    assert result["compatibility"] == "unknown"
+    assert result["write_performed"] is False
+    assert result["next_step"].startswith("Close the other process")
+    # Once the holder is gone the same file inspects normally.
+    assert preflight.inspect_database(database)["status"] != "locked"
+
+
+def test_unreadable_raw_artifact_is_enveloped_not_raised(tmp_path, monkeypatch):
+    raw = tmp_path / "raw"
+    artifact = raw / "source" / "input.csv"
+    artifact.parent.mkdir(parents=True)
+    artifact.write_text("a\n")
+    catalog = tmp_path / "catalog.json"
+    _catalog(catalog)
+    receipts = tmp_path / "receipts"
+    receipts.mkdir()
+
+    def denied(_path):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(preflight, "sha256_file", denied)
+
+    result = preflight.inspect_raw_inputs(raw, catalog=catalog, receipts_dir=receipts)
+
+    item = result["artifacts"][0]
+    assert item["status"] == "unreadable"
+    assert "PermissionError" in item["error"]
+    assert item["lock"]["status"] == "not_checked"
+    assert result["no_checksum_mismatch"] is False
+
+
+def test_unwritable_report_path_returns_error_envelope(tmp_path, monkeypatch, capsys):
+    monkeypatch.setattr(
+        preflight, "build_receipt", lambda *_args, **_kwargs: _fake_receipt()
+    )
+    blocker = tmp_path / "not-a-directory"
+    blocker.write_text("file")
+
+    code = preflight.main(["--state", "TX", "--report", str(blocker / "receipt.json")])
+
+    captured = capsys.readouterr()
+    envelope = json.loads(captured.err)
+    assert code == preflight.ERROR_EXIT_CODE == 2
+    assert envelope["status"] == "error"
+    assert envelope["reason"] == "report_not_written"
+    assert envelope["write_performed"] is False
+
+
+def test_invalid_catalog_returns_error_envelope(tmp_path, monkeypatch, capsys):
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text("{not json")
+    monkeypatch.setattr(preflight, "P0_RAW_INPUTS_CATALOG", catalog)
+
+    code = preflight.main(["--state", "TX", "--raw-dir", str(tmp_path / "raw")])
+
+    captured = capsys.readouterr()
+    envelope = json.loads(captured.err)
+    assert code == 2
+    assert captured.out == ""
+    assert envelope["status"] == "error"
+    assert envelope["reason"] == "receipt_not_built"
+    assert "invalid P0 raw-input catalog" in envelope["error"]
+
+
+def test_preflight_reads_the_builders_p0_contract():
+    from pipelines import build
+
+    assert preflight._p0_raw_inputs is build._p0_raw_inputs
+    assert not hasattr(preflight, "_catalog_inputs")

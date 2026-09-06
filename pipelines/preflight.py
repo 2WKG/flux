@@ -1,9 +1,9 @@
 """Read-only intake receipt for a safe, reproducible data rebuild.
 
 This module deliberately does not call :func:`pipelines.db.connect`: that
-helper initializes a schema on writable connections.  A preflight must be
-able to inspect an old DuckDB file without changing even its access time at
-the SQL layer, and must make a fresh output path the only rebuild target.
+helper initializes a schema on writable connections.  A preflight opens an
+existing DuckDB file read-only, records the file's SHA-256 before and after
+the inspection, and makes a fresh output path the only rebuild target.
 """
 
 from __future__ import annotations
@@ -13,12 +13,14 @@ import csv
 import gzip
 import hashlib
 import json
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import duckdb
 
+from pipelines.build import _p0_raw_inputs
 from pipelines.checks import run_checks
 from pipelines.common import sha256_file
 from pipelines.data_quality import (
@@ -37,19 +39,6 @@ DEFAULT_TEXAS_SCENARIOS = ("uri_2021", "beryl_2024")
 
 def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
-
-
-def _catalog_inputs(
-    catalog: Path,
-) -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
-    try:
-        data = json.loads(catalog.read_text(encoding="utf-8"))
-        return tuple(
-            (item["label"], tuple(tuple(path) for path in item["paths"]))
-            for item in data["p0_raw_inputs"]
-        )
-    except (KeyError, OSError, TypeError, json.JSONDecodeError) as error:
-        raise RuntimeError(f"invalid P0 raw-input catalog: {catalog}") from error
 
 
 def _schema_fingerprint(path: Path) -> str | None:
@@ -112,7 +101,7 @@ def _receipt_index(receipts_dir: Path) -> dict[str, list[dict[str, Any]]]:
 def inspect_raw_inputs(
     raw_dir: str | Path,
     *,
-    catalog: Path = P0_RAW_INPUTS_CATALOG,
+    catalog: Path | None = None,
     receipts_dir: Path = SOURCE_RECEIPTS_DIR,
 ) -> dict[str, Any]:
     """Return a machine-readable receipt without changing raw files.
@@ -124,7 +113,8 @@ def inspect_raw_inputs(
     raw = Path(raw_dir)
     receipt_index = _receipt_index(receipts_dir)
     artifacts: list[dict[str, Any]] = []
-    for label, alternatives in _catalog_inputs(catalog):
+    # One reader of the P0 raw-input contract: the builder's.
+    for label, alternatives in _p0_raw_inputs(catalog or P0_RAW_INPUTS_CATALOG):
         selected = next(
             (
                 raw.joinpath(*parts)
@@ -144,12 +134,28 @@ def inspect_raw_inputs(
                 }
             )
             continue
-        observed = {
-            "path": str(selected),
-            "bytes": selected.stat().st_size,
-            "sha256": sha256_file(selected),
-            "schema_fingerprint": _schema_fingerprint(selected),
-        }
+        try:
+            observed = {
+                "path": str(selected),
+                "bytes": selected.stat().st_size,
+                "sha256": sha256_file(selected),
+                "schema_fingerprint": _schema_fingerprint(selected),
+            }
+        except OSError as error:
+            # An artifact we cannot read is reported, never skipped or crashed on.
+            artifacts.append(
+                {
+                    "label": label,
+                    "status": "unreadable",
+                    "observed": {"path": str(selected)},
+                    "error": f"{type(error).__name__}: {error}",
+                    "lock": {
+                        "status": "not_checked",
+                        "reason": "artifact could not be read",
+                    },
+                }
+            )
+            continue
         expected = receipt_index.get(selected.name, [])
         matching = [
             item
@@ -179,11 +185,24 @@ def inspect_raw_inputs(
         "artifacts": artifacts,
         "all_present": all(item["status"] != "missing" for item in artifacts),
         "no_checksum_mismatch": not any(
-            item["status"] == "checksum_mismatch" for item in artifacts
+            item["status"] in {"checksum_mismatch", "unreadable"} for item in artifacts
         ),
         "all_locked_with_provenance": bool(artifacts)
         and all(item["lock"]["status"] == "verified" for item in artifacts),
     }
+
+
+_LOCK_ERROR_MARKERS = (
+    "different configuration than existing connections",
+    "could not set lock on file",
+    "conflicting lock is held",
+)
+
+
+def _is_lock_error(error: duckdb.Error) -> bool:
+    """True when DuckDB refused the open because another handle owns the file."""
+    message = str(error).lower()
+    return any(marker in message for marker in _LOCK_ERROR_MARKERS)
 
 
 def inspect_database(path: str | Path | None) -> dict[str, Any]:
@@ -203,6 +222,11 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
     try:
         con = duckdb.connect(str(database), read_only=True)
         try:
+            # Derive the access mode from the live connection instead of
+            # asserting it: a writable handle can checkpoint or mutate the file.
+            access_mode = str(
+                con.execute("SELECT current_setting('access_mode')").fetchone()[0]
+            ).lower()
             tables = {
                 row[0]
                 for row in con.execute(
@@ -220,6 +244,17 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
         finally:
             con.close()
     except duckdb.Error as error:
+        if _is_lock_error(error):
+            # The file is merely open elsewhere; nothing is known about its
+            # compatibility and rebuilding would be the wrong remedy.
+            return {
+                "path": str(database),
+                "status": "locked",
+                "compatibility": "unknown",
+                "write_performed": False,
+                "error": str(error),
+                "next_step": "Close the other process holding this database (API, notebook, builder) and rerun the preflight; do not rebuild.",
+            }
         return {
             "path": str(database),
             "status": "unreadable",
@@ -237,7 +272,8 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
         "contract_version": version,
         "expected_contract_version": SCHEMA_VERSION,
         "missing_contract_tables": missing,
-        "write_performed": False,
+        "access_mode": access_mode,
+        "write_performed": access_mode != "read_only",
         "file_sha256_before": before,
         "file_sha256_after": after,
         "file_unchanged": before == after,
@@ -511,24 +547,37 @@ def build_receipt(
     operations_ready = (
         database_result.get("operations_alignment", {}).get("status") == "ready"
     )
+    state_context = inspect_state_context(
+        selected,
+        tiger=context_tiger,
+        nri=context_nri,
+        eaglei=context_eaglei,
+        eaglei_source_tz=context_eaglei_source_tz,
+        texas_p0_ready=raw_ready,
+    )
+    context_ready = bool(state_context["selected_states"]) and all(
+        item["public_context_status"] == "ready_to_stage"
+        for item in state_context["selected_states"]
+    )
+    # The exit code follows the requested scope: Texas P0 raw inputs gate a
+    # Texas receipt; a receipt for other states gates on their public context.
+    exit_code_gate = (
+        "texas_p0_safe_to_stage"
+        if "TX" in selected.usps
+        else "selected_states_public_context_ready"
+    )
+    database_report = inspect_database(database)
     return {
         "receipt_version": 1,
         "checked_at": datetime.now(UTC).isoformat(),
-        "write_performed": False,
+        "write_performed": bool(database_report.get("write_performed", False)),
         "scope": {
             "current_hackathon": "Minnesota only; model mode and source decision remain required.",
             "status": "blocked",
             "reason": "No accepted Minnesota source decision/manifest is supplied by this Texas P0 receipt.",
             "next_step": "Complete MN01: record Minnesota source evidence and select topology only if solver-complete; otherwise select aggregate mode.",
         },
-        "state_configurable_public_context": inspect_state_context(
-            selected,
-            tiger=context_tiger,
-            nri=context_nri,
-            eaglei=context_eaglei,
-            eaglei_source_tz=context_eaglei_source_tz,
-            texas_p0_ready=raw_ready,
-        ),
+        "state_configurable_public_context": state_context,
         "texas_p0": {
             "status": "research_only",
             "reason": "ACTIVSg2000/Texas P0 must not be presented as the current Minnesota hackathon demo.",
@@ -538,9 +587,11 @@ def build_receipt(
                 "rule": "Use a fresh output path. The builder stages and quality-checks before it promotes; never point it at a legacy database.",
             },
         },
-        "database": inspect_database(database),
+        "database": database_report,
         "built_database": database_result,
         "readiness": {
+            "exit_code_gate": exit_code_gate,
+            "selected_states_public_context_ready": context_ready,
             "texas_p0_safe_to_stage": raw_ready,
             "strict_provenance_ready": strict_ready,
             "texas_full_flux_ready": (
@@ -560,7 +611,8 @@ def build_receipt(
 
 def _exit_code(receipt: dict[str, Any]) -> int:
     readiness = receipt["readiness"]
-    if not readiness["texas_p0_safe_to_stage"]:
+    gate = readiness.get("exit_code_gate", "texas_p0_safe_to_stage")
+    if not readiness[gate]:
         return 1
     if (
         receipt["requirements"]["strict_provenance_requested"]
@@ -637,24 +689,52 @@ def main(argv: list[str] | None = None) -> int:
     if context_eaglei and not args.context_eaglei_source_tz:
         parser.error("--context-eaglei-source-tz is required with --context-eaglei")
     scenarios = tuple(args.scenario) if args.scenario else DEFAULT_TEXAS_SCENARIOS
-    receipt = build_receipt(
-        args.raw_dir,
-        database=args.database,
-        states=selected,
-        context_tiger=args.context_tiger,
-        context_nri=args.context_nri,
-        context_eaglei=tuple(context_eaglei),
-        context_eaglei_source_tz=args.context_eaglei_source_tz,
-        strict_provenance=args.strict_provenance,
-        require_scenario_weather=args.require_scenario_weather,
-        scenarios=scenarios,
-    )
+    try:
+        receipt = build_receipt(
+            args.raw_dir,
+            database=args.database,
+            states=selected,
+            context_tiger=args.context_tiger,
+            context_nri=args.context_nri,
+            context_eaglei=tuple(context_eaglei),
+            context_eaglei_source_tz=args.context_eaglei_source_tz,
+            strict_provenance=args.strict_provenance,
+            require_scenario_weather=args.require_scenario_weather,
+            scenarios=scenarios,
+        )
+    except (RuntimeError, OSError) as error:
+        return _fail(f"{type(error).__name__}: {error}", "receipt_not_built")
     rendered = json.dumps(receipt, indent=2, sort_keys=True)
     print(rendered)
     if args.report:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        args.report.write_text(rendered + "\n", encoding="utf-8")
+        try:
+            args.report.parent.mkdir(parents=True, exist_ok=True)
+            args.report.write_text(rendered + "\n", encoding="utf-8")
+        except OSError as error:
+            return _fail(
+                f"{type(error).__name__}: {error}",
+                "report_not_written",
+                report=str(args.report),
+            )
     return _exit_code(receipt)
+
+
+ERROR_EXIT_CODE = 2
+
+
+def _fail(error: str, reason: str, **extra: Any) -> int:
+    """Emit a receipt-shaped error envelope instead of a traceback; exit 2."""
+    envelope = {
+        "receipt_version": 1,
+        "checked_at": datetime.now(UTC).isoformat(),
+        "status": "error",
+        "reason": reason,
+        "error": error,
+        "write_performed": False,
+        **extra,
+    }
+    print(json.dumps(envelope, indent=2, sort_keys=True), file=sys.stderr)
+    return ERROR_EXIT_CODE
 
 
 if __name__ == "__main__":
