@@ -127,5 +127,15 @@ def test_missing_definition_studies_validate_without_a_fabricated_question() -> 
 
         assert study["classification"] == "estimable_study"
         assert "question" not in study
+        assert "n_treated" not in study["sample"]
+        assert "n_control" not in study["sample"]
         assert study["availability"]["unavailable_codes"] == [unavailable_code]
         validator.validate(study)
+
+
+def test_available_studies_still_require_arm_counts() -> None:
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    study = _sufficient_study()
+    del study["sample"]["n_treated"]
+
+    assert not Draft202012Validator(schema).is_valid(study)
