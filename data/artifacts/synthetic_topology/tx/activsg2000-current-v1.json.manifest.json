@@ -1,0 +1,19 @@
+{
+  "artifact_id": "tx:synthetic-topology:activsg2000-current-v1",
+  "artifact_version": "1.0.0",
+  "compressed_sha256": "d9877ae3fd1237638f986ec62deaa1147dc879df8109eae03b9894f4b713f93a",
+  "content_sha256": "76b8eee7a4e4cd32db949bc9f8011d1234c8b71a8692bd54ed2053520ffe85ec",
+  "counts": {
+    "branches": 3206,
+    "buses": 2000,
+    "impedance_branches": 847,
+    "lines": 2359
+  },
+  "path": "activsg2000-current-v1.json.gz",
+  "source": {
+    "case": "ACTIVSg2000 current MATPOWER case",
+    "coordinates": "ACTIVSg2000.aux current-version tamu_aux mapping",
+    "physical_inventory_equivalence": false,
+    "topology": "synthetic (ACTIVSg2000)"
+  }
+}

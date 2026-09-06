@@ -39,7 +39,12 @@ def test_model_returns_bus_and_branch_geometry_from_synthetic_db(tmp_path: Path)
     assert body["data"]["provenance"]["physical_inventory_equivalence"] is False
 
 
-def test_model_missing_database_is_named_unavailable(tmp_path: Path) -> None:
+def test_model_missing_database_and_packaged_artifact_is_named_unavailable(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from copilot.routes import model_geometry
+
+    monkeypatch.setattr(model_geometry, "_artifact_path", tmp_path / "missing.json.gz")
     response = TestClient(create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))).get("/demo/model")
     assert response.status_code == 503
     assert response.json()["error"]["details"] == {"artifact": "synthetic_model_geometry", "reason": "unavailable"}
