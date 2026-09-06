@@ -191,7 +191,11 @@ def _build_mutating(
         dod = _required(
             raw, "ntad_military_bases", "fy2024", _dod_filename(selected_scope)
         )
-        assert dod
+        if not dod:
+            raise IncompleteP0BuildError(
+                "P0 build was not promoted; missing required input: "
+                f"ntad_military_bases/fy2024/{_dod_filename(selected_scope)}"
+            )
         counts["critical_loads_dod"] = load_dod(con, str(dod), states=selected_scope)
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
         validate_schema(con)
@@ -316,9 +320,7 @@ def build(
         else:
             stage_parquet.mkdir()
         args = (str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
-        counts = (
-            _build_mutating(*args) if states is None else _build_mutating(*args, states)
-        )
+        counts = _build_mutating(*args, states=states)
         checks = run_checks(str(stage_db))
         if not all(check.passed for check in checks):
             raise RuntimeError(
@@ -343,7 +345,7 @@ def main() -> int:
     parser.add_argument(
         "--states",
         action="append",
-        help="USPS names/codes or comma-separated state scope",
+        help="USPS codes, full names, FIPS, or comma-separated state scope (default: Texas)",
     )
     args = parser.parse_args()
     counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.states)
