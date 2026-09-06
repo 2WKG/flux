@@ -1,0 +1,45 @@
+{
+  "archetype_id": "coal_plant_retiring_site",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Coal plant and retiring plant site",
+  "category": "generation",
+  "container": "glb",
+  "model_filename": "coal_plant_retiring_site.glb",
+  "preview_filename": "coal_plant_retiring_site.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": { "length": 260, "width": 180 },
+  "connectors": ["HV_OUT"],
+  "lod_triangles": { "lod0": 38000, "lod1": 14000, "lod2": 4200 },
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "retirement_representation": "Retirement and redevelopment are placement attributes. The neutral mesh has no retired, active, or redevelopment colour/variant.",
+  "author": "Flux hackathon team",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original neutral industrial-generation archetype; it is not derived from a named Minnesota facility or a third-party model.",
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Illustrative catalogue preview — not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "coal_plant_retiring_site.glb",
+      "coal_plant_retiring_site.preview.png"
+    ],
+    "preview_renderer": "scripts/render_coal_retiring_site_preview.py",
+    "binary_policy": "The .glb is generated/exported outside Git and validated from this metadata before import."
+  }
+}
