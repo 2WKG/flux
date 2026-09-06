@@ -133,6 +133,7 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 | `cite` | `query: str`, `k: int = 5` | `{hits:[{doc, title, page, chunk_id, score, text}]}` |
 | `compare_interventions` (A8) | `scenario_id: str` (same enum), `intervention_ids: list[str]` (each `site:<site_id>`, `site:<site_id>@300`, or `line:<line_id>`; 1–5 ids) | `{scenario_id, baseline_run_id, interventions:[{intervention_id, kind: site\|line, run_id, lol_reduction_mwh, customer_hours_avoided, critical_loads_protected:[cl_id]}], assumptions:[str]}` — sorted by `lol_reduction_mwh` desc; the tool computes every delta, the model reports them |
 | `top_critical_elements` (A8) | `region: str` (`"ERCOT"`, `"TX"`, or a county fips), `n: int = 10` | `{region, n, scenario_ids:[str], elements:[{element_id, kind: line\|bus\|gen, lost_load_mw, critical_loads_lost:[cl_id], runs:int}], partial?:bool}` — ranked by cascade reach from persisted `cascade_runs`; `partial: true` when fewer than `n` elements have any persisted run |
+| `causal_query` | `kind: "attribution"\|"effect"\|"counterfactual"`, optional selected county/site/treatment and the declared scenario/capacity fields | `{answer_numbers, method, assumptions, interval, question:{treatment,outcome,target_population}, sources:[{source_id,name,version,locator,coverage}], sample:{unit,n_total,n_treated,n_control,period}, diagnostics:[{name,status:"pass",evidence}], citations:[{source_id,locator}]}` from one exact registered evidence artifact; malformed, fixture, missing, or insufficient evidence is canonical unavailable with no effect number |
 
 `resolve_site(lat: float, lon: float) -> {site_id, name, distance_km}` (A8) is a helper inside `impl.py`, not in `TOOL_SCHEMAS`: when a question carries a bare lat/lon (the description's `score_site(latitude, longitude, capacity)` shape), the `score_site` wrapper resolves it to the nearest `site_candidates` row (error if > 25 km) and the UI context / answer names that `site_id`. The model never sees lat/lon-shaped `score_site` arguments.
 
@@ -172,7 +173,7 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 
 **Sparse (always):** `rank_bm25.BM25Okapi(corpus_tokens, k1=1.5, b=0.75)` (`get_scores` / `get_top_n`; verified installed) over lowercased, punctuation-stripped tokens, built at startup from `corpus_chunks` (< 1 s). Legal text is heavy on exact terms (`"exclusion area"`, `"500 persons per square mile"`, `"population center distance"`), so BM25 alone is demo-adequate.
 
-**Fusion:** if dense is available, take top-20 from each, reciprocal-rank fusion (`k=60`), return top-`k`. Otherwise BM25 top-`k`. `cite` returns `{doc, title, page, chunk_id, score, text[:1200]}`.
+**Fusion:** if dense is available, take top-20 from each, reciprocal-rank fusion (`k=60`), return top-`k`. Otherwise BM25 top-`k`. `cite` returns `{doc, title, page, chunk_id, score, text[:1200], source, version, date, locator, content_kind, provenance}`; source identity and fixture classification are carried through unchanged.
 
 **No-embeddings fallback is the default path for the weekend**; dense is a Sunday-morning upgrade only if the BM25 eval misses.
 
