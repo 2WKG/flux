@@ -23,8 +23,10 @@ artifact's and the row's persisted provenance, never from a constant — a run
 whose provenance supports neither label is ``topology_label_unavailable``.
 With no ``run_id`` the "latest" run is the qualified run whose manifest has the
 greatest ``created_at`` (the only run-level timestamp persisted); ties fall back
-to lexical ``run_id`` order, which is documented rather than pretended to be
-temporal.
+to lexical ``run_id`` then ``artifact_id`` order — a total order over the
+selected columns, so the served run is deterministic by construction rather than
+whatever ``LIMIT 1`` happens to reach first.  That is documented, not pretended
+to be temporal.
 
 Failures use the shared failure envelope (``copilot.api``) with a named
 ``reason`` in ``details``; malformed parameters are the shared 422
@@ -107,7 +109,11 @@ CASCADE_ATTRIBUTES: Final[dict[str, dict[str, str | None]]] = {
 # The qualified-run selection: a persisted cascade run counts only when its
 # Minnesota model result is validated and its manifest is an available topology
 # artifact with provenance.  ``run_id`` narrows it; otherwise the manifest with
-# the greatest ``created_at`` wins (``run_id`` desc is the documented tie-break).
+# the greatest ``created_at`` wins.  The tie-break is a TOTAL order over the
+# selected columns — ``run_id`` desc, then ``artifact_id`` desc — because two
+# available topology manifests can cite the same ``model_run_id`` with the same
+# ``created_at``, and ``LIMIT 1`` over a partial order would serve an arbitrary
+# one of them.  Documented, not pretended to be temporal.
 _QUALIFIED_RUN_SQL: Final = """
     SELECT DISTINCT c.run_id, m.artifact_id, m.model_mode, m.geography_id,
            m.limitations_json, m.created_at
@@ -123,7 +129,7 @@ _QUALIFIED_RUN_SQL: Final = """
           SELECT 1 FROM mn_artifact_provenance AS p
           WHERE p.artifact_id = m.artifact_id
       )
-    ORDER BY m.created_at DESC, c.run_id DESC
+    ORDER BY m.created_at DESC, c.run_id DESC, m.artifact_id DESC
     LIMIT 1
 """
 _RUN_EXISTS_SQL: Final = (
