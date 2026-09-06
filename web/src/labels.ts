@@ -10,10 +10,15 @@
  * (`src/ask/run-state/types.ts`, `src/failure-states/types.ts`),
  * `SourceTruthLabel` (`src/chat/ChatDock.tsx`), `ResultAvailability`
  * (`src/ask/results/types.ts`) and `SourceStatus` (`src/layers/LayerControls.tsx`).
- * `STATUS_LABELS` in `src/scene/minnesota-adapter.ts` stays a separate list
- * because it mirrors a server-side JSON artifact, and carries a type-level
- * assertion that the two coincide. `src/status-vocabulary.test.mjs` pins that no
- * surface re-declares the tokens or their display strings.
+ * Two surfaces stay separate written lists because each mirrors the
+ * `statusMaterials.allowedLabels` array in `data/3d/asset-archetypes-v1.json`
+ * rather than this union: `STATUS_LABELS` in `src/scene/minnesota-adapter.ts`
+ * and `STATUS_LABELS` in `src/renderer/scene-view.ts`. Both carry a type-level
+ * `Equals<StatusLabel, AssetStatus>` assertion, so a drift in either is a
+ * `tsc --noEmit` failure rather than a silent tint bug. Those two, this file and
+ * the display-string owner `STATUS_COPY` (`src/source-truth.ts`) are the whole
+ * set; `src/status-vocabulary.test.mjs` pins that no other surface re-declares
+ * the tokens or their display strings.
  *
  * `src/shell/AppShell.tsx` (PR #191) no longer exists; that branch is closed.
  */
