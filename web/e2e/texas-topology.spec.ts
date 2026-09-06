@@ -31,7 +31,11 @@ test("Texas map zoom control reaches lod2 and requests the visible model", async
   await expect(map).toBeVisible();
   const zoomIn = map.locator(".maplibregl-ctrl-zoom-in");
   await expect(zoomIn).toBeVisible();
-  for (let index = 0; index < 6; index += 1) await zoomIn.click();
+  for (let index = 0; index < 7; index += 1) {
+    await zoomIn.click();
+    await page.waitForTimeout(300);
+  }
+  await expect.poll(async () => Number(await map.getAttribute("data-map-zoom"))).toBeGreaterThanOrEqual(12);
   await expect(map).toHaveAttribute("data-visual-lod", "lod2");
   await expect.poll(() => glbRequests.length).toBeGreaterThan(0);
 });

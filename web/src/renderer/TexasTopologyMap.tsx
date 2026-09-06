@@ -31,6 +31,7 @@ export type TexasModelPayload = Readonly<{
 type Point = Readonly<{ id: string; position: Position; role: string }>;
 type Line = Readonly<{ id: string; path: readonly Position[] }>;
 type AssetOverlay = Readonly<{ placements: readonly FluxPlacement[]; groups: readonly LoadedFluxGroup[] }>;
+type AssetSource = Readonly<{ manifest: FluxAssetManifest; placements: readonly FluxPlacement[] }>;
 
 function position(value: unknown): Position | null {
   return Array.isArray(value) && typeof value[0] === "number" && Number.isFinite(value[0]) &&
@@ -80,6 +81,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const bounds = useMemo(() => boundsOf(points, lines), [points, lines]);
   const [error, setError] = useState<string | null>(null);
   const [zoom, setZoom] = useState(5.4);
+  const [assetSource, setAssetSource] = useState<AssetSource | null>(null);
   const [assets, setAssets] = useState<AssetOverlay | null>(null);
   const cache = useRef<FluxAssetCache | null>(null);
   useEffect(() => {
@@ -88,7 +90,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    if (bounds === null || cache.current === null) return () => controller.abort();
+    if (bounds === null) return () => controller.abort();
     const manifest = fetch("/assets/flux-grid/manifest.json", { signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error(`3D asset manifest request failed (${response.status}).`);
@@ -97,15 +99,20 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
         return value as FluxAssetManifest;
       });
     Promise.all([manifest, loadFluxGridPlacements(bounds as AssetPlacementBounds, controller.signal)])
-      .then(async ([modelManifest, placements]) => {
-        const activeCache = cache.current;
-        if (!activeCache) return;
-        const groups = await loadFluxGroups(activeCache, modelManifest, placements, { zoom, mode: "accepted" });
-        if (!controller.signal.aborted) setAssets({ placements, groups });
-      })
+      .then(([manifest, placements]) => { if (!controller.signal.aborted) setAssetSource({ manifest, placements }); })
+      .catch(() => { if (!controller.signal.aborted) setAssetSource(null); });
+    return () => controller.abort();
+  }, [bounds]);
+  // LOD changes reuse the retained manifest, placements and FluxAssetCache bytes.
+  useEffect(() => {
+    const controller = new AbortController();
+    const activeCache = cache.current;
+    if (assetSource === null || activeCache === null) return () => controller.abort();
+    loadFluxGroups(activeCache, assetSource.manifest, assetSource.placements, { zoom, mode: "accepted" })
+      .then((groups) => { if (!controller.signal.aborted) setAssets({ placements: assetSource.placements, groups }); })
       .catch(() => { if (!controller.signal.aborted) setAssets(null); });
     return () => controller.abort();
-  }, [bounds, zoom]);
+  }, [assetSource, zoom]);
   const layers = useMemo<LayersList>(() => [
     new PathLayer<Line>({ id: "texas-model-branches", data: lines, getPath: (line) => line.path as Position[],
       getColor: [74, 222, 128, 170], getWidth: 1.5, widthUnits: "pixels", pickable: true }),
@@ -118,8 +125,8 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
       getRadius: 3, radiusUnits: "pixels", getFillColor: [96, 165, 250, 210], pickable: true }),
   ], [assets, buses, generators, lines, loads, zoom]);
   if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
-  return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"} data-visual-lod={zoom >= 17 ? "lod0" : zoom >= 15 ? "lod1" : zoom >= 12 ? "lod2" : "symbol"}>
-    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
+  return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"} data-visual-lod={zoom >= 17 ? "lod0" : zoom >= 15 ? "lod1" : zoom >= 12 ? "lod2" : "symbol"} data-map-zoom={zoom.toFixed(2)}>
+    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onZoom={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
       <NavigationControl position="top-right" showCompass />
       <DeckOverlay layers={layers} />
     </Map>
