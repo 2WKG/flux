@@ -418,7 +418,20 @@ def main() -> int:
     parser.add_argument(
         "--states",
         action="append",
-        help="USPS codes, full names, FIPS, or comma-separated state scope (default: Texas)",
+        help=(
+            "USPS codes, full names, FIPS, or comma-separated state scope "
+            "(default: Texas). This builder always loads the ACTIVSg2000 "
+            "synthetic topology (buses/lines/gens/loads) unconditionally, so a "
+            "scope that omits Texas will still populate that Texas topology and "
+            "then fail pipelines.checks.run_checks' synthetic-topology-absent "
+            "check. Adding a real, solver-complete non-Texas topology is out of "
+            "scope here (2WKG-419/2WKG-362); a non-Texas-only scope is accepted "
+            "for public-context ingestion (counties, NRI, storm events, "
+            "EAGLE-I, DoD facilities) but not for a standalone topology build. "
+            "Use `python -m pipelines.build_state_context --state <STATE> ...` "
+            "instead for a non-Texas state: it loads the same public-context "
+            "sources into the shared database without touching topology."
+        ),
     )
     args = parser.parse_args()
     counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.states)
