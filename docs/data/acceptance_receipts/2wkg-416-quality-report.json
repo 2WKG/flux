@@ -1,6 +1,6 @@
 {
   "checked_at": "2026-09-06T14:28:14.009728+00:00",
-  "database": "run-artifacts\\texas-p0-2wkg-416\\grid.duckdb",
+  "database": "run-artifacts/texas-p0-2wkg-416/grid.duckdb",
   "row_counts": {
     "buses": 2000,
     "lines": 3206,

@@ -1,5 +1,5 @@
 {
-  "catalog": "datasets\\catalog.json",
+  "catalog": "datasets/catalog.json",
   "catalog_schema_version": 1,
   "checked_at": "2026-09-06T13:31:23.391305+00:00",
   "network_probed": true,
@@ -338,7 +338,7 @@
     }
   ],
   "probe_version": 1,
-  "raw_dir": "data\\raw",
+  "raw_dir": "data/raw",
   "scope_label": "Texas P0 / ACTIVSg2000 legacy research evidence. ACTIVSg2000 is synthetic topology and is not the Minnesota demo delivery path.",
   "summary": {
     "present_locally": 0,

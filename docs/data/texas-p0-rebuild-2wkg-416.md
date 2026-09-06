@@ -68,6 +68,19 @@ path. Every later step used the fresh output path below.
 
 The authoritative provenance was already tracked in `data/sources/*.json`
 (publisher, source URL, license, retrieval time, bytes, SHA-256 per file).
+
+**This rebuild reproduces the P0 provenance record 2WKG-199 established.** That
+record is `data/sources/texas-p0-inventory.json` (11 records, 21 artifacts, 20
+carrying an `immutable_id`), validated by
+`scripts/validate_texas_p0_inventory.py`. The fetcher re-derives its expectations
+from the per-publisher receipts rather than from the inventory, so the two are
+independent derivations of the same truth — and
+`tests/test_texas_p0_acquisition.py::test_plan_shas_match_the_texas_p0_inventory`
+now binds them: it joins the fetch plan's receipt SHA-256s to the inventory's
+`immutable_id`s on `logical_name` and fails if any of the **18** shared artifacts
+disagrees, or if the overlap itself shrinks. Before that test the agreement was
+real but unguarded — an edit to either side would have drifted them with every
+gate green.
 `scripts/data/fetch_texas_p0_raw.py` (added here) is driven by those receipts:
 every URL it requests is stated verbatim in a receipt or composed from that
 receipt's own directory `source_url` plus its own filename, and every file is
@@ -147,6 +160,39 @@ artificial spring-DST duplicates).
 | Parquet export | `data/parquet/` (20 files + `manifest.json`) — see the finding below |
 | Schema contract | `2.1.0`, all 19 contract tables present |
 | Manifest `state_scope` | `tx` |
+
+**Byte-reproducibility of the database was not established.** The build was run
+**once**. `file_sha256_before == file_sha256_after` in
+`2wkg-416-postbuild-receipt.json` proves only that the read-only inspection did
+not mutate the file; it is not a second build. So
+`bf8f5363…` identifies **one run on one host**, and the 829,435,904 B size and
+the 3 m 36 s wall clock in the table above are single-host observations, not
+properties of the pipeline. Re-establishing the digest costs ~3.5 GB of
+re-downloads; the command is the one above with a different `--db`, and whoever
+runs it should record whether the two digests agree and, if not, name the
+nondeterministic step.
+
+What **was** run twice, offline, is the acquisition pair, and both are
+deterministic modulo their single `checked_at` field:
+
+```
+for i in 1 2; do
+  uv run python scripts/data/fetch_texas_p0_raw.py --raw-dir "$RAW" --dry-run > fetch$i.json
+  uv run python scripts/data/texas_p0_acquisition_probe.py --raw-dir "$RAW"  > probe$i.json
+done
+```
+
+→ `fetch` and `probe` each byte-identical between runs once `checked_at` is
+removed (observed 2026-09-06 on macOS against an empty raw dir).
+
+**Paths in every emitted receipt are POSIX.** `fetch_item` and the probe now
+render paths with `Path.as_posix()`, and the five committed
+`docs/data/acceptance_receipts/2wkg-416-*.json` receipts were normalised from the
+Windows spellings they were first written with (215 escaped backslashes → 0;
+values only, no key or number changed). Host-specific separators made the
+receipts unreadable off the authoring machine and noisy to diff;
+`test_emitted_paths_are_posix_not_host_specific` and
+`test_committed_receipts_carry_no_windows_paths` keep them that way.
 
 Row counts written:
 
@@ -315,6 +361,9 @@ imports.
 * **No real-grid claim.** ACTIVSg2000 buses, branches, and coordinates are
   synthetic. Their proximity to a real plant, county, or installation is
   screening geometry, never a service-connection or interconnection finding.
+* **No reproducibility claim for the database.** The 829 MB artifact is
+  git-ignored and exists on one host; it was built once and its SHA-256 has never
+  been reproduced by a second run. See §3.
 * **No outage-replay claim beyond the loaded windows.** EAGLE-I coverage varies
   by utility and year; blank `customers_out` values are missing observations,
   never zero.

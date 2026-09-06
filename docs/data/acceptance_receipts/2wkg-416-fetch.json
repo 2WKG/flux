@@ -4,7 +4,7 @@
       "candidate_urls": [
         "https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip"
       ],
-      "destination": "data\\raw\\nri\\v1.20\\NRI_Table_Counties.zip",
+      "destination": "data/raw/nri/v1.20/NRI_Table_Counties.zip",
       "expected_bytes": 24966535,
       "expected_sha256": "b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072",
       "filename": "NRI_Table_Counties.zip",
@@ -22,7 +22,7 @@
       "candidate_urls": [
         "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_plants.parquet"
       ],
-      "destination": "data\\raw\\pudl\\v2026.2.0\\out_eia__yearly_plants.parquet",
+      "destination": "data/raw/pudl/v2026.2.0/out_eia__yearly_plants.parquet",
       "expected_bytes": 3228519,
       "expected_sha256": "66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc",
       "filename": "out_eia__yearly_plants.parquet",
@@ -40,7 +40,7 @@
       "candidate_urls": [
         "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/v2026.2.0/out_eia__yearly_generators.parquet"
       ],
-      "destination": "data\\raw\\pudl\\v2026.2.0\\out_eia__yearly_generators.parquet",
+      "destination": "data/raw/pudl/v2026.2.0/out_eia__yearly_generators.parquet",
       "expected_bytes": 10247414,
       "expected_sha256": "6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8",
       "filename": "out_eia__yearly_generators.parquet",
@@ -58,7 +58,7 @@
       "candidate_urls": [
         "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2021_Jan_Jun.csv"
       ],
-      "destination": "data\\raw\\eia930\\2021_h1\\EIA930_BALANCE_2021_Jan_Jun.csv",
+      "destination": "data/raw/eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
       "expected_bytes": 43073764,
       "expected_sha256": "40b183f333e0f3edc1b9a2ed48b792eff00fd477915dae79ce5784e862380f7f",
       "filename": "EIA930_BALANCE_2021_Jan_Jun.csv",
@@ -77,7 +77,7 @@
       "candidate_urls": [
         "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jul_Dec.csv"
       ],
-      "destination": "data\\raw\\eia930\\2024_h2\\EIA930_BALANCE_2024_Jul_Dec.csv",
+      "destination": "data/raw/eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
       "expected_bytes": 47928993,
       "expected_sha256": "a602a8e577cfdd2fa3083413eaa4dd8ba7f0d2b26a2986f8f6d22917465ea49f",
       "filename": "EIA930_BALANCE_2024_Jul_Dec.csv",
@@ -96,7 +96,7 @@
         "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx",
         "https://web.archive.org/web/20201019003757id_/https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx"
       ],
-      "destination": "data\\raw\\nws_zone_county\\bp10nv20\\bp10nv20.dbx",
+      "destination": "data/raw/nws_zone_county/bp10nv20/bp10nv20.dbx",
       "expected_bytes": 321354,
       "expected_sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6",
       "filename": "bp10nv20.dbx",
@@ -116,7 +116,7 @@
         "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx",
         "https://web.archive.org/web/20240928223402id_/https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx"
       ],
-      "destination": "data\\raw\\nws_zone_county\\bp05mr24\\bp05mr24.dbx",
+      "destination": "data/raw/nws_zone_county/bp05mr24/bp05mr24.dbx",
       "expected_bytes": 339683,
       "expected_sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e",
       "filename": "bp05mr24.dbx",
@@ -134,7 +134,7 @@
       "candidate_urls": [
         "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
       ],
-      "destination": "data\\raw\\storm_events\\2021\\StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "destination": "data/raw/storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
       "expected_bytes": 10563953,
       "expected_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
       "filename": "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
@@ -152,7 +152,7 @@
       "candidate_urls": [
         "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
       ],
-      "destination": "data\\raw\\storm_events\\2024\\StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+      "destination": "data/raw/storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
       "expected_bytes": 12693243,
       "expected_sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c",
       "filename": "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
@@ -170,7 +170,7 @@
       "candidate_urls": [
         "https://ndownloader.figshare.com/files/42547708"
       ],
-      "destination": "data\\raw\\eaglei\\support\\MCC.csv",
+      "destination": "data/raw/eaglei/support/MCC.csv",
       "expected_bytes": 40584,
       "expected_sha256": "d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e",
       "filename": "MCC.csv",
@@ -188,7 +188,7 @@
       "candidate_urls": [
         "https://ndownloader.figshare.com/files/42547714"
       ],
-      "destination": "data\\raw\\eaglei\\support\\coverage_history.csv",
+      "destination": "data/raw/eaglei/support/coverage_history.csv",
       "expected_bytes": 11965,
       "expected_sha256": "a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267",
       "filename": "coverage_history.csv",
@@ -206,7 +206,7 @@
       "candidate_urls": [
         "https://ndownloader.figshare.com/files/42547891"
       ],
-      "destination": "data\\raw\\eaglei\\2021\\eaglei_outages_2021.csv",
+      "destination": "data/raw/eaglei/2021/eaglei_outages_2021.csv",
       "expected_bytes": 1141058232,
       "expected_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
       "filename": "eaglei_outages_2021.csv",
@@ -225,7 +225,7 @@
       "candidate_urls": [
         "https://ndownloader.figshare.com/files/53581661"
       ],
-      "destination": "data\\raw\\eaglei\\2024\\eaglei_outages_2024.csv",
+      "destination": "data/raw/eaglei/2024/eaglei_outages_2024.csv",
       "expected_bytes": 1444846424,
       "expected_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
       "filename": "eaglei_outages_2024.csv",
@@ -244,7 +244,7 @@
       "candidate_urls": [
         "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"
       ],
-      "destination": "data\\raw\\tiger\\2024\\tl_2024_us_county.zip",
+      "destination": "data/raw/tiger/2024/tl_2024_us_county.zip",
       "expected_bytes": 83913260,
       "expected_sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b",
       "filename": "tl_2024_us_county.zip",
@@ -262,7 +262,7 @@
       "candidate_urls": [
         "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson"
       ],
-      "destination": "data\\raw\\ntad_military_bases\\fy2024\\texas.geojson",
+      "destination": "data/raw/ntad_military_bases/fy2024/texas.geojson",
       "expected_bytes": 534134,
       "expected_sha256": "5d8064bab8b36bd5a36d8a4621ca4bffc66d28b40c1b66ef6349eefa4f165a9c",
       "filename": "texas.geojson",
@@ -281,7 +281,7 @@
       "candidate_urls": [
         "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t"
       ],
-      "destination": "data\\raw\\activsg2000_current\\ACTIVSg2000.aux",
+      "destination": "data/raw/activsg2000_current/ACTIVSg2000.aux",
       "expected_bytes": 6255512,
       "expected_sha256": "4cfa04232705f058f73e616452e732fe240c0bf8354ca63d4f533f86a2085cdc",
       "filename": "ACTIVSg2000_current.zip",
@@ -309,7 +309,7 @@
       "candidate_urls": [
         "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t"
       ],
-      "destination": "data\\raw\\activsg2000_current\\case_ACTIVSg2000.m",
+      "destination": "data/raw/activsg2000_current/case_ACTIVSg2000.m",
       "expected_bytes": 659545,
       "expected_sha256": "5edb60e97153c27de68403499174557213090a5b04da1bbc34b3196715c5da94",
       "filename": "ACTIVSg2000_current.zip",
@@ -335,7 +335,7 @@
   ],
   "checked_at": "2026-09-06T14:23:02.146420+00:00",
   "fetch_version": 1,
-  "raw_dir": "data\\raw",
+  "raw_dir": "data/raw",
   "scope_label": "Texas P0 / ACTIVSg2000 legacy research inputs. ACTIVSg2000 is synthetic topology, not the real ERCOT network, and none of this is Minnesota demo evidence.",
   "summary": {
     "all_verified": true,

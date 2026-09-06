@@ -195,8 +195,9 @@ def build_report(
     return {
         "probe_version": 1,
         "checked_at": datetime.now(UTC).isoformat(),
-        "raw_dir": str(raw_dir),
-        "catalog": str(catalog_path),
+        # POSIX form so a committed receipt is host-independent.
+        "raw_dir": raw_dir.as_posix(),
+        "catalog": catalog_path.as_posix(),
         "catalog_schema_version": catalog.get("schema_version"),
         "network_probed": network,
         "scope_label": (

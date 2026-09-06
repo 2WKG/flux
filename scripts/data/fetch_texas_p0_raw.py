@@ -300,7 +300,10 @@ def fetch_item(
     result: dict[str, Any] = {
         "receipt": item.receipt,
         "filename": item.filename,
-        "destination": str(destination),
+        # POSIX form, always: these strings are committed into acceptance
+        # receipts, so a Windows run must not emit backslash paths that no
+        # other host can read or diff.
+        "destination": destination.as_posix(),
         "url_rule": item.url_rule,
         "provider": receipt.get("provider"),
         "license_access": receipt.get("license_access"),
@@ -401,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
     report = {
         "fetch_version": 1,
         "checked_at": datetime.now(UTC).isoformat(),
-        "raw_dir": str(args.raw_dir),
+        "raw_dir": args.raw_dir.as_posix(),
         "scope_label": (
             "Texas P0 / ACTIVSg2000 legacy research inputs. ACTIVSg2000 is "
             "synthetic topology, not the real ERCOT network, and none of this "
