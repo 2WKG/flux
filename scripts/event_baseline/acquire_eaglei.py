@@ -219,7 +219,8 @@ def acquire_exhaustive(
     for row in selected:
         try:
             outage = int(row[customers_field])
-            if outage < 0:
+            denominator = int(row["total_customers"]) if "total_customers" in fieldnames else None
+            if outage < 0 or (denominator is not None and denominator <= 0):
                 raise ValueError
         except (TypeError, ValueError):
             invalid_rows += 1
@@ -231,10 +232,10 @@ def acquire_exhaustive(
     }
     coverage = {}
     for code in sorted(fips):
+        code_rows = [row for row in valid_rows if row["fips_code"] == code]
         times = {
             parse_source_time(row["run_start_time"])
-            for row in valid_rows
-            if row["fips_code"] == code
+            for row in code_rows
         }
         coverage[code] = {
             "observed_intervals": len(times),
@@ -242,7 +243,7 @@ def acquire_exhaustive(
             "missing_intervals": len(expected - times),
             "availability": "Available" if times else "UncoveredLabel",
             "coverage_state": "complete_15_min_observation"
-            if times == expected
+            if times == expected and len(times) == len(code_rows)
             else "partial_15_min_observation"
             if times
             else "UncoveredLabel",
@@ -276,6 +277,7 @@ def acquire_exhaustive(
         "filtered_rows": len(selected),
         "valid_selected_rows": len(valid_rows),
         "invalid_selected_rows": invalid_rows,
+        "duplicate_selected_rows": len(valid_rows) - sum(len({parse_source_time(row["run_start_time"]) for row in valid_rows if row["fips_code"] == code}) for code in fips),
         "source_columns": fieldnames,
         "outage_field_source": customers_field,
         "source_row_identity": ["fips_code", "run_start_time"],
@@ -287,32 +289,7 @@ def acquire_exhaustive(
         },
         "coverage_by_county": coverage,
         "total_customers_summary": (
-            {
-                "present_rows": sum(
-                    1
-                    for row in valid_rows
-                    if row.get("total_customers") not in (None, "")
-                ),
-                "missing_rows": sum(
-                    1 for row in selected if row.get("total_customers") in (None, "")
-                ),
-                "min": min(
-                    (
-                        int(row["total_customers"])
-                        for row in valid_rows
-                        if row.get("total_customers") not in (None, "")
-                    ),
-                    default=None,
-                ),
-                "max": max(
-                    (
-                        int(row["total_customers"])
-                        for row in valid_rows
-                        if row.get("total_customers") not in (None, "")
-                    ),
-                    default=None,
-                ),
-            }
+            {code: {"present_rows": sum(1 for row in valid_rows if row["fips_code"] == code), "missing_rows": sum(1 for row in selected if row["fips_code"] == code) - sum(1 for row in valid_rows if row["fips_code"] == code), "min": min((int(row["total_customers"]) for row in valid_rows if row["fips_code"] == code), default=None), "max": max((int(row["total_customers"]) for row in valid_rows if row["fips_code"] == code), default=None)} for code in sorted(fips)}
             if "total_customers" in fieldnames
             else None
         ),
@@ -364,40 +341,10 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
                     ):
                         request["rows"].append(row)
         for request in group:
-            expected = {
-                request["start"] + timedelta(minutes=15 * index)
-                for index in range(
-                    int((request["end"] - request["start"]).total_seconds() // 900)
-                )
-            }
-            observed = {
-                code: {
-                    parse_source_time(row["run_start_time"])
-                    for row in request["rows"]
-                    if row["fips_code"] == code
-                }
-                for code in request["fips"]
-            }
-            results.append(
-                {
-                    "event_id": request["event_id"],
-                    "year": year,
-                    "rows": len(request["rows"]),
-                    "coverage_by_county": {
-                        code: {
-                            "observed_intervals": len(times),
-                            "expected_intervals_at_15_min": len(expected),
-                            "missing_intervals": len(expected - times),
-                            "coverage_state": "complete_15_min_observation"
-                            if times == expected
-                            else "partial_15_min_observation"
-                            if times
-                            else "UncoveredLabel",
-                        }
-                        for code, times in sorted(observed.items())
-                    },
-                }
-            )
+            meta = json.loads(raw_path.with_name(f"{raw_path.name}.source.json").read_text(encoding="utf-8"))
+            file = {"id": str(meta["source_system_id"]).rsplit(":", 1)[-1], "name": raw_path.name, "size": raw_path.stat().st_size, "download_url": meta.get("source_url", "cached://annual-source")}
+            article = {"id": 24237376, "license": {"name": "CC BY 4.0"}}
+            results.append(acquire_exhaustive(article=article, file=file, event_id=request["event_id"], year=year, start=request["start"], end=request["end"], states=request["states"], fips=request["fips"], cache_dir=cache_dir, expected_etag=meta.get("etag")))
     return results
 
 
