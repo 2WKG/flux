@@ -5,9 +5,12 @@ data/parquet/
 node_modules/
 web/node_modules/
 web/dist/
+web/test-results/
+web/playwright-report/
 # Local 3D asset deliveries; the contract forbids committing binaries
 build/
 web/dist-harness/
+web/dist-renderer-harness/
 __pycache__/
 *.pyc
 .env
@@ -37,3 +40,8 @@ web/public/**/*.gltf
 .cloudflared/
 deploy/cloudflared/config.yml
 deploy/cloudflared/*.json
+# Build-copied Flux pack (models, previews, metadata and sprite rasters).
+web/public/assets/flux-grid/
+
+# Bulk physical-inventory artifacts produced by pipelines.texas_hifld_lines.
+data/physical-inventory/

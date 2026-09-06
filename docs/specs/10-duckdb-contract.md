@@ -14,6 +14,16 @@ metadata concrete. It does not authorize a source download, a topology conversio
 or a result. The existing five-bus preview remains an unlabelled synthetic preview;
 it is not a Minnesota fixture, topology, scenario, or evidence source.
 
+[11-physical-inventory-contract.md](11-physical-inventory-contract.md) adds an
+additive, geography-neutral `physical_*` inventory namespace with a different
+artifact identity (`<geography_id>:physical-inventory:<semver>`) and a per
+class/scope coverage ledger instead of this document's artifact-level
+`availability`, `model_mode`, and `field_provenance` envelope. That divergence
+is deliberate and is recorded in spec 11's "Relationship to spec 10" section
+with its reason. This contract keeps sole ownership of Minnesota artifact
+identity, availability, and provenance (`mn_*`, `pipelines/minnesota_schema.py`);
+spec 11 owns no Minnesota artifact and no `mn_*` table.
+
 The table names and compatible physical types in [00-overview.md](00-overview.md)
 remain implementation inputs, but they do not authorize legacy Texas records for this
 demo. When this document and a legacy table description differ about Minnesota geography,
@@ -138,18 +148,39 @@ Scores retain `metric`, `score_components`, `model_mode`, `input_artifact_ids`, 
 `regulatory_label`. They are hypothetical model comparisons unless supporting evidence
 says otherwise and never become permitability, construction-readiness, or legal claims.
 
-## API and Copilot availability envelopes
+## Artifact availability on a tool result
 
-An available API or Copilot tool result has `availability="available"`, nonempty
-common-envelope `provenance`, `model_mode`, `limitations`, and `artifact_id`. Every
-number or model claim links through `field_provenance` to a source or model artifact.
+**Scope (D-1).** This section describes the **tool-result payload** — the artifact-availability
+shape a Copilot tool returns and that the HTTP layer carries *inside* a successful response body.
+It is **not** the HTTP envelope. The HTTP contract is owned by
+[`../api/envelopes.md`](../api/envelopes.md) and implemented in `copilot/api/envelope.py`, and the
+two disagree in a way that only one of them can win: `FailureEnvelope` is
+`ConfigDict(extra="forbid", frozen=True)` (`copilot/api/envelope.py:35`, `:63-67`), so an HTTP body
+**cannot** carry `availability`, `next_step`, a top-level `code`, `provenance`, or `limitations`,
+and `FailureCode` (`:24-29`) is exactly four values — `unavailable`, `invalid_input`, `not_found`,
+`internal_error`. There is deliberately no HTTP success envelope; success payloads are unwrapped.
+Read the paragraphs below as governing the payload, and `envelopes.md` as governing the wire.
 
-An unavailable result has exactly these top-level fields: `availability="unavailable"`,
-`status`, `code`, `message`, `next_step`, `artifact_id=null`, `model_mode=null`,
-`provenance=[]`, and `limitations`. It contains no invented result fields or numeric
-defaults. A missing source, corpus, configured provider, required model input, or
-unaccepted topology gate uses this envelope. Copilot reports the tool's envelope; it
-does not compute a replacement result.
+An available tool result has `availability="available"`, nonempty payload-level `provenance`,
+`model_mode`, `limitations`, and `artifact_id`. Every number or model claim links through
+`field_provenance` to a source or model artifact.
+
+An unavailable tool result has exactly these top-level payload fields:
+`availability="unavailable"`, `status`, `code`, `message`, `next_step`, `artifact_id=null`,
+`model_mode=null`, `provenance=[]`, and `limitations`. It contains no invented result fields or
+numeric defaults. A missing source, corpus, configured provider, required model input, or
+unaccepted topology gate uses this shape. Copilot reports the tool's result; it does not compute a
+replacement. When such a condition reaches the HTTP boundary it is raised as an `UnavailableError`
+and leaves as the 503 failure envelope `envelopes.md` defines, with the cause in `details.reason`.
+
+**Status: intended shape, not current behaviour — follow-up FU-3 (D-1).** No tool on `master`
+emits this payload today. `grep -rn next_step copilot/ causal/` is **0 hits** in both trees; the
+only real `next_step` producer is `pipelines/data_quality.py:87-94`, an unrelated gate-report
+dict. The only real `availability` on a result is `causal/`'s **nested**
+`{"status", "unavailable_codes"}` object (`causal/validation.py:144-150`,
+`causal/fixtures/*.json`), not a flat top-level string. Read the two paragraphs above as the
+target shape for a tool that adopts it; implementing or amending them is a code change, filed as
+FU-3, not a description of what runs.
 
 An unavailable artifact persisted for audit/rebuild still has its deterministic
 `artifact_id`, `availability="unavailable"`, and `model_mode="not_applicable"`; it has

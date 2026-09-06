@@ -1,0 +1,392 @@
+{
+  "schema_version": 1,
+  "ledger_id": "tx-physical-grid-source-authority-v1",
+  "state": "TX",
+  "retrieved_at": "2026-09-06T07:45:00Z",
+  "purpose": "Acquisition authority and coverage evidence for Texas physical-grid classes. This ledger records source availability, not an inventory of physical assets and not statewide completeness.",
+  "truth_boundary": "A source marked unavailable, restricted, denied, or candidate closes only that acquisition attempt. It neither changes the physical class to complete nor permits inferred assets, geometry, terminals, or connectivity.",
+  "geography": {
+    "geography_id": "us-tx",
+    "name": "Texas",
+    "boundary_source": "Census TIGER/Line 2024 counties (254 county polygons)",
+    "boundary_source_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
+    "boundary_limit": "The 254 counties bound geographic selection only. They are not an asset-count denominator."
+  },
+  "truth_policy": {
+    "inventory_mode": "physical_observed",
+    "prohibited_inference": [
+      "Do not create an asset, route, terminal, edge, voltage, owner, or geometry from imagery, proximity, street data, or a synthetic electrical case.",
+      "A line endpoint name is not an electrical terminal edge unless the source explicitly supplies an identified terminal-to-terminal relation.",
+      "ACTIVSg2000 remains synthetic and is never evidence of a real Texas asset or connection."
+    ],
+    "coverage_policy": "A source record count is only a denominator for that source selection when the source explicitly defines that selection as complete. Otherwise denominator is null and the coverage state must remain partial, unknown, unavailable, or restricted."
+  },
+  "source_status_values": [
+    "accepted_limited",
+    "candidate",
+    "denied",
+    "restricted",
+    "unavailable"
+  ],
+  "coverage_status_values": [
+    "available_limited",
+    "candidate",
+    "restricted",
+    "unavailable"
+  ],
+  "source_records": [
+    {
+      "source_id": "eia-860-2024-final",
+      "authority_url": "https://www.eia.gov/electricity/data/eia860/",
+      "access": "public",
+      "license_or_terms": "U.S. federal public data; retain the form year and source terms with a derived artifact.",
+      "acquisition_state": "candidate",
+      "identity_fields": [
+        "Plant Code",
+        "Generator ID",
+        "Utility ID"
+      ],
+      "geometry_fields": [
+        "Latitude",
+        "Longitude"
+      ],
+      "connectivity_fields": [],
+      "coverage_limit": "National annual survey of plants/generators with combined nameplate capacity of 1 MW or greater; it does not inventory distribution, transmission, substations, physical load, or electrical connectivity.",
+      "recommended_use": "Authoritative source for a versioned Texas generation/storage artifact once a downloader writes the exact checksum and row counts.",
+      "publisher": "U.S. Energy Information Administration",
+      "version_or_vintage": "Form EIA-860, reporting year 2024 final",
+      "geometry_accuracy_basis": "Reported plant coordinates in the Plant schedule; a point is a plant location, not an interconnection point or site boundary.",
+      "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip",
+      "source_crs": "unavailable: the workbook reports Latitude/Longitude without a declared datum or CRS; treat as source-declared WGS84-like and record the ambiguity when acquired",
+      "spatial_extent": "National annual survey; Texas rows are selected by state field, not by geometry",
+      "acquisition_condition": "Record the exact artifact sha256, form year, row counts and retrieved_at before any generation artifact is derived; the generation_inventory track owns that acquisition.",
+      "supports_classes": [
+        "generation_plant",
+        "generator_unit",
+        "energy_storage_unit"
+      ],
+      "does_not_support": [
+        "transmission_line",
+        "substation",
+        "distribution_feeder",
+        "physical_load",
+        "terminal",
+        "connectivity"
+      ]
+    },
+    {
+      "source_id": "eia-860-2025-early-release",
+      "authority_url": "https://www.eia.gov/electricity/data/eia860/",
+      "access": "public",
+      "license_or_terms": "U.S. federal public data; source workbook says this early release is not fully edited, excludes some pending-validation records, and is inappropriate for aggregation.",
+      "acquisition_state": "candidate",
+      "audit_observation": {
+        "retrieved_at": "2026-09-06T06:56:32Z",
+        "zip_bytes": 23285571,
+        "texas_plant_rows": 1514,
+        "texas_plants_missing_reported_lat_or_lon": 0,
+        "texas_operable_generator_rows": 2376,
+        "texas_proposed_generator_rows": 643,
+        "texas_retired_or_canceled_generator_rows": 374,
+        "texas_operable_storage_rows": 207,
+        "texas_proposed_storage_rows": 208,
+        "count_limit": "These are direct workbook row counts, not statewide completeness claims or a stable published aggregate.",
+        "sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+        "sha256_scope": "sha256 of eia8602025er.zip as downloaded on 2026-09-06; bytes alone are not identity."
+      },
+      "identity_fields": [
+        "Plant Code",
+        "Generator ID",
+        "Utility ID"
+      ],
+      "geometry_fields": [
+        "Latitude",
+        "Longitude"
+      ],
+      "connectivity_fields": [],
+      "coverage_limit": "Early-release caveat prevents use as an authoritative Texas aggregate denominator.",
+      "recommended_use": "Freshness probe only. Use final 2024 EIA-860 for a reproducible artifact until final 2025 is published.",
+      "publisher": "U.S. Energy Information Administration",
+      "version_or_vintage": "Form EIA-860, reporting year 2025 early release; HTTP Last-Modified 2026-06-09",
+      "geometry_accuracy_basis": "Reported plant coordinates; coordinate accuracy/precision are not quantified in the workbook and must be recorded as source-declared/unquantified.",
+      "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025er.zip",
+      "source_crs": "unavailable: the workbook reports Latitude/Longitude without a declared datum or CRS; treat as source-declared WGS84-like and record the ambiguity when acquired",
+      "spatial_extent": "National annual survey; Texas rows are selected by state field, not by geometry",
+      "acquisition_condition": "The publisher states the early release is not fully edited, excludes records pending validation and is inappropriate for aggregation, so it is a freshness probe only and must not be committed as an artifact.",
+      "supports_classes": [
+        "generation_plant",
+        "generator_unit",
+        "energy_storage_unit"
+      ],
+      "does_not_support": [
+        "transmission_line",
+        "substation",
+        "distribution_feeder",
+        "physical_load",
+        "terminal",
+        "connectivity",
+        "any Texas aggregate denominator"
+      ]
+    },
+    {
+      "source_id": "hifld-us-transmission-lines-2024-archive",
+      "authority_url": "https://www.arcgis.com/sharing/rest/content/items/d4090758322c4d32a4cd002ffaa0aa12?f=pjson",
+      "access": "public Query and Extract service",
+      "license_or_terms": "Esri Master License Agreement shown in item metadata; preserve terms and source metadata before redistribution.",
+      "acquisition_state": "candidate",
+      "identity_fields": [
+        "ID",
+        "OBJECTID_1"
+      ],
+      "geometry_fields": [
+        "source native polyline geometry"
+      ],
+      "connectivity_fields": [
+        "SUB_1",
+        "SUB_2"
+      ],
+      "connectivity_limit": "SUB_1 and SUB_2 are endpoint names, often UNKNOWN or TAP; no stable substation identifiers or source-backed terminal edge relation are supplied. Do not construct connectivity edges from these fields.",
+      "coverage_limit": "The provider marks the layer archived and no longer updated/maintained. Its own samples include imagery/OpenStreetMap-derived and inferred records. It is a partial, stale public line overlay, never owner-level Texas completeness.",
+      "recommended_use": "Acquire a Texas-polygon-selected snapshot with response metadata and per-feature validation fields; expose it as partial observed geometry only.",
+      "publisher": "Federal User Community / HIFLD archive published through Esri ArcGIS Online",
+      "version_or_vintage": "Archived service, last data update 2024-09-30",
+      "geometry_accuracy_basis": "Service geometry is native source geometry. Feature fields include SOURCE, SOURCEDATE, VAL_METHOD, VAL_DATE, and INFERRED, so a derived artifact must retain them and label each source/validation basis.",
+      "url": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0",
+      "source_crs": "EPSG:3857 (service spatialReference wkid 102100 / latestWkid 3857); queries here are submitted in EPSG:4269",
+      "spatial_extent": "National transmission-line overlay; Texas selection is an envelope intersection that also returns neighbouring-state features",
+      "acquisition_condition": "Acquire a Texas-polygon-selected snapshot with the response metadata and per-feature SOURCE/VAL_METHOD/INFERRED fields retained; the layer is archived and stale, so it can only ever be exposed as a partial observed overlay.",
+      "supports_classes": [
+        "transmission_line_segment"
+      ],
+      "does_not_support": [
+        "statewide_transmission_completeness",
+        "owner_assignment",
+        "terminal_or_network_connectivity"
+      ],
+      "texas_envelope": {
+        "xmin": -106.645646,
+        "ymin": 25.837048,
+        "xmax": -93.508039,
+        "ymax": 36.500704,
+        "crs": "EPSG:4269",
+        "provenance": "total_bounds of the 254 STATEFP=48 polygons in Census TIGER/Line 2024 tl_2024_us_county.zip (sha256 04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b, the same artifact receipted in data/sources/texas-tiger-2024.json), read with geopandas on 2026-09-06.",
+        "envelope_limit": "A rectangle around Texas. It intersects neighbouring-state features and clips nothing to the state boundary, so a count taken through it is never a Texas count or a denominator."
+      },
+      "verified_queries": [
+        {
+          "query_id": "national_count",
+          "url": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query?where=1%3d1&returnCountOnly=true&f=json",
+          "returned_feature_count": 94619,
+          "count_meaning": "Features in the archived national layer on 2026-09-06. Not a Texas figure.",
+          "verification": {
+            "retrieved_at": "2026-09-06T07:45:00Z",
+            "capture_method": "curl -sS -G 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query' --data-urlencode 'where=1=1' --data-urlencode 'returnCountOnly=true' --data-urlencode 'f=json' -o data/sources/receipts/texas-hifld-transmission-national-count-2026-09-06.json",
+            "response_file": "data/sources/receipts/texas-hifld-transmission-national-count-2026-09-06.json",
+            "response_bytes": 174,
+            "response_sha256": "56e6fd6855ac65ab1a04b43539e1a84b156d1aa8ad97ec0e0fb7dc787de251b3"
+          }
+        },
+        {
+          "query_id": "texas_envelope_count",
+          "url": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query?where=1%3d1&geometry=%7b%22xmin%22%3a-106.645646%2c%22ymin%22%3a25.837048%2c%22xmax%22%3a-93.508039%2c%22ymax%22%3a36.500704%2c%22spatialReference%22%3a%7b%22wkid%22%3a4269%7d%7d&geometryType=esriGeometryEnvelope&inSR=4269&spatialRel=esriSpatialRelIntersects&returnCountOnly=true&f=json",
+          "returned_feature_count": 10235,
+          "query_parameters": {
+            "where": "1=1",
+            "geometry": "{\"xmin\":-106.645646,\"ymin\":25.837048,\"xmax\":-93.508039,\"ymax\":36.500704,\"spatialReference\":{\"wkid\":4269}}",
+            "geometryType": "esriGeometryEnvelope",
+            "inSR": "4269",
+            "spatialRel": "esriSpatialRelIntersects",
+            "returnCountOnly": "true",
+            "f": "json"
+          },
+          "count_meaning": "Features intersecting the Texas county envelope on 2026-09-06, including neighbouring-state features. Not a Texas count, not a statewide denominator, and not a completeness measure.",
+          "supersedes": "An earlier draft of this ledger printed 10,239 for this class with no recorded envelope, parameters or receipt. That number did not reproduce; this entry records the query actually run and the count actually returned.",
+          "verification": {
+            "retrieved_at": "2026-09-06T07:45:00Z",
+            "capture_method": "curl -sS -G 'https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query' --data-urlencode 'where=1=1' --data-urlencode 'geometry=<texas_envelope>' --data-urlencode 'geometryType=esriGeometryEnvelope' --data-urlencode 'inSR=4269' --data-urlencode 'spatialRel=esriSpatialRelIntersects' --data-urlencode 'returnCountOnly=true' --data-urlencode 'f=json' -o data/sources/receipts/texas-hifld-transmission-envelope-count-2026-09-06.json",
+            "response_file": "data/sources/receipts/texas-hifld-transmission-envelope-count-2026-09-06.json",
+            "response_bytes": 73,
+            "response_sha256": "5bee5ee97ac57829003da6f93f2fc6568f383441ae0b63cb8d1c0ab1bc5c8ea6"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "hifld-texas-wind-energy-infrastructure-2017",
+      "authority_url": "https://www.arcgis.com/sharing/rest/content/items/516e4254b0f2489da3849a7d618075a2?f=pjson",
+      "access": "restricted_at_audit: FeatureServer returned ArcGIS token-required error 499",
+      "license_or_terms": "Esri Master License Agreement shown in item metadata",
+      "acquisition_state": "restricted",
+      "identity_fields": [],
+      "geometry_fields": [
+        "described by metadata but unavailable for unauthenticated retrieval"
+      ],
+      "connectivity_fields": [],
+      "coverage_limit": "Even if retrieved, source metadata gives 2017 currency and does not certify statewide current completeness or electrical topology.",
+      "recommended_use": "Record the failed/restricted attempt. Do not use copied ArcGIS layers as a replacement, and do not claim substation coverage.",
+      "publisher": "USGS / HIFLD-derived Texas Wind Energy Infrastructure service metadata",
+      "version_or_vintage": "Substations and transmission lines: 2017-08-08, as stated by source metadata",
+      "geometry_accuracy_basis": "Unavailable until an authorized retrieval records the actual layer schema and source metadata.",
+      "url": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/ArcGIS/rest/services/Texas_Wind_Energy_Infrastructure/FeatureServer/1",
+      "source_crs": "unavailable: the FeatureServer returned ArcGIS error 499 (Token Required), so no service spatialReference was observed",
+      "spatial_extent": "Texas wind-related substations and transmission lines as described by item metadata; not observed",
+      "restriction_reason": "The FeatureServer returned ArcGIS error 499 (Token Required) at audit time. No credential, account request or owner request was used for this ledger.",
+      "supports_classes": [
+        "substation",
+        "transmission_line_segment"
+      ],
+      "does_not_support": [
+        "substation_coverage",
+        "statewide_current_completeness",
+        "electrical_topology"
+      ]
+    },
+    {
+      "source_id": "puct-sb1093-electric-service-area-boundaries",
+      "authority_url": "https://interchange.puc.texas.gov/Documents/55225_2_1310788.PDF",
+      "access": "public filing instruction; individual filings require separate retrieval and terms review",
+      "license_or_terms": "PUCT filing/public-record terms to be retained per selected filing",
+      "acquisition_state": "candidate",
+      "identity_fields": [
+        "filing party / utility name"
+      ],
+      "geometry_fields": [
+        "utility-filed shapefile or geodatabase service-area boundary"
+      ],
+      "connectivity_fields": [],
+      "coverage_limit": "Service areas can support an owner/acquisition outreach ledger. They do not contain lines, substations, distribution devices, customers, terminal connectivity, or asset counts.",
+      "recommended_use": "Use after filing-specific acquisition to enumerate owner coverage attempts; never render it as grid assets or use it to assign a line/device owner without source evidence.",
+      "publisher": "Public Utility Commission of Texas",
+      "version_or_vintage": "PUCT Project 55225, 2023 filing instruction",
+      "geometry_accuracy_basis": "The PUCT memo says these are good-faith utility submissions and approximate rather than official paper-map digitizations.",
+      "url": "https://interchange.puc.texas.gov/filer",
+      "source_crs": "unavailable: CRS is a property of each utility-filed shapefile/geodatabase and no filing has been acquired",
+      "spatial_extent": "Per-utility service-area boundaries filed with the PUCT; no statewide mosaic was acquired",
+      "acquisition_condition": "Retrieve individual Project 55225 filings and retain control number, item number, filing date, party and checksum; the memo says the boundaries are good-faith approximations, not official digitizations.",
+      "supports_classes": [
+        "electric_service_area"
+      ],
+      "does_not_support": [
+        "transmission_line",
+        "substation",
+        "distribution_feeder",
+        "device",
+        "terminal",
+        "connectivity",
+        "asset_counts"
+      ]
+    }
+  ],
+  "physical_class_coverage": [
+    {
+      "class_id": "generation",
+      "scope": "Texas, EIA Form 860 final annual survey selection",
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "status": "candidate",
+      "reason": "The authoritative source is available but this ledger deliberately owns no generation artifact; generation_inventory owns exact source acquisition and normalization.",
+      "prior_status": "acquirable_not_yet_materialized",
+      "accepted_source_ids": [],
+      "candidate_source_ids": [
+        "eia-860-2024-final"
+      ]
+    },
+    {
+      "class_id": "line",
+      "scope": "Texas",
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "status": "candidate",
+      "reason": "Archived HIFLD geometry is retrievable, but the service does not declare owner-level Texas completeness and this ledger has acquired no artifact. The recorded 10,235 Texas-envelope observation is an envelope query result, not a state denominator.",
+      "prior_status": "partial_stale_public_overlay",
+      "accepted_source_ids": [],
+      "candidate_source_ids": [
+        "hifld-us-transmission-lines-2024-archive"
+      ]
+    },
+    {
+      "class_id": "substation",
+      "scope": "Texas",
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "status": "restricted",
+      "reason": "The identified Texas source endpoint requires a token at audit time and is 2017 vintage. No public current statewide authoritative substation acquisition was verified.",
+      "prior_status": "restricted_or_unavailable",
+      "accepted_source_ids": [],
+      "candidate_source_ids": [
+        "hifld-texas-wind-energy-infrastructure-2017"
+      ]
+    },
+    {
+      "class_id": "distribution_feeder",
+      "scope": "Texas",
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "status": "unavailable",
+      "reason": "No public, statewide, authoritative, machine-readable distribution geometry/device source was verified. Utility service-area boundaries do not fill this gap.",
+      "prior_status": "unavailable",
+      "accepted_source_ids": [],
+      "candidate_source_ids": []
+    },
+    {
+      "class_id": "terminal",
+      "scope": "Texas",
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "status": "unavailable",
+      "reason": "No audited source supplies identified terminals and edge relations. HIFLD endpoint names and synthetic ACTIVSg2000 topology are expressly insufficient; accepted_source_backed_edge_count is 0 for this audit, which is not a physical-asset count.",
+      "prior_status": "unavailable",
+      "accepted_source_ids": [],
+      "candidate_source_ids": []
+    },
+    {
+      "class_id": "electric_service_area",
+      "scope": "Texas, per-utility PUCT Project 55225 filings",
+      "status": "candidate",
+      "prior_status": "not_modelled",
+      "accepted_source_ids": [],
+      "candidate_source_ids": [
+        "puct-sb1093-electric-service-area-boundaries"
+      ],
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "Utility-filed service-area boundaries are retrievable per filing and support an owner coverage ledger. No filing has been acquired, and the PUCT calls the boundaries approximations, so there is no owner denominator."
+    },
+    {
+      "class_id": "intertie_and_seam",
+      "scope": "Texas, ERCOT DC ties and the ERCOT/Eastern-Interconnection and ERCOT/WECC seams",
+      "status": "unavailable",
+      "prior_status": "not_modelled",
+      "accepted_source_ids": [],
+      "candidate_source_ids": [],
+      "denominator": null,
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "2WKG-443 asks for ERCOT seams and interties where evidence supports them. No source audited for this ledger supplies identified intertie or seam assets with native geometry and a terminal relation: the archived HIFLD layer carries no intertie classification, its SUB_1/SUB_2 endpoint names are often UNKNOWN or TAP, and the restricted Texas wind service was never observed. The count of source-backed interties for this audit is therefore unknown, not zero, and must not be inferred from line endpoints, map adjacency or ACTIVSg2000."
+    }
+  ],
+  "implementation_handoff": {
+    "safe_next_acquisition": "For the 2WKG-446 corridor task, acquire only source-provided geometry after retaining source URL, layer/feature ID, retrieved_at, source CRS, artifact sha256, transformed EPSG:4326 geometry and the source-declared accuracy basis. Preserve the source's own selection scope and leave every statewide denominator null.",
+    "forbidden_derivations": [
+      "Do not create an asset, route, terminal, edge, voltage, owner, or geometry from imagery, proximity, street data, or a synthetic electrical case.",
+      "A line endpoint name is not an electrical terminal edge unless the source explicitly supplies an identified terminal-to-terminal relation.",
+      "ACTIVSg2000 remains synthetic and is never evidence of a real Texas asset or connection.",
+      "Texas asset counts from the HIFLD Texas-envelope query, which spans neighbouring states.",
+      "ERCOT interties or seams from line endpoint names, map adjacency, or ACTIVSg2000."
+    ],
+    "generation_boundary": "EIA-860 facility/generator and storage inventory is owned by the generation_inventory track and is intentionally not duplicated in this ledger."
+  }
+}
