@@ -29,6 +29,9 @@ const PROXIED = [
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
   { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/demo\/brief$/, methods: ["GET"] },
+  { pattern: /^\/demo\/forecast$/, methods: ["GET"] },
+  { pattern: /^\/demo\/model$/, methods: ["GET"] },
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
 
@@ -51,7 +54,7 @@ export const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
-  "script-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "object-src 'none'",

@@ -61,7 +61,7 @@ test("every response carries a CSP that names no off-origin source", async () =>
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
@@ -114,6 +114,10 @@ test("a configured API origin forwards only the allowlisted read paths", async (
   assert.equal(forwarded.status, 200);
   assert.deepEqual(await forwarded.json(), { ok: true, url: "/api/v1/grid/layers/line?state=mn&limit=100" });
 
+  const forecast = await fetch(`${base}/demo/forecast?county_fips=48201`);
+  assert.equal(forecast.status, 200);
+  assert.deepEqual(await forecast.json(), { ok: true, url: "/demo/forecast?county_fips=48201" });
+
   // Not on the table: a path outside it, and a method outside it.
   const shell = await (await fetch(`${base}/`)).text();
   for (const path of ["/api/v1/grid/releases", "/site-score", "/api/demo"]) {
@@ -124,7 +128,10 @@ test("a configured API origin forwards only the allowlisted read paths", async (
   // static origin has no POST route, so it 404s here rather than reaching the API.
   const wrongMethod = await fetch(`${base}/health`, { method: "POST" });
   assert.equal(wrongMethod.status, 404, "POST /health must not be forwarded");
-  assert.deepEqual(seen, ["GET /api/v1/grid/layers/line?state=mn&limit=100"]);
+  assert.deepEqual(seen, [
+    "GET /api/v1/grid/layers/line?state=mn&limit=100",
+    "GET /demo/forecast?county_fips=48201",
+  ]);
 });
 
 test("an unreachable upstream answers in the failure-envelope shape, not an HTML error page", async () => {
