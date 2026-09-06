@@ -122,6 +122,48 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/api/v1/grid/asset-placements"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/assets/flux-grid/manifest.json"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("GET", "/assets/flux-grid/{asset_path}"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=Unreachable("unsafe or unknown asset paths are not_found, not 422"),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_assets.py::test_only_manifest_registered_safe_paths_are_served",
+            404,
+        ),
+    ),
     ("GET", "/api/v1/grid/layers/{layer}"): RouteContract(
         success=Cell(
             "copilot/test_physical_layers.py::test_tx_lines_are_real_http_pages_with_release_bound_cursor",
