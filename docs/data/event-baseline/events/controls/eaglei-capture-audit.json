@@ -1,0 +1,32 @@
+{
+  "audit_version": "controls-eaglei-capture-audit/v1",
+  "captured_at_utc": "2026-09-06T07:14:30Z",
+  "selection_artifact_sha256": {
+    "preselection-plan.yaml": "ea2ed552079fdbff788187f0e7f590967a4a8861baedcef93b473275d59b1765",
+    "controls-candidate-manifest.json": "d06b7ddad76755a7d234d8154157c7f315b46b1233e8166193753a14102dd1ca",
+    "mn-calendar-controls-2021-2022.json": "ca6a42aee446b173ec7447bc05037a134d90cc1f5dd5647cbe5bbe7f8042bd99",
+    "diagnostic-near-miss-candidates.json": "a2094d81405e38c7f93802ec800bd88bda4a732534fc802396d78d8b5896892b"
+  },
+  "acquisition": {
+    "tool": "scripts/event_baseline/acquire_eaglei.py",
+    "source": "ORNL EAGLE-I via Figshare, DOI 10.6084/m9.figshare.24237376.v4",
+    "source_time_basis": "run_start_time is UTC; no conversion",
+    "absence_rule": "missing rows are UncoveredLabel, never zero",
+    "storage": "/private/tmp/flux-460-source-cache (ignored cache; no raw or filtered CSV committed)"
+  },
+  "calendar_controls": [
+    {"candidate_id": "ctrl-calendar-2021-04-07", "receipt_path": "/private/tmp/flux-460-source-cache/ctrl-calendar-2021-04-07_eaglei_2021_20210407T000000_20210407T060000.receipt.json", "receipt_id": "eaglei-2021-42547891-20210407T000000-20210407T060000", "observed_intervals": 24, "expected_intervals": 24, "coverage": "complete_15_min_observation", "filtered_sha256": "a91e6d2773d4062548631a7fb92c28ed96359ab05e95fa7ff209ea1caf576cb1"},
+    {"candidate_id": "ctrl-calendar-2021-08-07", "receipt_path": "/private/tmp/flux-460-source-cache/ctrl-calendar-2021-08-07_eaglei_2021_20210807T000000_20210807T060000.receipt.json", "receipt_id": "eaglei-2021-42547891-20210807T000000-20210807T060000", "observed_intervals": 20, "expected_intervals": 24, "coverage": "partial_15_min_observation", "filtered_sha256": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f"},
+    {"candidate_id": "ctrl-calendar-2021-10-07", "receipt_path": "/private/tmp/flux-460-source-cache/ctrl-calendar-2021-10-07_eaglei_2021_20211007T000000_20211007T060000.receipt.json", "receipt_id": "eaglei-2021-42547891-20211007T000000-20211007T060000", "observed_intervals": 5, "expected_intervals": 24, "coverage": "partial_15_min_observation", "filtered_sha256": "dcef194c53187fc1233279a987735ea4c6434310a3ff747d7cfe94c66f8d090e"},
+    {"candidate_id": "ctrl-calendar-2022-03-07", "receipt_path": "/private/tmp/flux-460-source-cache/ctrl-calendar-2022-03-07_eaglei_2022_20220307T000000_20220307T060000.receipt.json", "receipt_id": "eaglei-2022-42547897-20220307T000000-20220307T060000", "observed_intervals": 24, "expected_intervals": 24, "coverage": "complete_15_min_observation", "filtered_sha256": "14ca3ec956d5397069e8fb1e05fa5628b2684f0d8aac5c13add5f9f34115d86d"},
+    {"candidate_id": "ctrl-calendar-2022-10-07", "receipt_path": "/private/tmp/flux-460-source-cache/ctrl-calendar-2022-10-07_eaglei_2022_20221007T000000_20221007T060000.receipt.json", "receipt_id": "eaglei-2022-42547897-20221007T000000-20221007T060000", "observed_intervals": 13, "expected_intervals": 24, "coverage": "partial_15_min_observation", "filtered_sha256": "7f4fe3214a0d566c8deaf9e7d74be47d62aba939af74facd05a09c6c47ee7999"}
+  ],
+  "diagnostic_near_misses": [
+    {"candidate_id": "near-miss-mn-2021-06-11-nobles-wind", "coverage": "UncoveredLabel", "observed_intervals": 0, "expected_intervals": 24, "receipt_path": "/private/tmp/flux-460-source-cache/near-miss-mn-2021-06-11-nobles-wind_eaglei_2021_20210611T120000_20210611T180000.receipt.json"},
+    {"candidate_id": "near-miss-mn-2021-06-16-nobles-hail", "coverage": "UncoveredLabel", "observed_intervals": 0, "expected_intervals": 24, "receipt_path": "/private/tmp/flux-460-source-cache/near-miss-mn-2021-06-16-nobles-hail_eaglei_2021_20210616T180000_20210617T000000.receipt.json"},
+    {"candidate_id": "near-miss-mn-2021-08-24-murray-hail", "coverage": "acquisition_error", "observed_intervals": null, "expected_intervals": 24, "receipt_path": null, "gap": "Range extractor encountered a blank customers_out value while computing summary; no coverage conclusion is made."},
+    {"candidate_id": "near-miss-mn-2021-09-17-jackson-wind", "coverage": "UncoveredLabel", "observed_intervals": 0, "expected_intervals": 24, "receipt_path": "/private/tmp/flux-460-source-cache/near-miss-mn-2021-09-17-jackson-wind_eaglei_2021_20210917T000000_20210917T060000.receipt.json"},
+    {"candidate_id": "near-miss-mn-2021-10-10-grant-wind", "coverage": "UncoveredLabel", "observed_intervals": 0, "expected_intervals": 24, "receipt_path": "/private/tmp/flux-460-source-cache/near-miss-mn-2021-10-10-grant-wind_eaglei_2021_20211010T000000_20211010T060000.receipt.json"}
+  ],
+  "interpretation": "These results are post-selection source-availability evidence. They do not alter candidate order or turn diagnostic candidates into low-outage controls. Calendar controls with complete outage samples remain candidate-only because matching observed weather coverage and final boundary/catalog provenance have not been captured."
+}

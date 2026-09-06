@@ -32,6 +32,12 @@ and selection order, but deliberately has no outage result. Those rows are
 diagnostic candidates only. They require their own weather/outage coverage
 decision before an event-baseline bundle may present them as accepted.
 
+[eaglei-capture-audit.json](eaglei-capture-audit.json) links the frozen plan to
+the bounded, ignored-cache EAGLE-I receipts produced afterward. It distinguishes
+complete observations, partial observations, `UncoveredLabel`, and an extractor
+error. None of those post-selection outcomes changes membership or makes a
+diagnostic candidate a “low-outage” near miss.
+
 ## Frozen starter selection
 
 The first five calendar candidates are frozen in
