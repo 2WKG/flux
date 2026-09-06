@@ -1,5 +1,13 @@
-import type { ClientState } from "../data/client-state";
-import type { FailureStateInput } from "./types";
+import type { ClientState, NetworkFailureReason } from "../data/client-state";
+import { failureStatusFor, type FailureKind, type FailureStateInput, type FailureStatus } from "./types";
+
+const NETWORK_REASON_KIND = {
+  unreachable: "network_failure",
+  cancelled: "cancelled",
+  timeout: "timeout",
+  response_too_large: "oversized",
+  invalid_options: "failed",
+} as const satisfies Record<NetworkFailureReason, FailureKind>;
 
 /** Preserve the existing HTTP client's distinctions in a source-neutral UI. */
 export function fromClientState<T>(state: ClientState<T>, retainedContext?: FailureStateInput["retainedContext"]): FailureStateInput | null {
@@ -13,8 +21,67 @@ export function fromClientState<T>(state: ClientState<T>, retainedContext?: Fail
     case "invalid":
       return { kind: state.reason === "version_mismatch" ? "version_mismatch" : "malformed", message: state.message, retainedContext };
     case "failed":
-      return { kind: state.source === "network" ? "network_failure" : "failed", message: state.message, retainedContext };
+      return {
+        kind: state.source === "network" ? NETWORK_REASON_KIND[state.reason ?? "unreachable"] : "failed",
+        message: state.message,
+        retainedContext,
+      };
     case "ready":
       return null;
   }
+}
+
+/**
+ * The closed v1 terminal-error code set from `docs/research/sse-event-schema.md`.
+ * Adding a code there is a typecheck failure here, not a blank card.
+ */
+export type SseTerminalErrorCode =
+  | "invalid_request"
+  | "unavailable"
+  | "deadline"
+  | "upstream_error"
+  | "tool_error"
+  | "refusal"
+  | "cancelled"
+  | "protocol_error";
+
+const SSE_CODE_KIND = {
+  invalid_request: "failed",
+  unavailable: "unavailable",
+  deadline: "timeout",
+  upstream_error: "failed",
+  tool_error: "failed",
+  refusal: "failed",
+  cancelled: "cancelled",
+  protocol_error: "malformed",
+} as const satisfies Record<SseTerminalErrorCode, FailureKind>;
+
+export interface SseTerminalError {
+  code: SseTerminalErrorCode | (string & {});
+  message?: string;
+  retryAfterSeconds?: number | null;
+}
+
+/**
+ * Map an SSE terminal `error` frame onto the failure surface. An unlisted code
+ * is *not* guessed at: it becomes the frozen `request_failed` token with the
+ * raw code preserved in `code`, so an unrecognised producer is visible.
+ */
+export function fromSseTerminalError(
+  error: SseTerminalError,
+  retainedContext?: FailureStateInput["retainedContext"],
+): FailureStateInput {
+  const known: FailureKind | undefined = (SSE_CODE_KIND as Record<string, FailureKind>)[error.code];
+  return {
+    kind: known ?? "failed",
+    message: error.message,
+    retryAfterSeconds: error.retryAfterSeconds,
+    code: error.code,
+    retainedContext,
+  };
+}
+
+/** The frozen Gate-0 token a mapped state asserts, or `null` when it asserts none. */
+export function statusOf(input: FailureStateInput): FailureStatus | null {
+  return failureStatusFor(input.kind);
 }
