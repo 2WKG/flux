@@ -9,8 +9,8 @@ this runbook does not repeat them.
 Commands are shown for bash. PowerShell differences are called out inline:
 `/dev/null` is `NUL`, and `VAR=value command` becomes `$env:VAR = "value"` on
 the line before. To unset a variable use `Remove-Item Env:VAR`; `$env:VAR = ""`
-sets an *empty* value, which for `DUCKDB_PATH` resolves to `.` and is not the
-default.
+sets an *empty* value, which for `DUCKDB_PATH` is now rejected by validation
+(`ValidationError` naming `duckdb_path`) rather than falling back to the default.
 
 ## Prerequisites
 
@@ -291,6 +291,7 @@ curl -s -w "\n%{http_code}\n" http://localhost:8000/health
 | `GET /site-score` or `GET /compare` returns 405 | Those routes are POST with a JSON body; see `copilot/routes/interventions.py`. |
 | `POST /ask` emits `lifecycle` then SSE `error` code `unavailable` | The local app has no injected backend. This is expected; no provider is contacted. |
 | An unknown path returns 404 `not_found` | Only the nine routes listed above are registered. |
+| `ConfigError: Invalid Flux configuration -> duckdb_path: ...` at startup | `DUCKDB_PATH` is empty, names a directory, or is a DuckDB connection target (`md:`, `ducklake:`, `:memory:`, `scheme://`). This service opens a *local* file read-only; a remote target would take it off the filesystem onto a network. Set `DUCKDB_PATH` to a `.duckdb` file path, or unset it for the default `data/duck/grid.duckdb`. The rejected value is never echoed back. |
 
 ## Current local API handoff verification
 
@@ -380,7 +381,14 @@ $ DUCKDB_PATH=/nonexistent/grid.duckdb uv run python -c "from copilot.config imp
 $ FLUX_DUCKDB_PATH=/nonexistent/grid.duckdb uv run python -c "from copilot.config import Settings; print(Settings().duckdb_path)"
 data/duck/grid.duckdb                                            (not honoured)
 $ DUCKDB_PATH='' uv run python -c "from copilot.config import Settings; print(repr(str(Settings().duckdb_path)))"
-'.'                                                              (empty is not "unset"; /health -> 503)
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+duckdb_path
+  Value error, DUCKDB_PATH must be a non-empty local file path [type=value_error]
+                                                                 (empty is not "unset": it now fails validation instead of resolving to '.')
+$ DUCKDB_PATH='' uv run python -c "import copilot.app"
+copilot.config.ConfigError: Invalid Flux configuration -> duckdb_path: Value error, DUCKDB_PATH must be a non-empty local file path
+$ DUCKDB_PATH=md:my_db uv run python -c "import copilot.app"
+copilot.config.ConfigError: Invalid Flux configuration -> duckdb_path: Value error, DUCKDB_PATH must be a local file path, not a DuckDB connection target (md:, ducklake:, :memory:, or scheme://)
 $ uv run python -c "from copilot.config import Settings; print(Settings().model_is_configured)" ; ANTHROPIC_API_KEY=x COPILOT_MODEL=m uv run python -c "..."
 False ; True
 $ uv run python -c "from pipelines.db import connect; connect('/tmp/f124/grid.duckdb').close()"
