@@ -213,7 +213,16 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
     }
 
 
-def _scenario_weather_readiness(database: Path, scenarios: tuple[str, ...]) -> dict[str, Any]:
+def _scenario_weather_readiness(
+    database: Path, scenarios: tuple[str, ...], selected: StateScope
+) -> dict[str, Any]:
+    """Require complete hourly weather for every requested scenario/state window.
+
+    A non-empty ``weather_hourly`` table is not evidence for a scenario.  Each
+    selected state's loaded counties must have one row for every hour from the
+    stored scenario start through end.  This prevents out-of-window or
+    wrong-state weather from making a strict readiness check pass.
+    """
     con = duckdb.connect(str(database), read_only=True)
     try:
         rows = []
@@ -221,13 +230,53 @@ def _scenario_weather_readiness(database: Path, scenarios: tuple[str, ...]) -> d
             scenario_row = con.execute(
                 "SELECT ts_start, ts_end FROM scenarios WHERE scenario_id = ?", [scenario]
             ).fetchone()
-            weather_rows = con.execute("SELECT count(*) FROM weather_hourly").fetchone()[0]
+            state_rows = []
+            if scenario_row is not None:
+                ts_start, ts_end = scenario_row
+                expected_hours = int((ts_end - ts_start).total_seconds() // 3600) + 1
+                for state in selected.states:
+                    county_count = con.execute(
+                        "SELECT count(*) FROM counties WHERE substr(county_fips, 1, 2) = ?",
+                        [state.fips],
+                    ).fetchone()[0]
+                    weather_rows, weather_counties, weather_hours, first_hour, last_hour = con.execute(
+                        """SELECT count(*), count(DISTINCT weather.county_fips),
+                                  count(DISTINCT weather.ts), min(weather.ts), max(weather.ts)
+                           FROM weather_hourly AS weather
+                           JOIN counties USING (county_fips)
+                           WHERE substr(counties.county_fips, 1, 2) = ?
+                             AND weather.ts >= ? AND weather.ts <= ?""",
+                        [state.fips, ts_start, ts_end],
+                    ).fetchone()
+                    expected_rows = county_count * expected_hours
+                    state_rows.append(
+                        {
+                            "state": {"fips": state.fips, "usps": state.usps, "name": state.name},
+                            "county_count": county_count,
+                            "weather_counties": weather_counties,
+                            "weather_rows": weather_rows,
+                            "weather_hours": weather_hours,
+                            "expected_weather_rows": expected_rows,
+                            "first_hour": first_hour.isoformat() if first_hour else None,
+                            "last_hour": last_hour.isoformat() if last_hour else None,
+                            "ready": (
+                                county_count > 0
+                                and weather_counties == county_count
+                                and weather_hours == expected_hours
+                                and weather_rows == expected_rows
+                                and first_hour == ts_start
+                                and last_hour == ts_end
+                            ),
+                        }
+                    )
             rows.append(
                 {
                     "scenario_id": scenario,
                     "scenario_present": scenario_row is not None,
-                    "weather_rows": weather_rows,
-                    "ready": scenario_row is not None and weather_rows > 0,
+                    "ts_start": scenario_row[0].isoformat() if scenario_row else None,
+                    "ts_end": scenario_row[1].isoformat() if scenario_row else None,
+                    "states": state_rows,
+                    "ready": scenario_row is not None and bool(state_rows) and all(row["ready"] for row in state_rows),
                 }
             )
     except duckdb.Error as error:
@@ -237,7 +286,7 @@ def _scenario_weather_readiness(database: Path, scenarios: tuple[str, ...]) -> d
     return {
         "status": "ready" if rows and all(row["ready"] for row in rows) else "unavailable",
         "scenarios": rows,
-        "reason": "Scenario and hourly weather are required before claiming outage, cascade, or full-Flux readiness.",
+        "reason": "Each selected state's counties need complete hourly weather across the stored scenario window before claiming outage, cascade, or full-Flux readiness.",
     }
 
 
@@ -268,7 +317,9 @@ def _operation_id_alignment(database: Path) -> dict[str, Any]:
     }
 
 
-def inspect_built_database(path: str | Path | None, scenarios: tuple[str, ...]) -> dict[str, Any]:
+def inspect_built_database(
+    path: str | Path | None, scenarios: tuple[str, ...], selected: StateScope
+) -> dict[str, Any]:
     if path is None or not Path(path).is_file():
         return {"status": "not_requested"}
     database = Path(path)
@@ -283,7 +334,7 @@ def inspect_built_database(path: str | Path | None, scenarios: tuple[str, ...]) 
         "status": "ready" if all(check["passed"] for check in checks) else "blocked",
         "contract": contract,
         "p0_quality_checks": checks,
-        "scenario_weather": _scenario_weather_readiness(database, scenarios),
+        "scenario_weather": _scenario_weather_readiness(database, scenarios, selected),
         "operations_alignment": _operation_id_alignment(database),
     }
 
@@ -366,7 +417,7 @@ def build_receipt(
     """Assemble the full preflight receipt; this function never writes data."""
     raw = inspect_raw_inputs(raw_dir)
     selected = states or scope(("MN",))
-    database_result = inspect_built_database(database, scenarios)
+    database_result = inspect_built_database(database, scenarios, selected)
     raw_ready = raw["all_present"] and raw["no_checksum_mismatch"]
     strict_ready = raw_ready and raw["all_locked_with_provenance"]
     scenario_ready = database_result.get("scenario_weather", {}).get("status") == "ready"

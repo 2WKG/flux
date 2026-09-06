@@ -90,7 +90,10 @@ uv run python -m pipelines.preflight `
   --scenario uri_2021 --scenario beryl_2024
 ```
 
-This exits nonzero until each requested scenario and hourly weather data exist.
+This exits nonzero until every requested scenario has one hourly weather row
+for every loaded county in each selected state across its stored start/end
+window. Unrelated state weather or rows outside the scenario window do not
+count.
 It also reports `operations_alignment`; unmatched curated `source_name` values
 block dashboard release because the offline quality gate cannot reconcile them
 with `datasets/operations.json`. No receipt marks the current Minnesota
