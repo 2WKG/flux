@@ -1,13 +1,12 @@
 import json
-import shutil
-from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
-from pipelines.build import P0_RAW_INPUTS_CATALOG
+from pipelines.build import _nws_crosswalk_releases
+from pipelines.common import sha256_file
 from pipelines.counties import load_counties
 from pipelines.db import connect, replace_frame
 from pipelines.eaglei import load_eaglei
@@ -365,23 +364,49 @@ def test_coverage_invalid_year_preserves_existing_scope(tmp_path):
 
 
 def test_context_cli_publishes_storm_events_and_denominators_for_a_context_state(
-    tmp_path,
+    tmp_path, monkeypatch
 ):
     """The context CLI reaches the same county-grain relations the Texas P0 fills."""
+    from pipelines import build_state_context
     from pipelines.build_state_context import main
 
     live = tmp_path / "grid.duckdb"
     con = connect(live)
     seed(con)
     con.close()
+    # The pinned crosswalk editions live in gitignored raw data, so this builds
+    # its own catalog over fixture .dbx bytes and their real digests.
     raw = tmp_path / "raw"
-    releases = json.loads(P0_RAW_INPUTS_CATALOG.read_text(encoding="utf-8"))[
-        "nws_crosswalk_releases"
-    ]
-    for entry in releases:
-        target = raw.joinpath(*entry["path"])
+    entries = []
+    for release, valid_from, valid_until in (
+        ("edition-a", "2021-01-01T00:00:00", "2021-06-01T00:00:00"),
+        ("edition-b", "2024-01-01T00:00:00", "2024-06-01T00:00:00"),
+    ):
+        target = raw / "nws_zone_county" / release / f"{release}.dbx"
         target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(Path("data/raw").joinpath(*entry["path"]), target)
+        target.write_text(
+            f"MN|001|MPX|Fixture Zone {release}|MN001|Aitkin|27001|C||46.0|-93.0\n",
+            encoding="utf-8",
+        )
+        entries.append(
+            {
+                "release": release,
+                "path": ["nws_zone_county", release, f"{release}.dbx"],
+                "valid_from": valid_from,
+                "valid_until": valid_until,
+                "source_url": f"https://example.invalid/{release}.dbx",
+                "sha256": sha256_file(target),
+            }
+        )
+    catalog = tmp_path / "catalog.json"
+    catalog.write_text(
+        json.dumps({"nws_crosswalk_releases": entries}), encoding="utf-8"
+    )
+    monkeypatch.setattr(
+        build_state_context,
+        "_nws_crosswalk_releases",
+        lambda root, catalog_path=catalog: _nws_crosswalk_releases(root, catalog_path),
+    )
     details = tmp_path / "storm.csv.gz"
     frame = pd.DataFrame(
         [
