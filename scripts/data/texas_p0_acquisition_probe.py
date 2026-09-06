@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Probe whether every Texas P0 raw input has a usable declared retrieval.
 
 The Texas P0 builder (``pipelines.build``) refuses to promote unless every

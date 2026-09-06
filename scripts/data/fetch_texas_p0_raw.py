@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Fetch the Texas P0 raw inputs from their tracked source receipts.
 
 ``datasets/catalog.json`` declares scripted downloads for only part of the P0
