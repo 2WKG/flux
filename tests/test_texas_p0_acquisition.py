@@ -308,6 +308,33 @@ def test_emitted_paths_are_posix_not_host_specific(tmp_path, monkeypatch, capsys
     )
 
 
+def test_report_paths_are_rendered_with_as_posix():
+    """Source-level guard.
+
+    ``test_emitted_paths_are_posix_not_host_specific`` above cannot fail on a
+    POSIX host, where ``str(Path(...))`` already yields forward slashes — the
+    receipts in this PR were written on Windows.  So the separator choice is
+    asserted where it is made instead: the three path fields that reach a
+    committed receipt must be rendered with ``Path.as_posix()``.
+    """
+    sources = {
+        "scripts/data/fetch_texas_p0_raw.py": (
+            '"destination": destination.as_posix(),',
+            '"raw_dir": args.raw_dir.as_posix(),',
+        ),
+        "scripts/data/texas_p0_acquisition_probe.py": (
+            '"raw_dir": raw_dir.as_posix(),',
+            '"catalog": catalog_path.as_posix(),',
+        ),
+    }
+    for name, expected in sources.items():
+        text = (REPOSITORY_ROOT / name).read_text(encoding="utf-8")
+        for fragment in expected:
+            assert fragment in text, (
+                f"{name}: {fragment} is gone; paths would be host-specific"
+            )
+
+
 def test_committed_receipts_carry_no_windows_paths():
     receipts = sorted(
         (REPOSITORY_ROOT / "docs" / "data" / "acceptance_receipts").glob(
