@@ -72,20 +72,39 @@ def read_node_annotations(con: Any) -> list[NodeAnnotation]:
     rows = con.execute(_ANNOTATIONS_SQL).fetchall()
     return [
         NodeAnnotation(
-            bus_id=int(bus_id), role=str(role), generation_capacity_mw=float(capacity),
-            fuel_mix=tuple(fuel_mix), nominal_draw_mw=None if nominal_draw is None else float(nominal_draw),
-            county_name=county_name, county_fips=county_fips, ba_code=ba_code,
+            bus_id=int(bus_id),
+            role=str(role),
+            generation_capacity_mw=float(capacity),
+            fuel_mix=tuple(fuel_mix),
+            nominal_draw_mw=None if nominal_draw is None else float(nominal_draw),
+            county_name=county_name,
+            county_fips=county_fips,
+            ba_code=ba_code,
             critical_loads=tuple(critical_loads),
             field_provenance={
                 "role": "derived",
                 "generation_capacity_mw": "synthetic",
                 "fuel_mix": "synthetic",
                 "nominal_draw_mw": "synthetic",
-                "county_name": "source_backed" if county_name is not None else "unavailable",
-                "county_fips": "source_backed" if county_fips is not None else "unavailable",
+                "county_name": "source_backed"
+                if county_name is not None
+                else "unavailable",
+                "county_fips": "source_backed"
+                if county_fips is not None
+                else "unavailable",
                 "ba_code": "synthetic" if ba_code is not None else "unavailable",
                 "critical_loads": "source_backed" if critical_loads else "unavailable",
             },
         )
-        for (bus_id, role, capacity, fuel_mix, nominal_draw, county_name, county_fips, ba_code, critical_loads) in rows
+        for (
+            bus_id,
+            role,
+            capacity,
+            fuel_mix,
+            nominal_draw,
+            county_name,
+            county_fips,
+            ba_code,
+            critical_loads,
+        ) in rows
     ]
