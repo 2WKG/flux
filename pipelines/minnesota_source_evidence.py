@@ -176,10 +176,13 @@ def write_source_evidence(records: list[dict[str, Any]], db_path: Path) -> Path:
                         "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                         [row["artifact_id"], *manifest],
                     )
+                    created = True
                 elif existing != manifest:
                     raise FixtureError(
                         f"existing Minnesota artifact {row['artifact_id']!r} conflicts with source evidence"
                     )
+                else:
+                    created = False
                 expected_provenance = [
                     (
                         p["source_name"],
@@ -197,11 +200,11 @@ def write_source_evidence(records: list[dict[str, Any]], db_path: Path) -> Path:
                     "SELECT source_name, source_ref, source_version, retrieved_at, license_or_terms, source_record_id, content_sha256, is_derived FROM mn_artifact_provenance WHERE artifact_id=? ORDER BY provenance_ordinal",
                     [row["artifact_id"]],
                 ).fetchall()
-                if current and current != expected_provenance:
+                if not created and current != expected_provenance:
                     raise FixtureError(
                         f"existing Minnesota provenance for {row['artifact_id']!r} conflicts with source evidence"
                     )
-                if not current:
+                if created:
                     for ordinal, value in enumerate(expected_provenance):
                         con.execute(
                             "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -219,7 +222,7 @@ def write_source_evidence(records: list[dict[str, Any]], db_path: Path) -> Path:
                         "SELECT geometry_wkb, lon, lat, coordinate_status, coordinate_precision FROM mn_geography_artifacts WHERE artifact_id=?",
                         [row["artifact_id"]],
                     ).fetchone()
-                    if current_geo is None:
+                    if created:
                         con.execute(
                             "INSERT INTO mn_geography_artifacts VALUES (?, ?, ?, ?, ?, ?)",
                             [row["artifact_id"], *expected_geo],

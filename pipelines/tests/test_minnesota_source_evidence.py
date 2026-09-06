@@ -79,3 +79,14 @@ def test_write_source_evidence_rejects_conflict_without_replacing_geometry(
         assert con.execute(
             "SELECT geometry_wkb FROM mn_geography_artifacts"
         ).fetchone() == (record["geometry_wkb"],)
+
+
+def test_write_source_evidence_rejects_an_incomplete_existing_artifact(tmp_path: Path):
+    db = tmp_path / "mn.duckdb"
+    record = _record()
+    write_source_evidence([record], db)
+    with duckdb.connect(str(db)) as con:
+        con.execute("DELETE FROM mn_artifact_field_provenance")
+        con.execute("DELETE FROM mn_geography_artifacts")
+    with pytest.raises(FixtureError, match="geography"):
+        write_source_evidence([record], db)
