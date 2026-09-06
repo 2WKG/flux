@@ -102,7 +102,8 @@ def _registered_crs(value: Any, prefix: str) -> None:
 def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate a complete immutable physical inventory artifact and return it."""
     required = {"artifact_id","contract_version","geography_id","artifact_version","inventory_mode","electrical_model_mode","created_at","content_sha256","sources","assets","terminals","connectivity_edges","coverage"}
-    if set(artifact) != required: raise PhysicalInventoryError(f"artifact fields must be exactly {sorted(required)!r}")
+    allowed = required | {"input_artifact_sha256s"}
+    if not required <= set(artifact) or set(artifact) - allowed: raise PhysicalInventoryError(f"artifact fields must include {sorted(required)!r} and only known optional fields")
     if artifact["contract_version"] != CONTRACT_VERSION: raise PhysicalInventoryError("unsupported physical inventory contract_version")
     geo, version = artifact["geography_id"], artifact["artifact_version"]
     if not isinstance(geo, str) or not geo or not isinstance(version, str) or re.fullmatch(r"\d+\.\d+\.\d+", version) is None: raise PhysicalInventoryError("geography_id and semantic artifact_version are required")
@@ -110,6 +111,8 @@ def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     if artifact["inventory_mode"] not in INVENTORY_MODES or artifact["electrical_model_mode"] not in MODEL_MODES: raise PhysicalInventoryError("invalid inventory or electrical model mode")
     _timestamp(artifact["created_at"], "created_at"); _sha(artifact["content_sha256"], "content_sha256")
     if artifact["content_sha256"] != artifact_sha256(artifact): raise PhysicalInventoryError("content_sha256 does not match canonical artifact")
+    if "input_artifact_sha256s" in artifact and (not isinstance(artifact["input_artifact_sha256s"], list) or not artifact["input_artifact_sha256s"] or artifact["input_artifact_sha256s"] != sorted(set(artifact["input_artifact_sha256s"]))): raise PhysicalInventoryError("input_artifact_sha256s must be a sorted unique non-empty array")
+    for index, digest in enumerate(artifact.get("input_artifact_sha256s", [])): _sha(digest, f"input_artifact_sha256s[{index}]")
     sources = artifact["sources"]
     if not isinstance(sources, list) or not sources: raise PhysicalInventoryError("sources must be a non-empty array")
     source_ids=set()
