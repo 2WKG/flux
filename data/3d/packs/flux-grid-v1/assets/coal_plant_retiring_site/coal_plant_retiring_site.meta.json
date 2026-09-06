@@ -1,0 +1,129 @@
+{
+  "archetype_id": "coal_plant_retiring_site",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "triangles_lod0": 26064,
+  "triangles_lod1": 2316,
+  "triangles_lod2": 192,
+  "footprint_m": {
+    "length": 260,
+    "width": 180
+  },
+  "connectors": [
+    {
+      "name": "CONN_HV_OUT_0",
+      "role": "HV_OUT",
+      "position": [
+        61.0,
+        12.0,
+        -108.0
+      ]
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "bounds_m": {
+    "min": [
+      -87.30000305175781,
+      0.0,
+      -126.0999984741211
+    ],
+    "max": [
+      87.30000305175781,
+      112.72000122070312,
+      126.0999984741211
+    ]
+  },
+  "bounds_blender_m": {
+    "min": [
+      -87.30000305175781,
+      -126.0999984741211,
+      0.0
+    ],
+    "max": [
+      87.30000305175781,
+      126.0999984741211,
+      112.72000122070312
+    ],
+    "size": [
+      174.60000610351562,
+      252.1999969482422,
+      112.72000122070312
+    ]
+  },
+  "lod_bounds_blender_m": [
+    {
+      "min": [
+        -87.30000305175781,
+        -126.0999984741211,
+        0.0
+      ],
+      "max": [
+        87.30000305175781,
+        126.0999984741211,
+        112.72000122070312
+      ],
+      "size": [
+        174.60000610351562,
+        252.1999969482422,
+        112.72000122070312
+      ]
+    },
+    {
+      "min": [
+        -87.30000305175781,
+        -126.0999984741211,
+        0.0
+      ],
+      "max": [
+        87.30000305175781,
+        126.0999984741211,
+        112.68999481201172
+      ],
+      "size": [
+        174.60000610351562,
+        252.1999969482422,
+        112.68999481201172
+      ]
+    },
+    {
+      "min": [
+        -87.30000305175781,
+        -126.0999984741211,
+        0.0
+      ],
+      "max": [
+        87.30000305175781,
+        126.0999984741211,
+        112.5999984741211
+      ],
+      "size": [
+        174.60000610351562,
+        252.1999969482422,
+        112.5999984741211
+      ]
+    }
+  ],
+  "geometry_limit": "Retirement state is a server-asserted attribute of the placement, never a variant baked into the mesh.",
+  "materials": {
+    "status": "MAT_STATUS",
+    "decorative_accent": "MAT_ACCENT",
+    "status_tint_baked": false
+  },
+  "preview": "coal_plant_retiring_site.preview.png",
+  "lod_files": {
+    "lod0": "coal_plant_retiring_site.glb",
+    "lod1": "coal_plant_retiring_site.lod1.glb",
+    "lod2": "coal_plant_retiring_site.lod2.glb"
+  }
+}

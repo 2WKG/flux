@@ -1,0 +1,879 @@
+{
+  "schema_version": 1,
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "package_name": "flux-grid-assets",
+  "generated_at": "2026-09-06T06:26:30.632Z",
+  "completion": "complete",
+  "source_contract": {
+    "file": "data/3d/asset-archetypes-v1.json",
+    "local_revision": "3eab80c",
+    "sha256": "f7ade755e6a61a634092a9d8437eb5976938057ad02fdd9fad056d39484f0f9c"
+  },
+  "transform": {
+    "unit": "meter",
+    "up": "Y",
+    "forward": "-Z",
+    "pivot": "ground_center"
+  },
+  "runtime_base_url": "/assets/flux-grid/",
+  "symbols": {
+    "atlas": {
+      "path": "symbols/flux-grid@2x.png",
+      "bytes": 25731,
+      "sha256": "1024df5ee9f0104415f868fa9eecc16d3f6c53b1d4623122cf5603dda2780e17"
+    },
+    "mapping": {
+      "path": "symbols/deck-icon-mapping.json",
+      "bytes": 2684,
+      "sha256": "4085414f37588e94cdc2bf575c44c895c3a681d2d4d834b550086cb9a3d81f10"
+    },
+    "maplibre_sprite": "symbols/flux-grid"
+  },
+  "status_material": "MAT_STATUS",
+  "status_labels": [
+    "source_supported",
+    "source_screened",
+    "hypothetical",
+    "synthetic",
+    "unavailable",
+    "request_failed"
+  ],
+  "lod_zoom_defaults": {
+    "symbol": [
+      0,
+      12
+    ],
+    "lod2": [
+      12,
+      15
+    ],
+    "lod1": [
+      15,
+      17
+    ],
+    "lod0": [
+      17,
+      24
+    ]
+  },
+  "assets": [
+    {
+      "archetype_id": "transmission_line_segment",
+      "semantic_name": "Transmission towers and line segments",
+      "category": "network",
+      "footprint_m": {
+        "length": 12,
+        "width": 12
+      },
+      "lods": {
+        "lod0": {
+          "path": "transmission_line_segment/transmission_line_segment.glb",
+          "sha256": "793b9ce5aee1aa42ff815ea748b1924cf22698496fb36625b5efff83be78c19e",
+          "bytes": 905524,
+          "triangles": 19500
+        },
+        "lod1": {
+          "path": "transmission_line_segment/transmission_line_segment.lod1.glb",
+          "sha256": "fec19bb926f9b0a7c19b86a28c0577d90094f0cc853ebb4ae771b5b47026c1c9",
+          "bytes": 207428,
+          "triangles": 3948
+        },
+        "lod2": {
+          "path": "transmission_line_segment/transmission_line_segment.lod2.glb",
+          "sha256": "76e31f70849aaeb91188c35e008fd3f76b95d63ae0963a1143faa992ab71759e",
+          "bytes": 61664,
+          "triangles": 1068
+        }
+      },
+      "preview": "transmission_line_segment/transmission_line_segment.preview.png",
+      "metadata": "transmission_line_segment/transmission_line_segment.meta.json",
+      "bounds_m": {
+        "min": [
+          -5.889999866485596,
+          0,
+          -5.082981109619141
+        ],
+        "max": [
+          5.889999866485596,
+          44.02729797363281,
+          5.092499732971191
+        ]
+      },
+      "source_of_shape": "Original procedural compact lattice geometry; visual art direction informed by user-supplied tx_345kv_codex_handoff. Not a copy of its 345 kV dimensions or a rated design.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "substation_transformer_yard",
+      "semantic_name": "Substation and transformer yard",
+      "category": "network",
+      "footprint_m": {
+        "length": 120,
+        "width": 90
+      },
+      "lods": {
+        "lod0": {
+          "path": "substation_transformer_yard/substation_transformer_yard.glb",
+          "sha256": "603d08999dd8bfb98b21882cb3038e4538d4e305c5c1a0a99152c7b632ba4793",
+          "bytes": 1653032,
+          "triangles": 34856
+        },
+        "lod1": {
+          "path": "substation_transformer_yard/substation_transformer_yard.lod1.glb",
+          "sha256": "0368fde189ab1816fcdf2810ff345c2113dc3089f622e8df8450bfcb945b8c45",
+          "bytes": 324736,
+          "triangles": 6560
+        },
+        "lod2": {
+          "path": "substation_transformer_yard/substation_transformer_yard.lod2.glb",
+          "sha256": "14685e78266375b169b17efbd41b2e9178f4d17248a08b7b59276191b31a0b4e",
+          "bytes": 56880,
+          "triangles": 1020
+        }
+      },
+      "preview": "substation_transformer_yard/substation_transformer_yard.preview.png",
+      "metadata": "substation_transformer_yard/substation_transformer_yard.meta.json",
+      "bounds_m": {
+        "min": [
+          -44,
+          0,
+          -59
+        ],
+        "max": [
+          44,
+          16.700000762939453,
+          59
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "military_base",
+      "semantic_name": "Military base",
+      "category": "critical_load",
+      "footprint_m": {
+        "length": 200,
+        "width": 160
+      },
+      "lods": {
+        "lod0": {
+          "path": "military_base/military_base.glb",
+          "sha256": "600dd3b0d5e13c545350962a591050b54208b55f034c11409e500b1d99a3b53b",
+          "bytes": 509808,
+          "triangles": 9428
+        },
+        "lod1": {
+          "path": "military_base/military_base.lod1.glb",
+          "sha256": "d221f0335fbb544cf1de79885eb78cad310fe0799910ee585c190c1f84457e97",
+          "bytes": 88544,
+          "triangles": 1520
+        },
+        "lod2": {
+          "path": "military_base/military_base.lod2.glb",
+          "sha256": "6b04349b6bc3ab934c4fa2061fdb95ec8fd470064426c016ad5cceb3c78fa328",
+          "bytes": 17668,
+          "triangles": 248
+        }
+      },
+      "preview": "military_base/military_base.preview.png",
+      "metadata": "military_base/military_base.meta.json",
+      "bounds_m": {
+        "min": [
+          -80,
+          0,
+          -100
+        ],
+        "max": [
+          80,
+          21.2289981842041,
+          100
+        ]
+      },
+      "source_of_shape": "Original procedural support-campus architecture; no third-party source.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "hospital",
+      "semantic_name": "Hospital",
+      "category": "critical_load",
+      "footprint_m": {
+        "length": 90,
+        "width": 60
+      },
+      "lods": {
+        "lod0": {
+          "path": "hospital/hospital.glb",
+          "sha256": "38d81e6e8dc86d821c1935ef1418689daf57965152cc0e733492e4ced450e874",
+          "bytes": 545360,
+          "triangles": 10424
+        },
+        "lod1": {
+          "path": "hospital/hospital.lod1.glb",
+          "sha256": "82935318bbf139638360ffa30ea820fff34612475c91ad72ea692673863d1e84",
+          "bytes": 40576,
+          "triangles": 652
+        },
+        "lod2": {
+          "path": "hospital/hospital.lod2.glb",
+          "sha256": "f3b774c162d7d48143496b780197350f3fc88ad0da72cd1150c8c5d0db49cf59",
+          "bytes": 20888,
+          "triangles": 292
+        }
+      },
+      "preview": "hospital/hospital.preview.png",
+      "metadata": "hospital/hospital.meta.json",
+      "bounds_m": {
+        "min": [
+          -28,
+          0,
+          -42
+        ],
+        "max": [
+          28,
+          44.00749969482422,
+          42
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "water_treatment_plant",
+      "semantic_name": "Water treatment plant",
+      "category": "critical_load",
+      "footprint_m": {
+        "length": 140,
+        "width": 100
+      },
+      "lods": {
+        "lod0": {
+          "path": "water_treatment_plant/water_treatment_plant.glb",
+          "sha256": "9dac3f605b6c0a4c5d765342c31e7e6c7cb7eaa055f23a8bd9e69509c9707fa2",
+          "bytes": 706920,
+          "triangles": 14620
+        },
+        "lod1": {
+          "path": "water_treatment_plant/water_treatment_plant.lod1.glb",
+          "sha256": "904804c25bf7c638a0bfe2252b7f7498af03a29f45d0afcc6cdc47055b173e4a",
+          "bytes": 132004,
+          "triangles": 2528
+        },
+        "lod2": {
+          "path": "water_treatment_plant/water_treatment_plant.lod2.glb",
+          "sha256": "00cc5e13aefc3231455a3c3e5c8a9530f4fb845591ac27cab119ca7ec33a764d",
+          "bytes": 43628,
+          "triangles": 812
+        }
+      },
+      "preview": "water_treatment_plant/water_treatment_plant.preview.png",
+      "metadata": "water_treatment_plant/water_treatment_plant.meta.json",
+      "bounds_m": {
+        "min": [
+          -47,
+          0,
+          -67
+        ],
+        "max": [
+          47,
+          14.894999504089355,
+          67
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "coal_plant_retiring_site",
+      "semantic_name": "Coal plant and retiring plant site",
+      "category": "generation",
+      "footprint_m": {
+        "length": 260,
+        "width": 180
+      },
+      "lods": {
+        "lod0": {
+          "path": "coal_plant_retiring_site/coal_plant_retiring_site.glb",
+          "sha256": "78f1ee2a55871015427e1b4fb2e29aa8c45865a7751664199fdfd478c87f927c",
+          "bytes": 1234216,
+          "triangles": 26064
+        },
+        "lod1": {
+          "path": "coal_plant_retiring_site/coal_plant_retiring_site.lod1.glb",
+          "sha256": "4d965d105a459a06c0c8c5998723f74809741eddd0d34f19591319597224972b",
+          "bytes": 130312,
+          "triangles": 2316
+        },
+        "lod2": {
+          "path": "coal_plant_retiring_site/coal_plant_retiring_site.lod2.glb",
+          "sha256": "1e1098741494c389f2168bbe6d6015fa8e5337eac7075c11c1124cb70d8a64a4",
+          "bytes": 13096,
+          "triangles": 192
+        }
+      },
+      "preview": "coal_plant_retiring_site/coal_plant_retiring_site.preview.png",
+      "metadata": "coal_plant_retiring_site/coal_plant_retiring_site.meta.json",
+      "bounds_m": {
+        "min": [
+          -87.30000305175781,
+          0,
+          -126.0999984741211
+        ],
+        "max": [
+          87.30000305175781,
+          112.72000122070312,
+          126.0999984741211
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "nuclear_smr_module",
+      "semantic_name": "New nuclear and SMR module",
+      "category": "generation",
+      "footprint_m": {
+        "length": 120,
+        "width": 100
+      },
+      "lods": {
+        "lod0": {
+          "path": "nuclear_smr_module/nuclear_smr_module.glb",
+          "sha256": "711162c4d7ae245ffbdab84e4d32301276e03efbafa7260bddb9e23915865f2b",
+          "bytes": 881160,
+          "triangles": 17766
+        },
+        "lod1": {
+          "path": "nuclear_smr_module/nuclear_smr_module.lod1.glb",
+          "sha256": "30f900085683e6d3932cfd066bce07538458e02b19b69b94e0bd66f360464d0f",
+          "bytes": 141180,
+          "triangles": 2556
+        },
+        "lod2": {
+          "path": "nuclear_smr_module/nuclear_smr_module.lod2.glb",
+          "sha256": "058f1d4628ec5e390549c8f4b63838326c9287b3f85e8705622a75ffa6f8a9c4",
+          "bytes": 25380,
+          "triangles": 388
+        }
+      },
+      "preview": "nuclear_smr_module/nuclear_smr_module.preview.png",
+      "metadata": "nuclear_smr_module/nuclear_smr_module.meta.json",
+      "bounds_m": {
+        "min": [
+          -48.5,
+          0,
+          -58.20000076293945
+        ],
+        "max": [
+          48.5,
+          52.72124099731445,
+          58.20000076293945
+        ]
+      },
+      "source_of_shape": "Original procedural compact PWR-inspired plant: broad domed containment, connected turbine/generator hall, control/service annex, and a user-requested flared hyperboloid cooling tower adapted from this pack's originally authored coal-plant tower geometry. Architectural context from EDF Sizewell B and Rolls-Royce SMR public descriptions; no third-party mesh, vendor replica, capacity, or claim that every SMR has this dome or cooling system.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "data_center_campus",
+      "semantic_name": "Data center campus",
+      "category": "load",
+      "footprint_m": {
+        "length": 220,
+        "width": 150
+      },
+      "lods": {
+        "lod0": {
+          "path": "data_center_campus/data_center_campus.glb",
+          "sha256": "b6c9b1f30dc00dbb6681dbe848f3d80ccb9fafd9eb10e1718e6ff7509fa2f9e7",
+          "bytes": 937108,
+          "triangles": 19478
+        },
+        "lod1": {
+          "path": "data_center_campus/data_center_campus.lod1.glb",
+          "sha256": "cb0de0464c16c3f2458cca5f164fb427d591b08788b37b96236825f5feb82da8",
+          "bytes": 75460,
+          "triangles": 1364
+        },
+        "lod2": {
+          "path": "data_center_campus/data_center_campus.lod2.glb",
+          "sha256": "b20f4209b16ecc33d0d5676fb862d6d4cc6c9af2a8f5da4ee79af6b033dbe89a",
+          "bytes": 9620,
+          "triangles": 120
+        }
+      },
+      "preview": "data_center_campus/data_center_campus.preview.png",
+      "metadata": "data_center_campus/data_center_campus.meta.json",
+      "bounds_m": {
+        "min": [
+          -72.75,
+          0,
+          -106.69999694824219
+        ],
+        "max": [
+          72.75,
+          16.505001068115234,
+          106.69999694824219
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "residential_neighborhood",
+      "semantic_name": "Residential neighborhood",
+      "category": "load",
+      "footprint_m": {
+        "length": 180,
+        "width": 180
+      },
+      "lods": {
+        "lod0": {
+          "path": "residential_neighborhood/residential_neighborhood.glb",
+          "sha256": "f562789fba2468e26ed3bf2712d0091b0d831190d4b1e32d453ae45aee8ba66c",
+          "bytes": 534392,
+          "triangles": 9704
+        },
+        "lod1": {
+          "path": "residential_neighborhood/residential_neighborhood.lod1.glb",
+          "sha256": "d38fde2b3e6a803102b71f11f7a2bc22d8216c8e40830e1908fe8367e9f4ecfe",
+          "bytes": 73528,
+          "triangles": 1248
+        },
+        "lod2": {
+          "path": "residential_neighborhood/residential_neighborhood.lod2.glb",
+          "sha256": "15d3b73cf345aa657a9a83a3d2a1e97832c94ba0305289d791a7daae43710f52",
+          "bytes": 25156,
+          "triangles": 392
+        }
+      },
+      "preview": "residential_neighborhood/residential_neighborhood.preview.png",
+      "metadata": "residential_neighborhood/residential_neighborhood.meta.json",
+      "bounds_m": {
+        "min": [
+          -87.30000305175781,
+          0,
+          -87.30000305175781
+        ],
+        "max": [
+          87.30000305175781,
+          15.639999389648438,
+          87.30000305175781
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "commercial_buildings",
+      "semantic_name": "Commercial buildings",
+      "category": "load",
+      "footprint_m": {
+        "length": 120,
+        "width": 100
+      },
+      "lods": {
+        "lod0": {
+          "path": "commercial_buildings/commercial_buildings.glb",
+          "sha256": "734acbbbaea6a3b585d56dc56c0ad84edc3326b47a7b0f952ffaefcc0ebb8025",
+          "bytes": 219296,
+          "triangles": 4156
+        },
+        "lod1": {
+          "path": "commercial_buildings/commercial_buildings.lod1.glb",
+          "sha256": "1904c8db706ed82debeabaefefabfbc2791298d59222539b592aab970eb89670",
+          "bytes": 32868,
+          "triangles": 490
+        },
+        "lod2": {
+          "path": "commercial_buildings/commercial_buildings.lod2.glb",
+          "sha256": "1f2290ef1c23ea1945586f87a7cccf1c19504c9eadf7cbc0f9cd3f1ef365017e",
+          "bytes": 8348,
+          "triangles": 96
+        }
+      },
+      "preview": "commercial_buildings/commercial_buildings.preview.png",
+      "metadata": "commercial_buildings/commercial_buildings.meta.json",
+      "bounds_m": {
+        "min": [
+          -48.5,
+          0,
+          -58.20000076293945
+        ],
+        "max": [
+          48.5,
+          57.90500259399414,
+          58.20000076293945
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "factory_industrial_facility",
+      "semantic_name": "Factory and industrial facility",
+      "category": "load",
+      "footprint_m": {
+        "length": 200,
+        "width": 140
+      },
+      "lods": {
+        "lod0": {
+          "path": "factory_industrial_facility/factory_industrial_facility.glb",
+          "sha256": "2c2086ff2f359b72429b2ecad8e0e46767b5bd6271a051f9a6e5c5cd3d03a385",
+          "bytes": 245988,
+          "triangles": 4739
+        },
+        "lod1": {
+          "path": "factory_industrial_facility/factory_industrial_facility.lod1.glb",
+          "sha256": "2b7a8b65c278e93a6997f36b8c28db6cee6a9d16ff72dee7947c90c1b228b878",
+          "bytes": 27644,
+          "triangles": 390
+        },
+        "lod2": {
+          "path": "factory_industrial_facility/factory_industrial_facility.lod2.glb",
+          "sha256": "f0190e9b126a203a51a556f29c77ab45c2a4b0f9c58548d70cb290ef1ae8a87e",
+          "bytes": 10956,
+          "triangles": 140
+        }
+      },
+      "preview": "factory_industrial_facility/factory_industrial_facility.preview.png",
+      "metadata": "factory_industrial_facility/factory_industrial_facility.meta.json",
+      "bounds_m": {
+        "min": [
+          -67.9000015258789,
+          0,
+          -97
+        ],
+        "max": [
+          67.9000015258789,
+          44.125,
+          97
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "natural_gas_plant",
+      "semantic_name": "Natural-gas power plant",
+      "category": "generation",
+      "footprint_m": {
+        "length": 200,
+        "width": 140
+      },
+      "lods": {
+        "lod0": {
+          "path": "natural_gas_plant/natural_gas_plant.glb",
+          "sha256": "649035aed933081ffc515c19612f1f4b8ac02b4fb36839b8db3c976a639f9531",
+          "bytes": 840872,
+          "triangles": 17234
+        },
+        "lod1": {
+          "path": "natural_gas_plant/natural_gas_plant.lod1.glb",
+          "sha256": "cdc1132d3917ef78320866c66467eac2334b773d43a066f013c86c09382f121f",
+          "bytes": 229360,
+          "triangles": 4206
+        },
+        "lod2": {
+          "path": "natural_gas_plant/natural_gas_plant.lod2.glb",
+          "sha256": "67a72bbeba30a74797a53b10b12c1465b09094ba1691d70bbfa8af7955571201",
+          "bytes": 16428,
+          "triangles": 252
+        }
+      },
+      "preview": "natural_gas_plant/natural_gas_plant.preview.png",
+      "metadata": "natural_gas_plant/natural_gas_plant.meta.json",
+      "bounds_m": {
+        "min": [
+          -67.9000015258789,
+          0,
+          -97
+        ],
+        "max": [
+          67.9000015258789,
+          70.68659973144531,
+          97
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "wind_turbine",
+      "semantic_name": "Wind turbines",
+      "category": "generation",
+      "footprint_m": {
+        "length": 20,
+        "width": 20
+      },
+      "lods": {
+        "lod0": {
+          "path": "wind_turbine/wind_turbine.glb",
+          "sha256": "780e3aeb8957193fc177a1e3e562a69644067c4d99970c09185e042add5309c9",
+          "bytes": 433040,
+          "triangles": 8712
+        },
+        "lod1": {
+          "path": "wind_turbine/wind_turbine.lod1.glb",
+          "sha256": "1fa507dec4bd89ae2df82f7d4a1a86e190d0121730e8d8e04fadedc49e66f3d3",
+          "bytes": 94108,
+          "triangles": 1692
+        },
+        "lod2": {
+          "path": "wind_turbine/wind_turbine.lod2.glb",
+          "sha256": "81e99a96fe8e62955fc4aa651d13688146b9e7df03e0a7740789665660157c0e",
+          "bytes": 22984,
+          "triangles": 360
+        }
+      },
+      "preview": "wind_turbine/wind_turbine.preview.png",
+      "metadata": "wind_turbine/wind_turbine.meta.json",
+      "bounds_m": {
+        "min": [
+          -7.82075309753418,
+          0,
+          -4.400000095367432
+        ],
+        "max": [
+          7.144765853881836,
+          25.111513137817383,
+          4.400000095367432
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "solar_array",
+      "semantic_name": "Solar arrays",
+      "category": "generation",
+      "footprint_m": {
+        "length": 150,
+        "width": 120
+      },
+      "lods": {
+        "lod0": {
+          "path": "solar_array/solar_array.glb",
+          "sha256": "3de74c38c6fe2f55dc0e8306b6bbb26174155f3327a02bd1b846404154a9a47f",
+          "bytes": 1112164,
+          "triangles": 20516
+        },
+        "lod1": {
+          "path": "solar_array/solar_array.lod1.glb",
+          "sha256": "e884c0fb414e05eba200ca4c66635458ae76aed91458d627403373364a7d4d71",
+          "bytes": 199080,
+          "triangles": 3596
+        },
+        "lod2": {
+          "path": "solar_array/solar_array.lod2.glb",
+          "sha256": "02745663fed4e1fefa24d4523bad598147e07932026407a1ec48a7535baf528e",
+          "bytes": 37332,
+          "triangles": 596
+        }
+      },
+      "preview": "solar_array/solar_array.preview.png",
+      "metadata": "solar_array/solar_array.meta.json",
+      "bounds_m": {
+        "min": [
+          -60,
+          0,
+          -75
+        ],
+        "max": [
+          60,
+          6.497739315032959,
+          75
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "battery_storage",
+      "semantic_name": "Battery storage",
+      "category": "storage",
+      "footprint_m": {
+        "length": 80,
+        "width": 50
+      },
+      "lods": {
+        "lod0": {
+          "path": "battery_storage/battery_storage.glb",
+          "sha256": "c5fae700b6407f8453f9f36ba43216796117e77d36cb394b43e9b91f2eba775c",
+          "bytes": 869424,
+          "triangles": 17008
+        },
+        "lod1": {
+          "path": "battery_storage/battery_storage.lod1.glb",
+          "sha256": "af1b06fee5c546a9bba5714f8b815065a034a78712b41d830187c2b2f9064e67",
+          "bytes": 93056,
+          "triangles": 1712
+        },
+        "lod2": {
+          "path": "battery_storage/battery_storage.lod2.glb",
+          "sha256": "18ff1910193591e04d53c7463b372b681a73755181e2cd533cd94e195c91cd3f",
+          "bytes": 38820,
+          "triangles": 644
+        }
+      },
+      "preview": "battery_storage/battery_storage.preview.png",
+      "metadata": "battery_storage/battery_storage.meta.json",
+      "bounds_m": {
+        "min": [
+          -25,
+          0,
+          -40
+        ],
+        "max": [
+          25,
+          6.537500381469727,
+          40
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "warehouse_logistics_center",
+      "semantic_name": "Warehouse and logistics center",
+      "category": "load",
+      "footprint_m": {
+        "length": 180,
+        "width": 120
+      },
+      "lods": {
+        "lod0": {
+          "path": "warehouse_logistics_center/warehouse_logistics_center.glb",
+          "sha256": "3a9f96ab336eb552df946b2c615045122d16fc4f825cd7141ae713571d3dcca4",
+          "bytes": 301736,
+          "triangles": 5724
+        },
+        "lod1": {
+          "path": "warehouse_logistics_center/warehouse_logistics_center.lod1.glb",
+          "sha256": "fb9b222b9d51bfb7a6c284d3036e07d20cd5119f5fb661cd870c8e3b765c4dc8",
+          "bytes": 33020,
+          "triangles": 516
+        },
+        "lod2": {
+          "path": "warehouse_logistics_center/warehouse_logistics_center.lod2.glb",
+          "sha256": "1300427cf5deea1193ccfa77a4076f228fc79d194e0446a144811576726200b9",
+          "bytes": 14892,
+          "triangles": 180
+        }
+      },
+      "preview": "warehouse_logistics_center/warehouse_logistics_center.preview.png",
+      "metadata": "warehouse_logistics_center/warehouse_logistics_center.meta.json",
+      "bounds_m": {
+        "min": [
+          -59,
+          0,
+          -89
+        ],
+        "max": [
+          59,
+          19.334999084472656,
+          89
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "ev_charging_station",
+      "semantic_name": "EV charging station",
+      "category": "load",
+      "footprint_m": {
+        "length": 40,
+        "width": 25
+      },
+      "lods": {
+        "lod0": {
+          "path": "ev_charging_station/ev_charging_station.glb",
+          "sha256": "9169ee6ce6e7435601d97f07841f2439d3b47937b12c9c632456bed39d0cb918",
+          "bytes": 219428,
+          "triangles": 4068
+        },
+        "lod1": {
+          "path": "ev_charging_station/ev_charging_station.lod1.glb",
+          "sha256": "6099f44bff892da5f0219f9ee4b1e72f64630e434cc42d70cff92ea70781e7b7",
+          "bytes": 37248,
+          "triangles": 588
+        },
+        "lod2": {
+          "path": "ev_charging_station/ev_charging_station.lod2.glb",
+          "sha256": "5215f933efc90c65dff06f8d9d336e25a97604f93c1836fc2f0ac04d30c51a1c",
+          "bytes": 13080,
+          "triangles": 168
+        }
+      },
+      "preview": "ev_charging_station/ev_charging_station.preview.png",
+      "metadata": "ev_charging_station/ev_charging_station.meta.json",
+      "bounds_m": {
+        "min": [
+          -12.300000190734863,
+          0,
+          -19.799999237060547
+        ],
+        "max": [
+          12.300000190734863,
+          4.829999923706055,
+          19.799999237060547
+        ]
+      },
+      "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+      "license": "CC0-1.0"
+    },
+    {
+      "archetype_id": "school_emergency_services",
+      "semantic_name": "School and emergency-services building",
+      "category": "critical_load",
+      "footprint_m": {
+        "length": 100,
+        "width": 70
+      },
+      "lods": {
+        "lod0": {
+          "path": "school_emergency_services/school_emergency_services.glb",
+          "sha256": "ddd3af4fd82de6ec70650d37b604eae2e8643fb860db6e87530cb072351dd786",
+          "bytes": 517164,
+          "triangles": 9524
+        },
+        "lod1": {
+          "path": "school_emergency_services/school_emergency_services.lod1.glb",
+          "sha256": "af4465e30090e29972d01649b552c76e134fbe4533dd17f97a296773e5c7c3de",
+          "bytes": 84816,
+          "triangles": 1448
+        },
+        "lod2": {
+          "path": "school_emergency_services/school_emergency_services.lod2.glb",
+          "sha256": "bdcf85306c98b2f1defaed1f8ce4fd0840b21c307388c0408779ff054e0b8b05",
+          "bytes": 22496,
+          "triangles": 320
+        }
+      },
+      "preview": "school_emergency_services/school_emergency_services.preview.png",
+      "metadata": "school_emergency_services/school_emergency_services.meta.json",
+      "bounds_m": {
+        "min": [
+          -34,
+          0,
+          -48
+        ],
+        "max": [
+          34,
+          15.278722763061523,
+          48
+        ]
+      },
+      "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+      "license": "CC0-1.0"
+    }
+  ],
+  "totals": {
+    "archetypes": 18,
+    "glb_files": 54,
+    "glb_bytes": 15170916,
+    "triangles_lod0": 253521,
+    "triangles_lod1": 37330,
+    "triangles_lod2": 7288
+  }
+}

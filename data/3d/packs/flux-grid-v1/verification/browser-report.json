@@ -1,0 +1,666 @@
+{
+  "date": "2026-09-06T06:26:37.814Z",
+  "manifest_sha256": "19a313bce8f949e7bde70d508b197da71f87f3b075110dade1c8ea552f0d31fb",
+  "source_verification": "Runtime FluxAssetCache checks bytes and SHA-256 against this manifest before creating each model URL.",
+  "browser": "Chromium headless, ANGLE SwiftShader (software WebGL2; not a frame-rate benchmark)",
+  "versions": {
+    "deck_gl": "9.3.11",
+    "maplibre_gl": "6.7.0"
+  },
+  "assets": [
+    {
+      "archetype_id": "transmission_line_segment",
+      "lods": [
+        {
+          "asset": "transmission_line_segment",
+          "lod": "lod0",
+          "triangles": 19500,
+          "changedPixels": 20241,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "transmission_line_segment/transmission_line_segment.glb",
+          "source_sha256": "793b9ce5aee1aa42ff815ea748b1924cf22698496fb36625b5efff83be78c19e"
+        },
+        {
+          "asset": "transmission_line_segment",
+          "lod": "lod1",
+          "triangles": 3948,
+          "changedPixels": 18323,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "transmission_line_segment/transmission_line_segment.lod1.glb",
+          "source_sha256": "fec19bb926f9b0a7c19b86a28c0577d90094f0cc853ebb4ae771b5b47026c1c9"
+        },
+        {
+          "asset": "transmission_line_segment",
+          "lod": "lod2",
+          "triangles": 1068,
+          "changedPixels": 14355,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "transmission_line_segment/transmission_line_segment.lod2.glb",
+          "source_sha256": "76e31f70849aaeb91188c35e008fd3f76b95d63ae0963a1143faa992ab71759e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "substation_transformer_yard",
+      "lods": [
+        {
+          "asset": "substation_transformer_yard",
+          "lod": "lod0",
+          "triangles": 34856,
+          "changedPixels": 151201,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "substation_transformer_yard/substation_transformer_yard.glb",
+          "source_sha256": "603d08999dd8bfb98b21882cb3038e4538d4e305c5c1a0a99152c7b632ba4793"
+        },
+        {
+          "asset": "substation_transformer_yard",
+          "lod": "lod1",
+          "triangles": 6560,
+          "changedPixels": 150929,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "substation_transformer_yard/substation_transformer_yard.lod1.glb",
+          "source_sha256": "0368fde189ab1816fcdf2810ff345c2113dc3089f622e8df8450bfcb945b8c45"
+        },
+        {
+          "asset": "substation_transformer_yard",
+          "lod": "lod2",
+          "triangles": 1020,
+          "changedPixels": 148914,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "substation_transformer_yard/substation_transformer_yard.lod2.glb",
+          "source_sha256": "14685e78266375b169b17efbd41b2e9178f4d17248a08b7b59276191b31a0b4e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "military_base",
+      "lods": [
+        {
+          "asset": "military_base",
+          "lod": "lod0",
+          "triangles": 9428,
+          "changedPixels": 164635,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "military_base/military_base.glb",
+          "source_sha256": "600dd3b0d5e13c545350962a591050b54208b55f034c11409e500b1d99a3b53b"
+        },
+        {
+          "asset": "military_base",
+          "lod": "lod1",
+          "triangles": 1520,
+          "changedPixels": 164635,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "military_base/military_base.lod1.glb",
+          "source_sha256": "d221f0335fbb544cf1de79885eb78cad310fe0799910ee585c190c1f84457e97"
+        },
+        {
+          "asset": "military_base",
+          "lod": "lod2",
+          "triangles": 248,
+          "changedPixels": 163351,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "military_base/military_base.lod2.glb",
+          "source_sha256": "6b04349b6bc3ab934c4fa2061fdb95ec8fd470064426c016ad5cceb3c78fa328"
+        }
+      ]
+    },
+    {
+      "archetype_id": "hospital",
+      "lods": [
+        {
+          "asset": "hospital",
+          "lod": "lod0",
+          "triangles": 10424,
+          "changedPixels": 163159,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "hospital/hospital.glb",
+          "source_sha256": "38d81e6e8dc86d821c1935ef1418689daf57965152cc0e733492e4ced450e874"
+        },
+        {
+          "asset": "hospital",
+          "lod": "lod1",
+          "triangles": 652,
+          "changedPixels": 161458,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "hospital/hospital.lod1.glb",
+          "source_sha256": "82935318bbf139638360ffa30ea820fff34612475c91ad72ea692673863d1e84"
+        },
+        {
+          "asset": "hospital",
+          "lod": "lod2",
+          "triangles": 292,
+          "changedPixels": 159706,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "hospital/hospital.lod2.glb",
+          "source_sha256": "f3b774c162d7d48143496b780197350f3fc88ad0da72cd1150c8c5d0db49cf59"
+        }
+      ]
+    },
+    {
+      "archetype_id": "water_treatment_plant",
+      "lods": [
+        {
+          "asset": "water_treatment_plant",
+          "lod": "lod0",
+          "triangles": 14620,
+          "changedPixels": 133077,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "water_treatment_plant/water_treatment_plant.glb",
+          "source_sha256": "9dac3f605b6c0a4c5d765342c31e7e6c7cb7eaa055f23a8bd9e69509c9707fa2"
+        },
+        {
+          "asset": "water_treatment_plant",
+          "lod": "lod1",
+          "triangles": 2528,
+          "changedPixels": 133077,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "water_treatment_plant/water_treatment_plant.lod1.glb",
+          "source_sha256": "904804c25bf7c638a0bfe2252b7f7498af03a29f45d0afcc6cdc47055b173e4a"
+        },
+        {
+          "asset": "water_treatment_plant",
+          "lod": "lod2",
+          "triangles": 812,
+          "changedPixels": 131787,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "water_treatment_plant/water_treatment_plant.lod2.glb",
+          "source_sha256": "00cc5e13aefc3231455a3c3e5c8a9530f4fb845591ac27cab119ca7ec33a764d"
+        }
+      ]
+    },
+    {
+      "archetype_id": "coal_plant_retiring_site",
+      "lods": [
+        {
+          "asset": "coal_plant_retiring_site",
+          "lod": "lod0",
+          "triangles": 26064,
+          "changedPixels": 141965,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "coal_plant_retiring_site/coal_plant_retiring_site.glb",
+          "source_sha256": "78f1ee2a55871015427e1b4fb2e29aa8c45865a7751664199fdfd478c87f927c"
+        },
+        {
+          "asset": "coal_plant_retiring_site",
+          "lod": "lod1",
+          "triangles": 2316,
+          "changedPixels": 141674,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "coal_plant_retiring_site/coal_plant_retiring_site.lod1.glb",
+          "source_sha256": "4d965d105a459a06c0c8c5998723f74809741eddd0d34f19591319597224972b"
+        },
+        {
+          "asset": "coal_plant_retiring_site",
+          "lod": "lod2",
+          "triangles": 192,
+          "changedPixels": 140253,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "coal_plant_retiring_site/coal_plant_retiring_site.lod2.glb",
+          "source_sha256": "1e1098741494c389f2168bbe6d6015fa8e5337eac7075c11c1124cb70d8a64a4"
+        }
+      ]
+    },
+    {
+      "archetype_id": "nuclear_smr_module",
+      "lods": [
+        {
+          "asset": "nuclear_smr_module",
+          "lod": "lod0",
+          "triangles": 17766,
+          "changedPixels": 171896,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "nuclear_smr_module/nuclear_smr_module.glb",
+          "source_sha256": "711162c4d7ae245ffbdab84e4d32301276e03efbafa7260bddb9e23915865f2b"
+        },
+        {
+          "asset": "nuclear_smr_module",
+          "lod": "lod1",
+          "triangles": 2556,
+          "changedPixels": 171819,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "nuclear_smr_module/nuclear_smr_module.lod1.glb",
+          "source_sha256": "30f900085683e6d3932cfd066bce07538458e02b19b69b94e0bd66f360464d0f"
+        },
+        {
+          "asset": "nuclear_smr_module",
+          "lod": "lod2",
+          "triangles": 388,
+          "changedPixels": 170908,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "nuclear_smr_module/nuclear_smr_module.lod2.glb",
+          "source_sha256": "058f1d4628ec5e390549c8f4b63838326c9287b3f85e8705622a75ffa6f8a9c4"
+        }
+      ]
+    },
+    {
+      "archetype_id": "data_center_campus",
+      "lods": [
+        {
+          "asset": "data_center_campus",
+          "lod": "lod0",
+          "triangles": 19478,
+          "changedPixels": 134995,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "data_center_campus/data_center_campus.glb",
+          "source_sha256": "b6c9b1f30dc00dbb6681dbe848f3d80ccb9fafd9eb10e1718e6ff7509fa2f9e7"
+        },
+        {
+          "asset": "data_center_campus",
+          "lod": "lod1",
+          "triangles": 1364,
+          "changedPixels": 134995,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "data_center_campus/data_center_campus.lod1.glb",
+          "source_sha256": "cb0de0464c16c3f2458cca5f164fb427d591b08788b37b96236825f5feb82da8"
+        },
+        {
+          "asset": "data_center_campus",
+          "lod": "lod2",
+          "triangles": 120,
+          "changedPixels": 132898,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "data_center_campus/data_center_campus.lod2.glb",
+          "source_sha256": "b20f4209b16ecc33d0d5676fb862d6d4cc6c9af2a8f5da4ee79af6b033dbe89a"
+        }
+      ]
+    },
+    {
+      "archetype_id": "residential_neighborhood",
+      "lods": [
+        {
+          "asset": "residential_neighborhood",
+          "lod": "lod0",
+          "triangles": 9704,
+          "changedPixels": 196867,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "residential_neighborhood/residential_neighborhood.glb",
+          "source_sha256": "f562789fba2468e26ed3bf2712d0091b0d831190d4b1e32d453ae45aee8ba66c"
+        },
+        {
+          "asset": "residential_neighborhood",
+          "lod": "lod1",
+          "triangles": 1248,
+          "changedPixels": 196758,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "residential_neighborhood/residential_neighborhood.lod1.glb",
+          "source_sha256": "d38fde2b3e6a803102b71f11f7a2bc22d8216c8e40830e1908fe8367e9f4ecfe"
+        },
+        {
+          "asset": "residential_neighborhood",
+          "lod": "lod2",
+          "triangles": 392,
+          "changedPixels": 195483,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "residential_neighborhood/residential_neighborhood.lod2.glb",
+          "source_sha256": "15d3b73cf345aa657a9a83a3d2a1e97832c94ba0305289d791a7daae43710f52"
+        }
+      ]
+    },
+    {
+      "archetype_id": "commercial_buildings",
+      "lods": [
+        {
+          "asset": "commercial_buildings",
+          "lod": "lod0",
+          "triangles": 4156,
+          "changedPixels": 211799,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "commercial_buildings/commercial_buildings.glb",
+          "source_sha256": "734acbbbaea6a3b585d56dc56c0ad84edc3326b47a7b0f952ffaefcc0ebb8025"
+        },
+        {
+          "asset": "commercial_buildings",
+          "lod": "lod1",
+          "triangles": 490,
+          "changedPixels": 211794,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "commercial_buildings/commercial_buildings.lod1.glb",
+          "source_sha256": "1904c8db706ed82debeabaefefabfbc2791298d59222539b592aab970eb89670"
+        },
+        {
+          "asset": "commercial_buildings",
+          "lod": "lod2",
+          "triangles": 96,
+          "changedPixels": 209978,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "commercial_buildings/commercial_buildings.lod2.glb",
+          "source_sha256": "1f2290ef1c23ea1945586f87a7cccf1c19504c9eadf7cbc0f9cd3f1ef365017e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "factory_industrial_facility",
+      "lods": [
+        {
+          "asset": "factory_industrial_facility",
+          "lod": "lod0",
+          "triangles": 4739,
+          "changedPixels": 147426,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "factory_industrial_facility/factory_industrial_facility.glb",
+          "source_sha256": "2c2086ff2f359b72429b2ecad8e0e46767b5bd6271a051f9a6e5c5cd3d03a385"
+        },
+        {
+          "asset": "factory_industrial_facility",
+          "lod": "lod1",
+          "triangles": 390,
+          "changedPixels": 147426,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "factory_industrial_facility/factory_industrial_facility.lod1.glb",
+          "source_sha256": "2b7a8b65c278e93a6997f36b8c28db6cee6a9d16ff72dee7947c90c1b228b878"
+        },
+        {
+          "asset": "factory_industrial_facility",
+          "lod": "lod2",
+          "triangles": 140,
+          "changedPixels": 145537,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "factory_industrial_facility/factory_industrial_facility.lod2.glb",
+          "source_sha256": "f0190e9b126a203a51a556f29c77ab45c2a4b0f9c58548d70cb290ef1ae8a87e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "natural_gas_plant",
+      "lods": [
+        {
+          "asset": "natural_gas_plant",
+          "lod": "lod0",
+          "triangles": 17234,
+          "changedPixels": 142900,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "natural_gas_plant/natural_gas_plant.glb",
+          "source_sha256": "649035aed933081ffc515c19612f1f4b8ac02b4fb36839b8db3c976a639f9531"
+        },
+        {
+          "asset": "natural_gas_plant",
+          "lod": "lod1",
+          "triangles": 4206,
+          "changedPixels": 142914,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "natural_gas_plant/natural_gas_plant.lod1.glb",
+          "source_sha256": "cdc1132d3917ef78320866c66467eac2334b773d43a066f013c86c09382f121f"
+        },
+        {
+          "asset": "natural_gas_plant",
+          "lod": "lod2",
+          "triangles": 252,
+          "changedPixels": 141397,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "natural_gas_plant/natural_gas_plant.lod2.glb",
+          "source_sha256": "67a72bbeba30a74797a53b10b12c1465b09094ba1691d70bbfa8af7955571201"
+        }
+      ]
+    },
+    {
+      "archetype_id": "wind_turbine",
+      "lods": [
+        {
+          "asset": "wind_turbine",
+          "lod": "lod0",
+          "triangles": 8712,
+          "changedPixels": 15793,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "wind_turbine/wind_turbine.glb",
+          "source_sha256": "780e3aeb8957193fc177a1e3e562a69644067c4d99970c09185e042add5309c9"
+        },
+        {
+          "asset": "wind_turbine",
+          "lod": "lod1",
+          "triangles": 1692,
+          "changedPixels": 15708,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "wind_turbine/wind_turbine.lod1.glb",
+          "source_sha256": "1fa507dec4bd89ae2df82f7d4a1a86e190d0121730e8d8e04fadedc49e66f3d3"
+        },
+        {
+          "asset": "wind_turbine",
+          "lod": "lod2",
+          "triangles": 360,
+          "changedPixels": 14259,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "wind_turbine/wind_turbine.lod2.glb",
+          "source_sha256": "81e99a96fe8e62955fc4aa651d13688146b9e7df03e0a7740789665660157c0e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "solar_array",
+      "lods": [
+        {
+          "asset": "solar_array",
+          "lod": "lod0",
+          "triangles": 20516,
+          "changedPixels": 164492,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "solar_array/solar_array.glb",
+          "source_sha256": "3de74c38c6fe2f55dc0e8306b6bbb26174155f3327a02bd1b846404154a9a47f"
+        },
+        {
+          "asset": "solar_array",
+          "lod": "lod1",
+          "triangles": 3596,
+          "changedPixels": 164492,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "solar_array/solar_array.lod1.glb",
+          "source_sha256": "e884c0fb414e05eba200ca4c66635458ae76aed91458d627403373364a7d4d71"
+        },
+        {
+          "asset": "solar_array",
+          "lod": "lod2",
+          "triangles": 596,
+          "changedPixels": 163212,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "solar_array/solar_array.lod2.glb",
+          "source_sha256": "02745663fed4e1fefa24d4523bad598147e07932026407a1ec48a7535baf528e"
+        }
+      ]
+    },
+    {
+      "archetype_id": "battery_storage",
+      "lods": [
+        {
+          "asset": "battery_storage",
+          "lod": "lod0",
+          "triangles": 17008,
+          "changedPixels": 129824,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "battery_storage/battery_storage.glb",
+          "source_sha256": "c5fae700b6407f8453f9f36ba43216796117e77d36cb394b43e9b91f2eba775c"
+        },
+        {
+          "asset": "battery_storage",
+          "lod": "lod1",
+          "triangles": 1712,
+          "changedPixels": 129817,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "battery_storage/battery_storage.lod1.glb",
+          "source_sha256": "af1b06fee5c546a9bba5714f8b815065a034a78712b41d830187c2b2f9064e67"
+        },
+        {
+          "asset": "battery_storage",
+          "lod": "lod2",
+          "triangles": 644,
+          "changedPixels": 128682,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "battery_storage/battery_storage.lod2.glb",
+          "source_sha256": "18ff1910193591e04d53c7463b372b681a73755181e2cd533cd94e195c91cd3f"
+        }
+      ]
+    },
+    {
+      "archetype_id": "warehouse_logistics_center",
+      "lods": [
+        {
+          "asset": "warehouse_logistics_center",
+          "lod": "lod0",
+          "triangles": 5724,
+          "changedPixels": 135321,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "warehouse_logistics_center/warehouse_logistics_center.glb",
+          "source_sha256": "3a9f96ab336eb552df946b2c615045122d16fc4f825cd7141ae713571d3dcca4"
+        },
+        {
+          "asset": "warehouse_logistics_center",
+          "lod": "lod1",
+          "triangles": 516,
+          "changedPixels": 135321,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "warehouse_logistics_center/warehouse_logistics_center.lod1.glb",
+          "source_sha256": "fb9b222b9d51bfb7a6c284d3036e07d20cd5119f5fb661cd870c8e3b765c4dc8"
+        },
+        {
+          "asset": "warehouse_logistics_center",
+          "lod": "lod2",
+          "triangles": 180,
+          "changedPixels": 133106,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "warehouse_logistics_center/warehouse_logistics_center.lod2.glb",
+          "source_sha256": "1300427cf5deea1193ccfa77a4076f228fc79d194e0446a144811576726200b9"
+        }
+      ]
+    },
+    {
+      "archetype_id": "ev_charging_station",
+      "lods": [
+        {
+          "asset": "ev_charging_station",
+          "lod": "lod0",
+          "triangles": 4068,
+          "changedPixels": 117907,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "ev_charging_station/ev_charging_station.glb",
+          "source_sha256": "9169ee6ce6e7435601d97f07841f2439d3b47937b12c9c632456bed39d0cb918"
+        },
+        {
+          "asset": "ev_charging_station",
+          "lod": "lod1",
+          "triangles": 588,
+          "changedPixels": 117907,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "ev_charging_station/ev_charging_station.lod1.glb",
+          "source_sha256": "6099f44bff892da5f0219f9ee4b1e72f64630e434cc42d70cff92ea70781e7b7"
+        },
+        {
+          "asset": "ev_charging_station",
+          "lod": "lod2",
+          "triangles": 168,
+          "changedPixels": 116394,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "ev_charging_station/ev_charging_station.lod2.glb",
+          "source_sha256": "5215f933efc90c65dff06f8d9d336e25a97604f93c1836fc2f0ac04d30c51a1c"
+        }
+      ]
+    },
+    {
+      "archetype_id": "school_emergency_services",
+      "lods": [
+        {
+          "asset": "school_emergency_services",
+          "lod": "lod0",
+          "triangles": 9524,
+          "changedPixels": 141037,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "school_emergency_services/school_emergency_services.glb",
+          "source_sha256": "ddd3af4fd82de6ec70650d37b604eae2e8643fb860db6e87530cb072351dd786"
+        },
+        {
+          "asset": "school_emergency_services",
+          "lod": "lod1",
+          "triangles": 1448,
+          "changedPixels": 141036,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "school_emergency_services/school_emergency_services.lod1.glb",
+          "source_sha256": "af4465e30090e29972d01649b552c76e134fbe4533dd17f97a296773e5c7c3de"
+        },
+        {
+          "asset": "school_emergency_services",
+          "lod": "lod2",
+          "triangles": 320,
+          "changedPixels": 139537,
+          "modelLayerCount": 1,
+          "errors": [],
+          "source_file": "school_emergency_services/school_emergency_services.lod2.glb",
+          "source_sha256": "bdcf85306c98b2f1defaed1f8ce4fd0840b21c307388c0408779ff054e0b8b05"
+        }
+      ]
+    }
+  ],
+  "checks": {
+    "transformsAndMaterials": {
+      "north": true,
+      "east": true,
+      "up": true,
+      "groundOrigin": true,
+      "geometryBytesUnchanged": true,
+      "neutralByteIdentical": true,
+      "onlyStatusMaterialChanged": true,
+      "hasTransparentShell": true,
+      "hasEmissiveAccent": true,
+      "rejectsInheritedStatus": true,
+      "rejectsUnlabelledAcceptedPlacement": true
+    },
+    "statusHeadingPitchRotate": true,
+    "regionalSymbolsNoScenegraph": true,
+    "distinctRegionalIdentities": true,
+    "nativeMapLibreSprites": true,
+    "persistentLod2Identity": true,
+    "interleaved": true,
+    "manifestUnchangedDuringRun": true
+  },
+  "errors": [],
+  "success": true
+}
