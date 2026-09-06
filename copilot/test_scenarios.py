@@ -296,7 +296,9 @@ def test_detail_missing_database_file_is_the_shared_unavailable_envelope(
     tmp_path: Path,
 ) -> None:
     """The detail route has its own unavailable state, not only the catalog's."""
-    response = _client(tmp_path / "missing.duckdb").get("/scenarios/mn_winter_2023_snow")
+    response = _client(tmp_path / "missing.duckdb").get(
+        "/scenarios/mn_winter_2023_snow"
+    )
 
     assert response.status_code == 503
     body = response.json()
