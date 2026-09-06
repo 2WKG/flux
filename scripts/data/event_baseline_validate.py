@@ -163,10 +163,12 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
     event = _require(bundle, "event", source)
     if not isinstance(event, dict):
         raise ValidationError(f"{source}.event: expected object")
-    for field in ("event_id", "parent_system_id", "primary_hazard", "secondary_hazards", "compound", "context_window", "event_window", "recovery_window", "disposition", "selection_basis", "uncertainties"):
+    for field in ("event_id", "parent_system_id", "primary_hazard", "secondary_hazards", "compound", "source_event_ids", "context_window", "event_window", "recovery_window", "disposition", "selection_basis", "uncertainties"):
         _require(event, field, f"{source}.event")
     _identifier(event["event_id"], f"{source}.event.event_id")
     _identifier(event["parent_system_id"], f"{source}.event.parent_system_id")
+    if not isinstance(event["source_event_ids"], list) or not all(isinstance(value, str) and value for value in event["source_event_ids"]):
+        raise ValidationError(f"{source}.event.source_event_ids: expected source event ID list")
     if event["disposition"] not in DISPOSITIONS:
         raise ValidationError(f"{source}.event.disposition: invalid disposition")
     if bool(event["secondary_hazards"]) != bool(event["compound"]):
@@ -234,19 +236,38 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
             if not isinstance(coverage, dict) or coverage.get("coverage") not in {"covered", "uncovered", "UncoveredLabel"}:
                 raise ValidationError(f"{prefix}.{coverage_name}: invalid coverage state")
             _receipt_ids(coverage.get("source_receipt_ids"), known_receipts, f"{prefix}.{coverage_name}.source_receipt_ids", required=record["disposition"] == "accepted")
-            for field in ("expected_samples", "observed_samples", "missing_timestamps", "notes"):
+            for field in ("evidence_kind", "observation_kind", "expected_samples", "observed_samples", "missing_timestamps", "event_report", "notes"):
                 _require(coverage, field, f"{prefix}.{coverage_name}")
             expected, observed, missing = coverage["expected_samples"], coverage["observed_samples"], coverage["missing_timestamps"]
             if not isinstance(missing, list):
                 raise ValidationError(f"{prefix}.{coverage_name}.missing_timestamps: expected list")
             for timestamp in missing:
                 _utc(timestamp, f"{prefix}.{coverage_name}.missing_timestamps")
-            if coverage["coverage"] == "covered":
-                if not isinstance(expected, int) or expected <= 0 or observed != expected or missing:
+            kind, observation = coverage["evidence_kind"], coverage["observation_kind"]
+            if kind == "time_series_or_grid":
+                if observation not in {"observed", "modeled"} or coverage["event_report"] is not None:
+                    raise ValidationError(f"{prefix}.{coverage_name}: sampled/grid evidence needs observed or modeled kind and no event_report")
+                if coverage["coverage"] == "covered" and (not isinstance(expected, int) or expected <= 0 or observed != expected or missing):
                     raise ValidationError(f"{prefix}.{coverage_name}: covered requires complete expected/observed samples and no gaps")
-            elif expected is not None and (not isinstance(observed, int) or observed > expected):
+            elif kind == "authoritative_event_report":
+                report = coverage["event_report"]
+                if observation != "observed" or expected is not None or observed is not None or missing:
+                    raise ValidationError(f"{prefix}.{coverage_name}: event report cannot fabricate sample counts")
+                if not isinstance(report, dict) or report.get("spatial_scope") not in {"county", "zone"}:
+                    raise ValidationError(f"{prefix}.{coverage_name}: report evidence requires county or zone scope")
+                report_start, report_end = _window(report.get("source_window"), f"{prefix}.{coverage_name}.event_report.source_window")
+                if report_end <= start or report_start >= end:
+                    raise ValidationError(f"{prefix}.{coverage_name}: report interval must intersect county window")
+            elif kind == "not_assessed":
+                if observation != "not_applicable" or expected is not None or observed is not None or missing or coverage["event_report"] is not None:
+                    raise ValidationError(f"{prefix}.{coverage_name}: not_assessed evidence must not claim samples or report coverage")
+            else:
+                raise ValidationError(f"{prefix}.{coverage_name}: invalid evidence kind")
+            if kind != "authoritative_event_report" and expected is not None and (not isinstance(observed, int) or observed > expected):
                 raise ValidationError(f"{prefix}.{coverage_name}: observed samples may not exceed expected samples")
         weather_state, outage_state = record["weather"]["coverage"], record["outage"]["coverage"]
+        if record["disposition"] == "accepted" and record["outage"]["evidence_kind"] != "time_series_or_grid":
+            raise ValidationError(f"{prefix}.outage: outage labels require time_series_or_grid evidence")
         if record["disposition"] == "accepted" and (weather_state != "covered" or outage_state != "covered" or record["matched_coverage_decision"] != "matched"):
             raise ValidationError(f"{prefix}: accepted requires matched covered weather and outage evidence")
         if outage_state == "UncoveredLabel" and record["disposition"] == "accepted":

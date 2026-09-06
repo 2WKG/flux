@@ -61,9 +61,23 @@ cannot have `disposition="accepted"` or a computed/accepted label.
 `covered` is a completeness claim, not merely a nonempty interval. For each
 selected county-window, record `expected_samples`, `observed_samples`, and
 `missing_timestamps`. An accepted row must have a positive expected count,
-equal observed and expected counts, and no missing timestamps for both weather
-and outage evidence. An hourly EAGLE-I six-hour window normally documents six
-samples, but record the actual expected cadence/count rather than assuming it.
+equal observed and expected counts, and no missing timestamps for EAGLE-I
+outage labels and any weather `time_series_or_grid` evidence. An hourly
+EAGLE-I six-hour window normally documents six samples, but record the actual
+expected cadence/count rather than assuming it.
+
+Weather evidence declares both `evidence_kind` and `observation_kind`.
+`time_series_or_grid` supplies the count-based completeness evidence above and
+is `observed` (for example, station measurements) or `modeled` (for example,
+event-valid HRRR analysis in replay). HRRR analysis is never presented as an
+observed station series. `authoritative_event_report` does not manufacture
+one sample: it has null sample counts and instead requires source event IDs,
+the report's UTC interval, a county or zone scope identifier, and explicit
+limitations. The report interval must intersect the canonical county-window.
+Point gauges, regional narratives, and storm-track/advisory material retain
+their `point`, `regional`, or `track` scope and cannot by themselves prove
+county weather coverage. Use `not_assessed` when evidence has not been
+collected rather than inventing a row key or count.
 
 Coverage acceptance and label computation are distinct. A row can be accepted
 with observed outage coverage while its customer denominator is unavailable;

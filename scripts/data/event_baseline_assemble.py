@@ -11,10 +11,11 @@ from event_baseline_validate import ValidationError, load_and_validate
 
 
 FIELDS = [
-    "event_id", "parent_system_id", "primary_hazard", "secondary_hazards", "compound",
+    "event_id", "parent_system_id", "primary_hazard", "secondary_hazards", "source_event_ids", "compound",
     "event_disposition", "record_id", "county_fips", "boundary_vintage", "scenario_id",
     "window_start_utc", "window_end_utc", "record_disposition", "mode",
-    "weather_coverage", "outage_coverage", "matched_coverage_decision", "label_rule_version",
+    "weather_coverage", "weather_evidence_kind", "weather_observation_kind", "weather_expected_samples", "weather_observed_samples", "weather_missing_timestamps", "weather_event_report",
+    "outage_coverage", "outage_evidence_kind", "outage_observation_kind", "outage_expected_samples", "outage_observed_samples", "outage_missing_timestamps", "outage_event_report", "matched_coverage_decision", "label_rule_version",
     "label_status", "observed_outage_customers", "customer_denominator_status",
     "customer_denominator", "outage_rate", "positive", "provenance_receipt_ids",
     "source_evidence_status", "source_row_keys", "source_slices", "uncertainties", "exclusions",
@@ -39,13 +40,14 @@ def catalog_rows(events_dir: Path) -> list[dict[str, object]]:
             denominator = label["customer_denominator"]
             rows.append({
                 "event_id": event["event_id"], "parent_system_id": event["parent_system_id"],
-                "primary_hazard": event["primary_hazard"], "secondary_hazards": json_list(event["secondary_hazards"]),
+                "primary_hazard": event["primary_hazard"], "secondary_hazards": json_list(event["secondary_hazards"]), "source_event_ids": json_list(event["source_event_ids"]),
                 "compound": str(event["compound"]).lower(), "event_disposition": event["disposition"],
                 "record_id": record["record_id"], "county_fips": record["county_fips"],
                 "boundary_vintage": record["boundary_vintage"], "scenario_id": record["scenario_id"],
                 "window_start_utc": record["window_start_utc"], "window_end_utc": record["window_end_utc"],
                 "record_disposition": record["disposition"], "mode": record["mode"],
-                "weather_coverage": record["weather"]["coverage"], "outage_coverage": record["outage"]["coverage"],
+                "weather_coverage": record["weather"]["coverage"], "weather_evidence_kind": record["weather"]["evidence_kind"], "weather_observation_kind": record["weather"]["observation_kind"], "weather_expected_samples": record["weather"]["expected_samples"], "weather_observed_samples": record["weather"]["observed_samples"], "weather_missing_timestamps": json_list(record["weather"]["missing_timestamps"]), "weather_event_report": json_list(record["weather"]["event_report"]),
+                "outage_coverage": record["outage"]["coverage"], "outage_evidence_kind": record["outage"]["evidence_kind"], "outage_observation_kind": record["outage"]["observation_kind"], "outage_expected_samples": record["outage"]["expected_samples"], "outage_observed_samples": record["outage"]["observed_samples"], "outage_missing_timestamps": json_list(record["outage"]["missing_timestamps"]), "outage_event_report": json_list(record["outage"]["event_report"]),
                 "matched_coverage_decision": record["matched_coverage_decision"], "label_rule_version": label["rule_version"],
                 "label_status": label["status"], "observed_outage_customers": label["observed_outage_customers"],
                 "customer_denominator_status": denominator["status"], "customer_denominator": denominator["value"],
