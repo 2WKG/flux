@@ -22,6 +22,7 @@ from copilot.config import Settings, load_settings
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.comparisons import router as comparisons_router
+from copilot.routes.explainer import router as explainer_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
@@ -75,6 +76,7 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(explainer_router)
     return app
 
 

@@ -50,7 +50,8 @@ export const ROUTES: readonly Route[] = [
     label: "How the math works",
     title: "Flux | How the math works",
     truthLabels: ["synthetic", "unavailable"],
-    truthNote: "This page describes the method only; no model runs in this build.",
+    truthNote:
+      "A synthetic five-bus teaching cascade solved on the server by twin/toy_cascade.py and replayed here; it is not a grid study and not the product's solver.",
   },
   {
     id: "minnesota",
