@@ -167,6 +167,16 @@ def test_published_runtime_is_the_only_pinned_model_binary_location(
         for error in validate_published_runtime(tmp_path, catalog)
     )
 
+    # An added binary under the otherwise authorized runtime root is still not
+    # allowed: the inventory is an exact 54-file set, not a directory permit.
+    stray.unlink()
+    extra = tmp_path / "web/public/assets/flux-grid/hospital/extra.glb"
+    extra.write_bytes(b"glTF")
+    assert any(
+        "outside published runtime location" in error
+        for error in validate_published_runtime(tmp_path, catalog)
+    )
+
 
 def test_import_invariants_are_pinned_not_merely_described():
     catalog = _catalog()
