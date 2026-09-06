@@ -309,11 +309,13 @@ def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[objec
     if policy.cascade is not None:
         return _invoke(policy.cascade, net=net, scenario_id=scenario_id, hour=hour, edits=edits)
     runner = _find_callable(net, "run_cascade") or _import_callable("twin.cascade", "run_cascade")
-    apply = _import_callable("twin.edits", "apply_edits")
-    if runner is None or apply is None:
+    if runner is None:
         raise SearchUnavailable("cascade counterfactual interface is unavailable")
-    edited = _invoke(apply, net=net, edits=edits)
-    return _invoke(runner, net=edited, scenario_id=scenario_id, hour=hour)
+    # ``twin.cascade.run_cascade`` owns immutable application of the ordered
+    # edits.  Passing a pre-edited net would apply every edit twice.  Its
+    # current primitive is a single synthetic snapshot; richer scenario/window
+    # adapters receive ``scenario_id`` and ``hour`` through the injected path.
+    return _invoke(runner, net=net, edits=edits)
 
 
 def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_mw: float, policy: SearchAdapters) -> object:
