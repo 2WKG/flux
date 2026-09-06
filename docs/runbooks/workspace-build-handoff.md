@@ -40,7 +40,9 @@ This runbook was written for the Texas line and is restated here for Minnesota.
 Uri/Beryl/Helene scenarios, ACTIVSg2000 topology, and Texas/NY site framing
 wherever they govern the Minnesota demo, so read every Texas-era sentence in
 this document as build-and-verification procedure only, never as accepted
-geography or data.
+geography or data. The Minnesota evidence and delivery boundary itself is owned
+by [`minnesota-demo-handoff.md`](minnesota-demo-handoff.md); the points below
+say only what that boundary means for *this* build-and-handoff document.
 
 - **Aggregate only; no topology.** The network decision gate in spec 10 has not
   produced an accepted source decision record, so aggregate mode is what this
