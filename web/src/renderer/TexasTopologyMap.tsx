@@ -10,7 +10,7 @@ import Map, { NavigationControl } from "react-map-gl/maplibre";
 import { OFFLINE_BASEMAP_STYLE } from "./basemap";
 import { DeckOverlay } from "./DeckOverlay";
 import { loadFluxGridPlacements, type AssetPlacementBounds } from "../data/flux-grid-assets";
-import { createFluxAssetLayers, FluxAssetCache, loadFluxGroups, type FluxAssetManifest, type FluxPlacement, type LoadedFluxGroup } from "../map/layers/fluxGridAssets";
+import { createFluxAssetLayers, FluxAssetCache, loadFluxGroups, lodForZoom, type FluxAssetManifest, type FluxPlacement, type LoadedFluxGroup } from "../map/layers/fluxGridAssets";
 
 type Position = readonly [number, number];
 export type TexasModelElement = Readonly<{
@@ -84,6 +84,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const [assetSource, setAssetSource] = useState<AssetSource | null>(null);
   const [assets, setAssets] = useState<AssetOverlay | null>(null);
   const cache = useRef<FluxAssetCache | null>(null);
+  const lod = lodForZoom(zoom);
   useEffect(() => {
     cache.current = new FluxAssetCache("/assets/flux-grid/");
     return () => { cache.current?.dispose(); cache.current = null; };
@@ -112,7 +113,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
       .then((groups) => { if (!controller.signal.aborted) setAssets({ placements: assetSource.placements, groups }); })
       .catch(() => { if (!controller.signal.aborted) setAssets(null); });
     return () => controller.abort();
-  }, [assetSource, zoom]);
+  }, [assetSource, lod]);
   const layers = useMemo<LayersList>(() => [
     new PathLayer<Line>({ id: "texas-model-branches", data: lines, getPath: (line) => line.path as Position[],
       getColor: [74, 222, 128, 170], getWidth: 1.5, widthUnits: "pixels", pickable: true }),
@@ -126,7 +127,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   ], [assets, buses, generators, lines, loads, zoom]);
   if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
   return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"} data-visual-lod={zoom >= 17 ? "lod0" : zoom >= 15 ? "lod1" : zoom >= 12 ? "lod2" : "symbol"} data-map-zoom={zoom.toFixed(2)}>
-    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onZoom={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
+    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onLoad={(event) => setZoom(event.target.getZoom())} onMoveEnd={(event) => setZoom(event.viewState.zoom)} onZoomEnd={(event) => setZoom(event.target.getZoom())} onError={(event) => setError(event.error.message)}>
       <NavigationControl position="top-right" showCompass />
       <DeckOverlay layers={layers} />
     </Map>
