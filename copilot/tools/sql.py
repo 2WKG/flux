@@ -1,10 +1,11 @@
 """Fail-closed, bounded SQL reads for accepted Minnesota artifacts.
 
-The model-facing SQL contract deliberately has only a query string.  Deployment
-code supplies the separate, trusted list of Minnesota views and their evidence;
-this module never discovers tables or turns the ``mn_*`` storage relations into
-an allowlist.  Until an artifact publisher registers views, calls therefore
-return the normal unavailable result.
+The model-facing contract accepts either a legacy query string or an approved
+deployment template id. Deployment code supplies the trusted list of Minnesota
+views, evidence, and optional fixed templates; this module never discovers
+tables or turns the ``mn_*`` storage relations into an allowlist. Until an
+artifact publisher registers views, calls therefore return the normal
+unavailable result.
 """
 
 from __future__ import annotations
@@ -93,6 +94,19 @@ def _is_safe_view_name(value: str) -> bool:
         bool(value)
         and (value[0].isalpha() or value[0] == "_")
         and all(character.isalnum() or character == "_" for character in value)
+    )
+
+
+def _is_template_id(value: str) -> bool:
+    """Match the public ``SqlInput.template_id`` ASCII identifier contract."""
+    return (
+        bool(value)
+        and len(value) <= 64
+        and "a" <= value[0] <= "z"
+        and all(
+            "a" <= character <= "z" or "0" <= character <= "9" or character == "_"
+            for character in value
+        )
     )
 
 
@@ -278,8 +292,8 @@ class ApprovedMinnesotaQuery:
     relations: frozenset[str]
 
     def __post_init__(self) -> None:
-        if not _is_safe_view_name(self.name):
-            raise ValueError("approved query names must be simple identifiers")
+        if not _is_template_id(self.name):
+            raise ValueError("approved query names must match the template_id contract")
         if not self.relations or any(
             not _is_safe_view_name(name) for name in self.relations
         ):
@@ -377,9 +391,10 @@ class MinnesotaSqlExecutor:
     async def execute(self, request: SqlInput | str) -> SqlData | UnavailableOutput:
         """Return a bounded result or an explicit unavailable envelope.
 
-        The generated row limit is a bound parameter.  The caller never gets a
-        parameter dictionary because the public ``SqlInput`` contract has only
-        ``query``; submitted placeholders are rejected instead of guessed.
+        The generated row limit is a bound parameter. The caller never gets a
+        parameter dictionary because the public ``SqlInput`` contract does not
+        yet expose bound values; submitted placeholders are rejected instead
+        of guessed.
         """
 
         try:
