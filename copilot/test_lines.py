@@ -1,4 +1,10 @@
-"""HTTP checks for the persisted, paged line-upgrade read."""
+"""HTTP checks for the persisted, paged line-upgrade read.
+
+Fixtures are built through `pipelines.db.connect` (real `ensure_schema` DDL,
+with its primary keys, foreign keys, CHECKs and NOT NULLs) so a column rename or
+constraint change in `pipelines/db.py` fails this suite instead of leaving a
+hand-typed shadow schema green, exactly as `copilot/test_tools_lines.py` does.
+"""
 
 from pathlib import Path
 
@@ -7,6 +13,8 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
+from copilot.persisted_fixtures import persisted_lines_database
+from copilot.tools.schemas import TOP_LINES_MAX_LIMIT
 
 
 def _client(path: Path) -> TestClient:
@@ -14,30 +22,7 @@ def _client(path: Path) -> TestClient:
 
 
 def _database(path: Path) -> None:
-    with duckdb.connect(str(path)) as con:
-        con.execute(
-            "CREATE TABLE lines (line_id BIGINT, from_bus BIGINT, to_bus BIGINT, base_kv DOUBLE)"
-        )
-        con.execute(
-            "CREATE TABLE line_upgrade_scores (line_id BIGINT, scenario_id TEXT, ranking_version TEXT, computed_at TIMESTAMP, source_name TEXT, source_ref TEXT, source_kind TEXT, mw_per_musd DOUBLE, congestion_usd_yr DOUBLE, dlr_uplift_mw DOUBLE, reconductor_uplift_mw DOUBLE, dlr_cost_usd DOUBLE, reconductor_cost_usd DOUBLE, ferc_screen_pass BOOLEAN, spark_eligible BOOLEAN, simulation_run_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE line_upgrade_detail (line_id BIGINT, scenario_id TEXT, region TEXT, best_tech TEXT, congestion_method TEXT)"
-        )
-        for line_id, score, cost in (
-            (10, 20.0, 2_000_000.0),
-            (11, 20.0, 1_000_000.0),
-            (12, 10.0, 1_000_000.0),
-        ):
-            con.execute("INSERT INTO lines VALUES (?, 1, 2, 230)", [line_id])
-            con.execute(
-                "INSERT INTO line_upgrade_scores VALUES (?, 'mn_fixture', 'v1', '2026-01-01', 'fixture', 'line-test', 'fixture', ?, 1, 10, 9, ?, 3, true, false, NULL)",
-                [line_id, score, cost],
-            )
-            con.execute(
-                "INSERT INTO line_upgrade_detail VALUES (?, 'mn_fixture', 'MN', 'dlr', 'exact')",
-                [line_id],
-            )
+    persisted_lines_database(path)
 
 
 def test_top_lines_reads_a_deterministic_persisted_page(tmp_path: Path) -> None:
@@ -80,3 +65,16 @@ def test_top_lines_rejects_invalid_page_bounds(tmp_path: Path) -> None:
     )
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "invalid_input"
+
+    # The HTTP page may not exceed the model-facing tool bound for the same read.
+    over_tool_bound = _client(database).get(
+        "/lines/top", params={"region": "MN", "limit": TOP_LINES_MAX_LIMIT + 1}
+    )
+    assert over_tool_bound.status_code == 422
+    assert over_tool_bound.json()["error"]["code"] == "invalid_input"
+    assert (
+        _client(database)
+        .get("/lines/top", params={"region": "MN", "limit": TOP_LINES_MAX_LIMIT})
+        .status_code
+        == 200
+    )

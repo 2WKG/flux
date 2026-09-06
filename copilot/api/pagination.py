@@ -13,11 +13,21 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
+from copilot.api.errors import InvalidInputError
+
 DEFAULT_PAGE_LIMIT = 50
 """Rows returned when a route accepts pagination and no limit is supplied."""
 
 MAX_PAGE_LIMIT = 100
-"""Largest page a public read route may return."""
+"""Default page cap for a route that adopts this helper without its own bound.
+
+This is a default, not a repo-wide ceiling. A route whose page size is already
+pinned by the specs keeps that spec'd bound and passes it as
+``PageRequest(max_limit=...)``; ``GET /predictions`` is the shipped example
+(``MAX_PREDICTIONS = 1000``, ``docs/specs/00-overview.md`` §4.2). A route may
+only lower or raise this default through ``max_limit``; it must never accept a
+limit it has not declared.
+"""
 
 MAX_PAGE_OFFSET = 10_000
 """Largest public offset, limiting an individual scan to a bounded window."""
@@ -38,16 +48,27 @@ class PageRequest:
 
     limit: int = DEFAULT_PAGE_LIMIT
     offset: int = 0
+    max_limit: int = MAX_PAGE_LIMIT
 
     def __post_init__(self) -> None:
+        if isinstance(self.max_limit, bool) or not isinstance(self.max_limit, int):
+            raise TypeError("max_limit must be an integer")
+        if self.max_limit < 1:
+            raise ValueError("max_limit must be at least 1")
         if isinstance(self.limit, bool) or not isinstance(self.limit, int):
             raise TypeError("limit must be an integer")
-        if not 1 <= self.limit <= MAX_PAGE_LIMIT:
-            raise ValueError(f"limit must be between 1 and {MAX_PAGE_LIMIT}")
+        if not 1 <= self.limit <= self.max_limit:
+            raise InvalidInputError(
+                f"limit must be between 1 and {self.max_limit}",
+                details={"field": "limit"},
+            )
         if isinstance(self.offset, bool) or not isinstance(self.offset, int):
             raise TypeError("offset must be an integer")
         if not 0 <= self.offset <= MAX_PAGE_OFFSET:
-            raise ValueError(f"offset must be between 0 and {MAX_PAGE_OFFSET}")
+            raise InvalidInputError(
+                f"offset must be between 0 and {MAX_PAGE_OFFSET}",
+                details={"field": "offset"},
+            )
 
     @property
     def sql_parameters(self) -> tuple[int, int]:

@@ -1,3 +1,12 @@
+"""HTTP checks for the persisted site-score and comparison reads.
+
+Fixtures are built through `pipelines.db.connect` (real `ensure_schema` DDL) and
+`pipelines.minnesota_schema.ensure_minnesota_schema`, so a column rename or
+constraint change in either contract fails this suite instead of leaving a
+hand-typed shadow schema green.  `copilot/test_tools_lines.py` states the same
+rule for the line-upgrade reader.
+"""
+
 import json
 from pathlib import Path
 
@@ -6,6 +15,7 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
+from copilot.persisted_fixtures import persisted_site_database
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 
@@ -13,21 +23,8 @@ def client(path: Path) -> TestClient:
     return TestClient(create_app(Settings(duckdb_path=path)))
 
 
-def db(path: Path) -> None:
-    con = duckdb.connect(str(path))
-    con.execute(
-        "CREATE TABLE site_candidates (site_id BIGINT,name TEXT,kind TEXT,county_fips TEXT,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
-    )
-    con.execute(
-        "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE,model_mode TEXT,limitations_json JSON,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
-    )
-    con.execute(
-        "INSERT INTO site_candidates VALUES (1,'fixture site','coal_retired','27001','fixture:site','test','1','2026-01-01','batch')"
-    )
-    con.execute(
-        "INSERT INTO site_scores VALUES (1,'mn_fixture',300,10,'[]',2,3,4,5,'topology','[\"fixture limitation\"]','fixture:site-score','site-score-test','1','2026-01-01','batch')"
-    )
-    con.close()
+def db(path: Path, **kwargs: object) -> None:
+    persisted_site_database(Path(path), **kwargs)  # type: ignore[arg-type]
 
 
 def score_artifact(
@@ -140,6 +137,7 @@ def test_site_read_is_server_side_and_unqualified_comparison_is_unavailable(
     assert response.json()["model_mode"] == "topology"
     assert response.json()["limitations"] == ["fixture limitation"]
     assert response.json()["source_kind"] == "fixture"
+    assert response.json()["artifact_id"] == "mn:score:site-1"
     assert (
         response.json()["provenance"]["site_score"]["source_name"]
         == "fixture:site-score"
@@ -440,9 +438,7 @@ def test_malformed_safety_flags_fail_closed(tmp_path: Path):
 
 def test_site_score_rejects_aggregate_outcomes(tmp_path: Path):
     p = tmp_path / "x.duckdb"
-    db(p)
-    with duckdb.connect(str(p)) as con:
-        con.execute("UPDATE site_scores SET model_mode='aggregate'")
+    db(p, model_mode="aggregate")
     response = client(p).post(
         "/site-score",
         json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
@@ -452,11 +448,109 @@ def test_site_score_rejects_aggregate_outcomes(tmp_path: Path):
 
 
 def test_site_score_without_persisted_outcome_is_unavailable(tmp_path: Path):
+    """A persisted site with no score for this scenario/unit is a 503, retryable."""
+
+    p = tmp_path / "x.duckdb"
+    db(p)
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 1000, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "no_persisted_outcome"
+
+
+def test_unknown_site_is_not_found_rather_than_retryable(tmp_path: Path):
+    """A site that is not persisted at all is permanent: 404, never a retry loop."""
+
     p = tmp_path / "x.duckdb"
     db(p)
     response = client(p).post(
         "/site-score",
         json={"site_id": "99", "unit_mw": 300, "scenario_id": "mn_fixture"},
     )
+    assert response.status_code == 404
+    body = response.json()
+    assert body["status"] == "error"
+    assert body["error"]["code"] == "not_found"
+    assert body["error"]["retryable"] is False
+    assert body["error"]["details"]["site_id"] == "99"
+    assert response.headers["X-Flux-Api-Version"] == "v1"
+
+
+def test_outcome_metadata_comes_from_the_manifest_not_from_site_scores(tmp_path: Path):
+    """The route must not read model metadata from a column the DDL lacks.
+
+    `pipelines/db.py` SCHEMA_VERSION 2.1.0 defines no `site_scores.model_mode`
+    and no `site_scores.limitations_json`; both live on the artifact manifest.
+    A real-DDL database with a qualified outcome must therefore answer 200, and
+    an outcome whose manifest is absent must say so by name.
+    """
+
+    with_manifest = tmp_path / "with.duckdb"
+    db(with_manifest)
+    columns = {
+        row[1]
+        for row in duckdb.connect(str(with_manifest))
+        .execute("PRAGMA table_info('site_scores')")
+        .fetchall()
+    }
+    assert "model_mode" not in columns
+    assert "limitations_json" not in columns
+    assert (
+        client(with_manifest)
+        .post(
+            "/site-score",
+            json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+        )
+        .status_code
+        == 200
+    )
+
+    without_manifest = tmp_path / "without.duckdb"
+    db(without_manifest, with_manifest=False)
+    response = client(without_manifest).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
     assert response.status_code == 503
-    assert response.json()["error"]["details"]["reason"] == "no_persisted_outcome"
+    assert (
+        response.json()["error"]["details"]["reason"] == "outcome_metadata_unavailable"
+    )
+
+
+def test_declared_unavailable_outcome_metadata_is_named(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p, model_mode="not_applicable", availability="unavailable")
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "artifact_unavailable"
+
+
+def test_missing_provenance_is_named_rather_than_served(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p)
+    with duckdb.connect(str(p)) as con:
+        con.execute("UPDATE site_scores SET source_ref=''")
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "provenance_missing"
+
+
+def test_underivable_topology_label_is_unavailable_not_a_null_in_a_200(tmp_path: Path):
+    """The sibling GET /cascade contract forbids serving a null label in a 200."""
+
+    p = tmp_path / "x.duckdb"
+    db(p, site_source_name="acme-registry", score_source_name="acme-scores")
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "topology_label_unavailable"

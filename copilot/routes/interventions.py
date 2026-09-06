@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from typing import Any, Literal
 
 import duckdb
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from copilot.api import UnavailableError
+from copilot.api import NotFoundError, UnavailableError
 from copilot.routes.scenarios import _derive_labels
 
 router = APIRouter(tags=["interventions"])
@@ -21,6 +22,21 @@ class SiteScoreRequest(BaseModel):
     site_id: str = Field(min_length=1, max_length=128)
     unit_mw: Literal[300, 1000]
     scenario_id: str = Field(min_length=1, max_length=128)
+
+    @property
+    def intervention_id(self) -> str:
+        """The persisted identity of this outcome: ``site:<site_id>@<unit_mw>``."""
+
+        return f"site:{self.site_id}@{self.unit_mw}"
+
+
+@dataclass(frozen=True)
+class _OutcomeMetadata:
+    """Model metadata read from the artifact manifest, not from ``site_scores``."""
+
+    artifact_id: str
+    model_mode: object
+    limitations_json: object
 
 
 def unavailable(reason: str, artifact: str = "site_scores") -> UnavailableError:
@@ -48,8 +64,6 @@ _SCORE_COLUMNS = (
     "lol_reduction_mwh",
     "congestion_relief_pct",
     "blackstart_reach_mw",
-    "model_mode",
-    "limitations_json",
     "source_name",
     "source_ref",
     "source_version",
@@ -90,16 +104,16 @@ def _json_string_list(value: object, field: str) -> list[str]:
 
 
 def _normalise_site_outcome(
-    row: tuple[Any, ...], request: SiteScoreRequest
+    row: tuple[Any, ...], request: SiteScoreRequest, outcome_metadata: _OutcomeMetadata
 ) -> dict[str, Any]:
     keys = tuple(f"site_{column}" for column in _SITE_COLUMNS) + tuple(
         f"score_{column}" for column in _SCORE_COLUMNS
     )
     result = dict(zip(keys, row, strict=True))
-    model_mode = result.pop("score_model_mode")
+    model_mode = outcome_metadata.model_mode
     if model_mode != "topology":
         raise unavailable("unsupported_model_mode")
-    limitations = _json_string_list(result.pop("score_limitations_json"), "limitations")
+    limitations = _json_string_list(outcome_metadata.limitations_json, "limitations")
     if not limitations:
         raise unavailable("invalid_persisted_outcome")
     result["site_id"] = str(result.pop("site_site_id"))
@@ -136,14 +150,69 @@ def _normalise_site_outcome(
         _derive_labels(item["source_name"], item["source_ref"])
         for item in provenance.values()
     ]
-    result["source_kind"] = next(
+    source_kind = next(
         (source_kind for source_kind, _ in labels if source_kind is not None), None
     )
+    if source_kind is None:
+        # The sibling GET /cascade contract answers 503 topology_label_unavailable
+        # rather than serving a null label inside a 200 body.
+        raise unavailable("topology_label_unavailable")
+    result["source_kind"] = source_kind
     result["topology"] = next(
         (topology for _, topology in labels if topology is not None), None
     )
+    result["artifact_id"] = outcome_metadata.artifact_id
     result["provenance"] = provenance
     return result
+
+
+def _outcome_metadata(
+    con: duckdb.DuckDBPyConnection, request: SiteScoreRequest
+) -> _OutcomeMetadata:
+    """Read the model metadata from the artifact manifest that owns the outcome.
+
+    ``model_mode`` and ``limitations_json`` are manifest columns
+    (``pipelines/minnesota_schema.py``); the ``site_scores`` contract
+    (``pipelines/db.py``, SCHEMA_VERSION 2.1.0) does not define them.  This is
+    the same JOIN-to-the-manifest shape ``copilot/routes/predictions.py`` uses
+    for a persisted cascade run and ``copilot/routes/comparisons.py`` uses for a
+    persisted comparison score.
+    """
+
+    try:
+        rows = con.execute(
+            """SELECT artifact_id, availability, model_mode, limitations_json
+                 FROM mn_artifact_manifests
+                WHERE artifact_kind='score' AND geography_id='mn'
+                  AND json_extract_string(identity_json, '$.source_identity.family')
+                      = 'site_score'
+                  AND json_extract_string(identity_json, '$.source_identity.scenario_id')
+                      = ?
+                  AND json_extract_string(
+                          identity_json, '$.source_identity.intervention_id') = ?
+                ORDER BY artifact_id ASC""",
+            [request.scenario_id, request.intervention_id],
+        ).fetchall()
+    except duckdb.CatalogException as exc:
+        raise unavailable(
+            "outcome_metadata_unavailable", "mn_artifact_manifests"
+        ) from exc
+    except duckdb.BinderException as exc:
+        raise unavailable("schema_mismatch", "mn_artifact_manifests") from exc
+    if not rows:
+        raise unavailable("outcome_metadata_unavailable", "mn_artifact_manifests")
+    if len(rows) > 1:
+        raise unavailable("ambiguous_identity", "mn_artifact_manifests")
+    artifact_id, availability, model_mode, limitations_json = rows[0]
+    if availability == "unavailable":
+        raise unavailable("artifact_unavailable", "mn_artifact_manifests")
+    if availability != "available":
+        raise unavailable("invalid_persisted_outcome", "mn_artifact_manifests")
+    return _OutcomeMetadata(
+        artifact_id=str(artifact_id),
+        model_mode=model_mode,
+        limitations_json=limitations_json,
+    )
 
 
 def read_site(path: str, request: SiteScoreRequest) -> dict[str, Any]:
@@ -157,21 +226,43 @@ def read_site(path: str, request: SiteScoreRequest) -> dict[str, Any]:
                 """SELECT c.site_id,c.name,c.kind,c.county_fips,
                           c.source_name,c.source_ref,c.source_version,c.source_retrieved_at,c.fixture_batch_id,
                           s.safety_score,s.safety_flags_json,s.grid_value_score,s.lol_reduction_mwh,
-                          s.congestion_relief_pct,s.blackstart_reach_mw,s.model_mode,s.limitations_json,
+                          s.congestion_relief_pct,s.blackstart_reach_mw,
                           s.source_name,s.source_ref,s.source_version,s.source_retrieved_at,s.fixture_batch_id
                    FROM site_candidates c JOIN site_scores s USING(site_id)
                    WHERE s.site_id=? AND s.scenario_id=? AND s.unit_mw=?""",
                 [request.site_id, request.scenario_id, request.unit_mw],
             ).fetchone()
         except duckdb.BinderException as exc:
-            raise unavailable("outcome_metadata_unavailable") from exc
+            raise unavailable("schema_mismatch") from exc
         if not row:
-            raise unavailable("no_persisted_outcome")
-        return _normalise_site_outcome(row, request)
+            raise _no_outcome(con, request)
+        outcome_metadata = _outcome_metadata(con, request)
+        return _normalise_site_outcome(row, request, outcome_metadata)
     except duckdb.Error as exc:
         raise unavailable("query_failed") from exc
     finally:
         con.close()
+
+
+def _no_outcome(
+    con: duckdb.DuckDBPyConnection, request: SiteScoreRequest
+) -> UnavailableError | NotFoundError:
+    """Separate "no such site" (404) from "the site has no persisted outcome" (503).
+
+    A site that is not persisted at all is a permanent condition; answering it
+    with a retryable 503 tells the client to retry forever.
+    """
+
+    exists = con.execute(
+        "SELECT 1 FROM site_candidates WHERE site_id = ? LIMIT 1",
+        [request.site_id],
+    ).fetchone()
+    if not exists:
+        return NotFoundError(
+            "No persisted site candidate carries the requested site id.",
+            details={"artifact": "site_candidates", "site_id": request.site_id},
+        )
+    return unavailable("no_persisted_outcome")
 
 
 @router.post("/site-score")
