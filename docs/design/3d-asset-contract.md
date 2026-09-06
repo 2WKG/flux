@@ -119,23 +119,27 @@ knows the budget they share.
 Every model states a licence permitting redistribution here. A model derived
 from a third-party asset names that asset and its licence in `source_of_shape`.
 
-**Binaries are not committed to Git.** This contract governs their shape; the
-asset pipeline (2WKG-374 Minnesota / 2WKG-320 Texas) produces, stores, and
-verifies them. The boundary is enforced two ways rather than described, on both
-scanned trees: `data/3d/**` and `web/public/**` `.glb`/`.gltf` are git-ignored,
-and `tests/test_asset_archetypes.py` asserts `git ls-files` tracks no `.glb` or
-`.gltf` at all — so committing one (which takes a deliberate `git add -f`) turns
-the suite red. Presence is reported separately and without judgement:
+**The published runtime pack is committed to Git.** For each catalog identity,
+`web/public/assets/flux-grid/<archetype_id>/` contains exactly
+`<archetype_id>.glb`, `<archetype_id>.lod1.glb`, and
+`<archetype_id>.lod2.glb`. `tests/test_asset_archetypes.py` derives those 54
+allowed paths from the catalog and asserts that `git ls-files` contains exactly
+that set. It therefore rejects a missing LOD, an orphaned or renamed runtime
+model, and every other tracked `.glb` or `.gltf`, including anything under
+`data/3d`. Source-side `data/3d/**` binaries remain git-ignored build outputs.
+
+Presence is also reported from the working tree without judgement:
 `validate_asset_archetypes.py` *derives* `modelFilesPresent` by walking `data/`
-and `web/` for `.glb`/`.gltf` and lists every hit in the report's `modelFiles`,
-so a model the pipeline writes locally is visible in the report while a
-developer's suite stays green, exactly as it does in CI.
+and `web/` for `.glb`/`.gltf` and lists every hit in the report's `modelFiles`.
+That diagnostic inventory includes the committed pack as well as unexpected
+local binaries.
 
 ### The source-kit tier (what *is* committed)
 
-The three deliverables above are asset-**pipeline outputs**: they are produced
-from a source kit, and none of them is in this repository. What an archetype
-author commits is the source kit, under `data/3d/assets/<archetype_id>/`:
+The three deliverables above are asset-**pipeline outputs** produced from a
+source kit. The published Flux grid pack commits the runtime `.glb` variants
+under `web/public/assets/flux-grid/`; the source-kit review material remains
+under `data/3d/assets/<archetype_id>/`:
 
 - `<archetype_id>.scene.json` — format `flux:3d-archetype-source:v1`: declared
   `bounds_m`, neutral materials, and the primitive nodes (including the
@@ -156,10 +160,9 @@ author commits is the source kit, under `data/3d/assets/<archetype_id>/`:
 every directory under `data/3d/assets/` and check each kit against the catalog
 row named by its **directory** — identity comes from the directory, never from
 the metadata's own `archetype_id`. The SVG→PNG render and the scene→GLB export
-belong to the asset pipeline (**2WKG-374** Minnesota / **2WKG-320** Texas); no
-code on master performs them, and this contract does not claim otherwise. Until
-that pipeline lands, the source kit is a reviewable specification of a model,
-not a model.
+belong to the asset pipeline (**2WKG-374** Minnesota / **2WKG-320** Texas); the
+checked-in runtime pack is its published browser input, while the source kit
+remains the reviewable specification of the model.
 
 **Geometry is checked, not merely declared.** `validate_asset_source.py` derives
 the axis-aligned bounds from `scene.nodes` and rejects geometry that overruns
@@ -239,12 +242,12 @@ Geometry is shared. Identity is not.
 
 ## What this contract does not do
 
-It does not model anything, place anything, or approve anything. No `.glb`
-exists in this repository yet, and this document does not assert that any of the
-eighteen models has been produced. It defines the shape those models must take
-so that when they arrive — from either project — they import consistently, pick
-by footprint and connector, and respond to one shared status material without
-any of them inventing a claim the server never made.
+It does not model anything, place anything, or approve anything. The published
+runtime pack contains the eighteen catalog archetypes and their LOD variants;
+that does not assert that any depicted facility exists. The contract defines the
+shape those models take so they import consistently, pick by footprint and
+connector, and respond to one shared status material without inventing a server
+claim.
 
 ## Verification
 
