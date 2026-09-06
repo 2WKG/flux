@@ -795,11 +795,11 @@ def acquire(
     states: set[str],
     fips: set[str],
     cache_dir: Path,
-    allow_full_download: bool = False,
+    allow_full_download: bool = True,
     max_bytes: int = DEFAULT_MAX_BOUNDED_BYTES,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
-    """Acquire a slice. Bounded by default; the full annual stream is opt-in."""
+    """Acquire a slice from a verified complete annual source by default."""
     if start >= end:
         raise ValueError("start must precede end")
     session = session if session is not None else requests.Session()
