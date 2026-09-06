@@ -301,5 +301,14 @@ test("the built bundle actually ships the shell, the dock, and the derived label
   // six-token display map legitimately ships, so the check is on the claim this
   // screen would have to make: coverage it does not have.
   assert.ok(!/Minnesota coverage/i.test(built), "the built bundle must not claim Minnesota coverage");
-  assert.ok(!/source-supported/i.test(built), "the built bundle must not claim source support");
+  // `STATUS_COPY` now carries the IA's hyphenated spelling ("Source-supported"),
+  // so its own entry is the one legitimate occurrence; it is removed by name and
+  // any remaining occurrence is a screen making the claim.
+  const displayMapEntry = /source_supported:\s*"Source-supported"/g;
+  assert.match(built, displayMapEntry, "the six-token display map should still ship");
+  const outsideDisplayMap = built.replace(displayMapEntry, "");
+  assert.ok(
+    !/source-supported/i.test(outsideDisplayMap),
+    "the built bundle must not claim source support outside the display map",
+  );
 });
