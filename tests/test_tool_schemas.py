@@ -209,9 +209,20 @@ def test_consumer_shaped_outage_response_validates_with_top_level_payload() -> N
 def test_cite_hits_match_the_shared_retrieval_shape() -> None:
     hit = CiteData.model_fields["hits"].annotation
     assert hit is not None
-    assert {"doc", "title", "page", "chunk_id", "score", "text"} <= set(
-        CiteData.model_json_schema()["$defs"]["RetrievalHit"]["properties"]
-    )
+    assert {
+        "content_kind",
+        "date",
+        "doc",
+        "locator",
+        "provenance",
+        "source",
+        "title",
+        "page",
+        "chunk_id",
+        "score",
+        "text",
+        "version",
+    } <= set(CiteData.model_json_schema()["$defs"]["RetrievalHit"]["properties"])
 
 
 def test_consumer_shaped_cite_response_validates() -> None:
@@ -227,12 +238,18 @@ def test_consumer_shaped_cite_response_validates() -> None:
         ],
         hits=[
             {
+                "content_kind": "source",
+                "date": "2026-09-05",
                 "doc": "10cfr100",
+                "locator": "page 2; chunk 1",
+                "provenance": {"source_name": "NRC"},
+                "source": "https://example.test/10cfr100.pdf",
                 "title": "10 CFR Part 100",
                 "page": 2,
                 "chunk_id": "10cfr100-p2-c1",
                 "score": 0.9,
                 "text": "A bounded retrieval excerpt.",
+                "version": "2026-09-05",
             }
         ],
     )
@@ -313,6 +330,43 @@ def test_causal_interval_round_trips_as_a_json_list() -> None:
         assumptions=[],
         interval=[0.1, 0.9],
         evidence_rows=[],
+        question={
+            "treatment": {
+                "name": "hardening",
+                "definition": "test treatment",
+                "unit_or_category": "category",
+                "source_id": "source-1",
+            },
+            "outcome": {
+                "name": "duration",
+                "definition": "test outcome",
+                "unit_or_category": "hours",
+                "source_id": "source-1",
+            },
+            "target_population": {
+                "description": "test population",
+                "geography": "Texas",
+                "time_window": "2021",
+            },
+        },
+        sources=[
+            {
+                "source_id": "source-1",
+                "name": "test source",
+                "version": "v1",
+                "locator": "test-row",
+                "coverage": "2021",
+            }
+        ],
+        sample={
+            "unit": "county",
+            "n_total": 2,
+            "n_treated": 1,
+            "n_control": 1,
+            "period": "2021",
+        },
+        diagnostics=[{"name": "balance", "status": "pass", "evidence": "recorded"}],
+        citations=[{"source_id": "source-1", "locator": "test-row"}],
     )
 
     assert response.interval == [0.1, 0.9]

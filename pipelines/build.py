@@ -46,8 +46,13 @@ def _required(root: Path, *parts: str) -> Path | None:
 
 
 def _dod_filename(states=None) -> str:
-    """Name the scoped DoD extract without pinning the Texas fixture."""
-    return f"{scope(states).slug}.geojson"
+    """Name the scoped DoD extract while preserving the catalog's Texas file."""
+    selected_scope = scope(states)
+    return (
+        "texas.geojson"
+        if selected_scope.is_texas_only
+        else f"{selected_scope.slug}.geojson"
+    )
 
 
 def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
@@ -64,13 +69,22 @@ def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
         ) from error
 
 
-def _missing_p0_inputs(raw: Path, eaglei_source_tz: str | None) -> list[str]:
+def _missing_p0_inputs(
+    raw: Path, eaglei_source_tz: str | None, states=None
+) -> list[str]:
     """Return P0 inputs handled by this builder that are absent or not promotable."""
+    selected_scope = scope(states)
+    inputs = _p0_raw_inputs()
+    has_dod_input = any(label.startswith("ntad_military_bases/") for label, _ in inputs)
     missing = [
         label
-        for label, alternatives in _p0_raw_inputs()
+        for label, alternatives in inputs
+        if not label.startswith("ntad_military_bases/")
         if not any(raw.joinpath(*parts).exists() for parts in alternatives)
     ]
+    dod_parts = ("ntad_military_bases", "fy2024", _dod_filename(selected_scope))
+    if has_dod_input and not raw.joinpath(*dod_parts).exists():
+        missing.append("/".join(dod_parts))
     if not eaglei_source_tz:
         missing.append("--eaglei-source-tz (required to promote EAGLE-I)")
     return missing
@@ -103,7 +117,7 @@ def _build_mutating(
 ) -> dict[str, int]:
     raw = Path(raw_dir)
     selected_scope = scope(states)
-    if missing := _missing_p0_inputs(raw, eaglei_source_tz):
+    if missing := _missing_p0_inputs(raw, eaglei_source_tz, selected_scope):
         formatted = "\n  - ".join(missing)
         raise IncompleteP0BuildError(
             "P0 build was not promoted; missing required inputs:\n  - " + formatted
@@ -123,7 +137,7 @@ def _build_mutating(
             raw, "tiger", "tl_2024_us_county.zip"
         )
         assert tiger and nri
-        counts["counties"] = load_counties(con, str(tiger), str(nri))
+        counts["counties"] = load_counties(con, str(tiger), str(nri), selected_scope)
         counts.update(
             load_activsg(
                 con,
@@ -133,7 +147,7 @@ def _build_mutating(
             )
         )
         counts["bus_county"] = join_bus_county(con)
-        counts["nri"] = load_nri(con, str(nri))
+        counts["nri"] = load_nri(con, str(nri), states=selected_scope)
         plants = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_plants.parquet")
         generators = _required(
             raw, "pudl", "v2026.2.0", "out_eia__yearly_generators.parquet"
@@ -163,19 +177,23 @@ def _build_mutating(
         mcc = _required(raw, "eaglei", "support", "MCC.csv")
         coverage = _required(raw, "eaglei", "support", "coverage_history.csv")
         assert mcc and coverage
-        counts["county_customers"] = load_county_customers(con, str(mcc))
-        counts["eaglei_coverage"] = load_coverage_history(con, str(coverage))
+        counts["county_customers"] = load_county_customers(
+            con, str(mcc), states=selected_scope
+        )
+        counts["eaglei_coverage"] = load_coverage_history(
+            con, str(coverage), states=selected_scope
+        )
         for year in (2021, 2024):
             outage = _required(raw, "eaglei", str(year), f"eaglei_outages_{year}.csv")
             assert outage and eaglei_source_tz
             counts[f"eaglei_{year}"] = load_eaglei(
-                con, str(outage), year, eaglei_source_tz
+                con, str(outage), year, eaglei_source_tz, states=selected_scope
             )
         dod = _required(
             raw, "ntad_military_bases", "fy2024", _dod_filename(selected_scope)
         )
         assert dod
-        counts["critical_loads_dod"] = load_dod(con, str(dod))
+        counts["critical_loads_dod"] = load_dod(con, str(dod), states=selected_scope)
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
         validate_schema(con)
         export_parquet(con, parquet_dir)
@@ -282,7 +300,7 @@ def build(
     states=None,
 ) -> dict[str, int]:
     raw, live_db = Path(raw_dir), Path(db_path)
-    if missing := _missing_p0_inputs(raw, eaglei_source_tz):
+    if missing := _missing_p0_inputs(raw, eaglei_source_tz, states):
         formatted = "\n  - ".join(missing)
         raise IncompleteP0BuildError(
             "P0 build was not promoted; missing required inputs:\n  - " + formatted

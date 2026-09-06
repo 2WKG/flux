@@ -22,15 +22,31 @@ export interface CascadeData {
   unavailable?: Unavailable | null;
 }
 
+export interface CausalCitation {
+  locator: string;
+  source_id: string;
+}
+
 export interface CausalData {
   answer_numbers: Record<string, number>;
   assumptions: string[];
+  citations: CausalCitation[];
+  diagnostics: CausalDiagnostic[];
   evidence_rows: Array<Record<string, JsonValue>>;
   interval?: number[] | null;
   method: string;
   provenance?: ArtifactRef[];
+  question: CausalQuestion;
+  sample: CausalSample;
+  sources: CausalSource[];
   status: ToolStatus;
   unavailable?: Unavailable | null;
+}
+
+export interface CausalDiagnostic {
+  evidence: string;
+  name: string;
+  status: "pass";
 }
 
 export interface CausalQueryInput {
@@ -40,6 +56,41 @@ export interface CausalQueryInput {
   scenario_id?: ScenarioId;
   site_id?: string | null;
   treatment?: "hardening_saidi" | "firm_generation_100mw" | null;
+}
+
+export interface CausalQuestion {
+  outcome: CausalVariable;
+  target_population: CausalTargetPopulation;
+  treatment: CausalVariable;
+}
+
+export interface CausalSample {
+  n_control: number;
+  n_total: number;
+  n_treated: number;
+  period: string;
+  unit: string;
+}
+
+export interface CausalSource {
+  coverage: string;
+  locator: string;
+  name: string;
+  source_id: string;
+  version: string;
+}
+
+export interface CausalTargetPopulation {
+  description: string;
+  geography: string;
+  time_window: string;
+}
+
+export interface CausalVariable {
+  definition: string;
+  name: string;
+  source_id: string;
+  unit_or_category: string;
 }
 
 export interface CiteData {
@@ -110,22 +161,29 @@ export interface InterventionsData {
 export type JsonValue = unknown;
 
 export interface LineSummary {
+  artifact_id: string;
   congestion_usd_yr: number;
   cost_usd: number;
   ferc_screen_pass: boolean;
   from_bus: string;
+  intervention_type: "dlr" | "reconductor";
   kv: number;
   line_id: string;
   mw_per_musd: number;
+  scenario_id: string;
+  source_class: "observed" | "simulated" | "proxy";
   spark_eligible: boolean;
+  status: "available";
   to_bus: string;
   uplift_mw: number;
 }
 
 export interface LinesData {
+  artifact_id: string;
   lines: LineSummary[];
   provenance?: ArtifactRef[];
   region: string;
+  scenario_id: string;
   status: ToolStatus;
   tech: "dlr" | "reconductor" | "any";
   unavailable?: Unavailable | null;
@@ -160,11 +218,17 @@ export interface PredictOutageInput {
 
 export interface RetrievalHit {
   chunk_id: string;
+  content_kind: "fixture" | "source";
+  date: string | null;
   doc: string;
+  locator: string;
   page: number;
+  provenance: Record<string, string>;
   score: number;
+  source: string;
   text: string;
   title: string;
+  version: string;
 }
 
 export interface RunCascadeInput {

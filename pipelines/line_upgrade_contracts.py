@@ -126,6 +126,9 @@ class StorageProvenance(Frozen):
     source_version: str | None = None
     source_retrieved_at: datetime | None = None
     fixture_batch_id: str = Field(min_length=1)
+    source_kind: Literal["fixture", "observed", "simulated", "heuristic"] | None = (
+        Field(default=None, exclude=True)
+    )
 
 
 # --------------------------------------------------------------------------
@@ -340,6 +343,7 @@ class ScoredLine(Frozen):
             "spark_eligible": self.spark_eligible,
             **self.provenance.model_dump(),
             "simulation_run_id": self._simulation_run_id(),
+            "source_kind": storage.source_kind,
             **storage.model_dump(),
         }
 
@@ -377,6 +381,7 @@ class ScoredLine(Frozen):
             "region": self.key.region,
             **self.provenance.model_dump(),
             "simulation_run_id": self._simulation_run_id(),
+            "source_kind": storage.source_kind,
             **storage.model_dump(),
         }
 
