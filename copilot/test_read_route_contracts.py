@@ -30,12 +30,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Final
 
+from copilot._artifact_fixtures import registered_routes
 from copilot.app import create_app
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[1]
-HTTP_METHODS: Final = frozenset(
-    {"get", "put", "post", "delete", "options", "head", "patch", "trace"}
-)
 #: Recorded call as the probe plugin writes it: (method, route template, status).
 Call = tuple[str, str, int]
 
@@ -236,16 +234,6 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
         not_found=_NO_NOT_FOUND,
     ),
 }
-
-
-def registered_routes() -> set[tuple[str, str]]:
-    """The live registered ``(METHOD, path)`` surface from the OpenAPI document."""
-    return {
-        (method.upper(), path)
-        for path, operations in create_app().openapi()["paths"].items()
-        for method in operations
-        if method.lower() in HTTP_METHODS
-    }
 
 
 def _referenced_node_ids() -> tuple[str, ...]:
