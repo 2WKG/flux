@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.narration import GroundedNarration, narrate
+from copilot.persisted_fixtures import persisted_site_database
 from copilot.retrieval.chunking import SourceDocument, chunk_document
 from copilot.retrieval.search import SparseIndex, retrieve
 from copilot.routes.ask import HEARTBEAT_SECONDS, AskRequest, _heartbeat
@@ -205,6 +206,7 @@ class _ScoreBackend:
             SiteScoreRequest(site_id="1", unit_mw=300, scenario_id="mn_fixture"),
         )
         provenance = result["provenance"]
+        score_provenance = provenance["site_score"]
         narration = GroundedNarration(
             status="available",
             text="Accepted score evidence is available.",
@@ -214,9 +216,9 @@ class _ScoreBackend:
             provenance=(
                 ArtifactRef(
                     artifact_id="mn:fixture:ask-score",
-                    artifact_version=str(provenance["source_version"]),
+                    artifact_version=str(score_provenance["source_version"]),
                     source_kind="fixture",
-                    source_ref=str(provenance["source_ref"]),
+                    source_ref=str(score_provenance["source_ref"]),
                 ),
             ),
             citations=(),
@@ -295,23 +297,14 @@ def _client(path: Path, backend: object | None) -> TestClient:
 
 
 def _database(path: Path) -> None:
+    """The site half is built through the real DDL, never a hand-typed schema."""
+
+    persisted_site_database(path)
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE rows (id INTEGER, label TEXT)")
         con.execute("INSERT INTO rows VALUES (1, 'evidence-row')")
         con.execute("CREATE VIEW mn_summary AS SELECT * FROM rows")
-        con.execute(
-            "CREATE TABLE site_candidates (site_id BIGINT,name TEXT,kind TEXT,county_fips TEXT,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE)"
-        )
-        con.execute(
-            "INSERT INTO site_candidates VALUES (1, 'fixture site', 'coal_retired', '27001', 'fixture', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
-        )
-        con.execute(
-            "INSERT INTO site_scores VALUES (1, 'mn_fixture', 300, 10, '[]', 2, 3, 4, 5)"
-        )
     finally:
         con.close()
 
@@ -739,7 +732,10 @@ def test_actual_site_score_api_read_is_fixture_labeled_and_non_mutating(
 
     assert response.status_code == 200
     assert response.json()["safety_score"] == 10.0
-    assert response.json()["provenance"]["source_name"] == "fixture"
+    assert (
+        response.json()["provenance"]["site_score"]["source_name"]
+        == "fixture:site-score"
+    )
     assert database.read_bytes() == before
 
 
