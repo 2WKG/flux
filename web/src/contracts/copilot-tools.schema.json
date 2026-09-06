@@ -1616,6 +1616,7 @@
       "oneOf": [
         {
           "properties": {
+            "parameters": {},
             "query": {
               "type": "string"
             },
@@ -1629,6 +1630,7 @@
         },
         {
           "properties": {
+            "parameters": {},
             "query": {
               "type": "null"
             },
@@ -1642,6 +1644,31 @@
         }
       ],
       "properties": {
+        "parameters": {
+          "description": "Bound values for positional placeholders in a deployment-owned template.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxItems": 25,
+          "title": "Parameters",
+          "type": "array"
+        },
         "query": {
           "anyOf": [
             {

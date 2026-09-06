@@ -137,7 +137,7 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 
 `resolve_site(lat: float, lon: float) -> {site_id, name, distance_km}` (A8) is a helper inside `impl.py`, not in `TOOL_SCHEMAS`: when a question carries a bare lat/lon (the description's `score_site(latitude, longitude, capacity)` shape), the `score_site` wrapper resolves it to the nearest `site_candidates` row (error if > 25 km) and the UI context / answer names that `site_id`. The model never sees lat/lon-shaped `score_site` arguments.
 
-`sql` guard (`db.py`): a deployment may register named approved templates. Each template has a unique simple `template_id`, fixed SQL, and its complete declared set of approved view relations; construction validates that declaration against the parsed statement. When a registry is configured, requests must send exactly one known `template_id`; raw `query` text is rejected before opening the database. Deployments without a registry retain the legacy `query: str` input and answer a `template_id` with an explicit `unsupported_request` naming the missing registry rather than executing anything. The published JSON Schema and TypeScript declaration preserve the legacy query-only form (and accept the template-only form); strict provider schemas require both selector keys and make the unused selector `null`, while enforcing exactly one non-null selector. This change does not add model- or user-supplied SQL values; parameter binding is a later contract increment.
+`sql` guard (`db.py`): a deployment may register named approved templates. Each template has a unique simple `template_id`, fixed SQL, and its complete declared set of approved view relations; construction validates that declaration against the parsed statement. When a registry is configured, requests must send exactly one known `template_id`; raw `query` text is rejected before opening the database. Deployments without a registry retain the legacy `query: str` input and answer a `template_id` with an explicit `unsupported_request` naming the missing registry rather than executing anything. The published JSON Schema and TypeScript declaration preserve the legacy query-only form (and accept the template-only form); strict provider schemas require both selector keys and make the unused selector `null`, while enforcing exactly one non-null selector. Only deployment-owned templates may contain positional `?` parameters. Their callers may supply at most 25 finite JSON scalar values; exact arity is checked and values are bound before execution. Legacy free-form `query` text rejects placeholders and supplied values.
 
 For either mode, strip comments; reject unless the statement, after `sqlglot`-free heuristics, starts with `SELECT` or `WITH`, contains none of `INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|ATTACH|COPY|PRAGMA|INSTALL|LOAD|CALL|EXPORT`, contains a single statement (no `;` except trailing), and the connection is `duckdb.connect(path, read_only=True)`. The denylist is load-bearing, not belt-and-braces: verified on duckdb 1.5.5 that a `read_only=True` connection rejects `INSERT` ("Cannot execute statement of type INSERT on database … attached in read-only mode") and `ATTACH`, but **`COPY (SELECT …) TO '/path'` still writes a file** on a read-only connection — only the denylist stops it. Wrap as `SELECT * FROM (<q>) LIMIT 201` to detect truncation; there is no DuckDB `statement_timeout` (verified: `SET statement_timeout` → "unrecognized configuration parameter", and no `%timeout%` entry in `duckdb_settings()`); use `asyncio.wait_for` plus `conn.interrupt()` (method exists on `DuckDBPyConnection`) on timeout.
 
@@ -210,12 +210,22 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `GET /scenarios` | — | `[{scenario_id, name, kind, ts_start, ts_end, hours:int, has_cascade:bool, has_predictions:bool}]` |
 | `GET /layers/{name}` | see table | GeoJSON / Arrow / JSON |
 | `POST /cascade` | `{element_ids:[str], scenario_id, hour}` | `run_cascade` dict |
+| `GET /cascade` (Minnesota artifact read) | `scenario_id` (required) | `{status:"available", run_id, scenario_id, artifact_id, model_mode:"topology", provenance:[…], limitations:[…]}` |
 | `POST /site-score` | `{site_id, unit_mw, scenario_id}` | `score_site` dict |
 | `POST /predict` | `{county_fips, scenario_id, horizon_h?}` | `predict_outage` dict (UI uses it for the county click card) |
+| `GET /predictions` (Minnesota artifact read) | `scenario_id?`, `county_fips?`, `model_kind?` (`lightgbm` or `heuristic`), `limit=1..1000` | `{status:"available", predictions:[qualified persisted rows]}` |
 | `GET /lines/top` | `region, tech=any, n=10` | `top_lines` dict |
 | `POST /compare` (A8) | `{scenario_id, intervention_ids:[str]}` | `compare_interventions` dict (UI: "compare a site with a line upgrade" card) |
 | `GET /elements/critical` (A8) | `region, n=10` | `top_critical_elements` dict (UI: critical-elements panel) |
 | `POST /ask` | see below | `text/event-stream` |
+
+The Minnesota `GET` routes above are read-only artifact retrieval. `GET /cascade`
+returns only the latest persisted run for a scenario whose model result is validated and
+whose available topology manifest has nonempty provenance and limitations. It does not
+invoke the compute behavior of `POST /cascade`, which remains this table's existing
+route contract. `GET /predictions` excludes unqualified evaluation artifacts; a missing
+or unqualified prediction artifact returns the documented unavailable failure envelope
+rather than an empty success.
 
 `POST /ask` request:
 
