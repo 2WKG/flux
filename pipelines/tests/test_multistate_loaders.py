@@ -277,7 +277,7 @@ MASTER_TEXAS_STORM_ATTRIBUTES = [(1, "48001", 2021, None, None, "direct_county")
 MASTER_TEXAS_STORM_WARNINGS = [
     (
         "noaa_storm_events",
-        "2021:zone:999",
+        "2021:scope:tx:zone:999",
         "1 Texas zone-type Storm Events had no county crosswalk mapping",
     ),
 ]
@@ -423,6 +423,12 @@ def test_load_storm_events_minnesota_refresh_keeps_texas_rows(tmp_path):
         _seed_counties(con)
         assert load_storm_events(con, details, crosswalk, 2021) == 1
         assert load_storm_events(con, details, crosswalk, 2021, "MN") == 2
+        warnings_after_minnesota = con.execute(WARN_SELECT).fetchall()
+        evidence_after_minnesota = con.execute(
+            """SELECT source_release, rows_loaded FROM ingest_log
+               WHERE source IN ('noaa_storm_events', 'nws_zone_county')
+               ORDER BY source, source_release"""
+        ).fetchall()
         assert load_storm_events(con, details, crosswalk, 2021, "MN") == 2
         rows = con.execute(
             "SELECT event_id, county_fips FROM storm_events ORDER BY event_id"
@@ -441,6 +447,13 @@ def test_load_storm_events_minnesota_refresh_keeps_texas_rows(tmp_path):
     assert rows == [(1, "48001"), (2, "27001"), (4, "27001")]
     assert attributes == rows
     assert refreshed == rows
+    assert warnings_after_minnesota == MASTER_TEXAS_STORM_WARNINGS
+    assert evidence_after_minnesota == [
+        ("2021;scope=mn", 2),
+        ("2021;scope=tx", 1),
+        ("fixture;scope=mn", 1),
+        ("fixture;scope=tx", 1),
+    ]
 
 
 def test_load_eia860_plants_default_scope_matches_master_texas_output(tmp_path):

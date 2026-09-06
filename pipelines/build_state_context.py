@@ -12,6 +12,7 @@ from pipelines.build import (
     _copy_database,
     _nws_crosswalk_releases,
     _promote,
+    _write_stage_manifest,
 )
 from pipelines.counties import load_counties
 from pipelines.db import connect, export_parquet, validate_schema
@@ -130,6 +131,10 @@ def main(argv=None) -> int:
                     ("--eaglei", artifacts),
                     ("--storm-events", storm_artifacts),
                     ("--mcc", args.mcc),
+                    # PUDL plants derive county_fips with the canonical county
+                    # geometry; without it, a context-only load would publish
+                    # plants with silently missing county assignments.
+                    ("--pudl-plants", args.pudl_plants),
                 )
                 if requested
             ]
@@ -170,6 +175,10 @@ def main(argv=None) -> int:
             export_parquet(con, stage_parquet)
         finally:
             con.close()
+        # The staged database now contains both its previous scope and this
+        # context state's rows. Rebuild the full-store manifest before the
+        # database and Parquet directory are promoted together.
+        _write_stage_manifest(stage_db, stage_parquet, selected)
         _promote(stage_db, live_db, stage_parquet, live_parquet, root)
     except PublicationRecoveryError:
         retain_recovery = True
