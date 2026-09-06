@@ -155,12 +155,16 @@ diff     = per county per hour: customers_out_factual − customers_out_cf (from
 
 The persisted evidence artifact and the `causal_query` wire response are separate contracts; see [`docs/causal-evidence-artifact.md`](../causal-evidence-artifact.md) for the artifact sufficiency criteria and field mapping.
 
-`causal_query` is registered as a **seventh** tool in `copilot/tools/registry.py` (alongside the six
-contract tools `predict_outage, run_cascade, score_site, top_lines, sql, cite` from 00-overview §2.4;
-00-overview amendment A5 fixes those six signatures but does not list an additive seventh tool — the
-overview owner must ratify this addition) with a 30 s timeout. It returns
+`causal_query` is registered in the shared Copilot tool registry with the 5 s timeout specified
+by spec 05. It returns
 `{answer_numbers: dict, method: str, assumptions: list[str], interval: [lo, hi] | None,
-evidence_rows: list[dict], citations: list[{"source": str, "locator": str}]}`.
+evidence_rows: list[dict], question: {treatment, outcome, target_population},
+sources: [{source_id, name, version, locator, coverage}],
+sample: {unit, n_total, n_treated, n_control, period},
+diagnostics: [{name, status: "pass", evidence}], citations: [{source_id, locator}]}`.
+The reader serves only a deployment-registered exact request/artifact binding; it never fits,
+estimates, discovers files, or falls back to a fixture. A missing, malformed, or insufficient
+artifact is the canonical unavailable result and has no effect number.
 Spec 05's number-trace verifier already checks every numeral in the final text against tool
 results, so `answer_numbers` and `evidence_rows` are the only places a causal number may come
 from. Added system-prompt rules for this tool: every sentence using one of its numbers ends with
