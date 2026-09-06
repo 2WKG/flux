@@ -3,11 +3,12 @@ import { expect, test } from "@playwright/test";
 const fixtureDisclosure = /Synthetic five-bus fixture.*OpenFreeMap basemap context.*no API required/i;
 const openFreeMapHost = "tiles.openfreemap.org";
 
-function assertBoundedRequest(requests: string[], baseURL: string) {
-  for (const value of requests) {
-    const url = new URL(value);
+function assertBoundedRequest(requests: readonly { url: string; method: string }[], baseURL: string) {
+  for (const request of requests) {
+    expect(request.method).toBe("GET");
+    const url = new URL(request.url);
     if (url.origin === baseURL) {
-      expect(url.pathname).not.toMatch(/^\/(?:ask|api)(?:\/|$)/);
+      expect(url.pathname).not.toMatch(/^\/(?:ask|api|model|provider)(?:\/|$)/);
       continue;
     }
     expect(url.hostname).toBe(openFreeMapHost);
@@ -16,8 +17,8 @@ function assertBoundedRequest(requests: string[], baseURL: string) {
 }
 
 test("static explorer supports scenario selection, inspection, and honest unavailable agent state", async ({ page }) => {
-  const requests: string[] = [];
-  page.on("request", (request) => requests.push(request.url()));
+  const requests: { url: string; method: string }[] = [];
+  page.on("request", (request) => requests.push({ url: request.url(), method: request.method() }));
 
   await page.goto("/");
   await expect(page.getByText(fixtureDisclosure)).toBeVisible();
