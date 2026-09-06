@@ -6,6 +6,7 @@ import { RunTrace } from "./ask/run-state/RunTrace";
 import { createRunState } from "./ask/run-state/reducer";
 import { ChatDock, type SceneContext } from "./chat/ChatDock";
 import { Inspector } from "./inspector/Inspector";
+import { MapLibreDeckFoundation } from "./renderer/MapLibreDeckFoundation";
 import { AppShell } from "./shell/AppShell";
 import "./styles.css";
 
@@ -34,6 +35,11 @@ const ORDER: Id[] = ["baseline", "a", "b"];
 const BUSES: Record<string, Bus> = Object.fromEntries(data.network.buses.map((bus) => [bus.id, bus]));
 const BASELINE_LOADS = data.scenarios.baseline.metrics.lineLoadings;
 const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shedMw));
+const UNAVAILABLE_MODEL_SCENE = {
+  kind: "rejected" as const,
+  reason: "aggregate_only_no_geometry" as const,
+  detail: "No accepted geographic feature artifact is available in the bundled static demo.",
+};
 
 function initialSceneContext(id: Id): SceneContext {
   return {
@@ -338,6 +344,13 @@ function App() {
         detail: "Checked-in synthetic artifact; no live API or agent connection. Not a Minnesota or Texas topology, facility map, or interconnection result.",
       }}
       viewport={
+        <>
+        <section className="model-scene">
+          <div className="model-scene__head">
+            <div><p className="eyebrow">GEOGRAPHIC MODEL SCENE</p><p className="hint">Basemap context only. Feature geometry and 3D assets are unavailable.</p></div>
+          </div>
+          <MapLibreDeckFoundation adaptation={UNAVAILABLE_MODEL_SCENE} />
+        </section>
         <article className="map">
           <div className="map-head">
             <div>
@@ -361,6 +374,7 @@ function App() {
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
         </article>
+        </>
       }
       comparison={<CompareRail selected={selected} onSelect={select} />}
       inspector={<Inspector asset={fixtureInspector} />}

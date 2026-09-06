@@ -4,6 +4,10 @@ import { MapLibreDeckFoundation } from "./MapLibreDeckFoundation";
 createRoot(document.getElementById("root")!).render(
   <main>
     <p>Renderer foundation harness. No feature geometry, synthetic-coordinate conversion, or model asset is supplied.</p>
-    <MapLibreDeckFoundation adaptation={{ kind: "rejected", reason: "aggregate_only_no_geometry", detail: "No accepted feature geometry was supplied to this harness." }} />
+    <MapLibreDeckFoundation adaptation={{
+      kind: "topology_scene",
+      nodes: [{ id: "synthetic-node", name: "Synthetic test node", position: [-94.2, 46.2], truthLabel: "synthetic" }],
+      provenance: { layer: "harness", crs: "EPSG:4326", sourceNames: [], fixtureBatchIds: ["synthetic-harness"], topology: "synthetic harness" },
+    }} />
   </main>,
 );

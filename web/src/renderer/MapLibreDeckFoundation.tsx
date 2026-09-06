@@ -18,6 +18,9 @@ export interface MapLibreDeckFoundationProps {
 function reasonFor(adaptation: SceneAdaptation): string {
   if (adaptation.kind === "rejected") return adaptation.detail;
   if (adaptation.kind === "aggregate_zones") return "Accepted aggregate coverage has no renderable geometry.";
+  if (adaptation.nodes.some((node) => node.truthLabel !== "source_backed")) {
+    return "Synthetic or unlabeled topology is not rendered as a geographic feature layer.";
+  }
   return "Accepted point placements are available; 3D asset placement remains unavailable until a verified asset artifact is supplied.";
 }
 
@@ -30,7 +33,7 @@ export function MapLibreDeckFoundation({ adaptation, basemapStyle = OPEN_FREE_MA
   const [overlayReady, setOverlayReady] = useState(false);
   const markOverlayReady = useCallback(() => setOverlayReady(true), []);
   const layers = useMemo<LayersList>(() => {
-    if (adaptation.kind !== "topology_scene") return [];
+    if (adaptation.kind !== "topology_scene" || adaptation.nodes.some((node) => node.truthLabel !== "source_backed")) return [];
     return [new ScatterplotLayer({
       id: "accepted-scene-nodes",
       data: adaptation.nodes,

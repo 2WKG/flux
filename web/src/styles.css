@@ -59,6 +59,10 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 
 .workspace { display: grid; grid-template-columns: 1.65fr .85fr; gap: 16px }
 .map, aside > div, .pipeline { border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.model-scene { border: 1px solid #234962; background: var(--panel); border-radius: 12px; overflow: hidden; }
+.model-scene__head { padding: 18px 18px 0; }
+.model-scene .map-foundation { margin-top: 12px; min-block-size: 20rem; }
+.model-scene .maplibregl-map { min-block-size: 20rem; }
 .map { padding: 18px; display: flex; flex-direction: column }
 .map-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
 .map-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
