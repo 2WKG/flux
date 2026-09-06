@@ -80,12 +80,58 @@ export interface ResultStatus {
 }
 
 /**
+ * The one scene-action vocabulary. Every surface that admits a scene action reads
+ * these kinds and the identity rule below: the mounted result card (`ResultCards`),
+ * the `/ask` adapter seam (`AgentSimulationAdapter`), and the main assistant.
+ * Spec home: `docs/research/sse-event-schema.md` § "`scene_action` (additive)".
+ * A new kind is added here first, and nowhere else.
+ */
+export type SceneActionKind = "focus" | "filter" | "compare" | "scenario_edit" | "cascade";
+
+/**
+ * The identity a scene action carries beyond its own opaque `id`. Both fields are
+ * optional on the type because which one is REQUIRED depends on the kind; that is
+ * decided in exactly one place, by `missingSceneActionIdentity`.
+ */
+export interface SceneActionIdentity {
+  /** Names an edit. An edit hash is never a run identity. */
+  editHash?: string;
+  /** Names a cascade run. */
+  cascadeId?: string;
+}
+
+const REQUIRED_SCENE_ACTION_IDENTITY: Readonly<Record<SceneActionKind, keyof SceneActionIdentity | null>> = {
+  focus: null,
+  filter: null,
+  compare: null,
+  scenario_edit: "editHash",
+  cascade: "cascadeId",
+};
+
+const SCENE_ACTION_IDENTITY_WIRE_NAME: Readonly<Record<keyof SceneActionIdentity, string>> = {
+  editHash: "edit_hash",
+  cascadeId: "cascade_id",
+};
+
+/**
+ * The wire name of the identity field this kind requires and did not carry, or `null`
+ * when the action's identity is complete. Applied to EVERY kind, so no kind gets an
+ * exemption by omission, and no surface may substitute one identity for another.
+ */
+export function missingSceneActionIdentity(kind: SceneActionKind, identity: SceneActionIdentity): string | null {
+  const required = REQUIRED_SCENE_ACTION_IDENTITY[kind];
+  if (required === null || required === undefined) return null;
+  const value = identity[required];
+  return value === undefined || value.length === 0 ? SCENE_ACTION_IDENTITY_WIRE_NAME[required] : null;
+}
+
+/**
  * An action is supplied by the caller after it has resolved an actual tool result.
  * IDs and revisions are deliberately opaque: this component never derives geometry,
  * a filter, or a comparison request from prose in an answer.
  */
-export interface ResultSceneAction {
-  kind: "focus" | "filter" | "compare";
+export interface ResultSceneAction extends SceneActionIdentity {
+  kind: SceneActionKind;
   id: string;
   revision: string;
   label: string;
@@ -112,17 +158,22 @@ export interface AskResult {
 
 export type ResultActionHandler = (action: ResultSceneAction) => void;
 
-export const ACTION_KINDS = new Set<ResultSceneAction["kind"]>(["focus", "filter", "compare"]);
+/** The whole vocabulary this admission test recognises as a scene action. */
+export const ACTION_KINDS = new Set<SceneActionKind>(["focus", "filter", "compare", "scenario_edit", "cascade"]);
 
 /**
- * Every action kind this component can offer is reversible in the caller's own scene state:
- * the card hands the same opaque action context back through `onUndoAction`, and it never
- * writes to a server. A kind that could not be undone locally must not be listed here.
+ * The subset of `ACTION_KINDS` this component may OFFER, because each is reversible in the
+ * caller's own scene state: the card hands the same opaque action context back through
+ * `onUndoAction`, and it never writes to a server. A kind that could not be undone locally
+ * must not be listed here -- `scenario_edit` and `cascade` name server-side runs, so they
+ * are recognised by the vocabulary and never rendered as a button.
  */
-export const REVERSIBLE_ACTION_KINDS: readonly ResultSceneAction["kind"][] = ["focus", "filter", "compare"];
+export const REVERSIBLE_ACTION_KINDS: readonly SceneActionKind[] = ["focus", "filter", "compare"];
 
 export function isSupportedResultAction(action: ResultSceneAction | undefined): action is ResultSceneAction {
   if (!action || !ACTION_KINDS.has(action.kind) || !action.id || !action.revision || !action.label) return false;
+  // Identity is required of every kind, not only the ones this card can draw.
+  if (missingSceneActionIdentity(action.kind, action) !== null) return false;
   if (action.geometry === "unavailable") return false;
   if (action.source === "fixture" && action.geometry !== "synthetic") return false;
   if (action.kind === "compare") return action.source === "server" && action.comparison !== undefined;
