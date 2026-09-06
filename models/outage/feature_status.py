@@ -1,4 +1,9 @@
-"""Deterministic county-outage feature assembly with explicit availability."""
+"""Explicit feature availability and train-only standardization helpers.
+
+The specification reserves ``models.outage.features`` for the bulk DuckDB
+feature builder; these small contract-row helpers deliberately use a separate
+module path.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +22,10 @@ from .contracts import (
 )
 
 
+class FeatureFitError(ValueError):
+    """Source features cannot form a safe deterministic transform."""
+
+
 @dataclass(frozen=True)
 class RawFeature:
     """One source value and its availability reason before transformation."""
@@ -29,7 +38,7 @@ class RawFeature:
 
 @dataclass(frozen=True)
 class FittedTransform:
-    """A standardization transform fitted exclusively from train-partition values."""
+    """A transform fitted exclusively from train-partition values."""
 
     name: str
     unit: str
@@ -53,24 +62,41 @@ def fit_standardizers(
     split: SplitManifest,
 ) -> tuple[FittedTransform, ...]:
     """Fit deterministic mean/scale transforms using only frozen train rows."""
-
-    partitions = {assignment.key: assignment.partition for assignment in split.assignments}
+    partitions = {
+        assignment.key: assignment.partition for assignment in split.assignments
+    }
     values: dict[str, list[float]] = defaultdict(list)
     units: dict[str, str] = {}
     for key, features in source_rows.items():
         if partitions.get(key) is not Partition.TRAIN:
             continue
         for name, source in features.items():
-            if source.status is FeatureStatus.PRESENT and source.value is not None and isfinite(source.value):
-                values[name].append(source.value)
-                units.setdefault(name, source.unit)
+            if (
+                source.status not in {FeatureStatus.PRESENT, FeatureStatus.IMPUTED}
+                or source.value is None
+                or not isfinite(source.value)
+            ):
+                continue
+            known_unit = units.setdefault(name, source.unit)
+            if known_unit != source.unit:
+                raise FeatureFitError(
+                    f"feature {name!r} has conflicting units {known_unit!r}/{source.unit!r}"
+                )
+            values[name].append(source.value)
 
     transforms: list[FittedTransform] = []
     for name in sorted(values):
         samples = values[name]
         mean = fsum(samples) / len(samples)
         variance = fsum((sample - mean) ** 2 for sample in samples) / len(samples)
-        transforms.append(FittedTransform(name=name, unit=units[name], mean=mean, scale=sqrt(variance) or 1.0))
+        transforms.append(
+            FittedTransform(
+                name=name,
+                unit=units[name],
+                mean=mean,
+                scale=sqrt(variance) or 1.0,
+            )
+        )
     return tuple(transforms)
 
 
@@ -83,7 +109,6 @@ def assemble_features(
     source_input_sha256: str,
 ) -> FeatureArtifact:
     """Apply fitted transforms without concealing missing or invalid source values."""
-
     configured = {transform.name: transform for transform in transforms}
     values: list[tuple[str, FeatureValue]] = []
     reasons: list[tuple[str, str]] = []
@@ -91,28 +116,50 @@ def assemble_features(
         transform = configured[name]
         source = source_features.get(name)
         if source is None:
-            values.append((name, FeatureValue(status=FeatureStatus.MISSING_SOURCE, unit=transform.unit)))
+            values.append(
+                (
+                    name,
+                    FeatureValue(
+                        status=FeatureStatus.MISSING_SOURCE, unit=transform.unit
+                    ),
+                )
+            )
             reasons.append((name, "missing_source_feature"))
             continue
-        if source.status is not FeatureStatus.PRESENT or source.value is None or not isfinite(source.value):
-            status = source.status if source.status is not FeatureStatus.PRESENT else FeatureStatus.MISSING_SOURCE
-            values.append((name, FeatureValue(status=status, unit=transform.unit)))
-            reasons.append((name, source.reason or "invalid_source_value"))
-            continue
         if source.unit != transform.unit:
-            values.append((name, FeatureValue(status=FeatureStatus.MISSING_SOURCE, unit=transform.unit)))
+            values.append(
+                (
+                    name,
+                    FeatureValue(
+                        status=FeatureStatus.MISSING_SOURCE, unit=transform.unit
+                    ),
+                )
+            )
             reasons.append((name, "incompatible_source_unit"))
             continue
-        values.append(
-            (
-                name,
-                FeatureValue(
-                    value=(source.value - transform.mean) / transform.scale,
-                    status=FeatureStatus.PRESENT,
-                    unit=transform.unit,
-                ),
+        if (
+            source.status in {FeatureStatus.PRESENT, FeatureStatus.IMPUTED}
+            and source.value is not None
+            and isfinite(source.value)
+        ):
+            values.append(
+                (
+                    name,
+                    FeatureValue(
+                        value=(source.value - transform.mean) / transform.scale,
+                        status=source.status,
+                        unit=transform.unit,
+                    ),
+                )
             )
+            continue
+        status = (
+            source.status
+            if source.status is not FeatureStatus.PRESENT
+            else FeatureStatus.MISSING_SOURCE
         )
+        values.append((name, FeatureValue(status=status, unit=transform.unit)))
+        reasons.append((name, source.reason or "invalid_source_value"))
 
     return FeatureArtifact(
         row=FeatureRow(
