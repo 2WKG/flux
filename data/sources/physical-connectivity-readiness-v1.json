@@ -1,0 +1,112 @@
+{
+  "format": "flux-physical-connectivity-readiness-v1",
+  "scope": "Access and evidence receipts only. These records do not establish class coverage or a published inventory; 2WKG-441 owns that contract.",
+  "generated_by": "pipelines.physical_connectivity.build_readiness_document",
+  "receipts": [
+    {
+      "format": "flux-physical-connectivity-readiness-v1",
+      "state": "TX",
+      "status": "blocked",
+      "source": {
+        "name": "ERCOT Network Operations Model / planning-model access",
+        "url": "https://www.ercot.com/gridinfo/modeling",
+        "version": "public access check",
+        "assessed_at": "2026-09-06T07:43:54Z"
+      },
+      "accepted_terminal_count": 0,
+      "accepted_edge_count": 0,
+      "reason": "ERCOT publishes modeling process and schema material, while the network-model data is handled under CEII/ECEII access controls. No authorized, versioned terminal-and-circuit release was obtained in this work.",
+      "capture_method": "HTTPS GET of each cited ERCOT page with a desktop user agent; sha256 computed from the response body as received",
+      "evidence": [
+        {
+          "url": "https://www.ercot.com/services/comm/mkt_notices/archives/5178",
+          "http_status": 200,
+          "captured_at": "2026-09-06T07:43:54Z",
+          "bytes": 9369,
+          "sha256": "d4bd5f4c7bc1e25d63c1624ab8d1fcc9d3d3c73356e1125d4bb68c56cecdb9a9",
+          "capture_method": "HTTPS GET of each cited ERCOT page with a desktop user agent; sha256 computed from the response body as received",
+          "quote": "This partial implementation created a new role required for holders of Digital Certificates (Certificate Holders) to access ERCOT Critical Energy Infrastructure Information (ECEII) posted to the Market Information System (MIS) Secure or Certified Area.",
+          "quote_status": "verified",
+          "note": "ERCOT market notice 5178; the quoted sentence is present in the captured body."
+        },
+        {
+          "url": "https://www.ercot.com/gridinfo/modeling",
+          "http_status": 200,
+          "captured_at": "2026-09-06T07:43:54Z",
+          "bytes": 60979,
+          "sha256": "6871815baeb9164e80a917548eac4c38fbde27f998c30500dbbeda72c42996a1",
+          "capture_method": "HTTPS GET of each cited ERCOT page with a desktop user agent; sha256 computed from the response body as received",
+          "quote": null,
+          "quote_status": "unverified_as_committed",
+          "note": "Captured as context for the modeling process and CIM schema material; no sentence is quoted from it."
+        }
+      ],
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "quoted_sentence_found_in_captured_body": true,
+        "authorized_release_obtained": false,
+        "terminals_or_edges_accepted": 0
+      },
+      "prohibited_inferences": [
+        "line endpoints",
+        "line crossings",
+        "proximity",
+        "plant coordinates",
+        "street geometry"
+      ]
+    },
+    {
+      "format": "flux-physical-connectivity-readiness-v1",
+      "state": "MN",
+      "status": "blocked",
+      "source": {
+        "name": "Minnesota transmission and substation public GIS context",
+        "url": "https://www.mngeo.state.mn.us/chouse/utilities.html",
+        "version": "public catalog access check",
+        "assessed_at": "2026-09-06T07:46:41Z"
+      },
+      "accepted_terminal_count": 0,
+      "accepted_edge_count": 0,
+      "reason": "Minnesota's catalog states that the Minnesota Department of Commerce cannot continue to support distribution and use of the electric transmission-lines-and-substations dataset, citing accuracy problems and insufficient current information. The catalog is geometry/context evidence, not a terminal-and-circuit release.",
+      "capture_method": "HTTPS GET of the cited MnGeo catalog URL, then, after that request was answered by a bot-manager interstitial, an HTTPS GET of the Internet Archive snapshot of the same URL; sha256 computed from each response body as received",
+      "evidence": [
+        {
+          "url": "https://www.mngeo.state.mn.us/chouse/utilities.html",
+          "http_status": 200,
+          "captured_at": "2026-09-06T07:46:41Z",
+          "bytes": 21621,
+          "sha256": null,
+          "capture_method": "HTTPS GET of the cited MnGeo catalog URL, then, after that request was answered by a bot-manager interstitial, an HTTPS GET of the Internet Archive snapshot of the same URL; sha256 computed from each response body as received",
+          "quote": null,
+          "quote_status": "unverified_as_committed",
+          "note": "The cited URL 301-redirects to https://mn.gov/mngeo, which answered with a Radware Bot Manager captcha interstitial from validate.perfdrive.com. The body carries a per-request nonce, so it has no stable sha256 and the catalog text could not be read live."
+        },
+        {
+          "url": "http://web.archive.org/web/20260421111929/https://www.mngeo.state.mn.us/chouse/utilities.html",
+          "http_status": 200,
+          "captured_at": "2026-09-06T07:46:41Z",
+          "bytes": 46317,
+          "sha256": "fb8f8132c45fbde6eb6a09f01c16272736cfd848a4e4a136a4210ce0001032ee",
+          "capture_method": "HTTPS GET of the cited MnGeo catalog URL, then, after that request was answered by a bot-manager interstitial, an HTTPS GET of the Internet Archive snapshot of the same URL; sha256 computed from each response body as received",
+          "quote": "7/20/2022: Given existing accuracy problems with the dataset and insufficient current information, the Minnesota Department of Commerce cannot continue to support the distribution and use of this dataset.",
+          "quote_status": "verified",
+          "note": "Internet Archive snapshot of 2026-04-21T11:19:29Z of the same catalog URL; the quoted sentence is present in the captured body. Two fetches produced the same sha256."
+        }
+      ],
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "live_catalog_url_readable": false,
+        "quoted_sentence_found_in_archived_body": true,
+        "authorized_release_obtained": false,
+        "terminals_or_edges_accepted": 0
+      },
+      "prohibited_inferences": [
+        "line endpoints",
+        "line crossings",
+        "proximity",
+        "plant coordinates",
+        "street geometry"
+      ]
+    }
+  ]
+}
