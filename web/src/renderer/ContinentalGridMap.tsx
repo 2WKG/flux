@@ -15,6 +15,14 @@ export interface ContinentalGridMapProps {
   /** Region comes from the release request, never from an asset identifier. */
   readonly onAssetSelect?: (asset: SpatialItem, region: ContinentalRegion) => void;
   readonly className?: string;
+  /**
+   * The layer reader, injectable so a *rejected* read can be driven in a test.
+   * `loadGridLayer` reduces transport failures to a `refused` outcome itself, so
+   * the only way to reach the rejection path below is to hand this a reader that
+   * throws -- which is what a bug in the reader, or an unexpected throw inside
+   * it, does in production.
+   */
+  readonly loadLayer?: typeof loadGridLayer;
 }
 type Position = readonly [number, number];
 const states: Record<ContinentalRegion, { code: string; state: GridState; color: number[] }> = {
@@ -25,19 +33,22 @@ const point = (v: unknown): v is Position => Array.isArray(v) && typeof v[0] ===
 const firstPoint = (v: unknown): Position | null => point(v) ? v : Array.isArray(v) ? v.map(firstPoint).find((x): x is Position => x !== null) ?? null : null;
 const line = (v: unknown): Position[] => Array.isArray(v) ? v.filter(point) : [];
 
-export function ContinentalGridMap({ selectedRegion, onRegionSelect, onAssetSelect, className = "" }: ContinentalGridMapProps) {
+export function ContinentalGridMap({ selectedRegion, onRegionSelect, onAssetSelect, className = "", loadLayer = loadGridLayer }: ContinentalGridMapProps) {
   const [boundaries, setBoundaries] = useState<any>(null);
   const [assets, setAssets] = useState<Array<{ region: ContinentalRegion; item: SpatialItem }>>([]);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/assets/boundaries/conus-states-2024-5m.geojson", { signal: controller.signal }).then((r) => r.ok ? r.json() : Promise.reject(new Error(`boundary request ${r.status}`))).then(setBoundaries).catch((e) => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e)); });
-    const requests = Object.entries(GRID_LAYERS).flatMap(([state, layers]) => layers.map((layer) => ({ region: state === "tx" ? "texas" as const : "minnesota" as const, request: loadGridLayer({ state: state as GridState, layer, maxPages: 2, signal: controller.signal }) })));
+    const requests = Object.entries(GRID_LAYERS).flatMap(([state, layers]) => layers.map((layer) => ({ region: state === "tx" ? "texas" as const : "minnesota" as const, request: loadLayer({ state: state as GridState, layer, maxPages: 2, signal: controller.signal }) })));
+    // A rejected layer read is this component's own named `error` state, exactly
+    // as a failed boundary fetch is. Without this `.catch` it was an unhandled
+    // rejection: the map stayed on an empty asset set and said nothing was wrong.
     void Promise.all(requests.map((entry) => entry.request)).then((outcomes) => {
       if (!controller.signal.aborted) setAssets(outcomes.flatMap((outcome, index) => outcome.kind === "loaded" ? outcome.pages.flatMap((page) => page.items.map((item) => ({ region: requests[index].region, item }))) : []));
-    });
+    }).catch((e) => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : String(e)); });
     return () => controller.abort();
-  }, []);
+  }, [loadLayer]);
   const layers = useMemo<LayersList>(() => {
     const selectedCode = states[selectedRegion].code;
     const sourceLines = assets.filter(({ item }) => item.availability === "available" && item.display_geometry?.type === "LineString").map(({ region, item }) => ({ region, item, path: line(item.display_geometry?.coordinates) })).filter((item) => item.path.length > 1);
