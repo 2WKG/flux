@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import fixture from "../../data/demo/bundle.json";
+import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "./source-truth";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
@@ -28,6 +29,12 @@ const ORDER: Id[] = ["baseline", "a", "b"];
 const BUSES: Record<string, Bus> = Object.fromEntries(data.network.buses.map((bus) => [bus.id, bus]));
 const BASELINE_LOADS = data.scenarios.baseline.metrics.lineLoadings;
 const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shedMw));
+
+/**
+ * The screen's one primary state label, derived from the bundle's persisted
+ * provenance by src/source-truth.ts. No surface writes its own status text.
+ */
+const SOURCE_TRUTH = deriveSourceTruth(data.execution.provenance);
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -219,12 +226,44 @@ function CompareRail({ selected, onSelect }: { selected: Id; onSelect: (id: Id) 
   );
 }
 
-function App() {
+/** The dock's only state transition, kept pure so the toggle path is testable without a DOM. */
+export type ChatAction = "toggle";
+export function chatReducer(open: boolean, action: ChatAction): boolean {
+  return action === "toggle" ? !open : open;
+}
+
+/**
+ * The dock's markup as a pure function of its open state. The body is always
+ * rendered (hidden while collapsed) so `aria-controls` names a real element.
+ */
+export function ChatDockView({ open, onToggle }: { open: boolean; onToggle: () => void }) {
+  return (
+    <section className={`chat-dock ${open ? "expanded" : "collapsed"}`} aria-label="Evidence chat dock">
+      <button className="chat-toggle" onClick={onToggle} aria-expanded={open} aria-controls="chat-dock-body">
+        <span>
+          <span className="eyebrow">Evidence chat</span>
+          <strong>{open ? "Chat contract and limits" : "Ask about visible evidence"}</strong>
+        </span>
+        <span className="chat-state">{open ? "Collapse" : "Not available in this offline build"}</span>
+      </button>
+      <div id="chat-dock-body" className="chat-body" hidden={!open}>
+        <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
+        <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
+      </div>
+    </section>
+  );
+}
+
+function ChatDock() {
+  const [open, toggle] = useReducer(chatReducer, false);
+  return <ChatDockView open={open} onToggle={() => toggle("toggle")} />;
+}
+
+export function App() {
   const [selected, setSelected] = useState<Id>("baseline");
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -264,10 +303,10 @@ function App() {
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
 
   return (
-    <main className="app-shell">
+    <main>
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
-        <div className="live"><i />bundled synthetic fixture · no API required</div>
+        <div className="live"><i />{sourceSummary(SOURCE_TRUTH)} · no API required</div>
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
@@ -286,12 +325,12 @@ function App() {
           <p className="eyebrow">Scenario comparison</p>
           <p>Choose a bundled run. All choices keep the same synthetic five-bus assumptions.</p>
         </div>
-        <span className="shell-status">Offline preview · no Minnesota coverage</span>
+        <span className="shell-status">{STATUS_COPY[SOURCE_TRUTH.status]} five-bus preview · not Minnesota data</span>
       </section>
 
       <CompareRail selected={selected} onSelect={select} />
 
-      <section className="workspace viewport-shell" aria-label="Viewport-first scenario workspace">
+      <section className="workspace" aria-label="Viewport-first scenario workspace">
         <article className="map scene-viewport">
           <div className="map-head">
             <div>
@@ -311,7 +350,7 @@ function App() {
               ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
-          <section className="timeline compact-panel" aria-label="Scenario timeline">
+          <section className="timeline" aria-label="Scenario timeline">
             <div>
               <p className="eyebrow">Timeline</p>
               <strong>Fixed {data.execution.assumptions.durationHours}-hour snapshot</strong>
@@ -375,21 +414,7 @@ function App() {
         </p>
       </section>
 
-      <section className={`chat-dock ${chatOpen ? "expanded" : "collapsed"}`} aria-label="Evidence chat dock">
-        <button className="chat-toggle" onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen} aria-controls="chat-dock-body">
-          <span>
-            <span className="eyebrow">Evidence chat</span>
-            <strong>{chatOpen ? "Chat contract and limits" : "Ask about visible evidence"}</strong>
-          </span>
-          <span className="chat-state">{chatOpen ? "Collapse" : "Unavailable in static preview"}</span>
-        </button>
-        {chatOpen && (
-          <div id="chat-dock-body" className="chat-body">
-            <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
-            <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
-          </div>
-        )}
-      </section>
+      <ChatDock />
 
       {detail && (
         <div className="overlay" onMouseDown={() => setDetail(false)}>
@@ -412,4 +437,6 @@ function App() {
   );
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+/** Mount only in a browser document; the render tests import App directly. */
+const mountPoint = typeof document === "undefined" ? null : document.getElementById("root");
+if (mountPoint) createRoot(mountPoint).render(<App />);
