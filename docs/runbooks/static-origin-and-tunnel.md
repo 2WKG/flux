@@ -1,21 +1,32 @@
 # Static origin and tunnel inventory
 
-Last checked: 2026-09-05
+Last checked: 2026-09-06
 
-This is an inventory, not a provisioning guide. It records only checked-in
-configuration and a public, read-only tunnel check; it intentionally contains no
-credentials, connector IDs, or private hostnames.
+This is an inventory plus the recorded deployment command for the origin host.
+It records checked-in configuration, host checks, and a public, read-only tunnel
+check; it intentionally contains no credentials, connector IDs, tunnel UUIDs, or
+private hostnames.
 
 ## Current status
 
-`https://bouncepulse.com` is served by Cloudflare, but a header check on
-2026-09-05 returned HTTP `530`. The tunnel connector is therefore not reachable
-at the time of this inventory. `cloudflared` is not on this Windows machine's
-`PATH`.
+**There is no existing Cloudflare Tunnel to reuse.** The earlier tasks assumed
+one was already configured; it is not. Checks on the intended origin host
+(`WYZWORKSTATION`, user `willi`) on 2026-09-06:
 
-The checkout has no tracked Cloudflare Tunnel configuration, service definition,
-or connector credential. The local static origin is fully identified below; the
-public hostname-to-origin mapping is not.
+| Check | Command | Result |
+| --- | --- | --- |
+| Public hostname | `Invoke-WebRequest -Uri https://bouncepulse.com/ -Method Head` | HTTP `530` |
+| DNS | `Resolve-DnsName bouncepulse.com -Type A` | `172.67.218.236`, `104.21.24.128` — Cloudflare proxy addresses |
+| Connector binary | `Get-Command cloudflared` | not on `PATH` |
+| Connector service | `Get-Service *cloudflare*` | none installed |
+| Connector process | `Get-Process *cloudflared*` | none running |
+| Connector credentials | `Test-Path $env:USERPROFILE\.cloudflared` | `False` |
+| Tracked config | repository grep for `cloudflare`/`tunnel` | docs only; no config, service definition, or credential |
+
+`bouncepulse.com` is proxied by Cloudflare (the zone exists), but HTTP `530`
+with no connector anywhere on this host means no tunnel origin has ever been
+registered from here. The local static origin is fully identified below; the
+public hostname-to-origin mapping does not exist yet.
 
 ## Static origin (authoritative)
 
@@ -27,7 +38,8 @@ public hostname-to-origin mapping is not.
 | Bind address | Not explicitly configured in source; Node's default listen host is used. Do not assume a loopback or LAN bind without checking the connector host. |
 | Static build | `web/dist/`, built by `npm --prefix web run build` |
 | Demo data | `data/demo/bundle.json`, read directly by the Express route `GET /api/demo`. The file is also bundled into `web/dist/assets/app.js` at build time. |
-| Service owner | Not recorded in this checkout |
+| Origin host | `WYZWORKSTATION` (this Windows 11 workstation) — the designated demo host; no other candidate host exists |
+| Service owner | William Zhang, who keeps `WYZWORKSTATION` and the origin process running for the demo window |
 
 The static server's only environment variable is `PORT`; no value is recorded
 here. It loads it directly from the process environment when it starts, so there
@@ -39,7 +51,7 @@ is no checked-in environment file or wrapper that overrides it.
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
 | local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified; reads `data/demo/bundle.json` on every request. The built client does not call it. |
-| `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
+| `https://bouncepulse.com/*` | Cloudflare public edge | No connector registered | Public check returns `530`; the intended target is `http://127.0.0.1:4173` on `WYZWORKSTATION` once the tunnel below is created |
 | optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
 | optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
@@ -48,8 +60,8 @@ running API or a public mapping. `POST /ask` starts only the injected local SSE
 transport; without an injected backend it reports unavailable and it does not
 contact a provider. The specifications name `ANTHROPIC_API_KEY`,
 `VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
-checked-in static server. The tunnel's own environment-variable names are
-unknown because its configuration is not available in the repository.
+checked-in static server. The connector configuration recorded below reads no
+environment variables; its mapping lives entirely in `config.yml` on the host.
 
 ## Start and verify the static origin
 
@@ -81,24 +93,58 @@ route without exposing configuration values:
 curl.exe -I https://bouncepulse.com/
 ```
 
-It should return the same built HTML as the local root, not HTTP `530`. Do not restart
-or install `cloudflared` on this laptop as a substitute for the missing owner
-configuration.
+It should return the same built HTML as the local root, not HTTP `530`.
 
-## Tunnel blocker and handoff
+## Deployment command (recorded, not yet run)
 
-The Cloudflare Tunnel service owner and connector host are unknown. The person
-with Cloudflare Zero Trust Tunnel access **and** administrator access to the
-machine that runs the connector must provide these non-secret facts before the
-mapping can be completed:
+Because no tunnel exists to reuse, one must be created from this host. These are
+the commands the owner runs on `WYZWORKSTATION`. **None of them has been run
+yet** — `cloudflared tunnel login` opens a browser for Cloudflare account
+authentication, so the owner must run this sequence interactively.
 
-1. The connector host and the person responsible for keeping it online.
-2. Whether the authoritative mapping is managed in the Cloudflare dashboard or a
-   connector configuration file, plus that configuration file's path.
-3. The public-hostname path rules and each local service/port they target,
-   including any future API/SSE rule.
-4. The service-manager name and its approved restart/status commands.
+```powershell
+winget install --id Cloudflare.cloudflared
+cloudflared tunnel login                   # browser auth; select the bouncepulse.com zone
+cloudflared tunnel create flux-demo        # writes credentials to $env:USERPROFILE\.cloudflared
+cloudflared tunnel route dns flux-demo bouncepulse.com
+```
 
-Until that handoff is available, `bouncepulse.com` cannot be assigned to a local
-port, and no API/SSE public routing should be claimed. This is the concrete
-blocker for the follow-up external-health and SSE verification work.
+Then write `%USERPROFILE%\.cloudflared\config.yml`, which is the authoritative
+hostname-to-origin mapping:
+
+```yaml
+tunnel: flux-demo
+credentials-file: C:\Users\willi\.cloudflared\<TUNNEL-UUID>.json
+ingress:
+  - hostname: bouncepulse.com
+    service: http://127.0.0.1:4173
+  - service: http_status:404
+```
+
+Start the static origin first (see the section above), then the connector:
+
+```powershell
+cloudflared tunnel run flux-demo           # foreground, for the demo window
+```
+
+Run it in the foreground for the demo and stop it with Ctrl+C. Installing it as
+a Windows service (`cloudflared service install`) is optional and needs an
+elevated shell; the foreground form is the simpler default and is what the owner
+will use. Verify with the `curl.exe -I https://bouncepulse.com/` check above.
+
+The credentials file and the tunnel UUID stay on the host and out of Git; the
+`.cloudflared` directory must never be committed.
+
+### Ownership record
+
+| Fact | Value |
+| --- | --- |
+| Connector host | `WYZWORKSTATION` |
+| Keeps the host and processes running | William Zhang |
+| Authoritative mapping | `%USERPROFILE%\.cloudflared\config.yml` on that host (not the Cloudflare dashboard) |
+| Local origin target | `http://127.0.0.1:4173` (Node/Express, `web/server.mjs`) |
+| Start/stop | `cloudflared tunnel run flux-demo` in the foreground; Ctrl+C to stop |
+
+Only the static origin is routed. No public rule targets the FastAPI copilot on
+port `8000`; API/SSE public routing must not be claimed until a second ingress
+rule is added and verified.
