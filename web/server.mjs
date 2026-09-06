@@ -19,9 +19,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
 
 /**
- * The read paths that may be forwarded, and the methods each accepts. Nothing
- * else is proxied — a path not in this table is served the SPA shell, so a new
- * upstream route cannot be reached by accident.
+ * The public paths that may be forwarded, and the methods each accepts. Nothing
+ * else is proxied — a path not in this table is served by the static origin, so
+ * a new upstream route cannot be reached by accident.
  */
 const PROXIED = [
   { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
@@ -29,6 +29,15 @@ const PROXIED = [
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
   { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+  // Persisted cascade reads and interactive simulation writes intentionally
+  // share this one path, with their distinct methods pinned here.
+  { pattern: /^\/cascade$/, methods: ["GET", "POST"] },
+  { pattern: /^\/scenario\/edit$/, methods: ["POST"] },
+  { pattern: /^\/balance$/, methods: ["GET"] },
+  { pattern: /^\/redundancy$/, methods: ["GET"] },
+  { pattern: /^\/siting\/search$/, methods: ["POST"] },
+  { pattern: /^\/minnesota\/smr\/validate$/, methods: ["POST"] },
+  { pattern: /^\/mn\/comparisons$/, methods: ["POST"] },
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
 
