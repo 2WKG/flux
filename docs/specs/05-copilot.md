@@ -173,7 +173,7 @@ Runs after the final text; result is emitted in `done` and logged. It does not b
 
 **Sparse (always):** `rank_bm25.BM25Okapi(corpus_tokens, k1=1.5, b=0.75)` (`get_scores` / `get_top_n`; verified installed) over lowercased, punctuation-stripped tokens, built at startup from `corpus_chunks` (< 1 s). Legal text is heavy on exact terms (`"exclusion area"`, `"500 persons per square mile"`, `"population center distance"`), so BM25 alone is demo-adequate.
 
-**Fusion:** if dense is available, take top-20 from each, reciprocal-rank fusion (`k=60`), return top-`k`. Otherwise BM25 top-`k`. `cite` returns `{doc, title, page, chunk_id, score, text[:1200]}`.
+**Fusion:** if dense is available, take top-20 from each, reciprocal-rank fusion (`k=60`), return top-`k`. Otherwise BM25 top-`k`. `cite` returns `{doc, title, page, chunk_id, score, text[:1200], source, version, date, locator, content_kind, provenance}`; source identity and fixture classification are carried through unchanged.
 
 **No-embeddings fallback is the default path for the weekend**; dense is a Sunday-morning upgrade only if the BM25 eval misses.
 
