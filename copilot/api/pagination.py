@@ -102,9 +102,7 @@ class DeterministicOrder:
     def sql(self) -> str:
         """The complete route-owned ``ORDER BY`` expression, including the tie."""
 
-        return ", ".join(
-            [*(term.sql for term in self.primary), self.tie_breaker.sql]
-        )
+        return ", ".join([*(term.sql for term in self.primary), self.tie_breaker.sql])
 
     def clause(self, page: PageRequest) -> tuple[str, tuple[int, int]]:
         """Return the SQL suffix and bound values for a deterministic page."""
