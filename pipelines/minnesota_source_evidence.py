@@ -1,5 +1,10 @@
 """Persist source-qualified Minnesota county geography without claiming a model.
 
+Artifact kinds and geography identifiers follow docs/specs/10-duckdb-contract.md:
+statewide source manifests use ``geography_id="mn"``; the derived county
+collection is an ``artifact_kind="geography"`` artifact with the source-qualified
+region key ``mn:counties:2024``.
+
 This writer keeps raw aggregate-capacity and balancing-authority files as source
 evidence.  It stores only the deterministic county-boundary collection in the
 existing Minnesota artifact namespace; it never turns those inputs into a
@@ -11,6 +16,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -19,6 +25,7 @@ import duckdb
 import geopandas as gpd
 
 from pipelines.fixtures.builder import FixtureError, artifact_id_for
+from pipelines.minnesota_aggregate import UPSTREAM_SHA_KEY
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 
@@ -32,6 +39,10 @@ def _sha256(path: Path) -> str:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _is_sha256(value: object) -> bool:
+    return isinstance(value, str) and re.fullmatch(r"[0-9a-f]{64}", value) is not None
 
 
 def _timestamp(value: str) -> datetime:
@@ -52,8 +63,14 @@ def build_source_evidence(
     needed = {"tiger_counties_2024", "eia860_2024", "eia930_balance_2024_h1"}
     if missing := needed - sources.keys():
         raise ValueError(f"aggregate manifest misses sources: {sorted(missing)!r}")
+    for source in sources.values():
+        if not _is_sha256(source.get(UPSTREAM_SHA_KEY)):
+            raise ValueError(
+                f"aggregate manifest source {source['id']!r} lacks a lowercase "
+                f"SHA-256 under {UPSTREAM_SHA_KEY!r}"
+            )
     tiger = sources["tiger_counties_2024"]
-    if tiger["sha256"] != _sha256(counties_zip):
+    if tiger[UPSTREAM_SHA_KEY] != _sha256(counties_zip):
         raise ValueError("county source checksum does not match aggregate manifest")
     counties = gpd.read_file(f"zip://{counties_zip}")
     counties = counties.loc[counties["STATEFP"].eq("27")].to_crs("EPSG:4326")
@@ -68,16 +85,16 @@ def build_source_evidence(
     def source_artifact(source: dict[str, Any]) -> dict[str, Any]:
         identity = {
             "artifact_kind": "source_manifest",
-            "geography_id": "mn:state",
+            "geography_id": "mn",
             "model_mode": "not_applicable",
             "source_identity": source["id"],
             "source_version": "2024",
-            "content_sha256": source["sha256"],
+            "content_sha256": source[UPSTREAM_SHA_KEY],
         }
         return {
             "artifact_id": artifact_id_for(identity),
             "artifact_kind": "source_manifest",
-            "geography_id": "mn:state",
+            "geography_id": "mn",
             "availability": "available",
             "model_mode": "not_applicable",
             "identity": identity,
@@ -95,7 +112,7 @@ def build_source_evidence(
                     "retrieved_at": retrieved_at,
                     "license_or_terms": "public publisher data; see source publisher terms",
                     "source_record_id": None,
-                    "content_sha256": source["sha256"],
+                    "content_sha256": source[UPSTREAM_SHA_KEY],
                     "is_derived": False,
                 }
             ],
@@ -108,7 +125,7 @@ def build_source_evidence(
         if row["identity"]["source_identity"] == "tiger_counties_2024"
     )
     identity = {
-        "artifact_kind": "county_boundary",
+        "artifact_kind": "geography",
         "geography_id": "mn:counties:2024",
         "model_mode": "not_applicable",
         "source_identity": "tiger_counties_2024",
@@ -117,7 +134,7 @@ def build_source_evidence(
     }
     boundary = {
         "artifact_id": artifact_id_for(identity),
-        "artifact_kind": "county_boundary",
+        "artifact_kind": "geography",
         "geography_id": "mn:counties:2024",
         "availability": "available",
         "model_mode": "not_applicable",
@@ -136,7 +153,7 @@ def build_source_evidence(
                 "retrieved_at": retrieved_at,
                 "license_or_terms": "public publisher data; see source publisher terms",
                 "source_record_id": "STATEFP=27",
-                "content_sha256": tiger["sha256"],
+                "content_sha256": tiger[UPSTREAM_SHA_KEY],
                 "is_derived": True,
             }
         ],
