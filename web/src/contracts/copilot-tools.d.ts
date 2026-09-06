@@ -275,9 +275,7 @@ export interface SqlData {
   unavailable?: Unavailable | null;
 }
 
-export interface SqlInput {
-  query: string;
-}
+export type SqlInput = { query?: string | null; template_id?: string | null; } & ({ query: string; template_id?: null; } | { query?: null; template_id: string; });
 
 export interface ToolOutput {
   provenance?: ArtifactRef[];
