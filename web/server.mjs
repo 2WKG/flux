@@ -74,7 +74,7 @@ export const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
-  "script-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "object-src 'none'",

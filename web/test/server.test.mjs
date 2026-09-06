@@ -61,12 +61,14 @@ test("API-shaped paths state that this static origin is unavailable", async () =
   }
 });
 
-test("every response carries a CSP that names no off-origin source", async () => {
+test("every response carries a CSP that names no off-origin source and permits only WebAssembly evaluation", async () => {
   const get = await origin();
   for (const path of ["/", "/assets/app.js", "/api/demo", "/anything"]) {
     const response = await get(path);
     assert.equal(response.csp, CONTENT_SECURITY_POLICY, `${path} served without the policy`);
   }
+  assert.match(CONTENT_SECURITY_POLICY, /script-src 'self' 'wasm-unsafe-eval'/);
+  assert.doesNotMatch(CONTENT_SECURITY_POLICY, /'unsafe-eval'/);
   for (const directive of CONTENT_SECURITY_POLICY.split("; ")) {
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
