@@ -1,20 +1,23 @@
 """Read-only qualified-prediction and persisted-cascade reads (2WKG-104).
 
-``GET /predictions`` returns the bare array pinned by ``docs/specs/05-copilot.md``
-§Routes: one element per ``outage_predictions`` row whose provenance cites an
-evaluation persisted with ``qualified = TRUE``.  Qualification is read from
+``GET /predictions`` returns the status-carrying shape pinned by
+``docs/specs/00-overview.md`` §4.2 and ``docs/specs/05-copilot.md`` §Routes —
+``{status: "available", predictions: [...]}`` — with one element per
+``outage_predictions`` row whose provenance cites an evaluation persisted with
+``qualified = TRUE``.  Qualification is read from
 ``evaluation_artifacts`` through :func:`models.outage.persistence.query_predictions`
 (``qualified_only=True``) — the predicate runs in SQL before ``LIMIT``, so a
 qualified row is never hidden behind unqualified ones.  Heuristic rows cite no
 evaluation and are therefore never "qualified"; an artifact holding only such
 rows is ``no_qualified_prediction``, by design.
 
-``GET /cascade`` returns one persisted ``cascade_runs`` run, unwrapped.  A run is
+``GET /cascade`` returns one persisted ``cascade_runs`` run under the same
+``status: "available"`` discriminator (00-overview §4.2 is the authority).  A run is
 eligible only when the Minnesota artifact metadata qualifies it: its
 ``mn_model_results`` row is ``validated``, its ``mn_artifact_manifests`` row is
 ``available`` with ``model_mode = 'topology'``, and the manifest has provenance
 rows.  The payload is the spec-05 cascade layer shape plus the artifact's own
-metadata: ``{run_id, scenario_id, artifact_id, model_mode, geography_id,
+metadata: ``{status, run_id, scenario_id, artifact_id, model_mode, geography_id,
 hours:[{hour, tripped_element_ids, lost_load_mw, counties_dark,
 critical_loads_lost}], provenance:[...], limitations:[...], source_kind,
 topology, attributes}``.  ``lost_load_mw`` is read from the row (MW, see
@@ -23,8 +26,14 @@ artifact's and the row's persisted provenance, never from a constant — a run
 whose provenance supports neither label is ``topology_label_unavailable``.
 With no ``run_id`` the "latest" run is the qualified run whose manifest has the
 greatest ``created_at`` (the only run-level timestamp persisted); ties fall back
-to lexical ``run_id`` order, which is documented rather than pretended to be
-temporal.
+to lexical ``run_id`` then ``artifact_id`` order — a total order over the
+selected columns, so the served run is deterministic by construction rather than
+whatever ``LIMIT 1`` happens to reach first.  That is documented, not pretended
+to be temporal.
+
+The qualified success also carries ``X-Flux-Artifact`` (#158/2WKG-294) with the
+same ``artifact_id`` the body returns; an id that is not header-safe fails closed
+as ``invalid_topology_artifact`` rather than being emitted.
 
 Failures use the shared failure envelope (``copilot.api``) with a named
 ``reason`` in ``details``; malformed parameters are the shared 422
@@ -38,9 +47,10 @@ from datetime import datetime
 from typing import Annotated, Any, Final, Literal
 
 import duckdb
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 
 from copilot.api import InvalidInputError, NotFoundError, UnavailableError
+from copilot.api.errors import ARTIFACT_HEADER
 from copilot.config import Settings
 from copilot.routes.scenarios import _as_utc, _derive_labels
 from models.outage.persistence import PersistenceError, query_predictions
@@ -106,7 +116,11 @@ CASCADE_ATTRIBUTES: Final[dict[str, dict[str, str | None]]] = {
 # The qualified-run selection: a persisted cascade run counts only when its
 # Minnesota model result is validated and its manifest is an available topology
 # artifact with provenance.  ``run_id`` narrows it; otherwise the manifest with
-# the greatest ``created_at`` wins (``run_id`` desc is the documented tie-break).
+# the greatest ``created_at`` wins.  The tie-break is a TOTAL order over the
+# selected columns — ``run_id`` desc, then ``artifact_id`` desc — because two
+# available topology manifests can cite the same ``model_run_id`` with the same
+# ``created_at``, and ``LIMIT 1`` over a partial order would serve an arbitrary
+# one of them.  Documented, not pretended to be temporal.
 _QUALIFIED_RUN_SQL: Final = """
     SELECT DISTINCT c.run_id, m.artifact_id, m.model_mode, m.geography_id,
            m.limitations_json, m.created_at
@@ -122,7 +136,7 @@ _QUALIFIED_RUN_SQL: Final = """
           SELECT 1 FROM mn_artifact_provenance AS p
           WHERE p.artifact_id = m.artifact_id
       )
-    ORDER BY m.created_at DESC, c.run_id DESC
+    ORDER BY m.created_at DESC, c.run_id DESC, m.artifact_id DESC
     LIMIT 1
 """
 _RUN_EXISTS_SQL: Final = (
@@ -204,8 +218,8 @@ def predictions(
     county_fips: CountyFipsQuery = None,
     model_kind: ModelKind | None = None,
     limit: int = Query(MAX_PREDICTIONS, ge=1, le=MAX_PREDICTIONS),
-) -> list[dict[str, Any]]:
-    """Return qualified prediction rows as a bare array, or a named failure."""
+) -> dict[str, Any]:
+    """Return qualified prediction rows under the pinned status shape, or a failure."""
 
     artifact = "outage_predictions"
     settings: Settings = request.app.state.settings
@@ -234,7 +248,7 @@ def predictions(
             raise _unavailable("query_failed", artifact=artifact) from exc
         if not rows:
             raise _unavailable("no_qualified_prediction", artifact=artifact)
-        return rows
+        return {"status": "available", "predictions": rows}
     finally:
         con.close()
 
@@ -247,6 +261,15 @@ def _json_list(value: object, label: str, error: type[ValueError]) -> list[Any]:
             raise error(f"{label} is not JSON") from exc
     if not isinstance(value, list):
         raise error(f"{label} must be a JSON array")
+    return value
+
+
+def _header_safe_artifact_id(value: object) -> str:
+    """Return one immutable artifact id that is safe to emit as an HTTP header (#158)."""
+    if not isinstance(value, str) or not value:
+        raise _ArtifactInvalid("artifact id is missing")
+    if not value.isascii() or any(not 33 <= ord(char) <= 126 for char in value):
+        raise _ArtifactInvalid("artifact id is not header-safe")
     return value
 
 
@@ -372,7 +395,10 @@ def _topology_labels(
 
 @router.get("/cascade")
 def cascade(
-    request: Request, scenario_id: ScenarioIdQuery, run_id: RunIdQuery = None
+    request: Request,
+    response: Response,
+    scenario_id: ScenarioIdQuery,
+    run_id: RunIdQuery = None,
 ) -> dict[str, Any]:
     """Read one qualified persisted topology cascade run; never compute one."""
 
@@ -420,7 +446,9 @@ def cascade(
     except _RowInvalid as exc:
         raise _unavailable("schema_mismatch", artifact=artifact, run_id=run_id) from exc
     try:
-        artifact_id = _require_str(chosen[1], "artifact_id", _ArtifactInvalid)
+        artifact_id = _header_safe_artifact_id(
+            _require_str(chosen[1], "artifact_id", _ArtifactInvalid)
+        )
         geography_id = _require_str(chosen[3], "geography_id", _ArtifactInvalid)
         limitations = _limitations(chosen[4])
         provenance = _provenance_from_rows(provenance_rows)
@@ -436,7 +464,9 @@ def cascade(
         raise _unavailable(
             "topology_label_unavailable", artifact=artifact, run_id=run_id
         ) from exc
+    response.headers[ARTIFACT_HEADER] = artifact_id
     return {
+        "status": "available",
         "run_id": run_id,
         "scenario_id": scenario_id,
         "artifact_id": artifact_id,

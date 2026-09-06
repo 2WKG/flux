@@ -3,7 +3,11 @@
 Only the failure envelope is returned from routes. An absent, stale, or unbuilt
 artifact is a failure envelope — never an empty successful result. Route
 payloads are unwrapped: bare arrays, equality-tested tool-dict pass-throughs,
-Arrow IPC bytes.
+Arrow IPC bytes. "Unwrapped" means "not the four-field envelope below" — a route
+payload that carries its own ``status: "available"`` discriminator, as specs 00
+§4.2 and 05 pin for the Minnesota ``GET /cascade`` and ``GET /predictions`` reads,
+is still an unwrapped payload. Success bodies also never carry the version: that
+travels as ``X-Flux-Api-Version`` on every response (2WKG-294).
 
 This module owns contracts only; DuckDB access, retrieval, and route handlers
 belong to their own units. Envelopes are closed to unknown fields so a raw

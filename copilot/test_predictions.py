@@ -1,5 +1,9 @@
 """HTTP coverage for qualified prediction and persisted cascade reads.
 
+Success bodies carry the ``status: "available"`` discriminator pinned by
+``docs/specs/00-overview.md`` §4.2 (the winning authority); the qualified
+``GET /cascade`` success also carries ``X-Flux-Artifact`` (#158).
+
 Fixtures are built on the real ``pipelines.db`` 2.1.0 DDL plus the
 ``models.outage.persistence`` companion tables and the ``pipelines.minnesota_schema``
 namespace, so the tests cannot drift from the columns the routes read.
@@ -16,6 +20,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import pipelines.db as pdb
+from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.routes import predictions as predictions_module
@@ -170,10 +175,21 @@ class _Run:
     validation_status: str = "validated"
     with_provenance: bool = True
     limitations: str = '["Fixture topology evidence only."]'
+    # Two available topology manifests can cite one ``model_run_id``; the suffix
+    # builds that tie without a second cascade_runs row.
+    artifact_suffix: str = ""
+    artifact_id_override: str | None = None
+    cascade_rows: bool = True
+    # None: a model result exists exactly when the manifest is available.  Set it
+    # explicitly to persist a result for a manifest the route must still refuse,
+    # so the WHERE clause that refuses it is the only thing standing in the way.
+    with_model_result: bool | None = None
 
     @property
     def artifact_id(self) -> str:
-        return f"mn:model:{self.run_id}"
+        if self.artifact_id_override is not None:
+            return self.artifact_id_override
+        return f"mn:model:{self.run_id}{self.artifact_suffix}"
 
 
 def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
@@ -182,7 +198,7 @@ def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
     try:
         ensure_minnesota_schema(con)
         for run in runs:
-            for hour in run.hours:
+            for hour in run.hours if run.cascade_rows else ():
                 con.execute(
                     "INSERT INTO cascade_runs VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)",
                     [
@@ -234,7 +250,11 @@ def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
                         False,
                     ],
                 )
-            if run.availability != "available":
+            if not (
+                run.availability == "available"
+                if run.with_model_result is None
+                else run.with_model_result
+            ):
                 continue
             topology = run.model_mode == "topology"
             con.execute(
@@ -268,9 +288,10 @@ def _details(response) -> dict[str, str]:  # type: ignore[no-untyped-def]
 # --- GET /predictions -------------------------------------------------------
 
 
-def test_qualified_persisted_prediction_is_returned_as_bare_array(
+def test_qualified_persisted_prediction_is_returned_under_the_status_shape(
     tmp_path: Path,
 ) -> None:
+    """00-overview §4.2 pins ``{status:"available", predictions:[…]}`` here."""
     database = tmp_path / "qualified.duckdb"
     _prediction_database(
         database, (_Prediction("27000", True), _Prediction("27001", False))
@@ -281,7 +302,11 @@ def test_qualified_persisted_prediction_is_returned_as_bare_array(
 
     assert response.status_code == 200
     assert _file_sha256(database) == before
-    assert response.json() == [
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
+    body = response.json()
+    assert body["status"] == "available"
+    assert body["predictions"] == [
         {
             "scenario_id": SCENARIO,
             "county_fips": "27000",
@@ -329,7 +354,7 @@ def test_qualified_row_behind_unqualified_rows_beyond_limit_is_returned(
     response = _client(database).get("/predictions", params={"limit": 2})
 
     assert response.status_code == 200
-    assert [row["county_fips"] for row in response.json()] == ["27999"]
+    assert [r["county_fips"] for r in response.json()["predictions"]] == ["27999"]
 
 
 def test_heuristic_rows_without_evaluation_are_not_qualified(tmp_path: Path) -> None:
@@ -355,7 +380,49 @@ def test_limit_bounds_the_returned_rows(tmp_path: Path) -> None:
     response = _client(database).get("/predictions", params={"limit": 2})
 
     assert response.status_code == 200
-    assert [row["county_fips"] for row in response.json()] == ["27000", "27001"]
+    assert [r["county_fips"] for r in response.json()["predictions"]] == [
+        "27000",
+        "27001",
+    ]
+
+
+def test_county_fips_filter_is_wired_through_to_the_query(tmp_path: Path) -> None:
+    """Passing ``county_fips`` must change the result set, not just validate."""
+    database = tmp_path / "counties.duckdb"
+    _prediction_database(
+        database, (_Prediction("27000", True), _Prediction("27001", True))
+    )
+    client = _client(database)
+
+    filtered = client.get("/predictions", params={"county_fips": "27001"})
+    unfiltered = client.get("/predictions")
+
+    assert filtered.status_code == 200
+    assert [r["county_fips"] for r in filtered.json()["predictions"]] == ["27001"]
+    assert [r["county_fips"] for r in unfiltered.json()["predictions"]] == [
+        "27000",
+        "27001",
+    ]
+
+
+def test_model_kind_filter_is_wired_through_to_the_query(tmp_path: Path) -> None:
+    """``model_kind=heuristic`` excludes the qualified lightgbm row; None does not."""
+    database = tmp_path / "kinds.duckdb"
+    _prediction_database(
+        database, (_Prediction("27000", True), _Prediction("27001", None))
+    )
+    client = _client(database)
+
+    heuristic = client.get("/predictions", params={"model_kind": "heuristic"})
+    lightgbm = client.get("/predictions", params={"model_kind": "lightgbm"})
+    unfiltered = client.get("/predictions")
+
+    assert heuristic.status_code == 503
+    assert _details(heuristic)["reason"] == "no_qualified_prediction"
+    assert lightgbm.status_code == 200
+    assert [r["county_fips"] for r in lightgbm.json()["predictions"]] == ["27000"]
+    assert unfiltered.status_code == 200
+    assert [r["county_fips"] for r in unfiltered.json()["predictions"]] == ["27000"]
 
 
 def test_scenario_filter_selects_only_that_scenario(tmp_path: Path) -> None:
@@ -373,9 +440,9 @@ def test_scenario_filter_selects_only_that_scenario(tmp_path: Path) -> None:
     )
 
     assert response.status_code == 200
-    assert [(r["scenario_id"], r["county_fips"]) for r in response.json()] == [
-        (OTHER_SCENARIO, "27001")
-    ]
+    assert [
+        (r["scenario_id"], r["county_fips"]) for r in response.json()["predictions"]
+    ] == [(OTHER_SCENARIO, "27001")]
 
 
 @pytest.mark.parametrize(
@@ -501,7 +568,10 @@ def _hour(hour: int) -> dict[str, object]:
     }
 
 
-def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
+def test_persisted_cascade_is_returned_with_its_status_and_artifact_header(
+    tmp_path: Path,
+) -> None:
+    """The 00-overview §4.2 status shape, plus #158's ``X-Flux-Artifact``."""
     database = tmp_path / "cascade.duckdb"
     run = _Run("mn_winter_2023_snow-s0-0badf00d", hours=(1, 0))
     _cascade_database(database, (run,))
@@ -513,6 +583,7 @@ def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
     assert _file_sha256(database) == before
     body = response.json()
     assert body == {
+        "status": "available",
         "run_id": "mn_winter_2023_snow-s0-0badf00d",
         "scenario_id": SCENARIO,
         "artifact_id": "mn:model:mn_winter_2023_snow-s0-0badf00d",
@@ -537,7 +608,8 @@ def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
         "attributes": predictions_module.CASCADE_ATTRIBUTES,
     }
     assert body["attributes"]["lost_load_mw"]["unit"] == "MW"
-    assert "status" not in body
+    assert response.headers["X-Flux-Artifact"] == body["artifact_id"]
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
 
 
 def test_cascade_labels_come_from_the_persisted_provenance(tmp_path: Path) -> None:
@@ -585,6 +657,55 @@ def test_latest_cascade_run_is_by_artifact_time_not_run_id_order(
 
     assert response.status_code == 200
     assert response.json()["run_id"] == "mn_winter_2023_snow-s0-00000000"
+
+
+def test_latest_cascade_run_is_a_total_order_when_created_at_ties(
+    tmp_path: Path,
+) -> None:
+    """Eight available manifests, one ``model_run_id``, one ``created_at``.
+
+    ``created_at`` and ``run_id`` are tied across all eight, so only the
+    ``artifact_id`` tie-break decides which one ``LIMIT 1`` may keep, and the
+    lexically greatest (``…:h``) must be served.  The two databases differ only
+    in the order the tied manifests were inserted, and each is asked five times:
+    a total order over the selected columns answers ``…:h`` all ten times, while
+    a partial order is free to follow whatever the scan reaches first (without
+    ``, m.artifact_id DESC`` DuckDB serves ``…:b`` here, from both orders).
+    """
+    run_id = "mn_winter_2023_snow-s0-7ie7ie00"
+    tied = "2026-09-05 00:00:00"
+    suffixes = tuple(f":{letter}" for letter in "abcdefgh")
+
+    def _tied(path: Path, order: tuple[str, ...]) -> None:
+        _cascade_database(
+            path,
+            tuple(
+                _Run(
+                    run_id,
+                    tied,
+                    artifact_suffix=suffix,
+                    # One shared set of cascade_runs rows; the manifests are what
+                    # tie.
+                    cascade_rows=index == 0,
+                )
+                for index, suffix in enumerate(order)
+            ),
+        )
+
+    ascending = tmp_path / "tied-ascending.duckdb"
+    _tied(ascending, suffixes)
+    descending = tmp_path / "tied-descending.duckdb"
+    _tied(descending, tuple(reversed(suffixes)))
+
+    served = [
+        _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+        for database in (ascending, descending)
+        for _ in range(5)
+    ]
+
+    assert [r.status_code for r in served] == [200] * 10
+    assert {r.json()["artifact_id"] for r in served} == {f"mn:model:{run_id}:h"}
+    assert {r.headers["X-Flux-Artifact"] for r in served} == {f"mn:model:{run_id}:h"}
 
 
 def test_cascade_run_id_selects_that_run_or_is_not_found(tmp_path: Path) -> None:
@@ -658,16 +779,70 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
 
 
 def test_unavailable_manifest_is_not_a_qualified_cascade(tmp_path: Path) -> None:
+    """The manifest is otherwise complete: only ``availability`` refuses it.
+
+    ``with_model_result=True`` persists the validated ``mn_model_results`` row that
+    an unavailable manifest would not normally get, so the join and the provenance
+    EXISTS both succeed and ``m.availability = 'available'`` is the single clause
+    standing between this fixture and a 200.
+    """
     database = tmp_path / "unavailable-manifest.duckdb"
     _cascade_database(
         database,
-        (_Run("mn_winter_2023_snow-s0-0ff11ne0", availability="unavailable"),),
+        (
+            _Run(
+                "mn_winter_2023_snow-s0-0ff11ne0",
+                availability="unavailable",
+                with_model_result=True,
+            ),
+        ),
     )
 
     response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
 
     assert response.status_code == 503
+    assert "X-Flux-Artifact" not in response.headers
     assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+
+
+def test_manifest_without_provenance_is_not_a_qualified_cascade(
+    tmp_path: Path,
+) -> None:
+    """An available, validated topology manifest with no provenance row is refused."""
+    database = tmp_path / "no-provenance.duckdb"
+    _cascade_database(
+        database,
+        (_Run("mn_winter_2023_snow-s0-c0ffee00", with_provenance=False),),
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert "X-Flux-Artifact" not in response.headers
+    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+
+
+def test_cascade_rejects_an_artifact_id_unsafe_for_an_http_header(
+    tmp_path: Path,
+) -> None:
+    """#158: a control-character artifact id fails closed, it is never emitted."""
+    database = tmp_path / "unsafe-artifact.duckdb"
+    run = _Run(
+        "mn_winter_2023_snow-s0-badhdr00",
+        artifact_id_override="mn:storm\r\nX-Injected: yes",
+    )
+    _cascade_database(database, (run,))
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert "X-Flux-Artifact" not in response.headers
+    assert "X-Injected" not in response.headers
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "invalid_topology_artifact",
+        "run_id": run.run_id,
+    }
 
 
 def test_cascade_artifact_with_empty_limitations_is_invalid(tmp_path: Path) -> None:
