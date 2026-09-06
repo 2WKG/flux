@@ -13,14 +13,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import math
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, time
 from decimal import Decimal
 from pathlib import Path
-from typing import Any
+from time import monotonic
+from typing import Any, Literal
 from uuid import UUID
 
 import duckdb
@@ -38,6 +40,7 @@ ROW_LIMIT = 200
 _FETCH_LIMIT = ROW_LIMIT + 1
 DEFAULT_TIMEOUT_SECONDS = 5.0
 _CLEANUP_SECONDS = 1.0
+_EXECUTION_LOGGER = logging.getLogger("copilot.sql")
 
 _FORBIDDEN_FUNCTIONS = frozenset(
     {
@@ -72,6 +75,18 @@ _FORBIDDEN_FUNCTION_PREFIXES = (
 
 class SqlRejected(ValueError):
     """The submitted statement is outside the bounded SQL surface."""
+
+
+@dataclass(frozen=True)
+class SqlExecutionRecord:
+    """Bound-safe operational record; it deliberately omits SQL and values."""
+
+    template_id: str | None
+    parameter_count: int | None
+    row_count: int | None
+    duration_ms: int
+    provenance_artifact_ids: tuple[str, ...]
+    outcome: Literal["available", "unavailable"]
 
 
 @dataclass(frozen=True)
@@ -376,6 +391,7 @@ class MinnesotaSqlExecutor:
         approved_queries: Iterable[ApprovedMinnesotaQuery] = (),
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        execution_logger: Callable[[SqlExecutionRecord], None] | None = None,
     ) -> None:
         self._database_path = Path(database_path)
         self._views = {view.name: view for view in approved_views}
@@ -398,6 +414,7 @@ class MinnesotaSqlExecutor:
         self._timeout_seconds = timeout_seconds
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
+        self._execution_logger = execution_logger
 
     def _unavailable(self, code: str, reason: str) -> UnavailableOutput:
         return unavailable_output(code, reason)  # type: ignore[arg-type]
@@ -463,6 +480,35 @@ class MinnesotaSqlExecutor:
             connection.close()
 
     async def execute(self, request: SqlInput | str) -> SqlData | UnavailableOutput:
+        """Execute once and emit a best-effort bound-safe operational record."""
+
+        started = monotonic()
+        result = await self._execute(request)
+        payload = request if isinstance(request, SqlInput) else None
+        parameter_count = (
+            len(payload.parameters)
+            if isinstance(getattr(payload, "parameters", None), list)
+            else None
+        )
+        record = SqlExecutionRecord(
+            template_id=getattr(payload, "template_id", None),
+            parameter_count=parameter_count,
+            row_count=result.row_count if isinstance(result, SqlData) else None,
+            duration_ms=max(0, round((monotonic() - started) * 1000)),
+            provenance_artifact_ids=tuple(
+                item.artifact_id for item in result.provenance
+            ),
+            outcome=result.status,
+        )
+        _EXECUTION_LOGGER.info("sql_execution %s", record)
+        if self._execution_logger is not None:
+            try:
+                self._execution_logger(record)
+            except Exception:  # noqa: BLE001 - observability cannot change tool output.
+                return result
+        return result
+
+    async def _execute(self, request: SqlInput | str) -> SqlData | UnavailableOutput:
         """Return a bounded result or an explicit unavailable envelope.
 
         Only a deployment-owned template may contain positional ``?`` markers.
