@@ -72,6 +72,49 @@
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-20211216t000000-20211216t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:09:32.968309Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": {
+        "customers_out": "customers",
+        "run_start_time": "UTC"
+      },
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": {
+        "county_fips": [
+          "27043"
+        ],
+        "states": [
+          "Minnesota"
+        ],
+        "window": "UTC half-open"
+      },
+      "grid_index_mapping": null,
+      "gaps": "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel.",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/midwest-2021-12-15-serial-derecho-27043-20211216000000_eaglei_2021_20211216T000000_20211216T060000.csv",
+        "filtered_artifact_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3"
+      }
     }
   ],
   "records": [
@@ -82,7 +125,7 @@
       "scenario_id": "midwest-2021-12-15-serial-derecho-replay",
       "window_start_utc": "2021-12-16T00:00:00Z",
       "window_end_utc": "2021-12-16T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
@@ -111,11 +154,31 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "notes": "EAGLE-I range extraction requested; no result is retained in this bundle yet.",
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-20211216t000000-20211216t060000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 7 of 24 expected 15-minute observations for FIPS 27043. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 7,
+        "missing_timestamps": [
+          "2021-12-16T00:00:00Z",
+          "2021-12-16T00:15:00Z",
+          "2021-12-16T00:30:00Z",
+          "2021-12-16T00:45:00Z",
+          "2021-12-16T01:00:00Z",
+          "2021-12-16T01:15:00Z",
+          "2021-12-16T01:30:00Z",
+          "2021-12-16T01:45:00Z",
+          "2021-12-16T02:00:00Z",
+          "2021-12-16T02:15:00Z",
+          "2021-12-16T02:30:00Z",
+          "2021-12-16T02:45:00Z",
+          "2021-12-16T03:00:00Z",
+          "2021-12-16T03:15:00Z",
+          "2021-12-16T03:30:00Z",
+          "2021-12-16T03:45:00Z",
+          "2021-12-16T04:00:00Z"
+        ],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
