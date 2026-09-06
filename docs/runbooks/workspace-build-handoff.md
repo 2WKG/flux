@@ -2,7 +2,7 @@
 title: "Workspace build and deployment handoff"
 status: draft — deployment and external routing are not established
 issue: 2WKG-353
-base: a9d7e0142bbc1e5887684fdfa752a4e9d9d3eccf
+base: fedcf18e167491c02462df978bec1f2a7cc46ba3
 depends_on:
   - "2WKG-352 / draft PR #204"
   - "external routing ownership and verified deployment handoff"
@@ -17,9 +17,12 @@ publish a host, configure a tunnel or connector, assert a public endpoint, or
 authorize a live provider. The default explorer is a static, bundled synthetic
 fixture. The FastAPI/Copilot path is optional and separately configured.
 
-The source-receipt inventory is evidence metadata. Its seven receipts do not
-by themselves provide a renderable geometry, topology, placement, allocation,
-or model result. The browser must continue to render an explicit unavailable
+The source-receipt inventory
+[`data/sources/texas-p0-inventory.json`](../../data/sources/texas-p0-inventory.json)
+is evidence metadata. Its eleven records — of which exactly one,
+`activsg2000-current`, carries a `checked_in_receipt` — do not by themselves
+provide a renderable geometry, topology, placement, allocation, or model
+result. The browser must continue to render an explicit unavailable
 state when the required server artifact is absent.
 
 Where an artifact is rendered, use only the frozen 3D UI states
@@ -30,7 +33,11 @@ object to `source_supported`, and the browser must not invent an
 
 ## Exact build inputs
 
-This document was prepared on `a9d7e0142bbc1e5887684fdfa752a4e9d9d3eccf`.
+This document was prepared on `a9d7e0142bbc1e5887684fdfa752a4e9d9d3eccf` and
+its runnable claims were re-checked on `fedcf18e167491c02462df978bec1f2a7cc46ba3`
+(the merge-target head at the time of this revision): the lockfile digest below,
+`npm ci`, `npm run build`, `npm run start`, the root and deep-refresh routes, and
+`uv sync --frozen --extra dev` all behaved as documented there.
 The static build is locked by `web/package-lock.json` SHA-256:
 
 ```
@@ -50,7 +57,13 @@ npm run start       # local Node static origin
 The repository's standard local start/stop instructions remain
 [`local-startup.md`](local-startup.md). Its static-origin and tunnel material is
 owned elsewhere in [`static-origin-and-tunnel.md`](static-origin-and-tunnel.md);
-this handoff does not amend either runbook.
+this handoff does not amend either runbook. Read that second document with one
+caveat: its `GET /api/demo` rows predate 2WKG-300 (`db53a83`), which deleted the
+route, so its instruction to `curl` `/api/demo` and expect JSON from
+`data/demo/bundle.json` is stale — the static origin answers every unmatched
+path, `/api/demo` included, with the SPA shell (`200 text/html`, confirmed
+against `web/server.mjs` on the pinned revision). `local-startup.md` is
+authoritative for the static origin's routes.
 
 ## Deck.gl and MapLibre renderer readiness
 
@@ -150,6 +163,12 @@ cd web
 npm ci
 npm run test:e2e
 ```
+
+That script exists only on PR #204's head `753427c`, whose `web/package-lock.json`
+is `57fbad158ac0c457a6791af3f33a52cfa86d9345f26a5c24ae7273b4797ac506` (it adds
+`@playwright/test`) and is therefore **not** covered by the `806c3be4…` digest
+pinned above; on the merge target `npm run test:e2e` exits 1 with
+`npm error Missing script: "test:e2e"`.
 
 The test runner prefers system Chrome through its environment executable; when
 that is unavailable, install Playwright Chromium explicitly:
