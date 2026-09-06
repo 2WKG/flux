@@ -39,7 +39,9 @@ def _sha256_text(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
 
 
-def _catalog_inputs(catalog: Path) -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
+def _catalog_inputs(
+    catalog: Path,
+) -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
     try:
         data = json.loads(catalog.read_text(encoding="utf-8"))
         return tuple(
@@ -66,10 +68,14 @@ def _schema_fingerprint(path: Path) -> str | None:
             # DuckDB can inspect Parquet metadata without scanning the data rows.
             con = duckdb.connect(":memory:")
             try:
-                rows = con.execute("DESCRIBE SELECT * FROM read_parquet(?)", [str(path)]).fetchall()
+                rows = con.execute(
+                    "DESCRIBE SELECT * FROM read_parquet(?)", [str(path)]
+                ).fetchall()
             finally:
                 con.close()
-            return _sha256_text(json.dumps([(row[0], row[1]) for row in rows], separators=(",", ":")))
+            return _sha256_text(
+                json.dumps([(row[0], row[1]) for row in rows], separators=(",", ":"))
+            )
     except (OSError, StopIteration, UnicodeDecodeError, duckdb.Error):
         return None
     return None
@@ -119,7 +125,14 @@ def inspect_raw_inputs(
     receipt_index = _receipt_index(receipts_dir)
     artifacts: list[dict[str, Any]] = []
     for label, alternatives in _catalog_inputs(catalog):
-        selected = next((raw.joinpath(*parts) for parts in alternatives if raw.joinpath(*parts).is_file()), None)
+        selected = next(
+            (
+                raw.joinpath(*parts)
+                for parts in alternatives
+                if raw.joinpath(*parts).is_file()
+            ),
+            None,
+        )
         if selected is None:
             artifacts.append(
                 {
@@ -139,7 +152,8 @@ def inspect_raw_inputs(
         }
         expected = receipt_index.get(selected.name, [])
         matching = [
-            item for item in expected
+            item
+            for item in expected
             if item["sha256"] == observed["sha256"]
             and (item["bytes"] is None or item["bytes"] == observed["bytes"])
         ]
@@ -156,14 +170,19 @@ def inspect_raw_inputs(
         else:
             lock = {"status": "mismatch", "expected": expected}
             status = "checksum_mismatch"
-        artifacts.append({"label": label, "status": status, "observed": observed, "lock": lock})
+        artifacts.append(
+            {"label": label, "status": status, "observed": observed, "lock": lock}
+        )
 
     return {
         "raw_dir": str(raw),
         "artifacts": artifacts,
         "all_present": all(item["status"] != "missing" for item in artifacts),
-        "no_checksum_mismatch": not any(item["status"] == "checksum_mismatch" for item in artifacts),
-        "all_locked_with_provenance": bool(artifacts) and all(item["lock"]["status"] == "verified" for item in artifacts),
+        "no_checksum_mismatch": not any(
+            item["status"] == "checksum_mismatch" for item in artifacts
+        ),
+        "all_locked_with_provenance": bool(artifacts)
+        and all(item["lock"]["status"] == "verified" for item in artifacts),
     }
 
 
@@ -174,7 +193,9 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
     database = Path(path)
     if not database.is_file():
         return {
-            "path": str(database), "status": "missing", "compatibility": "no_existing_release",
+            "path": str(database),
+            "status": "missing",
+            "compatibility": "no_existing_release",
             "write_performed": False,
             "next_step": "Use a new output path for the staged rebuild; do not create a database here during preflight.",
         }
@@ -182,10 +203,17 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
     try:
         con = duckdb.connect(str(database), read_only=True)
         try:
-            tables = {row[0] for row in con.execute("SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'").fetchall()}
+            tables = {
+                row[0]
+                for row in con.execute(
+                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+                ).fetchall()
+            }
             version = None
             if "schema_meta" in tables:
-                row = con.execute("SELECT value FROM schema_meta WHERE key = 'contract_version'").fetchone()
+                row = con.execute(
+                    "SELECT value FROM schema_meta WHERE key = 'contract_version'"
+                ).fetchone()
                 version = None if row is None else row[0]
             required = set(TABLE_COLUMNS) | {"schema_meta"}
             missing = sorted(required - tables)
@@ -193,8 +221,11 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
             con.close()
     except duckdb.Error as error:
         return {
-            "path": str(database), "status": "unreadable", "compatibility": "incompatible",
-            "write_performed": False, "error": str(error),
+            "path": str(database),
+            "status": "unreadable",
+            "compatibility": "incompatible",
+            "write_performed": False,
+            "error": str(error),
             "next_step": "Keep this file untouched and rebuild to a fresh output path.",
         }
     after = sha256_file(database)
@@ -212,7 +243,8 @@ def inspect_database(path: str | Path | None) -> dict[str, Any]:
         "file_unchanged": before == after,
         "next_step": (
             "This file may be used only as a read-only comparison input; rebuild to a fresh output path."
-            if not compatible else "Run read-only quality checks before any release decision."
+            if not compatible
+            else "Run read-only quality checks before any release decision."
         ),
     }
 
@@ -232,7 +264,8 @@ def _scenario_weather_readiness(
         rows = []
         for scenario in scenarios:
             scenario_row = con.execute(
-                "SELECT ts_start, ts_end FROM scenarios WHERE scenario_id = ?", [scenario]
+                "SELECT ts_start, ts_end FROM scenarios WHERE scenario_id = ?",
+                [scenario],
             ).fetchone()
             state_rows = []
             if scenario_row is not None:
@@ -243,7 +276,13 @@ def _scenario_weather_readiness(
                         "SELECT count(*) FROM counties WHERE substr(county_fips, 1, 2) = ?",
                         [state.fips],
                     ).fetchone()[0]
-                    weather_rows, weather_counties, weather_hours, first_hour, last_hour = con.execute(
+                    (
+                        weather_rows,
+                        weather_counties,
+                        weather_hours,
+                        first_hour,
+                        last_hour,
+                    ) = con.execute(
                         """SELECT count(*), count(DISTINCT weather.county_fips),
                                   count(DISTINCT weather.ts), min(weather.ts), max(weather.ts)
                            FROM weather_hourly AS weather
@@ -255,13 +294,19 @@ def _scenario_weather_readiness(
                     expected_rows = county_count * expected_hours
                     state_rows.append(
                         {
-                            "state": {"fips": state.fips, "usps": state.usps, "name": state.name},
+                            "state": {
+                                "fips": state.fips,
+                                "usps": state.usps,
+                                "name": state.name,
+                            },
                             "county_count": county_count,
                             "weather_counties": weather_counties,
                             "weather_rows": weather_rows,
                             "weather_hours": weather_hours,
                             "expected_weather_rows": expected_rows,
-                            "first_hour": first_hour.isoformat() if first_hour else None,
+                            "first_hour": first_hour.isoformat()
+                            if first_hour
+                            else None,
                             "last_hour": last_hour.isoformat() if last_hour else None,
                             "ready": (
                                 county_count > 0
@@ -280,7 +325,9 @@ def _scenario_weather_readiness(
                     "ts_start": scenario_row[0].isoformat() if scenario_row else None,
                     "ts_end": scenario_row[1].isoformat() if scenario_row else None,
                     "states": state_rows,
-                    "ready": scenario_row is not None and bool(state_rows) and all(row["ready"] for row in state_rows),
+                    "ready": scenario_row is not None
+                    and bool(state_rows)
+                    and all(row["ready"] for row in state_rows),
                 }
             )
     except duckdb.Error as error:
@@ -288,7 +335,9 @@ def _scenario_weather_readiness(
     finally:
         con.close()
     return {
-        "status": "ready" if rows and all(row["ready"] for row in rows) else "unavailable",
+        "status": "ready"
+        if rows and all(row["ready"] for row in rows)
+        else "unavailable",
         "scenarios": rows,
         "reason": "Each selected state's counties need complete hourly weather across the stored scenario window before claiming outage, cascade, or full-Flux readiness.",
     }
@@ -301,28 +350,38 @@ def _operation_id_alignment(database: Path) -> dict[str, Any]:
         operation_ids = {str(item["id"]) for item in operations["sources"]}
         mappings = _curated_source_mappings(operations)
     except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
-        return {"status": "unavailable", "reason": f"invalid operations metadata: {error}"}
+        return {
+            "status": "unavailable",
+            "reason": f"invalid operations metadata: {error}",
+        }
     con = duckdb.connect(str(database), read_only=True)
     try:
         union = " UNION ALL ".join(
-            f"SELECT source_name, source_version FROM {table}" for table in TABLE_COLUMNS
+            f"SELECT source_name, source_version FROM {table}"
+            for table in TABLE_COLUMNS
         )
         curated = {
             (row[0], row[1])
-            for row in con.execute(f"SELECT DISTINCT source_name, source_version FROM ({union})").fetchall()
+            for row in con.execute(
+                f"SELECT DISTINCT source_name, source_version FROM ({union})"
+            ).fetchall()
         }
     except duckdb.Error as error:
         return {"status": "unavailable", "reason": str(error)}
     finally:
         con.close()
     unoperated, mapped = [], set()
-    for source_name, source_version in sorted(curated, key=lambda item: (item[0], item[1] or "")):
+    for source_name, source_version in sorted(
+        curated, key=lambda item: (item[0], item[1] or "")
+    ):
         mapping = _operation_ids_for_curated_source(
             source_name, source_version, operated_ids=operation_ids, mappings=mappings
         )
         if mapping is None:
             unoperated.append(
-                source_name if source_version is None else f"{source_name}@{source_version}"
+                source_name
+                if source_version is None
+                else f"{source_name}@{source_version}"
             )
         else:
             mapped.update(mapping[0])
@@ -333,7 +392,8 @@ def _operation_id_alignment(database: Path) -> dict[str, Any]:
         "unoperated_source_ids": unoperated,
         "reason": (
             "Every curated source/version has a declared operations mapping."
-            if not unoperated else "Dashboard release is blocked: curated source_name/source_version values lack matching datasets/operations.json mappings."
+            if not unoperated
+            else "Dashboard release is blocked: curated source_name/source_version values lack matching datasets/operations.json mappings."
         ),
     }
 
@@ -405,11 +465,15 @@ def inspect_state_context(
                 "reason": "No accepted state-specific topology decision with bus/branch identity, electrical fields, terms, and solver mapping was supplied.",
                 "fallback": "Use an explicit aggregate metric or report unavailable; do not reuse Texas topology.",
             }
-        contexts.append({
-            "state": {"fips": state.fips, "usps": state.usps, "name": state.name},
-            "public_context_status": "ready_to_stage" if base_ready and outage_ready else "incomplete",
-            "topology": topology,
-        })
+        contexts.append(
+            {
+                "state": {"fips": state.fips, "usps": state.usps, "name": state.name},
+                "public_context_status": "ready_to_stage"
+                if base_ready and outage_ready
+                else "incomplete",
+                "topology": topology,
+            }
+        )
     return {
         "selected_states": contexts,
         "shared_artifacts": shared,
@@ -441,8 +505,12 @@ def build_receipt(
     database_result = inspect_built_database(database, scenarios, selected)
     raw_ready = raw["all_present"] and raw["no_checksum_mismatch"]
     strict_ready = raw_ready and raw["all_locked_with_provenance"]
-    scenario_ready = database_result.get("scenario_weather", {}).get("status") == "ready"
-    operations_ready = database_result.get("operations_alignment", {}).get("status") == "ready"
+    scenario_ready = (
+        database_result.get("scenario_weather", {}).get("status") == "ready"
+    )
+    operations_ready = (
+        database_result.get("operations_alignment", {}).get("status") == "ready"
+    )
     return {
         "receipt_version": 1,
         "checked_at": datetime.now(UTC).isoformat(),
@@ -476,7 +544,9 @@ def build_receipt(
             "texas_p0_safe_to_stage": raw_ready,
             "strict_provenance_ready": strict_ready,
             "texas_full_flux_ready": (
-                database_result.get("status") == "ready" and scenario_ready and operations_ready
+                database_result.get("status") == "ready"
+                and scenario_ready
+                and operations_ready
             ),
             "dashboard_release_ready": operations_ready,
             "current_hackathon_ready": False,
@@ -492,26 +562,67 @@ def _exit_code(receipt: dict[str, Any]) -> int:
     readiness = receipt["readiness"]
     if not readiness["texas_p0_safe_to_stage"]:
         return 1
-    if receipt["requirements"]["strict_provenance_requested"] and not readiness["strict_provenance_ready"]:
+    if (
+        receipt["requirements"]["strict_provenance_requested"]
+        and not readiness["strict_provenance_ready"]
+    ):
         return 1
-    if receipt["requirements"]["scenario_weather_required"] and not readiness["texas_full_flux_ready"]:
+    if (
+        receipt["requirements"]["scenario_weather_required"]
+        and not readiness["texas_full_flux_ready"]
+    ):
         return 1
     return 0
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Read-only P0 raw-data and DuckDB intake receipt")
+    parser = argparse.ArgumentParser(
+        description="Read-only P0 raw-data and DuckDB intake receipt"
+    )
     parser.add_argument("--raw-dir", default="data/raw")
-    parser.add_argument("--database", help="Existing legacy or staged DuckDB to inspect read-only")
-    parser.add_argument("--state", action="append", required=True, help="USPS, full state name, or one/two-digit FIPS; repeatable")
-    parser.add_argument("--context-tiger", help="Explicit local county-boundary artifact for selected state context")
-    parser.add_argument("--context-nri", help="Explicit local NRI artifact for selected state context")
-    parser.add_argument("--context-eaglei", action="append", default=[], metavar="YEAR=PATH", help="Explicit local EAGLE-I artifact for selected context (repeatable)")
-    parser.add_argument("--context-eaglei-source-tz", choices=("UTC", "America/Chicago"))
+    parser.add_argument(
+        "--database", help="Existing legacy or staged DuckDB to inspect read-only"
+    )
+    parser.add_argument(
+        "--state",
+        action="append",
+        required=True,
+        help="USPS, full state name, or one/two-digit FIPS; repeatable",
+    )
+    parser.add_argument(
+        "--context-tiger",
+        help="Explicit local county-boundary artifact for selected state context",
+    )
+    parser.add_argument(
+        "--context-nri", help="Explicit local NRI artifact for selected state context"
+    )
+    parser.add_argument(
+        "--context-eaglei",
+        action="append",
+        default=[],
+        metavar="YEAR=PATH",
+        help="Explicit local EAGLE-I artifact for selected context (repeatable)",
+    )
+    parser.add_argument(
+        "--context-eaglei-source-tz", choices=("UTC", "America/Chicago")
+    )
     parser.add_argument("--report", type=Path, help="Optional JSON receipt path")
-    parser.add_argument("--strict-provenance", action="store_true", help="Fail unless every P0 artifact has a matching tracked checksum receipt")
-    parser.add_argument("--require-scenario-weather", action="store_true", help="Fail unless requested Texas scenarios and hourly weather are present in --database")
-    parser.add_argument("--scenario", action="append", default=[], help="Scenario required with --require-scenario-weather (repeatable)")
+    parser.add_argument(
+        "--strict-provenance",
+        action="store_true",
+        help="Fail unless every P0 artifact has a matching tracked checksum receipt",
+    )
+    parser.add_argument(
+        "--require-scenario-weather",
+        action="store_true",
+        help="Fail unless requested Texas scenarios and hourly weather are present in --database",
+    )
+    parser.add_argument(
+        "--scenario",
+        action="append",
+        default=[],
+        help="Scenario required with --require-scenario-weather (repeatable)",
+    )
     args = parser.parse_args(argv)
     try:
         selected = scope(args.state)
