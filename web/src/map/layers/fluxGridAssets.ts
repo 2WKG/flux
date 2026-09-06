@@ -2,14 +2,23 @@
 import { COORDINATE_SYSTEM, type Layer, type PickingInfo } from '@deck.gl/core';
 import { IconLayer, ScatterplotLayer, TextLayer } from '@deck.gl/layers';
 import { ScenegraphLayer } from 'deck.gl';
+import { STATUS_COPY } from '../../source-truth';
 
+/**
+ * Glyph and colour are this layer's own presentation. The **label** is not: it
+ * is read from `STATUS_COPY`, the single owner of the six IA display strings
+ * (`src/source-truth.ts`). This map previously re-spelled all six, which put a
+ * second copy of "Source-supported" into the shipped bundle and tripped
+ * `test/viewport-shell.test.mjs`'s "must not claim source support outside the
+ * display map".
+ */
 export const STATUS_PRESENTATION = {
-  source_supported: { label: 'Source-supported', glyph: '✓', color: [73, 205, 187] },
-  source_screened: { label: 'Source-screened', glyph: '◒', color: [104, 204, 192] },
-  hypothetical: { label: 'Hypothetical', glyph: '↗', color: [183, 144, 237] },
-  synthetic: { label: 'Synthetic', glyph: '⋯', color: [137, 151, 238] },
-  unavailable: { label: 'Unavailable', glyph: '⊘', color: [236, 184, 100] },
-  request_failed: { label: 'Request failed', glyph: '×', color: [238, 117, 133] },
+  source_supported: { label: STATUS_COPY.source_supported, glyph: '✓', color: [73, 205, 187] },
+  source_screened: { label: STATUS_COPY.source_screened, glyph: '◒', color: [104, 204, 192] },
+  hypothetical: { label: STATUS_COPY.hypothetical, glyph: '↗', color: [183, 144, 237] },
+  synthetic: { label: STATUS_COPY.synthetic, glyph: '⋯', color: [137, 151, 238] },
+  unavailable: { label: STATUS_COPY.unavailable, glyph: '⊘', color: [236, 184, 100] },
+  request_failed: { label: STATUS_COPY.request_failed, glyph: '×', color: [238, 117, 133] },
 } as const;
 
 export type StatusLabel = keyof typeof STATUS_PRESENTATION;

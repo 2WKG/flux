@@ -25,9 +25,20 @@ test("database packages are rejected by segment, including scoped and suffixed D
   ]) {
     assert.throws(() => assertBrowserBundle(inputs(input), webRoot), /database dependency/, input);
   }
-  for (const input of ["node_modules/postgres-array/index.js", "node_modules/react/index.js", "src/main.tsx"]) {
+  for (const input of [
+    "node_modules/postgres-array/index.js",
+    "node_modules/react/index.js",
+    "src/main.tsx",
+    // A source file *named* after a rule inside an unrelated package is not an
+    // installed database package. `fast-xml-parser` pulls this one in, and the
+    // unanchored match failed every build for the wrong reason.
+    "node_modules/is-unsafe/src/contexts/sql.js",
+    "node_modules/is-unsafe/src/contexts/nosql.js",
+  ]) {
     assertBrowserBundle(inputs(input), webRoot);
   }
+  // ...while the package of that name, installed, is still refused.
+  assert.throws(() => assertBrowserBundle(inputs("node_modules/sql.js/dist/sql-wasm.js"), webRoot), /database dependency/);
 });
 
 test("analytics directories are judged on the web-relative input path, not the absolute one", () => {
