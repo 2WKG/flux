@@ -149,7 +149,9 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
     assert call.seq == 2
 
     with pytest.raises(ValueError):
-        stream.tool_result("call-1", "score_site", {"score": float("nan")}, elapsed_ms=1)
+        stream.tool_result(
+            "call-1", "score_site", {"score": float("nan")}, elapsed_ms=1
+        )
     result = stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
     assert result.seq == 3
     assert stream.done(verified=True).seq == 4
