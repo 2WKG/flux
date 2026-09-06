@@ -57,7 +57,7 @@ LABEL_AGGREGATION = "max_customers_out_over_window_samples"
 ZONE_COUNTY_CORRELATION_PATH = (
     Path(__file__).resolve().parents[2]
     / "docs/data/event-baseline/controls-metadata/nws-zone-county-correlation"
-    / "bp05mr24-corpus-states.psv"
+    / "bp05mr24.psv"
 )
 # STATE_ZONE column form, e.g. "MN060"; also how a covered report must name its zone.
 NWS_ZONE_ID = re.compile(r"\b([A-Z]{2})Z?([0-9]{3})\b")

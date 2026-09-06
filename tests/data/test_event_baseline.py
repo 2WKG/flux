@@ -351,8 +351,7 @@ def test_the_committed_correlation_slice_is_the_receipted_bytes() -> None:
     """The slice the rule reads must be the file its receipt vouches for."""
     receipt = json.loads(
         (
-            validator.ZONE_COUNTY_CORRELATION_PATH.parent
-            / "bp05mr24-corpus-states.receipt.json"
+            validator.ZONE_COUNTY_CORRELATION_PATH.parent / "bp05mr24.receipt.json"
         ).read_text()
     )
     digest = hashlib.sha256(

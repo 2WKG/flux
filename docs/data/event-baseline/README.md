@@ -100,7 +100,7 @@ collected rather than inventing a row key or count.
 Whether a zone scope identifier can carry `coverage="covered"` is decided by
 NOAA's own zone/county correlation, never by the label on the field. The
 receipted slice
-`controls-metadata/nws-zone-county-correlation/bp05mr24-corpus-states.psv`
+`controls-metadata/nws-zone-county-correlation/bp05mr24.psv`
 (source, retrieval, and sha256 in the sibling `.receipt.json`) is the
 authority, and the validator consults it for every `covered` event report,
 `weather` and `outage` alike:
