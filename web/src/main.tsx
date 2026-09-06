@@ -4,7 +4,7 @@ import fixture from "../../data/demo/bundle.json";
 import { ResultCards } from "./ask/results";
 import { RunTrace } from "./ask/run-state/RunTrace";
 import { createRunState } from "./ask/run-state/reducer";
-import { ChatDock } from "./chat/ChatDock";
+import { ChatDock, type SceneContext } from "./chat/ChatDock";
 import { Inspector } from "./inspector/Inspector";
 import { AppShell } from "./shell/AppShell";
 import "./styles.css";
@@ -34,6 +34,16 @@ const ORDER: Id[] = ["baseline", "a", "b"];
 const BUSES: Record<string, Bus> = Object.fromEntries(data.network.buses.map((bus) => [bus.id, bus]));
 const BASELINE_LOADS = data.scenarios.baseline.metrics.lineLoadings;
 const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shedMw));
+
+function initialSceneContext(id: Id): SceneContext {
+  return {
+    geography: "No geographic coverage in this fixture",
+    layers: ["Synthetic five-bus topology"],
+    facility: null,
+    scenario: data.scenarios[id].label,
+    time: "Fixed synthetic snapshot",
+  };
+}
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -230,6 +240,8 @@ function App() {
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
+  const [chatContext, setChatContext] = useState<SceneContext>(() => initialSceneContext("baseline"));
+  const [contextVersion, setContextVersion] = useState(0);
   const disclosureTrigger = useRef<HTMLButtonElement>(null);
   const disclosureClose = useRef<HTMLButtonElement>(null);
 
@@ -242,6 +254,13 @@ function App() {
   const select = useCallback((id: Id) => {
     setSelected(id);
     setHover(null);
+    setChatContext((current) => ({ ...current, scenario: data.scenarios[id].label }));
+    setContextVersion((version) => version + 1);
+  }, []);
+
+  const updateChatContext = useCallback((next: SceneContext) => {
+    setChatContext(next);
+    setContextVersion((version) => version + 1);
   }, []);
 
   const openDetail = useCallback(() => setDetail(true), []);
@@ -279,7 +298,7 @@ function App() {
   );
 
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
-  const contextRevision = `${data.fixtureHash}:${selected}`;
+  const contextRevision = `${data.fixtureHash}:${selected}:c${contextVersion}`;
   const fixtureInspector = {
     status: "synthetic" as const,
     artifactLabel: "synthetic" as const,
@@ -298,18 +317,11 @@ function App() {
     provenance: [{ sourceName: "Checked-in synthetic bundle", sourceRef: data.execution.provenance.sourceRef, sourceVersion: data.execution.provenance.sourceVersion, coverage: "Five-bus synthetic fixture" }],
     caveats: data.execution.limitations,
   };
-  const staticChatContext = {
-    geography: "No geographic coverage in this fixture",
-    layers: ["Synthetic five-bus topology"],
-    facility: null,
-    scenario: scenario.label,
-    time: "Fixed synthetic snapshot",
-  };
   const staticRun = createRunState({ attemptId: "static-agent-unavailable", contextRevision }, "unavailable");
   const staticResults = [{
     id: `static-agent-${contextRevision}`,
     answer: "",
-    scope: "Static demo agent",
+    scope: `Static demo agent · synthetic context ${contextRevision}`,
     status: { availability: "unavailable" as const, reason: "The static fixture build has no live agent or API connection." },
     citations: [],
     provenance: [],
@@ -354,7 +366,7 @@ function App() {
       inspector={<Inspector asset={fixtureInspector} />}
       chat={
         <div className="agent-static">
-          <ChatDock context={staticChatContext} contextRevision={contextRevision} sourceLabel="Checked-in synthetic fixture" sourceStatus="synthetic" status="unavailable" />
+          <ChatDock context={chatContext} contextRevision={contextRevision} sourceLabel="Checked-in synthetic fixture" sourceStatus="synthetic" status="unavailable" onContextChange={updateChatContext} />
           <section className="agent-static__trace" aria-label="Static agent run status">
             <h3>Run status</h3>
             <p>The static demo does not open a live agent connection.</p>
