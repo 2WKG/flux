@@ -1,0 +1,221 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tropical",
+  "event": {
+    "event_id": "ian-2022",
+    "source_event_ids": [
+      "nhc:AL092022"
+    ],
+    "parent_system_id": "ian-2022",
+    "primary_hazard": "tropical_cyclone",
+    "secondary_hazards": [
+      "wind",
+      "rain",
+      "storm_surge",
+      "inland_flood"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2022-09-23T00:00:00Z",
+      "end_utc": "2022-10-06T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-09-28T15:00:00Z",
+      "end_utc": "2022-09-30T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-09-30T00:00:00Z",
+      "end_utc": "2022-10-06T00:00:00Z"
+    },
+    "disposition": "accepted",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record, retaining coastal and inland scope.",
+    "exclusions": [
+      "Texas Uri and Beryl are not recataloged as new events."
+    ],
+    "uncertainties": [
+      "NHC advisory scope is system/weather evidence, not county outage evidence."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nhc-ian-2022-archive",
+      "provider": "NOAA National Hurricane Center",
+      "url": "https://www.nhc.noaa.gov/archive/2022/al09/",
+      "release": "2022 advisory archive",
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "Public NOAA archive",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "advisory text and UTC issue times",
+      "timezone_conversion": "Archive UTC times retained; no local-time conversion",
+      "filters": "Ian advisory archive; 2022-09-28 representative Florida coastal county-window",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "EAGLE-I receipt and matched-coverage decision pending."
+      ]
+    },
+    {
+      "receipt_id": "ncei-ian-2022-details",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "Storm Events Details 2022, c20260625",
+      "retrieved_at_utc": "2026-09-06T09:15:00Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events reported event interval and zone scope",
+      "timezone_conversion": "CZ_TIMEZONE EST-5 retained and converted to UTC by adding five hours",
+      "filters": "EVENT_ID 1058654 and 1058659, coastal and inland Lee Hurricane reports",
+      "grid_index_mapping": "NCEI zones FLZ165 and FLZ265 cover portions of FIPS 12071; no physical-grid mapping",
+      "gaps": [
+        "Forecast zones do not establish countywide weather conditions."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-ian-2022-12071-1521z",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4; exhaustive annual scan",
+      "retrieved_at_utc": "2026-09-06T08:14:11.360067Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "57685d2cc6ffe3b6ffa0941eb97b2e04c8c4785d93239735ce9516c743e875f6",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out: customers; run_start_time UTC",
+      "timezone_conversion": "none; source time is UTC",
+      "filters": "FIPS 12071; [2022-09-28T15:00:00Z,2022-09-28T21:00:00Z); exhaustive annual scan",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "approved-storage://event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "approved-storage://event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "approved-storage://event-baseline/ian-2022-12071-20220928150000_eaglei_2022_20220928T150000_20220928T210000.csv",
+        "filtered_artifact_sha256": "57685d2cc6ffe3b6ffa0941eb97b2e04c8c4785d93239735ce9516c743e875f6"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ian-2022-12071-2022-09-28t15z",
+      "county_fips": "12071",
+      "boundary_vintage": "Census 2024 county-equivalent FIPS",
+      "scenario_id": "ian-2022-replay",
+      "window_start_utc": "2022-09-28T15:00:00Z",
+      "window_end_utc": "2022-09-28T21:00:00Z",
+      "disposition": "accepted",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nhc-ian-2022-archive",
+        "ncei-ian-2022-details",
+        "eaglei-ian-2022-12071-1521z"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 15:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 15:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 15:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 15:45:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 16:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 16:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 16:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 16:45:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 17:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 17:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 17:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 17:45:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 18:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 18:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 18:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 18:45:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 19:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 19:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 19:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 19:45:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 20:00:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 20:15:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 20:30:00",
+        "eaglei-ian-2022-12071-1521z:12071|2022-09-28 20:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-ian-2022-12071-1521z",
+          "county_fips": "12071",
+          "start_utc": "2022-09-28T15:00:00Z",
+          "end_utc": "2022-09-28T21:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "nhc-ian-2022-archive",
+          "ncei-ian-2022-details"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "NCEI Hurricane Ian coastal and inland Lee zone reports intersect the canonical window; zone scopes are not countywide.",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "ncei:1058654",
+            "ncei:1058659"
+          ],
+          "source_window": {
+            "start_utc": "2022-09-28T19:05:00Z",
+            "end_utc": "2022-09-28T20:35:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "FLZ165,FLZ265",
+          "limitations": "Coastal and inland Lee forecast zones cover portions of FIPS 12071 and are not countywide observations."
+        }
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-ian-2022-12071-1521z"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "notes": "Exhaustive annual scan returned all 24 expected 15-minute observations for FIPS 12071.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": 414812,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
