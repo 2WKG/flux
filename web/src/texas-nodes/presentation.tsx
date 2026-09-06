@@ -33,13 +33,13 @@ export function texasNodeInspectorAsset(node: NormalizedTexasNode): InspectorAss
       field("Latitude", String(node.latitude), "°", "lat"),
       field("Base voltage", String(node.baseKv), "kV", "base_kv"),
       field("Role", node.role, undefined, "role"),
-      field("Hour-scaled draw", draw, "MW", "hour_draw"),
+      field("Hour-scaled draw", draw, "MW", "draw_mw"),
       field("Scenario", node.hourDraw.scenarioId, undefined, "draw_mw"),
       field("Scenario hour", String(node.hourDraw.hour), undefined, "draw_mw"),
       field("Generation capability", String(node.generationCapacityMw), "MW", "generation_capacity_mw"),
-      field("County", node.county ?? undefined, undefined, "county"),
-      field("Balancing authority", node.ba ?? undefined, undefined, "ba"),
-      field("Critical facilities", node.criticalFacilities.map((facility) => facility.name).join(", ") || undefined, undefined, "critical_loads"),
+      field("County", node.county ?? undefined, undefined, "county_name"),
+      field("Balancing authority", node.ba ?? undefined, undefined, "ba_code"),
+      field("Critical facilities", node.criticalFacilities.map((facility) => `${facility.name} (${facility.bindingMethod})`).join(", ") || undefined, undefined, "critical_loads"),
     ],
     provenance: provenance(node),
     caveats: node.hourDraw.availability === "unavailable"
@@ -48,13 +48,28 @@ export function texasNodeInspectorAsset(node: NormalizedTexasNode): InspectorAss
   };
 }
 
+/**
+ * Every node carries its own truth label, and the asserted topology token when
+ * the server supplied one. `CLAUDE.md` requires ACTIVSg2000 to be labelled in
+ * user-visible results, and this marker previously rendered no truth label at
+ * all: the token could vanish from the whole surface with a green suite.
+ */
 export function TexasNodeMarker({ node, scale }: Readonly<{ node: NormalizedTexasNode; scale: Scale }>) {
   const style = texasNodeStyle(node);
   const labels = texasNodeLabels(node, scale);
-  return <article aria-label={`${node.name ?? node.id} node`} data-role={node.role} data-voltage-class={style.voltageClass}>
+  return <article
+    aria-label={`${node.name ?? node.id} node`}
+    data-role={node.role}
+    data-voltage-class={style.voltageClass}
+    data-truth-status={node.truth.status}
+    data-topology={node.truth.topology ?? ""}
+  >
     <span aria-hidden="true" data-glyph={style.glyph} style={{ borderWidth: style.strokeWidth }} />
     <strong>{node.name ?? node.id}</strong>
     <span>{node.baseKv} kV · {node.role}</span>
+    <p data-truth-label>
+      {STATUS_COPY[node.truth.status]}{node.truth.topology ? ` · ${node.truth.topology}` : ""}
+    </p>
     <ul>{labels.map((label) => <li key={label.key}>{label.text}</li>)}</ul>
   </article>;
 }

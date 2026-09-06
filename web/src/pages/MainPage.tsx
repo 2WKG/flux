@@ -35,6 +35,7 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { TexasNodesPanel } from "../texas-nodes/TexasNodesPanel";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
@@ -677,6 +678,8 @@ export function App() {
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
       />
+
+      <TexasNodesPanel scenarioId={data.execution.assumptionSetId} hour={0} />
 
       <section className="pipeline">
         <div>
