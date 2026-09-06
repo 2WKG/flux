@@ -71,11 +71,18 @@ test("every response carries a CSP that names no off-origin source", async () =>
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
   }
+  // Pinned exactly rather than allowlisted: an allowlist cannot fail for any
+  // token already on it, so `script-src 'self' 'unsafe-inline'` -- or the
+  // 'wasm-unsafe-eval' the shell's meta tag briefly carried -- would pass it.
+  // Nothing in web/src compiles WebAssembly; widening this is a decision that
+  // must name its consumer and change this line.
+  assert.ok(CONTENT_SECURITY_POLICY.split("; ").includes("script-src 'self'"),
+    "the served policy must keep script-src exactly 'self'");
 });
 
 /**

@@ -125,13 +125,26 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
     assert.ok(directives[directive], `CSP has no ${directive}`);
     for (const value of directives[directive]) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
         `${directive} allows ${value}, which can reach an off-origin server`,
       );
     }
   }
   assert.ok(directives["connect-src"].includes("'self'"));
   assert.ok(!directives["connect-src"].includes("*"));
+
+  // script-src is pinned exactly, not merely drawn from the allowlist above.
+  // An allowlist alone accepts any further widening whose token happens to be
+  // on it -- 'unsafe-inline' on script-src would have stayed green, and so did
+  // the 'wasm-unsafe-eval' this shell briefly carried. Nothing in web/src loads
+  // or compiles WebAssembly (no draco, no .wasm import), and `server.mjs`'s
+  // served CONTENT_SECURITY_POLICY header never carried the token either, so
+  // the meta relaxation was inert in the deployed app: the browser enforces the
+  // intersection of the two policies. Widening this needs both policies changed
+  // and this assertion changed with a named consumer.
+  assert.deepEqual(directives["script-src"], ["'self'"], "script-src must stay exactly 'self'");
+  assert.deepEqual(directives["object-src"], ["'none'"]);
+  assert.deepEqual(directives["base-uri"], ["'none'"]);
 });
 
 test("the overlay's initialized signal comes from deck's own load event, not from mount", async () => {

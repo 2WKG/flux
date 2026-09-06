@@ -29,6 +29,11 @@ test("Texas map zoom control reaches lod2 and requests the visible model", async
   await page.goto("/");
   const map = page.getByLabel("Full synthetic Texas topology");
   await expect(map).toBeVisible();
+  // The truth label the route supplied, on both the machine attribute and the
+  // status line a sighted operator reads. Neither may be dropped or relabelled.
+  await expect(map).toHaveAttribute("data-topology", "synthetic (ACTIVSg2000)");
+  await expect(map.getByRole("status")).toContainText("synthetic (ACTIVSg2000)");
+  await expect(page.getByText("Texas model topology unavailable")).toHaveCount(0);
   const zoomIn = map.locator(".maplibregl-ctrl-zoom-in");
   await expect(zoomIn).toBeVisible();
   for (let index = 0; index < 7; index += 1) {
