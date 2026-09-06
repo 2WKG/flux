@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
+from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 
 def _client(path: Path) -> TestClient:
@@ -86,10 +87,61 @@ def _prediction_database(
         con.close()
 
 
-def _cascade_database(path: Path) -> None:
+def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> None:
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE cascade_runs (run_id TEXT, scenario_id TEXT)")
+        if model_mode is not None:
+            ensure_minnesota_schema(con)
+            con.execute(
+                "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    "mn:model:storm-run-1",
+                    "model_result",
+                    SCHEMA_VERSION,
+                    "mn",
+                    "available",
+                    model_mode,
+                    "{}",
+                    "2026-09-05 00:00:00",
+                    "[]",
+                    '["Fixture topology evidence only."]',
+                    "[]",
+                ],
+            )
+            con.execute(
+                "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    "mn:model:storm-run-1",
+                    0,
+                    "fixture:topology",
+                    "fixtures/topology.json",
+                    "v1",
+                    "2026-09-05 00:00:00",
+                    "test fixture",
+                    "storm-run-1",
+                    "b" * 64,
+                    False,
+                ],
+            )
+            con.execute(
+                "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                [
+                    "mn:model:storm-run-1",
+                    "fixture-cascade",
+                    "v1",
+                    "mn-storm-run-1",
+                    "a" * 64,
+                    "validated",
+                    "lost_load_mw",
+                    1.0,
+                    "MW",
+                    None if model_mode == "topology" else "regional sum",
+                    100.0 if model_mode == "topology" else None,
+                    "pandapower" if model_mode == "topology" else None,
+                    "fixture-converter" if model_mode == "topology" else None,
+                ],
+            )
         con.execute(
             "INSERT INTO cascade_runs VALUES ('mn-storm-run-1', 'mn_winter_2023_snow')"
         )
@@ -158,6 +210,21 @@ def test_persisted_cascade_is_returned(tmp_path: Path) -> None:
         "status": "available",
         "run_id": "mn-storm-run-1",
         "scenario_id": "mn_winter_2023_snow",
+        "artifact_id": "mn:model:storm-run-1",
+        "model_mode": "topology",
+        "provenance": [
+            {
+                "source_name": "fixture:topology",
+                "source_ref": "fixtures/topology.json",
+                "source_version": "v1",
+                "retrieved_at": "2026-09-05T00:00:00Z",
+                "license_or_terms": "test fixture",
+                "source_record_id": "storm-run-1",
+                "content_sha256": "b" * 64,
+                "is_derived": False,
+            }
+        ],
+        "limitations": ["Fixture topology evidence only."],
     }
 
 
@@ -168,8 +235,11 @@ def test_prediction_missing_artifact_is_unavailable(tmp_path: Path) -> None:
     assert response.json()["status"] == "unavailable"
 
 
-def test_missing_cascade_artifact_is_unavailable(tmp_path: Path) -> None:
-    response = _client(tmp_path / "missing.duckdb").get(
+def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -> None:
+    database = tmp_path / "bare-cascade.duckdb"
+    _cascade_database(database, model_mode=None)
+
+    response = _client(database).get(
         "/cascade", params={"scenario_id": "mn_winter_2023_snow"}
     )
 
@@ -177,9 +247,32 @@ def test_missing_cascade_artifact_is_unavailable(tmp_path: Path) -> None:
     assert response.json()["status"] == "unavailable"
 
 
+def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:
+    database = tmp_path / "aggregate-cascade.duckdb"
+    _cascade_database(database, model_mode="aggregate")
+
+    response = _client(database).get(
+        "/cascade", params={"scenario_id": "mn_winter_2023_snow"}
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["details"] == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported_or_absent",
+    }
+
+
 def test_prediction_invalid_limit_is_rejected(tmp_path: Path) -> None:
     response = _client(tmp_path / "missing.duckdb").get(
         "/predictions", params={"limit": 0}
+    )
+
+    assert response.status_code == 422
+
+
+def test_prediction_invalid_model_kind_is_rejected(tmp_path: Path) -> None:
+    response = _client(tmp_path / "missing.duckdb").get(
+        "/predictions", params={"model_kind": "unsupported"}
     )
 
     assert response.status_code == 422
