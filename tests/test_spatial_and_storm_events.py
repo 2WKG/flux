@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime
 
 import geopandas as gpd
 import pandas as pd
@@ -10,7 +11,7 @@ from shapely.geometry import Polygon
 from pipelines.critical_loads import _ntad_source_ids, _unique_stable_ids, load_dod
 from pipelines.db import connect, replace_frame
 from pipelines.joins import join_critical_loads_to_bus
-from pipelines.storm_events import _cz_timezone, load_storm_events
+from pipelines.storm_events import NwsCrosswalkRelease, _cz_timezone, load_storm_events
 
 
 def test_storm_events_uses_each_rows_cz_timezone(tmp_path):
@@ -144,7 +145,23 @@ def test_storm_events_records_unmatched_zone_assignments(tmp_path):
     crosswalk.write_text("TX|001|XXX|Example||Example|48001|CST-6\n")
     con = connect(str(tmp_path / "grid.duckdb"))
     try:
-        assert load_storm_events(con, str(details), str(crosswalk), 2021) == 0
+        assert (
+            load_storm_events(
+                con,
+                str(details),
+                [
+                    NwsCrosswalkRelease(
+                        release="fixture",
+                        path=crosswalk,
+                        valid_from=datetime.fromisoformat("2021-01-01"),
+                        valid_until=datetime.fromisoformat("2022-01-01"),
+                        source_url="https://example.test/nws/fixture.dbx",
+                    )
+                ],
+                2021,
+            )
+            == 0
+        )
         assert con.execute(
             "SELECT source_key, warning FROM ingest_warnings"
         ).fetchall() == [
