@@ -3,6 +3,8 @@
 **Contract:** `flux:3d-asset-archetypes:v1`
 **Machine-readable catalog:** [`data/3d/asset-archetypes-v1.json`](../../data/3d/asset-archetypes-v1.json)
 **Checked by:** `scripts/validate_asset_archetypes.py`, `tests/test_asset_archetypes.py`
+(catalog); `scripts/validate_asset_source.py`, `tests/test_asset_sources.py`
+(committed source kits)
 
 **Status:** Gate 0 production contract for **2WKG-365** (Minnesota) and its Texas
 twin **2WKG-311**. This is a specification for producing models. It is not a
@@ -120,6 +122,57 @@ and `web/` for `.glb`/`.gltf` and lists every hit in the report's `modelFiles`,
 so a model the pipeline writes locally is visible in the report while a
 developer's suite stays green, exactly as it does in CI.
 
+### The source-kit tier (what *is* committed)
+
+The three deliverables above are asset-**pipeline outputs**: they are produced
+from a source kit, and none of them is in this repository. What an archetype
+author commits is the source kit, under `data/3d/assets/<archetype_id>/`:
+
+- `<archetype_id>.scene.json` — format `flux:3d-archetype-source:v1`: declared
+  `bounds_m`, neutral materials, and the primitive nodes (including the
+  connector empties) the model is built from. It is the reviewable statement of
+  the geometry; the `.glb` is its export.
+- `<archetype_id>.preview.svg` — the 512 px preview *source*, carrying
+  `<title>`, `<desc>`, and `aria-labelledby` so the neutrality statement is in
+  the accessible tree. The required `.preview.png` is its render.
+- `<archetype_id>.meta.json` — the metadata deliverable itself, with every
+  `deliverables.metaFields` key, plus `source_scene`, `export.preview_source`,
+  and `export.pipeline_outputs` naming the `.glb`/`.png` the pipeline will
+  produce. A meta file must not name a committed file that does not exist:
+  `export.model_file` / `export.preview_file` at the top level are rejected
+  precisely because they read as committed paths.
+
+**Consumers.** Today the source kit is consumed by
+`scripts/validate_asset_source.py` and `tests/test_asset_sources.py`, which walk
+every directory under `data/3d/assets/` and check each kit against the catalog
+row named by its **directory** — identity comes from the directory, never from
+the metadata's own `archetype_id`. The SVG→PNG render and the scene→GLB export
+belong to the asset pipeline (**2WKG-374** Minnesota / **2WKG-320** Texas); no
+code on master performs them, and this contract does not claim otherwise. Until
+that pipeline lands, the source kit is a reviewable specification of a model,
+not a model.
+
+**Geometry is checked, not merely declared.** `validate_asset_source.py` derives
+the axis-aligned bounds from `scene.nodes` and rejects geometry that overruns
+the archetype's `footprint_m` beyond the 5% tolerance, that leaves the scene's
+own `bounds_m`, or that does not sit on `y = 0` under the `ground_center` pivot.
+
+**Three tiers live under `data/3d/assets/` at once, and the validator applies
+exactly one of them per entry.** A directory holding `<archetype_id>.scene.json`
+is a **source kit** and gets the rules above. A directory holding
+`<archetype_id>.blender.py` is a **blender kit**: its geometry is authored in a
+Blender build script rather than as scene data, so `validate_asset_source.py`
+checks its README/script/meta file set, its catalog identity, its pinned
+transform axes and neutral `MAT_STATUS` slot, its connectors, the `bounds_m` the
+meta declares (against the same footprint tolerance and `y = 0` pivot rule), and
+that no `.glb` or `.preview.png` build output was committed beside it. A bare
+`<archetype_id>.meta.json` file directly under the asset root is a **flat meta**
+delivery and is checked by `scripts/asset_contract_lib.py`'s
+`validate_export_meta`. The tier is read from the entry's own contents, never
+from a name list, and an entry that matches none of the three is refused by name
+(`unknown_asset_tier`) rather than skipped — a directory nobody validates is
+indistinguishable from one that passes.
+
 ## The eighteen archetypes
 
 Each is claimed by exactly one Texas and one Minnesota work item; the validator
@@ -178,6 +231,7 @@ any of them inventing a claim the server never made.
 ## Verification
 
 ```
-python scripts/validate_asset_archetypes.py    # exits non-zero on any violation
-python -m pytest tests/test_asset_archetypes.py -q
+python scripts/validate_asset_archetypes.py    # catalog; exits non-zero on any violation
+python scripts/validate_asset_source.py        # committed source kits; same
+python -m pytest tests/test_asset_archetypes.py tests/test_asset_sources.py -q
 ```
