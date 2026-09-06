@@ -43,7 +43,9 @@ def test_coordinate_hydration_rejects_noncurrent_or_partial_records(tmp_path) ->
     )
     db = tmp_path / "grid.duckdb"
     con = duckdb.connect(str(db))
-    con.execute("CREATE TABLE buses(bus_id BIGINT, name TEXT, base_kv DOUBLE, lon DOUBLE, lat DOUBLE, coord_source TEXT)")
+    con.execute(
+        "CREATE TABLE buses(bus_id BIGINT, name TEXT, base_kv DOUBLE, lon DOUBLE, lat DOUBLE, coord_source TEXT)"
+    )
     con.execute("INSERT INTO buses VALUES (1, 'one', 110, -97, 30, 'old_2016_aux')")
     con.close()
     with pytest.raises(SimulationUnavailableError, match="current AUX"):
@@ -55,6 +57,8 @@ def test_geometry_resolves_same_one_based_impedance_alias_as_cascade() -> None:
     first, second = pp.create_bus(net, 110), pp.create_bus(net, 110)
     pp.create_impedance(net, first, second, rft_pu=0.01, xft_pu=0.1, sn_mva=10)
     net.impedance["flux_element_id"] = ["impedance:7"]
-    canonical, resolved = _resolve_geometry_element(net, {"impedance:7": ("impedance", 0)}, "impedance:1")
+    canonical, resolved = _resolve_geometry_element(
+        net, {"impedance:7": ("impedance", 0)}, "impedance:1"
+    )
     assert canonical == "impedance:7"
     assert resolved == ("impedance", 0)

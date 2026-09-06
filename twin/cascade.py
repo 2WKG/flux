@@ -59,7 +59,9 @@ def run_cascade(
         raise SimulationInputError("overload_limit_pct and max_stages must be positive")
     _check_cancel(cancel_check)
     if net is None:
-        net = cached_base_network(case_path, db_path=db_path if db_path is not None else None)
+        net = cached_base_network(
+            case_path, db_path=db_path if db_path is not None else None
+        )
     scenario_net = copy.deepcopy(net)
     _ensure_element_ids(scenario_net)
     if unit_mw is not None or site_bus is not None:
@@ -68,19 +70,29 @@ def run_cascade(
         add_unit(scenario_net, bus_id=site_bus, unit_mw=unit_mw)
 
     canonical_forced = _canonical_forced_elements(scenario_net, element_ids)
-    events, lost_load_mw, dark_buses = _apply_forced_outages(scenario_net, canonical_forced)
-    metadata = _metadata_from_database(db_path, scenario_net) if db_path is not None else ({}, {})
+    events, lost_load_mw, dark_buses = _apply_forced_outages(
+        scenario_net, canonical_forced
+    )
+    metadata = (
+        _metadata_from_database(db_path, scenario_net)
+        if db_path is not None
+        else ({}, {})
+    )
     county_by_bus, critical_by_bus = metadata
     loading_by_element: dict[str, float] = {}
     for stage in range(1, max_stages + 1):
         _check_cancel(cancel_check)
-        island_lost, island_buses, island_events = _island_load_loss(scenario_net, stage)
+        island_lost, island_buses, island_events = _island_load_loss(
+            scenario_net, stage
+        )
         lost_load_mw += island_lost
         dark_buses.update(island_buses)
         events.extend(island_events)
         _solve(scenario_net)
         overloads = _overloaded_elements(scenario_net, overload_limit_pct)
-        loading_by_element.update({element_id: loading for element_id, _, _, loading in overloads})
+        loading_by_element.update(
+            {element_id: loading for element_id, _, _, loading in overloads}
+        )
         if not overloads:
             break
         for element_id, table, index, loading in overloads:
@@ -101,13 +113,24 @@ def run_cascade(
 
     county_impacts = _county_impacts(scenario_net, county_by_bus)
     counties_dark = tuple(
-        impact["county_fips"] for impact in county_impacts if impact["fraction_dark"] >= 1.0
+        impact["county_fips"]
+        for impact in county_impacts
+        if impact["fraction_dark"] >= 1.0
     )
     critical_lost = tuple(
-        sorted(critical_id for bus in dark_buses for critical_id in critical_by_bus.get(bus, ()))
+        sorted(
+            critical_id
+            for bus in dark_buses
+            for critical_id in critical_by_bus.get(bus, ())
+        )
     )
     forced_key = tuple(event.element_id for event in events if event.cause == "forced")
-    if write and (overload_limit_pct != 100.0 or max_stages != 12 or unit_mw is not None or site_bus is not None):
+    if write and (
+        overload_limit_pct != 100.0
+        or max_stages != 12
+        or unit_mw is not None
+        or site_bus is not None
+    ):
         raise SimulationInputError(
             "persistence of non-default solver settings or unit counterfactuals requires an explicit counterfactual workflow"
         )
@@ -124,7 +147,11 @@ def run_cascade(
     )
     result = CascadeResult(
         run_id=make_run_id(
-            scenario_id, seed, forced_key, counterfactual_site_id, unit_mw,
+            scenario_id,
+            seed,
+            forced_key,
+            counterfactual_site_id,
+            unit_mw,
             scenario_hash=str(identity["scenario_hash"]),
         ),
         scenario_id=scenario_id,
@@ -141,7 +168,9 @@ def run_cascade(
     if write:
         _check_cancel(cancel_check)
         if db_path is None:
-            raise SimulationUnavailableError("write=True requires a cascade_runs database path")
+            raise SimulationUnavailableError(
+                "write=True requires a cascade_runs database path"
+            )
         persist_result(result, db_path, counterfactual_site_id=counterfactual_site_id)
     return result.json()
 
@@ -176,7 +205,14 @@ def scenario_identity(
         "element_ids": (
             _canonical_forced_elements(net, element_ids)
             if net is not None
-            else sorted({f"line:{str(element_id).strip()}" if ":" not in str(element_id) else str(element_id).strip() for element_id in element_ids})
+            else sorted(
+                {
+                    f"line:{str(element_id).strip()}"
+                    if ":" not in str(element_id)
+                    else str(element_id).strip()
+                    for element_id in element_ids
+                }
+            )
         ),
         "unit_mw": None if unit_mw is None else float(unit_mw),
         "site_bus": site_bus,
@@ -185,7 +221,10 @@ def scenario_identity(
         "case_sha256": case_sha256,
     }
     encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
-    return {**canonical, "scenario_hash": hashlib.sha256(encoded.encode()).hexdigest()[:16]}
+    return {
+        **canonical,
+        "scenario_hash": hashlib.sha256(encoded.encode()).hexdigest()[:16],
+    }
 
 
 def immutable_scenario_net(
@@ -219,16 +258,28 @@ def feasibility_report(net: Any) -> dict[str, Any]:
     source_buses = _source_buses(candidate)
     islands: list[dict[str, Any]] = []
     for component in nx.connected_components(graph):
-        component_load = float(candidate.load[candidate.load.in_service & candidate.load.bus.isin(component)].p_mw.sum())
-        component_gen = float(candidate.gen[candidate.gen.in_service & candidate.gen.bus.isin(component)].max_p_mw.sum())
+        component_load = float(
+            candidate.load[
+                candidate.load.in_service & candidate.load.bus.isin(component)
+            ].p_mw.sum()
+        )
+        component_gen = float(
+            candidate.gen[
+                candidate.gen.in_service & candidate.gen.bus.isin(component)
+            ].max_p_mw.sum()
+        )
         has_slack = bool(source_buses.intersection(component))
-        islands.append({
-            "bus_count": len(component),
-            "load_mw": round(component_load, 6),
-            "available_gen_mw": round(component_gen, 6),
-            "has_source": has_slack,
-            "unsupplied_load_mw": round(component_load if not has_slack else 0.0, 6),
-        })
+        islands.append(
+            {
+                "bus_count": len(component),
+                "load_mw": round(component_load, 6),
+                "available_gen_mw": round(component_gen, 6),
+                "has_source": has_slack,
+                "unsupplied_load_mw": round(
+                    component_load if not has_slack else 0.0, 6
+                ),
+            }
+        )
     try:
         _solve(candidate)
         solve_status = "solved"
@@ -256,9 +307,17 @@ def balance_report(net: Any) -> dict[str, Any]:
     candidate = copy.deepcopy(net)
     _ensure_element_ids(candidate)
     _solve(candidate)
-    generation = float(candidate.res_gen.p_mw.sum()) if not candidate.res_gen.empty else 0.0
-    generation += float(candidate.res_sgen.p_mw.sum()) if not candidate.res_sgen.empty else 0.0
-    slack = float(candidate.res_ext_grid.p_mw.sum()) if not candidate.res_ext_grid.empty else 0.0
+    generation = (
+        float(candidate.res_gen.p_mw.sum()) if not candidate.res_gen.empty else 0.0
+    )
+    generation += (
+        float(candidate.res_sgen.p_mw.sum()) if not candidate.res_sgen.empty else 0.0
+    )
+    slack = (
+        float(candidate.res_ext_grid.p_mw.sum())
+        if not candidate.res_ext_grid.empty
+        else 0.0
+    )
     load = float(candidate.res_load.p_mw.sum()) if not candidate.res_load.empty else 0.0
     return {
         "generation_mw": round(generation, 6),
@@ -266,11 +325,16 @@ def balance_report(net: Any) -> dict[str, Any]:
         "served_load_mw": round(load, 6),
         "dc_balance_residual_mw": round(generation + slack - load, 6),
         "dispatch_assumption": "existing in-service generator dispatch; add_unit displaces it pro-rata before DC slack balancing",
-        "limitations": ["DC balance is not economic dispatch or a unit-commitment/OPF result.", "synthetic topology"],
+        "limitations": [
+            "DC balance is not economic dispatch or a unit-commitment/OPF result.",
+            "synthetic topology",
+        ],
     }
 
 
-def redundancy_report(net: Any, candidate_bus_ids: Iterable[int]) -> list[dict[str, Any]]:
+def redundancy_report(
+    net: Any, candidate_bus_ids: Iterable[int]
+) -> list[dict[str, Any]]:
     """Measure synthetic source reachability and incident solved flow for buses."""
     candidate = copy.deepcopy(net)
     _ensure_element_ids(candidate)
@@ -281,18 +345,39 @@ def redundancy_report(net: Any, candidate_bus_ids: Iterable[int]) -> list[dict[s
     for raw_bus in candidate_bus_ids:
         bus_id = int(raw_bus)
         if bus_id not in graph:
-            raise SimulationInputError(f"candidate bus {bus_id} is absent from the synthetic network")
-        source_hops = min((nx.shortest_path_length(graph, bus_id, source) for source in sources if nx.has_path(graph, bus_id, source)), default=None)
+            raise SimulationInputError(
+                f"candidate bus {bus_id} is absent from the synthetic network"
+            )
+        source_hops = min(
+            (
+                nx.shortest_path_length(graph, bus_id, source)
+                for source in sources
+                if nx.has_path(graph, bus_id, source)
+            ),
+            default=None,
+        )
         incident_flow = _incident_flow_mw(candidate, bus_id)
-        report.append({
-            "bus_id": bus_id,
-            "in_service_incident_elements": _incident_element_count(candidate, bus_id),
-            "source_hops": source_hops,
-            "incident_abs_flow_mw": round(incident_flow, 6),
-            "topology": SYNTHETIC_TOPOLOGY_LABEL,
-            "limitations": "connectivity and DC flow exposure in synthetic topology; not a physical interconnection claim",
-        })
-    return sorted(report, key=lambda row: (row["source_hops"] is None, row["source_hops"] or 0, -row["in_service_incident_elements"], row["bus_id"]))
+        report.append(
+            {
+                "bus_id": bus_id,
+                "in_service_incident_elements": _incident_element_count(
+                    candidate, bus_id
+                ),
+                "source_hops": source_hops,
+                "incident_abs_flow_mw": round(incident_flow, 6),
+                "topology": SYNTHETIC_TOPOLOGY_LABEL,
+                "limitations": "connectivity and DC flow exposure in synthetic topology; not a physical interconnection claim",
+            }
+        )
+    return sorted(
+        report,
+        key=lambda row: (
+            row["source_hops"] is None,
+            row["source_hops"] or 0,
+            -row["in_service_incident_elements"],
+            row["bus_id"],
+        ),
+    )
 
 
 def placement_counterfactual(
@@ -306,9 +391,18 @@ def placement_counterfactual(
     seed: int = 0,
 ) -> dict[str, Any]:
     """Compare measured baseline and synthetic-unit cascade reruns at one bus."""
-    baseline = run_cascade(element_ids, scenario_id, hour, net=net, seed=seed, write=False)
+    baseline = run_cascade(
+        element_ids, scenario_id, hour, net=net, seed=seed, write=False
+    )
     with_unit = run_cascade(
-        element_ids, scenario_id, hour, net=net, seed=seed, unit_mw=unit_mw, site_bus=site_bus, write=False,
+        element_ids,
+        scenario_id,
+        hour,
+        net=net,
+        seed=seed,
+        unit_mw=unit_mw,
+        site_bus=site_bus,
+        write=False,
     )
     return {
         "site_bus": site_bus,
@@ -316,8 +410,11 @@ def placement_counterfactual(
         "baseline": baseline,
         "with_synthetic_unit": with_unit,
         "measured_delta": {
-            "lost_load_reduction_mw": round(float(baseline["lost_load_mw"]) - float(with_unit["lost_load_mw"]), 6),
-            "tripped_event_reduction": len(baseline["tripped_element_ids"]) - len(with_unit["tripped_element_ids"]),
+            "lost_load_reduction_mw": round(
+                float(baseline["lost_load_mw"]) - float(with_unit["lost_load_mw"]), 6
+            ),
+            "tripped_event_reduction": len(baseline["tripped_element_ids"])
+            - len(with_unit["tripped_element_ids"]),
         },
         "limitations": [
             "Counterfactual is a synthetic generator injection on ACTIVSg2000, not a physical siting or interconnection result.",
@@ -335,7 +432,11 @@ def make_run_id(
     scenario_hash: str | None = None,
 ) -> str:
     """Build the shared deterministic baseline/counterfactual run identity."""
-    digest = scenario_hash[:8] if scenario_hash is not None else hashlib.sha256("\x1f".join(sorted(forced_out)).encode()).hexdigest()[:8]
+    digest = (
+        scenario_hash[:8]
+        if scenario_hash is not None
+        else hashlib.sha256("\x1f".join(sorted(forced_out)).encode()).hexdigest()[:8]
+    )
     if counterfactual_site_id is not None:
         if unit_mw is None:
             raise SimulationInputError("counterfactual run_id requires unit_mw")
@@ -346,13 +447,17 @@ def make_run_id(
 def add_unit(net: Any, *, bus_id: int, unit_mw: float) -> int:
     """Add synthetic firm generation and pro-rata displace existing dispatch."""
     if bus_id not in net.bus.index:
-        raise SimulationInputError(f"site bus {bus_id} is absent from the synthetic network")
+        raise SimulationInputError(
+            f"site bus {bus_id} is absent from the synthetic network"
+        )
     if unit_mw <= 0:
         raise SimulationInputError("unit_mw must be positive")
     active = net.gen.index[net.gen.in_service]
     existing = float(net.gen.loc[active, "p_mw"].sum())
     if existing <= 0:
-        raise SimulationInputError("cannot displace generation: no in-service generators")
+        raise SimulationInputError(
+            "cannot displace generation: no in-service generators"
+        )
     displacement = min(float(unit_mw), existing)
     net.gen.loc[active, "p_mw"] *= (existing - displacement) / existing
     index = pp.create_gen(
@@ -387,7 +492,9 @@ def rank_candidate_placements(
     for raw_bus_id in candidate_bus_ids:
         bus_id = int(raw_bus_id)
         if bus_id not in graph:
-            raise SimulationInputError(f"candidate bus {bus_id} is absent from the synthetic network")
+            raise SimulationInputError(
+                f"candidate bus {bus_id} is absent from the synthetic network"
+            )
         reached = nx.single_source_shortest_path_length(graph, bus_id, cutoff=max_hops)
         reachable_load = sum(float(load_by_bus.get(bus, 0.0)) for bus in reached)
         results.append(
@@ -397,7 +504,13 @@ def rank_candidate_placements(
                 reachable_load_mw=round(reachable_load, 6),
             )
         )
-    return [result.json() for result in sorted(results, key=lambda row: (-row.redundancy, -row.reachable_load_mw, row.bus_id))]
+    return [
+        result.json()
+        for result in sorted(
+            results,
+            key=lambda row: (-row.redundancy, -row.reachable_load_mw, row.bus_id),
+        )
+    ]
 
 
 def texas_stress_preset(
@@ -420,7 +533,11 @@ def texas_stress_preset(
     """
     if force_count < 1:
         raise SimulationInputError("force_count must be at least one")
-    base_net = cached_base_network(case_path, db_path=db_path) if net is None else copy.deepcopy(net)
+    base_net = (
+        cached_base_network(case_path, db_path=db_path)
+        if net is None
+        else copy.deepcopy(net)
+    )
     _ensure_element_ids(base_net)
     _solve(base_net)
     top_lines = sorted(
@@ -432,12 +549,16 @@ def texas_stress_preset(
         key=lambda row: (-row[0], row[1]),
     )[:force_count]
     if not top_lines:
-        raise SimulationUnavailableError("synthetic network has no in-service lines to form a stress preset")
+        raise SimulationUnavailableError(
+            "synthetic network has no in-service lines to form a stress preset"
+        )
     radial = _largest_radial_load_tie(base_net)
     forced = [element_id for _, element_id in top_lines]
     if radial is not None and radial[0] not in forced:
         forced.append(radial[0])
-    cascade = run_cascade(forced, scenario_id, hour, net=base_net, db_path=db_path, write=False)
+    cascade = run_cascade(
+        forced, scenario_id, hour, net=base_net, db_path=db_path, write=False
+    )
     return {
         "preset_id": f"synthetic_texas_n{len(forced)}_stress",
         "topology": SYNTHETIC_TOPOLOGY_LABEL,
@@ -462,7 +583,9 @@ def texas_stress_preset(
     }
 
 
-def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict[str, Any]:
+def control_room_payload(
+    result: Mapping[str, Any], db_path: str | Path
+) -> dict[str, Any]:
     """Package provenance and an honest playback qualification for a run.
 
     This keeps the UI bridge read-only.  A run qualifies only after its exact
@@ -474,13 +597,22 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
             raise SimulationInputError(f"result is missing {key}")
     path = Path(db_path)
     if not path.is_file():
-        raise SimulationUnavailableError(f"control-room database is unavailable: {path}")
+        raise SimulationUnavailableError(
+            f"control-room database is unavailable: {path}"
+        )
     con = duckdb.connect(str(path), read_only=True)
     try:
         tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
-        missing_tables = {"ingest_log", "scenarios", "weather_source_runs", "cascade_runs"} - tables
+        missing_tables = {
+            "ingest_log",
+            "scenarios",
+            "weather_source_runs",
+            "cascade_runs",
+        } - tables
         if missing_tables:
-            return _unqualified_payload(result, f"missing tables: {', '.join(sorted(missing_tables))}")
+            return _unqualified_payload(
+                result, f"missing tables: {', '.join(sorted(missing_tables))}"
+            )
         artifacts = {
             source_file: sha256
             for source_file, sha256 in con.execute(
@@ -517,9 +649,14 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
     identity = result.get("scenario_identity")
     expected_identity = (
         f"scenario_identity=v1:{identity.get('scenario_hash')}"
-        if isinstance(identity, Mapping) and identity.get("scenario_hash") else None
+        if isinstance(identity, Mapping) and identity.get("scenario_hash")
+        else None
     )
-    if persisted is not None and expected_identity is not None and expected_identity not in str(persisted[1]):
+    if (
+        persisted is not None
+        and expected_identity is not None
+        and expected_identity not in str(persisted[1])
+    ):
         reasons.append("persisted row lacks matching scenario identity proof")
     return {
         "run_id": result["run_id"],
@@ -528,16 +665,34 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
         "topology": {
             "label": result["topology"],
             "source_kind": "simulated",
-            "case": {"source_file": "case_ACTIVSg2000.m", "sha256": artifacts.get("case_ACTIVSg2000.m")},
-            "coordinates": {"source_file": "ACTIVSg2000.aux", "sha256": artifacts.get("ACTIVSg2000.aux"), "coord_source": "tamu_aux"},
+            "case": {
+                "source_file": "case_ACTIVSg2000.m",
+                "sha256": artifacts.get("case_ACTIVSg2000.m"),
+            },
+            "coordinates": {
+                "source_file": "ACTIVSg2000.aux",
+                "sha256": artifacts.get("ACTIVSg2000.aux"),
+                "coord_source": "tamu_aux",
+            },
         },
         "scenario_provenance": (
-            {"source_name": scenario[0], "source_ref": scenario[1], "source_version": scenario[2]}
-            if scenario is not None else None
+            {
+                "source_name": scenario[0],
+                "source_ref": scenario[1],
+                "source_version": scenario[2],
+            }
+            if scenario is not None
+            else None
         ),
         "weather_source_run": (
-            {"source": weather[0], "source_release": weather[1], "receipt_path": weather[2], "grid_signature": weather[3]}
-            if weather is not None else None
+            {
+                "source": weather[0],
+                "source_release": weather[1],
+                "receipt_path": weather[2],
+                "grid_signature": weather[3],
+            }
+            if weather is not None
+            else None
         ),
         "persisted_provenance": (
             {
@@ -547,14 +702,19 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
                 "fixture_batch_id": persisted[3],
                 "scenario_identity": identity,
             }
-            if persisted is not None else None
+            if persisted is not None
+            else None
         ),
         "qualification": {"playback_qualified": not reasons, "reasons": reasons},
     }
 
 
 def persist_result(
-    result: CascadeResult, db_path: str | Path, *, counterfactual_site_id: int | None = None) -> None:
+    result: CascadeResult,
+    db_path: str | Path,
+    *,
+    counterfactual_site_id: int | None = None,
+) -> None:
     """Persist an exact ``cascade_runs`` row, failing closed on schema drift."""
     path = Path(db_path)
     if not path.is_file():
@@ -563,11 +723,21 @@ def persist_result(
     try:
         tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
         if "cascade_runs" not in tables:
-            raise SimulationUnavailableError("cascade database has no cascade_runs table")
-        columns = {row[1] for row in con.execute("PRAGMA table_info('cascade_runs')").fetchall()}
+            raise SimulationUnavailableError(
+                "cascade database has no cascade_runs table"
+            )
+        columns = {
+            row[1]
+            for row in con.execute("PRAGMA table_info('cascade_runs')").fetchall()
+        }
         required = {
-            "run_id", "scenario_id", "hour", "tripped_element_ids_json", "lost_load_mw",
-            "counties_dark_json", "critical_loads_lost_json",
+            "run_id",
+            "scenario_id",
+            "hour",
+            "tripped_element_ids_json",
+            "lost_load_mw",
+            "counties_dark_json",
+            "critical_loads_lost_json",
         }
         missing = sorted(required - columns)
         if missing:
@@ -578,7 +748,9 @@ def persist_result(
             "run_id": result.run_id,
             "scenario_id": result.scenario_id,
             "hour": result.hour,
-            "tripped_element_ids_json": json.dumps([event.json() for event in result.tripped_element_ids]),
+            "tripped_element_ids_json": json.dumps(
+                [event.json() for event in result.tripped_element_ids]
+            ),
             "lost_load_mw": result.lost_load_mw,
             "counties_dark_json": json.dumps(list(result.counties_dark)),
             "critical_loads_lost_json": json.dumps(list(result.critical_loads_lost)),
@@ -605,7 +777,9 @@ def persist_result(
         con.close()
 
 
-def _apply_forced_outages(net: Any, element_ids: Sequence[str]) -> tuple[list[CascadeEvent], float, set[int]]:
+def _apply_forced_outages(
+    net: Any, element_ids: Sequence[str]
+) -> tuple[list[CascadeEvent], float, set[int]]:
     events: list[CascadeEvent] = []
     lost_load_mw = 0.0
     dark_buses: set[int] = set()
@@ -620,10 +794,15 @@ def _apply_forced_outages(net: Any, element_ids: Sequence[str]) -> tuple[list[Ca
             continue
         net[table].at[index, "in_service"] = False
         kind = {
-            "line": "line", "impedance": "impedance", "gen": "generator",
-            "sgen": "static_generator", "load": "load",
+            "line": "line",
+            "impedance": "impedance",
+            "gen": "generator",
+            "sgen": "static_generator",
+            "load": "load",
         }[table]
-        events.append(CascadeEvent(element_id=element_id, kind=kind, stage=0, cause="forced"))
+        events.append(
+            CascadeEvent(element_id=element_id, kind=kind, stage=0, cause="forced")
+        )
         if table == "load":
             lost_load_mw += float(net.load.at[index, "p_mw"])
             dark_buses.add(int(net.load.at[index, "bus"]))
@@ -636,7 +815,10 @@ def _canonical_forced_elements(net: Any, element_ids: Sequence[str]) -> list[str
     for raw_id in element_ids:
         table, index, element_id = _resolve_element(net, raw_id)
         resolved[(table, index)] = element_id
-    return [element_id for _, element_id in sorted(resolved.items(), key=lambda item: item[1])]
+    return [
+        element_id
+        for _, element_id in sorted(resolved.items(), key=lambda item: item[1])
+    ]
 
 
 def _resolve_element(net: Any, raw_id: str) -> tuple[str, int, str]:
@@ -659,12 +841,21 @@ def _resolve_element(net: Any, raw_id: str) -> tuple[str, int, str]:
         for provider_table in ("gen", "sgen"):
             frame = net[provider_table]
             if "flux_element_id" in frame:
-                matches.extend((provider_table, int(index)) for index in frame.index[frame.flux_element_id.astype(str) == token])
+                matches.extend(
+                    (provider_table, int(index))
+                    for index in frame.index[frame.flux_element_id.astype(str) == token]
+                )
         if len(matches) == 1:
             table, index = matches[0]
             return table, index, str(net[table].at[index, "flux_element_id"])
         raise SimulationInputError(f"unknown generator source id {raw_id!r}")
-    aliases = {"line": "line", "impedance": "impedance", "gen": "gen", "sgen": "sgen", "load": "load"}
+    aliases = {
+        "line": "line",
+        "impedance": "impedance",
+        "gen": "gen",
+        "sgen": "sgen",
+        "load": "load",
+    }
     table = aliases.get(normalized_prefix)
     if table is None:
         raise SimulationInputError(f"unknown synthetic element kind in {raw_id!r}")
@@ -681,17 +872,27 @@ def _resolve_element(net: Any, raw_id: str) -> tuple[str, int, str]:
         raise SimulationInputError(f"unknown {prefix} element id {raw_id!r}") from exc
     if index not in frame.index:
         raise SimulationInputError(f"unknown {prefix} element id {raw_id!r}")
-    canonical = str(frame.at[index, "flux_element_id"]) if "flux_element_id" in frame else f"{prefix}:{index + 1}"
+    canonical = (
+        str(frame.at[index, "flux_element_id"])
+        if "flux_element_id" in frame
+        else f"{prefix}:{index + 1}"
+    )
     return table, index, canonical
 
 
 def _ensure_element_ids(net: Any) -> None:
     for table, prefix in (
-        ("line", "line"), ("impedance", "impedance"), ("gen", "generator"),
-        ("sgen", "generator"), ("ext_grid", "slack"), ("load", "load"),
+        ("line", "line"),
+        ("impedance", "impedance"),
+        ("gen", "generator"),
+        ("sgen", "generator"),
+        ("ext_grid", "slack"),
+        ("load", "load"),
     ):
         if "flux_element_id" not in net[table]:
-            net[table]["flux_element_id"] = [f"{prefix}:{int(index) + 1}" for index in net[table].index]
+            net[table]["flux_element_id"] = [
+                f"{prefix}:{int(index) + 1}" for index in net[table].index
+            ]
 
 
 def _solve(net: Any) -> None:
@@ -708,7 +909,14 @@ def _overloaded_elements(net: Any, limit: float) -> list[tuple[str, str, int, fl
     if not net.res_line.empty:
         for index, value in net.res_line.loading_percent.items():
             if bool(net.line.at[index, "in_service"]) and float(value) > limit:
-                overloaded.append((str(net.line.at[index, "flux_element_id"]), "line", int(index), float(value)))
+                overloaded.append(
+                    (
+                        str(net.line.at[index, "flux_element_id"]),
+                        "line",
+                        int(index),
+                        float(value),
+                    )
+                )
     if not net.res_impedance.empty:
         for index, row in net.res_impedance.iterrows():
             if not bool(net.impedance.at[index, "in_service"]):
@@ -716,9 +924,18 @@ def _overloaded_elements(net: Any, limit: float) -> list[tuple[str, str, int, fl
             rating = float(net.impedance.at[index, "sn_mva"])
             if rating <= 0:
                 continue
-            loading = max(abs(float(row.p_from_mw)), abs(float(row.p_to_mw))) / rating * 100.0
+            loading = (
+                max(abs(float(row.p_from_mw)), abs(float(row.p_to_mw))) / rating * 100.0
+            )
             if loading > limit:
-                overloaded.append((str(net.impedance.at[index, "flux_element_id"]), "impedance", int(index), loading))
+                overloaded.append(
+                    (
+                        str(net.impedance.at[index, "flux_element_id"]),
+                        "impedance",
+                        int(index),
+                        loading,
+                    )
+                )
     return sorted(overloaded, key=lambda value: value[0])
 
 
@@ -749,7 +966,12 @@ def _source_buses(net: Any) -> set[int]:
 
 def _incident_element_count(net: Any, bus_id: int) -> int:
     return sum(
-        int(((net[table].in_service) & ((net[table].from_bus == bus_id) | (net[table].to_bus == bus_id))).sum())
+        int(
+            (
+                (net[table].in_service)
+                & ((net[table].from_bus == bus_id) | (net[table].to_bus == bus_id))
+            ).sum()
+        )
         for table in ("line", "impedance")
     )
 
@@ -785,7 +1007,8 @@ def _largest_radial_load_tie(net: Any) -> tuple[str, float] | None:
     candidates = [
         (float(load_mw), bus_id, elements[0])
         for bus_id, load_mw in load_by_bus.items()
-        if int(bus_id) not in sources and len(elements := incident.get(int(bus_id), [])) == 1
+        if int(bus_id) not in sources
+        and len(elements := incident.get(int(bus_id), [])) == 1
     ]
     if not candidates:
         return None
@@ -793,7 +1016,9 @@ def _largest_radial_load_tie(net: Any) -> tuple[str, float] | None:
     return element_id, round(load_mw, 6)
 
 
-def _island_load_loss(net: Any, stage: int) -> tuple[float, set[int], list[CascadeEvent]]:
+def _island_load_loss(
+    net: Any, stage: int
+) -> tuple[float, set[int], list[CascadeEvent]]:
     graph = _in_service_graph(net)
     source_buses = _source_buses(net)
     lost_load_mw = 0.0
@@ -819,7 +1044,9 @@ def _island_load_loss(net: Any, stage: int) -> tuple[float, set[int], list[Casca
     return lost_load_mw, dark_buses, events
 
 
-def _metadata_from_database(db_path: str | Path, net: Any) -> tuple[dict[int, str], dict[int, tuple[str, ...]]]:
+def _metadata_from_database(
+    db_path: str | Path, net: Any
+) -> tuple[dict[int, str], dict[int, tuple[str, ...]]]:
     path = Path(db_path)
     if not path.is_file():
         raise SimulationUnavailableError(f"metadata database is unavailable: {path}")
@@ -829,7 +1056,9 @@ def _metadata_from_database(db_path: str | Path, net: Any) -> tuple[dict[int, st
         counties: dict[int, str] = {}
         critical: dict[int, tuple[str, ...]] = {}
         if "buses" in tables:
-            columns = {row[1] for row in con.execute("PRAGMA table_info('buses')").fetchall()}
+            columns = {
+                row[1] for row in con.execute("PRAGMA table_info('buses')").fetchall()
+            }
             if {"bus_id", "county_fips"}.issubset(columns):
                 counties = {
                     int(bus_id): str(county_fips)
@@ -838,14 +1067,19 @@ def _metadata_from_database(db_path: str | Path, net: Any) -> tuple[dict[int, st
                     ).fetchall()
                 }
         if "critical_loads" in tables:
-            columns = {row[1] for row in con.execute("PRAGMA table_info('critical_loads')").fetchall()}
+            columns = {
+                row[1]
+                for row in con.execute("PRAGMA table_info('critical_loads')").fetchall()
+            }
             if {"cl_id", "bus_id"}.issubset(columns):
                 grouped: dict[int, list[str]] = {}
                 for critical_id, bus_id in con.execute(
                     "SELECT cl_id, bus_id FROM critical_loads WHERE bus_id IS NOT NULL"
                 ).fetchall():
                     grouped.setdefault(int(bus_id), []).append(str(critical_id))
-                critical = {bus: tuple(sorted(values)) for bus, values in grouped.items()}
+                critical = {
+                    bus: tuple(sorted(values)) for bus, values in grouped.items()
+                }
         if "flux_source_bus_id" in net.bus:
             source_to_pandapower = {
                 int(source_bus): int(pandapower_bus)
@@ -883,7 +1117,9 @@ def _county_impacts(net: Any, county_by_bus: Mapping[int, str]) -> list[dict[str
             "county_fips": county,
             "lost_mw": round(lost_mw, 6),
             "customers_out": None,
-            "fraction_dark": round(lost_mw / totals[county], 6) if totals[county] else 0.0,
+            "fraction_dark": round(lost_mw / totals[county], 6)
+            if totals[county]
+            else 0.0,
             "basis": "synthetic modeled load; customer count unavailable",
         }
         for county, lost_mw in sorted(lost.items())

@@ -81,7 +81,9 @@ class CascadeResult:
             "topology": self.topology,
             "synthetic": self.synthetic,
             "solver": self.solver,
-            "loading_by_element": {key: float(value) for key, value in self.loading_by_element.items()},
+            "loading_by_element": {
+                key: float(value) for key, value in self.loading_by_element.items()
+            },
             "county_impacts": [dict(value) for value in self.county_impacts],
             "scenario_identity": dict(self.scenario_identity),
         }

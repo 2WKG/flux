@@ -41,7 +41,9 @@ def _island_generator_net(generator_mw: float) -> object:
     pp.create_line_from_parameters(net, first, second, 1, 0.01, 0.1, 0, 1.0)
     pp.create_load(net, second, p_mw=10)
     if generator_mw:
-        pp.create_gen(net, second, p_mw=generator_mw, vm_pu=1, max_p_mw=generator_mw, min_p_mw=0)
+        pp.create_gen(
+            net, second, p_mw=generator_mw, vm_pu=1, max_p_mw=generator_mw, min_p_mw=0
+        )
     return net
 
 
@@ -49,15 +51,22 @@ def test_cascade_trips_impedance_and_sheds_its_island_without_mutating_input() -
     net = _overloaded_impedance_net()
     result = run_cascade([], "storm", 0, net=net, max_stages=4)
     events = result["tripped_element_ids"]
-    assert any(event["kind"] == "impedance" and event["cause"] == "overload" for event in events)
+    assert any(
+        event["kind"] == "impedance" and event["cause"] == "overload"
+        for event in events
+    )
     assert result["lost_load_mw"] == pytest.approx(10.0)
     assert net.impedance.at[0, "in_service"]
     assert result["topology"] == SYNTHETIC_TOPOLOGY_LABEL
 
 
 @pytest.mark.parametrize("generator_mw", [0, 5, 20])
-def test_isolated_normal_generator_is_not_claimed_as_grid_forming_supply(generator_mw: float) -> None:
-    result = run_cascade(["line:1"], "storm", 0, net=_island_generator_net(generator_mw))
+def test_isolated_normal_generator_is_not_claimed_as_grid_forming_supply(
+    generator_mw: float,
+) -> None:
+    result = run_cascade(
+        ["line:1"], "storm", 0, net=_island_generator_net(generator_mw)
+    )
     assert result["lost_load_mw"] == pytest.approx(10.0)
     assert any(event["cause"] == "island" for event in result["tripped_element_ids"])
 
@@ -73,21 +82,27 @@ def test_forced_load_outage_and_candidate_ranking_are_json_safe() -> None:
         run_cascade(["physical:1"], "storm", 1, net=net)
 
 
-def test_county_impact_reports_synthetic_load_fraction_without_customer_claim(tmp_path) -> None:
+def test_county_impact_reports_synthetic_load_fraction_without_customer_claim(
+    tmp_path,
+) -> None:
     db = tmp_path / "grid.duckdb"
     con = duckdb.connect(str(db))
     con.execute("CREATE TABLE buses(bus_id BIGINT, county_fips TEXT)")
     con.execute("INSERT INTO buses VALUES (2, '48001')")
     con.close()
-    result = run_cascade(["load:1"], "storm", 1, net=_overloaded_impedance_net(), db_path=db)
+    result = run_cascade(
+        ["load:1"], "storm", 1, net=_overloaded_impedance_net(), db_path=db
+    )
     assert result["counties_dark"] == ["48001"]
-    assert result["county_impacts"] == [{
-        "county_fips": "48001",
-        "lost_mw": 10.0,
-        "customers_out": None,
-        "fraction_dark": 1.0,
-        "basis": "synthetic modeled load; customer count unavailable",
-    }]
+    assert result["county_impacts"] == [
+        {
+            "county_fips": "48001",
+            "lost_mw": 10.0,
+            "customers_out": None,
+            "fraction_dark": 1.0,
+            "basis": "synthetic modeled load; customer count unavailable",
+        }
+    ]
 
 
 def test_identity_and_immutable_edit_are_deterministic() -> None:
@@ -95,7 +110,10 @@ def test_identity_and_immutable_edit_are_deterministic() -> None:
     first = scenario_identity(["line:1", "load:1"], "storm", 1, net=net)
     second = scenario_identity(["load:1", "1", "line:1"], "storm", 1, net=net)
     assert first == second
-    assert scenario_identity(["line:1", "load:1"], "storm", 1, net=net, max_stages=13) != first
+    assert (
+        scenario_identity(["line:1", "load:1"], "storm", 1, net=net, max_stages=13)
+        != first
+    )
     edited = immutable_scenario_net(net, ["line:1"])
     assert net.line.at[0, "in_service"]
     assert not edited.line.at[0, "in_service"]
@@ -119,7 +137,10 @@ def test_static_generator_source_identity_is_exact_and_slack_fails_closed() -> N
     net.ext_grid["flux_element_id"] = ["slack:379"]
     result = run_cascade(["generator:40"], "storm", 0, net=net)
     assert result["tripped_element_ids"][0] == {
-        "element_id": "generator:40", "kind": "static_generator", "stage": 0, "cause": "forced",
+        "element_id": "generator:40",
+        "kind": "static_generator",
+        "stage": 0,
+        "cause": "forced",
     }
     assert net.sgen.at[0, "in_service"]
     with pytest.raises(SimulationInputError, match="grid-forming slack outages"):
@@ -135,8 +156,13 @@ def test_feasibility_balance_redundancy_and_measured_counterfactual() -> None:
     assert balance["dc_balance_residual_mw"] == pytest.approx(0.0)
     redundancy = redundancy_report(net, [0, 2])
     assert redundancy[0]["topology"] == SYNTHETIC_TOPOLOGY_LABEL
-    comparison = placement_counterfactual([], "storm", 0, net=net, site_bus=0, unit_mw=1)
-    assert set(comparison["measured_delta"]) == {"lost_load_reduction_mw", "tripped_event_reduction"}
+    comparison = placement_counterfactual(
+        [], "storm", 0, net=net, site_bus=0, unit_mw=1
+    )
+    assert set(comparison["measured_delta"]) == {
+        "lost_load_reduction_mw",
+        "tripped_event_reduction",
+    }
     assert "not a physical siting" in comparison["limitations"][0]
 
 
@@ -150,9 +176,13 @@ def test_persistence_requires_real_schema_and_writes_copilot_shape(tmp_path) -> 
         "source_retrieved_at TIMESTAMP, fixture_batch_id TEXT)"
     )
     con.close()
-    run_cascade(["load:1"], "storm", 2, net=_overloaded_impedance_net(), db_path=db, write=True)
+    run_cascade(
+        ["load:1"], "storm", 2, net=_overloaded_impedance_net(), db_path=db, write=True
+    )
     con = duckdb.connect(str(db), read_only=True)
-    stored = con.execute("SELECT lost_load_mw, source_name, source_ref FROM cascade_runs").fetchone()
+    stored = con.execute(
+        "SELECT lost_load_mw, source_name, source_ref FROM cascade_runs"
+    ).fetchone()
     assert stored[0:2] == (10.0, "twin.cascade")
     assert "scenario_identity=v1:" in stored[2]
     con.close()
@@ -166,7 +196,9 @@ def test_persistence_requires_real_schema_and_writes_copilot_shape(tmp_path) -> 
 )
 def test_real_activsg2000_import_solve_and_generator_line_outages() -> None:
     net = build_network("data/raw/activsg2000_current/case_ACTIVSg2000.m")
-    result = run_cascade(["line:1", "generator:1"], "uri_2021", 0, net=net, max_stages=4)
+    result = run_cascade(
+        ["line:1", "generator:1"], "uri_2021", 0, net=net, max_stages=4
+    )
     kinds = {(event["kind"], event["cause"]) for event in result["tripped_element_ids"]}
     assert ("line", "forced") in kinds
     assert ("generator", "forced") in kinds
