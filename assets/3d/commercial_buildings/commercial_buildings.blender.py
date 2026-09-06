@@ -24,7 +24,9 @@ def _output_dir() -> Path:
     return Path(args[0]).resolve()
 
 
-def _cube(name: str, location: tuple[float, float, float], scale: tuple[float, float, float]):
+def _cube(
+    name: str, location: tuple[float, float, float], scale: tuple[float, float, float]
+):
     bpy.ops.mesh.primitive_cube_add(location=location)
     object_ = bpy.context.object
     object_.name = name
@@ -46,7 +48,12 @@ def _connector(name: str, location: tuple[float, float, float]) -> None:
     connector.empty_display_size = 1.0
 
 
-def _building(name: str, location: tuple[float, float, float], scale: tuple[float, float, float], material) -> None:
+def _building(
+    name: str,
+    location: tuple[float, float, float],
+    scale: tuple[float, float, float],
+    material,
+) -> None:
     building = _cube(name, location, scale)
     building.data.materials.append(material)
 
@@ -71,7 +78,12 @@ def build() -> None:
 def export(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     bpy.ops.object.select_all(action="SELECT")
-    bpy.ops.export_scene.gltf(filepath=str(output_dir / f"{ASSET_ID}.glb"), export_format="GLB", export_yup=True, export_apply=True)
+    bpy.ops.export_scene.gltf(
+        filepath=str(output_dir / f"{ASSET_ID}.glb"),
+        export_format="GLB",
+        export_yup=True,
+        export_apply=True,
+    )
     scene = bpy.context.scene
     scene.render.resolution_x = 512
     scene.render.resolution_y = 512
