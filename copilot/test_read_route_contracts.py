@@ -135,7 +135,7 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_interventions.py::test_missing_artifact_is_unavailable", 503
         ),
         not_found=Gap(
-            "2WKG-176: copilot/routes/interventions.py:53 raises NotFoundError for an "
+            "2WKG-422: copilot/routes/interventions.py:53 raises NotFoundError for an "
             "absent site score, but no test pins that 404 envelope."
         ),
     ),
@@ -152,7 +152,7 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_interventions.py::test_missing_artifact_is_unavailable", 503
         ),
         not_found=Gap(
-            "2WKG-176: copilot/routes/interventions.py:53 raises NotFoundError for an "
+            "2WKG-422: copilot/routes/interventions.py:53 raises NotFoundError for an "
             "absent intervention, but no test pins that 404 envelope."
         ),
     ),
