@@ -33,9 +33,9 @@ Modules: `pipelines/congestion.py`, `twin/dlr.py` (IEEE 738), `twin/reconductor.
 
 ## Outputs
 
-- DuckDB `line_upgrade_scores(line_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible)` — one row per line.
+- DuckDB `line_upgrade_scores(line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256)` — one row per `(line_id, scenario_id)` (overview A10).
   - `mw_per_musd` = best of `dlr_uplift_mw / (dlr_cost_usd/1e6)` and `reconductor_uplift_mw / (reconductor_cost_usd/1e6)`; the winning tech is derivable and also stored in the side table below.
-- Side table `line_upgrade_detail(line_id, owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw, dlr_p50_mw, dlr_hours_above_static, best_tech, payback_yr, congestion_method, region)` — not in the shared contract; additive, keeps the contract table narrow.
+- Side table `line_upgrade_detail(line_id, scenario_id, owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw, dlr_p50_mw, dlr_hours_above_static, best_tech, payback_yr, congestion_method, region, + the same contract columns)` — keyed by `(line_id, scenario_id)`; additive, keeps the contract table narrow.
 - `data/parquet/line_upgrade_scores.parquet` for the deck.gl `PathLayer` (color = `mw_per_musd`).
 - `TopLine` dicts from `top_lines`.
 
