@@ -22,7 +22,7 @@
       "start_utc": "2020-09-28T06:00:00Z",
       "end_utc": "2020-10-20T18:00:00Z"
     },
-    "disposition": "candidate_only",
+    "disposition": "shortfall",
     "selection_basis": "CAL FIRE Glass Fire event record and bounded Napa EAGLE-I capture.",
     "uncertainties": [
       "No county-scoped authoritative weather overlap has been collected.",
@@ -56,17 +56,16 @@
       "release": "10.6084/m9.figshare.24237376.v4",
       "retrieved_at_utc": "2026-09-06T07:20:00Z",
       "license_or_access": "CC BY 4.0",
-      "raw_sha256": "2d0e9cfed3277b25bfcb89e65d2ef92d14f49a23d53cefc5e697b73c8df49989",
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
       "filtered_sha256": "1d963a35cfa67f02c22eb23e96f94dec97acd5e1f79b1617ceb10cad54926d46",
-      "bytes": 983040,
+      "bytes": 1170699724,
       "etag": "\"69efd86260f9814aa3990bf6d7827b82-2\"",
       "units": "customers_out; UTC 15-minute timestamps",
       "timezone_conversion": "none; source documents UTC",
       "filters": "California, FIPS 06055, six-hour window",
       "grid_index_mapping": "none",
-      "gaps": [
-        "Customer denominator unavailable."
-      ]
+      "gaps": ["Complete annual scan has 21 of 24 expected observations; no zero imputation."],
+      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547894","source_file":"eaglei_outages_2020.csv","source_file_id":42547894,"source_file_bytes":1170699724,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv","raw_artifact_sha256":"2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json","source_sidecar_sha256":"6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9","filtered_artifact_uri":"data/raw/event-baseline/ca-2020-glass-06055-20200928000000_eaglei_2020_20200928T000000_20200928T060000.csv","filtered_artifact_sha256":"1d963a35cfa67f02c22eb23e96f94dec97acd5e1f79b1617ceb10cad54926d46"}
     }
   ],
   "records": [
@@ -77,7 +76,7 @@
       "scenario_id": "ca-2020-glass-replay",
       "window_start_utc": "2020-09-28T00:00:00Z",
       "window_end_utc": "2020-09-28T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [
         "calfire-glass",
@@ -100,20 +99,20 @@
         "notes": "Candidate discovery only; report coverage not promoted to weather coverage."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-glass"],
+        "expected_samples": 24,
+        "observed_samples": 21,
+        "missing_timestamps": ["2020-09-28T02:00:00Z", "2020-09-28T02:45:00Z", "2020-09-28T03:45:00Z"],
         "event_report": null,
-        "notes": "Bounded range capture is provenance only pending a complete annual-source scan."
+        "notes": "Complete annual-source scan found 21 of 24 observations; unavailable timestamps are never zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
+        "status": "UncoveredLabel",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
