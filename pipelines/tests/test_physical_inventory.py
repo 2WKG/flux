@@ -193,3 +193,45 @@ def test_accepts_registered_esri_source_crs_and_rejects_unknown_authority_code()
     artifact["content_sha256"] = artifact_sha256(artifact)
     with pytest.raises(PhysicalInventoryError, match="not a registered CRS"):
         validate_artifact(artifact)
+
+
+def test_rejects_a_crs_that_does_not_retain_its_declared_authority() -> None:
+    """EPSG:102100 is a real code that PROJ resolves to ESRI:102100."""
+    artifact = _artifact()
+    artifact["assets"][0]["geometry_crs"] = "EPSG:102100"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    with pytest.raises(
+        PhysicalInventoryError, match="must retain its declared authority"
+    ):
+        validate_artifact(artifact)
+    artifact["assets"][0]["geometry_crs"] = "ESRI:102100"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    assert validate_artifact(artifact) is artifact
+
+
+def test_rejects_source_geometry_that_claims_a_derivation_method() -> None:
+    artifact = _artifact()
+    artifact["assets"][0]["geometry_status"] = "source"
+    artifact["assets"][0]["geometry_derivation_method"] = "snapped to a county centroid"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    with pytest.raises(
+        PhysicalInventoryError, match="must not claim a derivation method"
+    ):
+        validate_artifact(artifact)
+
+
+def test_write_artifact_refuses_a_conflicting_repeat() -> None:
+    artifact = _artifact()
+    con = duckdb.connect(":memory:")
+    assert write_artifact(con, artifact) == artifact["artifact_id"]
+    conflicting = deepcopy(artifact)
+    conflicting["assets"][0]["geometry_precision_m"] = 25.0
+    conflicting["content_sha256"] = artifact_sha256(conflicting)
+    assert conflicting["content_sha256"] != artifact["content_sha256"]
+    with pytest.raises(
+        PhysicalInventoryError, match="conflicts with persisted content"
+    ):
+        write_artifact(con, conflicting)
+    assert con.execute(
+        "SELECT content_sha256 FROM physical_inventory_manifests"
+    ).fetchone() == (artifact["content_sha256"],)
