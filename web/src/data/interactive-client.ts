@@ -61,8 +61,8 @@ export interface ProvenanceRecord {
   readonly version?: string;
 }
 
-/** The three artifact labels are provenance, not the UI-status vocabulary. */
-export type BalanceArtifactTruth = "source_backed" | "synthetic" | "unavailable";
+/** This planned endpoint accepts only synthetic evidence or an explicit unavailable result. */
+export type BalanceArtifactTruth = "synthetic" | "unavailable";
 
 export interface BalanceEvidence {
   readonly artifactTruth: BalanceArtifactTruth;
@@ -184,7 +184,7 @@ export const isBalanceResponse: PayloadGuard<BalanceResponse> = (value: unknown)
     !isFiniteNumber(value.slackMw) || !isFiniteNumber(value.residualMw) ||
     (value.fuelSplitMw !== undefined && !isFuelSplit(value.fuelSplitMw)) ||
     (value.editDelta !== undefined && !isMetricDelta(value.editDelta)) ||
-    !["source_backed", "synthetic", "unavailable"].includes(String(truth)) ||
+    !(truth === "synthetic" || truth === "unavailable") ||
     !(evidence.topology === null || isNonEmptyString(evidence.topology)) ||
     !["nameplate", "availability_adjusted", "operating"].includes(String(basis)) ||
     !isProvenance(evidence.provenance) || !isStringArray(value.assumptions) || !isStringArray(value.limitations)
@@ -201,7 +201,7 @@ export const isRedundancyResponse: PayloadGuard<RedundancyResponse> = (value: un
     isFiniteNumber(components.nMinusOneSurvivability) && isFiniteNumber(components.edgeDisjointPaths) &&
     (components.alternativeSourceHops === null || isFiniteNumber(components.alternativeSourceHops)) &&
     (worst === null || (isRecord(worst) && isNonEmptyString(worst.branchId) && typeof worst.sourceReachable === "boolean")) &&
-    (evidence.artifactTruth === "source_backed" || evidence.artifactTruth === "synthetic") &&
+    evidence.artifactTruth === "synthetic" &&
     (evidence.topology === null || isNonEmptyString(evidence.topology)) && isProvenance(evidence.provenance) &&
     isStringArray(value.assumptions) && isStringArray(value.limitations);
 };
