@@ -123,11 +123,13 @@ origin.
 
 ## Optional API (copilot)
 
-`copilot.app:app` is a FastAPI app with the nine registered local routes listed
-by `copilot/test_read_route_contracts.py`: `GET /health`; `GET /layers/{name}`;
-`POST /site-score` and `POST /compare` (persisted site scores, JSON body);
+`copilot.app:app` is a FastAPI app with the **eleven** registered local routes listed
+by `copilot/test_read_route_contracts.py:95-250`: `GET /health`; `GET /layers/{name}`;
+`POST /site-score` and `POST /compare` (persisted reads, JSON body);
+`GET /lines/top`; `GET /elements/critical`;
 `GET /scenarios` and `GET /scenarios/{id}`; `GET /predictions`; `GET /cascade`;
-and `POST /ask`. The default `/ask` backend is deliberately unconfigured: it
+and `POST /ask`. (This paragraph said "nine" and omitted `GET /lines/top` and
+`GET /elements/critical`. D-3.) The default `/ask` backend is deliberately unconfigured: it
 returns a local SSE `lifecycle` event followed by an explicit `unavailable`
 terminal, with no provider or network call. A `GET` on the POST routes is a
 plain FastAPI `405` (`{"detail":"Method Not Allowed"}`, not the envelope). The
@@ -367,7 +369,9 @@ unavailable {'artifact': 'database', 'reason': 'missing'}
 $ /scenarios/nope ; /layers/buses ; /layers/lines ; /layers/bogus ; /layers ; GET /ask ; POST /ask   (http codes)
 503 ; 503 ; 503 ; 404 ; 404 ; 404 ; 404
 $ curl -s http://localhost:8000/openapi.json | ... print(sorted(d['paths']))
-['/compare', '/health', '/layers/{layer_name}', '/scenarios', '/scenarios/{scenario_id}', '/site-score']
+['/ask', '/cascade', '/compare', '/elements/critical', '/health', '/layers/{layer_name}', '/lines/top', '/predictions', '/scenarios', '/scenarios/{scenario_id}', '/site-score']
+  # re-generated 2026-09-06 from copilot.app.app.openapi() at 056072b; the six-path list
+  # recorded here previously predated /ask, /cascade, /elements/critical, /lines/top, /predictions.
 $ curl -s -X POST http://localhost:8000/site-score -H "content-type: application/json" -d '{"site_id":"s1","unit_mw":300,"scenario_id":"baseline"}'
 {"status":"unavailable",...,"details":{"artifact":"database","reason":"missing"}}   503
 $ curl -s -X POST http://localhost:8000/site-score -H "content-type: application/json" -d '{}'

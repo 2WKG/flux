@@ -52,7 +52,7 @@ ACTIVSg2000, ERCOT records, or fabricated Minnesota topology.
 
 ### Existing teammate feasibility evidence
 
-Open [PR 14](https://github.com/Wyzard1004/flux/pull/14) records a teammate's parse of the MIT-licensed GridSFM release 2026_05_07:
+Open [PR 14](https://github.com/2WKG/flux/pull/14) records a teammate's parse of the MIT-licensed GridSFM release 2026_05_07:
 Minnesota has 718 buses, 1,297 branch records, and 97 generators, with a reported
 strict AC-OPF solve for its supplied snapshots. This is promising source evidence, not
 automatic production acceptance. Its records are PowerModels/MATPOWER-structured JSON,
@@ -120,9 +120,16 @@ score into a construction recommendation.
 
 Joshua owns backend/integration. Endpoints are versioned read surfaces over accepted
 artifacts. Missing source, model, corpus, or configured provider returns a documented
-unavailable envelope with status, code, human-readable message, empty provenance, and
-named next step. Every available numeric/model result contains nonempty provenance, model
+unavailable result. Every available numeric/model result contains nonempty provenance, model
 mode, and limitations. Documented consumer fields stay top-level.
+
+**Envelope scope (D-1).** "Unavailable envelope with status, code, message, empty provenance and
+a named next step" describes the **tool-result payload**
+([`10-duckdb-contract.md`](10-duckdb-contract.md) §"Artifact availability on a tool result"), not
+the HTTP response. On the wire the failure contract is
+[`../api/envelopes.md`](../api/envelopes.md) / `copilot/api/envelope.py`, whose `FailureEnvelope`
+is `extra="forbid"` and therefore carries no `availability`, `next_step`, top-level `code`,
+`provenance`, or `limitations` field at all; the named cause travels in `error.details.reason`.
 
 The Copilot is required in the primary demo flow. Its provider/model comes from validated
 runtime configuration; planning must not invent a model identifier or make a paid API call.
@@ -207,15 +214,15 @@ pending gap that must be assigned before execution, and a numbered row remains p
 until its own acceptance evidence exists.
 
 Verification snapshot, 5 September 2026: source work 134 and 135 has open PRs
-[38](https://github.com/Wyzard1004/flux/pull/38) and [34](https://github.com/Wyzard1004/flux/pull/34);
+[38](https://github.com/2WKG/flux/pull/38) and [34](https://github.com/2WKG/flux/pull/34);
 134, 135, 137, and 140 are independently ready after removal of the prior source-cycle.
 97, 103, 124, 125, and 101 have open PRs
-[20](https://github.com/Wyzard1004/flux/pull/20), [17](https://github.com/Wyzard1004/flux/pull/17),
-[10](https://github.com/Wyzard1004/flux/pull/10), [19](https://github.com/Wyzard1004/flux/pull/19),
-and draft [41](https://github.com/Wyzard1004/flux/pull/41), respectively. The current
-fixture foundation is 156 in open [PR 23](https://github.com/Wyzard1004/flux/pull/23),
+[20](https://github.com/2WKG/flux/pull/20), [17](https://github.com/2WKG/flux/pull/17),
+[10](https://github.com/2WKG/flux/pull/10), [19](https://github.com/2WKG/flux/pull/19),
+and draft [41](https://github.com/2WKG/flux/pull/41), respectively. The current
+fixture foundation is 156 in open [PR 23](https://github.com/2WKG/flux/pull/23),
 with follow-on fixture work in PR 26. PR 20 and the current ingestion stream
-([PR 27](https://github.com/Wyzard1004/flux/pull/27)) require
+([PR 27](https://github.com/2WKG/flux/pull/27)) require
 the separately assigned 2WKG-293 collision reconciliation before they are integrated;
 that existing work is assigned to Joshua and must not be duplicated.
 No active regulatory-boundary work item was verified; that row is deliberately pending.
