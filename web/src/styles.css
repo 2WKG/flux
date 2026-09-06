@@ -355,6 +355,9 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
    inventory panel salvaged from PR #245. */
 .map-foundation { position: relative; block-size: 100%; min-block-size: 28rem; border-radius: 12px; overflow: hidden }
 .map-foundation .maplibregl-map { block-size: 100%; min-block-size: 28rem }
+.texas-topology-map { position: relative; min-block-size: 42rem; overflow: hidden; border-radius: 10px }
+.texas-topology-map .maplibregl-map { block-size: 42rem }
+.texas-topology-map > p { position: absolute; z-index: 2; inset: auto .75rem .75rem .75rem; margin: 0; padding: .6rem .75rem; max-inline-size: 50rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: .78rem }
 .map-foundation-notice { position: absolute; inset: auto .75rem .75rem .75rem; z-index: 2; display: grid; gap: .25rem; max-inline-size: 52rem; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: 13px; line-height: 1.35 }
 .map-foundation-notice strong { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase }
 .grid-inventory { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }

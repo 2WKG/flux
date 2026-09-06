@@ -37,6 +37,9 @@ await build({
       import { RunTrace } from "./ask/run-state/RunTrace";
       import { createRunState } from "./ask/run-state/reducer";
       import { ChatDock } from "./chat/ChatDock";
+      import { CausalSection } from "./explainer/causal";
+      import { JepaSection } from "./explainer/jepa";
+      import { GnnSection } from "./explainer/gnn";
       import { EMPTY_SCENE_CONTEXT } from "./chat/ask-contract";
       import { TERMINAL_ERROR_CODES } from "./ask/run-state/types";
       export { ASSET_STATUS_TOKENS, STATUS_COPY, TERMINAL_ERROR_CODES };
@@ -49,6 +52,9 @@ await build({
           contextRevision: "r1", context: EMPTY_SCENE_CONTEXT, attemptId: "a1",
           sourceLabel: "Fixture demo", sourceStatus: status, status: "idle",
         }));
+      export const renderCausalSection = () => renderToStaticMarkup(createElement(CausalSection));
+      export const renderJepaSection = () => renderToStaticMarkup(createElement(JepaSection));
+      export const renderGnnSection = () => renderToStaticMarkup(createElement(GnnSection));
     `,
     resolveDir: here.pathname,
     loader: "tsx",
@@ -181,6 +187,22 @@ test("the chat dock renders the owner's copy", () => {
     assert.ok(rendered.includes(`Truth: ${STATUS_COPY[status]}`), `the dock did not render ${STATUS_COPY[status]}`);
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
+});
+
+test("each mounted explainer section renders a canonical truth status and no provenance status", () => {
+  const sections = [
+    [surface.renderCausalSection(), "synthetic"],
+    [surface.renderJepaSection(), "hypothetical"],
+    [surface.renderGnnSection(), "unavailable"],
+  ];
+  for (const [markup, status] of sections) {
+    assert.ok(markup.includes(STATUS_COPY[status]), `explainer section did not render ${STATUS_COPY[status]}`);
+    assert.doesNotMatch(markup, /source[_ -]?backed/i);
+  }
+  assert.match(sections[0][0], /data-source-status="synthetic"/);
+  assert.match(sections[0][0], /data-request-status="unavailable"/);
+  assert.match(sections[1][0], /data-source-status="hypothetical"/);
+  assert.match(sections[2][0], /data-source-status="unavailable"/);
 });
 
 test("`source_backed` is the artifact-provenance axis and never a status", async () => {
