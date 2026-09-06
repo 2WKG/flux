@@ -5,7 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {createHash} from 'node:crypto';
-import {installFluxGridPack, runtimeInventory} from '../../scripts/install_flux_grid_pack.mjs';
+import {installFluxGridPack, runtimeInventory, validateRuntimeManifest} from '../../scripts/install_flux_grid_pack.mjs';
 
 async function fixture() {
   const root = await mkdtemp(path.join(tmpdir(),'flux-grid-install-test-'));
@@ -53,6 +53,15 @@ test('tracked publication manifest states the unpublished truth and stays contra
   assert.ok(inventory.some(file=>file.relative==='assets/symbols/flux-grid@2x.png'));
   assert.equal(inventory.filter(file=>file.relative.endsWith('.glb')).length,54);
   assert.throws(()=>runtimeInventory(`${'0'.repeat(64)}  assets/../escape.glb`),/Invalid pinned inventory/);
+  assert.throws(()=>runtimeInventory(`${'0'.repeat(64)}  assets/a.glb\n${'0'.repeat(64)}  assets/a.glb`),/Duplicate pinned inventory entry/);
+  const validInventory=runtimeInventory(await readFile(new URL('package.SHA256SUMS',packUrl),'utf8'));
+  assert.doesNotThrow(()=>validateRuntimeManifest(manifest,validInventory));
+  const missingLod=structuredClone(manifest);
+  delete missingLod.assets[0].lods.lod2;
+  assert.throws(()=>validateRuntimeManifest(missingLod,validInventory),/no LODs|invalid lod2 path/);
+  const unpinned=structuredClone(manifest);
+  unpinned.assets[0].lods.lod0.path='hospital/not-pinned.glb';
+  assert.throws(()=>validateRuntimeManifest(unpinned,validInventory),/resource is not pinned/);
 });
 test('every committed pack file re-hashes to its pinned digest',async()=>{
   const packDir=fileURLToPath(new URL('../../data/3d/packs/flux-grid-v1/',import.meta.url));
