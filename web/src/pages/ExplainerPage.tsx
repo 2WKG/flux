@@ -4,10 +4,13 @@
  * It is loaded as its own chunk by `src/shell/SiteShell.tsx` and imports
  * neither the scenario fixture nor any scene, renderer, or map module. The
  * teaching sections disclose their evidence class and never substitute a model
- * result when their source is unavailable.
+ * result when their source is unavailable. The low-complexity cascade section
+ * replays a trace solved on the server by `twin/toy_cascade.py`; no page here
+ * solves anything in the browser.
  */
 import { Component, type ReactNode } from "react";
 
+import { CascadeSection } from "../explainer/cascade";
 import { CausalSection } from "../explainer/causal";
 import { GnnSection } from "../explainer/gnn";
 import { JepaSection } from "../explainer/jepa";
@@ -54,10 +57,7 @@ export function ExplainerPage() {
     <section className="method" aria-label="Method">
       {METHOD.map((entry) => <article key={entry.title} className="method-entry"><h2>{entry.title}</h2><p>{entry.body}</p></article>)}
     </section>
-    <section className="pipeline" aria-label="Low-complexity simulation">
-      <div><p className="eyebrow">LOW-COMPLEXITY SIMULATION</p><h2>The teaching simulation is not part of this build.</h2></div>
-      <FailureState state={{ kind: "unavailable", message: "The explainer's own low-complexity simulation is not in this build. Nothing on this page is model output, and no figure is shown in place of one." }} />
-    </section>
+    <ExplainerSectionBoundary label="Low-complexity cascade section"><CascadeSection /></ExplainerSectionBoundary>
     <ExplainerSectionBoundary label="Causal teaching section"><CausalSection /></ExplainerSectionBoundary>
     <ExplainerSectionBoundary label="JEPA recorded evaluation"><JepaSection /></ExplainerSectionBoundary>
     <ExplainerSectionBoundary label="GNN teaching section"><GnnSection /></ExplainerSectionBoundary>

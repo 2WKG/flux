@@ -50,7 +50,8 @@ export const ROUTES: readonly Route[] = [
     label: "How the math works",
     title: "Flux | How the math works",
     truthLabels: ["synthetic", "hypothetical", "unavailable"],
-    truthNote: "This page combines synthetic teaching models, one hypothetical recorded experiment, and explicit unavailable states; no model runs in this build.",
+    truthNote:
+      "This page replays a synthetic five-bus teaching cascade solved on the server by twin/toy_cascade.py, alongside synthetic teaching schematics, one hypothetical recorded experiment, and explicit unavailable states.",
   },
   {
     id: "minnesota",
