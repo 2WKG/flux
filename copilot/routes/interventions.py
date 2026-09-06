@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import json
+import math
 from typing import Annotated, Any, Literal
 
 import duckdb
 from fastapi import APIRouter, Request
 from pydantic import BaseModel, ConfigDict, Field
 
-from copilot.api import NotFoundError, UnavailableError
+from copilot.api import UnavailableError
+from copilot.routes.scenarios import _derive_labels
 
 router = APIRouter(tags=["interventions"])
 
@@ -36,6 +38,117 @@ def unavailable(reason: str, artifact: str = "site_scores") -> UnavailableError:
     )
 
 
+_SITE_COLUMNS = (
+    "site_id",
+    "name",
+    "kind",
+    "county_fips",
+    "source_name",
+    "source_ref",
+    "source_version",
+    "source_retrieved_at",
+    "fixture_batch_id",
+)
+_SCORE_COLUMNS = (
+    "safety_score",
+    "safety_flags_json",
+    "grid_value_score",
+    "lol_reduction_mwh",
+    "congestion_relief_pct",
+    "blackstart_reach_mw",
+    "model_mode",
+    "limitations_json",
+    "source_name",
+    "source_ref",
+    "source_version",
+    "source_retrieved_at",
+    "fixture_batch_id",
+)
+
+
+def _provenance(row: dict[str, Any], prefix: str) -> dict[str, Any]:
+    provenance = {
+        key: row.pop(f"{prefix}_{key}")
+        for key in (
+            "source_name",
+            "source_ref",
+            "source_version",
+            "source_retrieved_at",
+            "fixture_batch_id",
+        )
+    }
+    if not all(isinstance(provenance[key], str) and provenance[key] for key in (
+        "source_name", "source_ref", "fixture_batch_id"
+    )):
+        raise unavailable("provenance_missing")
+    return provenance
+
+
+def _json_string_list(value: object, field: str) -> list[str]:
+    try:
+        decoded = json.loads(value) if isinstance(value, str) else value
+    except json.JSONDecodeError as exc:
+        raise unavailable("invalid_persisted_outcome") from exc
+    if not isinstance(decoded, list) or not all(
+        isinstance(item, str) and item for item in decoded
+    ):
+        raise unavailable("invalid_persisted_outcome")
+    return decoded
+
+
+def _normalise_site_outcome(
+    row: tuple[Any, ...], request: SiteScoreRequest
+) -> dict[str, Any]:
+    keys = tuple(f"site_{column}" for column in _SITE_COLUMNS) + tuple(
+        f"score_{column}" for column in _SCORE_COLUMNS
+    )
+    result = dict(zip(keys, row, strict=True))
+    model_mode = result.pop("score_model_mode")
+    if model_mode != "topology":
+        raise unavailable("unsupported_model_mode")
+    limitations = _json_string_list(result.pop("score_limitations_json"), "limitations")
+    if not limitations:
+        raise unavailable("invalid_persisted_outcome")
+    result["site_id"] = str(result.pop("site_site_id"))
+    result["name"] = result.pop("site_name")
+    result["kind"] = result.pop("site_kind")
+    result["county_fips"] = result.pop("site_county_fips")
+    for metric in (
+        "safety_score",
+        "grid_value_score",
+        "lol_reduction_mwh",
+        "congestion_relief_pct",
+        "blackstart_reach_mw",
+    ):
+        value = result.pop(f"score_{metric}")
+        if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(value):
+            raise unavailable("invalid_persisted_outcome")
+        result[metric] = float(value)
+    result["safety_flags"] = _json_string_list(
+        result.pop("score_safety_flags_json"), "safety_flags"
+    )
+    result["scenario_id"] = request.scenario_id
+    result["unit_mw"] = request.unit_mw
+    result["model_mode"] = model_mode
+    result["limitations"] = limitations
+    provenance = {
+        "site_candidate": _provenance(result, "site"),
+        "site_score": _provenance(result, "score"),
+    }
+    labels = [
+        _derive_labels(item["source_name"], item["source_ref"])
+        for item in provenance.values()
+    ]
+    result["source_kind"] = next(
+        (source_kind for source_kind, _ in labels if source_kind is not None), None
+    )
+    result["topology"] = next(
+        (topology for _, topology in labels if topology is not None), None
+    )
+    result["provenance"] = provenance
+    return result
+
+
 def read_site(path: str, request: SiteScoreRequest) -> dict[str, Any]:
     try:
         con = duckdb.connect(path, read_only=True)
@@ -44,55 +157,20 @@ def read_site(path: str, request: SiteScoreRequest) -> dict[str, Any]:
     try:
         try:
             row = con.execute(
-                """SELECT c.site_id,c.name,c.kind,c.county_fips,c.source_name,c.source_ref,c.source_version,c.source_retrieved_at,c.fixture_batch_id,s.safety_score,s.safety_flags_json,s.grid_value_score,s.lol_reduction_mwh,s.congestion_relief_pct,s.blackstart_reach_mw FROM site_candidates c JOIN site_scores s USING(site_id) WHERE s.site_id=? AND s.scenario_id=? AND s.unit_mw=?""",
+                """SELECT c.site_id,c.name,c.kind,c.county_fips,
+                          c.source_name,c.source_ref,c.source_version,c.source_retrieved_at,c.fixture_batch_id,
+                          s.safety_score,s.safety_flags_json,s.grid_value_score,s.lol_reduction_mwh,
+                          s.congestion_relief_pct,s.blackstart_reach_mw,s.model_mode,s.limitations_json,
+                          s.source_name,s.source_ref,s.source_version,s.source_retrieved_at,s.fixture_batch_id
+                   FROM site_candidates c JOIN site_scores s USING(site_id)
+                   WHERE s.site_id=? AND s.scenario_id=? AND s.unit_mw=?""",
                 [request.site_id, request.scenario_id, request.unit_mw],
             ).fetchone()
         except duckdb.BinderException as exc:
-            raise unavailable("schema_mismatch") from exc
+            raise unavailable("outcome_metadata_unavailable") from exc
         if not row:
-            raise NotFoundError(
-                "The requested site score does not exist.",
-                details={"site_id": request.site_id},
-            )
-        keys = (
-            "site_id",
-            "name",
-            "kind",
-            "county_fips",
-            "source_name",
-            "source_ref",
-            "source_version",
-            "source_retrieved_at",
-            "fixture_batch_id",
-            "safety_score",
-            "safety_flags",
-            "grid_value_score",
-            "lol_reduction_mwh",
-            "congestion_relief_pct",
-            "blackstart_reach_mw",
-        )
-        result = dict(zip(keys, row, strict=True))
-        result["site_id"] = str(result["site_id"])
-        result["scenario_id"] = request.scenario_id
-        result["unit_mw"] = request.unit_mw
-        try:
-            result["safety_flags"] = json.loads(result["safety_flags"])
-            if not isinstance(result["safety_flags"], list):
-                raise TypeError("safety flags must be a JSON list")
-        except (TypeError, json.JSONDecodeError) as exc:
-            raise unavailable("schema_mismatch") from exc
-        result["provenance"] = {
-            k: result.pop(k)
-            for k in (
-                "source_name",
-                "source_ref",
-                "source_version",
-                "source_retrieved_at",
-                "fixture_batch_id",
-            )
-        }
-        result["regulatory_feasibility"] = "not_assessed"
-        return result
+            raise unavailable("no_persisted_outcome")
+        return _normalise_site_outcome(row, request)
     except duckdb.Error as exc:
         raise unavailable("query_failed") from exc
     finally:
