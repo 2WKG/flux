@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import duckdb
@@ -38,13 +39,36 @@ def score_artifact(
     score: float = 3.0,
     mode: str = "topology",
     geography_id: str = "mn",
-    availability: str = "available",
 ) -> None:
+    component_values = json.loads(components)
+    source_identity = {
+        "family": "critical_elements" if metric == "critical_element" else "comparison",
+        "scenario_id": component_values["scenario_id"],
+    }
+    if metric == "critical_element":
+        source_identity |= {
+            "region": geography_id,
+            "element_id": component_values["element_id"],
+        }
+    else:
+        source_identity["intervention_id"] = component_values["intervention_id"]
+    identity = json.dumps(
+        {
+            "artifact_kind": "score",
+            "geography_id": geography_id,
+            "model_mode": mode,
+            "source_identity": source_identity,
+            "source_version": "v1",
+            "content_sha256": "a" * 64,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     with duckdb.connect(str(path)) as con:
         ensure_minnesota_schema(con)
         con.execute(
-            "INSERT INTO mn_artifact_manifests VALUES (?, 'score', ?, ?, ?, ?, '{}', CURRENT_TIMESTAMP, '[]', '[\"fixture limitation\"]', '[]')",
-            [artifact_id, SCHEMA_VERSION, geography_id, availability, mode],
+            "INSERT INTO mn_artifact_manifests VALUES (?, 'score', ?, ?, 'available', ?, ?, CURRENT_TIMESTAMP, '[]', '[\"fixture limitation\"]', '[]')",
+            [artifact_id, SCHEMA_VERSION, geography_id, mode, identity],
         )
         con.execute(
             "INSERT INTO mn_artifact_provenance VALUES (?, 0, 'fixture:synthetic', 'fixture://score', 'v1', CURRENT_TIMESTAMP, 'test fixture', ?, ?, FALSE)",
@@ -53,6 +77,53 @@ def score_artifact(
         con.execute(
             "INSERT INTO mn_score_results VALUES (?, ?, ?, 'MW', ?, 'hypothetical')",
             [artifact_id, metric, score, components],
+        )
+
+
+def unavailable_score_manifest(
+    path: Path,
+    artifact_id: str,
+    *,
+    family: str,
+    scenario_id: str | None = None,
+    intervention_id: str | None = None,
+    region: str = "mn",
+) -> None:
+    if family == "comparison":
+        if scenario_id is None or intervention_id is None:
+            raise ValueError(
+                "comparison unavailable identity requires scenario and intervention"
+            )
+        source_identity = {
+            "family": family,
+            "scenario_id": scenario_id,
+            "intervention_id": intervention_id,
+        }
+    elif family == "critical_elements":
+        source_identity = {
+            "family": family,
+            "region": region,
+            "status": "unavailable",
+        }
+    else:
+        raise ValueError("unsupported unavailable score family")
+    identity = json.dumps(
+        {
+            "artifact_kind": "score",
+            "geography_id": region,
+            "model_mode": "not_applicable",
+            "source_identity": source_identity,
+            "source_version": "v1",
+            "content_sha256": "b" * 64,
+        },
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with duckdb.connect(str(path)) as con:
+        ensure_minnesota_schema(con)
+        con.execute(
+            "INSERT INTO mn_artifact_manifests VALUES (?, 'score', ?, ?, 'unavailable', 'not_applicable', ?, CURRENT_TIMESTAMP, '[]', '[\"not built\"]', '[]')",
+            [artifact_id, SCHEMA_VERSION, region, identity],
         )
 
 
@@ -245,17 +316,20 @@ def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
         )
 
 
-def test_declared_unavailable_score_is_not_reported_as_invalid_persisted_data(
+def test_canonical_unavailable_comparison_manifest_needs_no_domain_row(
     tmp_path: Path,
 ) -> None:
     path = tmp_path / "unavailable.duckdb"
     db(path)
-    score_artifact(
+    unavailable_score_manifest(
         path,
         "mn:score:0000000000000004",
-        availability="unavailable",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        family="comparison",
+        scenario_id="mn_fixture",
+        intervention_id="site:1@300",
     )
+    with duckdb.connect(str(path), read_only=True) as con:
+        assert con.execute("SELECT count(*) FROM mn_score_results").fetchone() == (0,)
 
     response = client(path).post(
         "/compare",
@@ -263,6 +337,89 @@ def test_declared_unavailable_score_is_not_reported_as_invalid_persisted_data(
     )
     assert response.status_code == 503
     assert response.json()["error"]["details"]["reason"] == "artifact_unavailable"
+
+
+def test_unrelated_unavailable_manifest_does_not_poison_available_comparison(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "unavailable-scope.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:0000000000000007",
+        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+    )
+    unavailable_score_manifest(
+        path,
+        "mn:score:0000000000000008",
+        family="comparison",
+        scenario_id="another_scenario",
+        intervention_id="site:9@300",
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 200
+
+
+def test_canonical_unavailable_critical_manifest_needs_no_domain_row(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "critical-unavailable.duckdb"
+    db(path)
+    unavailable_score_manifest(
+        path,
+        "mn:score:0000000000000009",
+        family="critical_elements",
+        region="mn",
+    )
+    with duckdb.connect(str(path), read_only=True) as con:
+        assert con.execute("SELECT count(*) FROM mn_score_results").fetchone() == (0,)
+
+    response = client(path).get("/elements/critical", params={"region": "mn"})
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "artifact_unavailable"
+
+
+def test_broad_critical_unavailable_manifest_does_not_blanket_a_region(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "critical-unavailable-scope.duckdb"
+    db(path)
+    unavailable_score_manifest(
+        path,
+        "mn:score:000000000000000a",
+        family="critical_elements",
+        region="mn",
+    )
+    with duckdb.connect(str(path)) as con:
+        con.execute(
+            "UPDATE mn_artifact_manifests SET identity_json=? WHERE artifact_id=?",
+            [
+                json.dumps(
+                    {
+                        "artifact_kind": "score",
+                        "geography_id": "mn",
+                        "model_mode": "not_applicable",
+                        "source_identity": {
+                            "family": "critical_elements",
+                            "region": "mn",
+                        },
+                        "source_version": "v1",
+                        "content_sha256": "b" * 64,
+                    },
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ),
+                "mn:score:000000000000000a",
+            ],
+        )
+
+    response = client(path).get("/elements/critical", params={"region": "mn"})
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "no_qualified_result"
 
 
 def test_malformed_safety_flags_fail_closed(tmp_path: Path):
