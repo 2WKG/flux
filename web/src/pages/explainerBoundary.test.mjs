@@ -63,18 +63,18 @@ test("the committed trace is the artifact the server route serves", async () => 
   );
 });
 
-test("ExplainerPage mounts CausalSection and the causal METHOD row is no longer experimental", async () => {
-  const pageSource = await readFile(new URL("./ExplainerPage.tsx", import.meta.url), "utf8");
+test("ExplainerPage mounts the canonical synthetic causal teaching section", async () => {
+  const [pageSource, causalSource] = await Promise.all([
+    readFile(new URL("./ExplainerPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../explainer/causal/CausalSection.tsx", import.meta.url), "utf8"),
+  ]);
   assert.match(pageSource, /import \{ CausalSection \} from ["']\.\.\/explainer\/causal["']/);
   assert.match(pageSource, /<CausalSection\s*\/>/);
-  const method = pageSource.match(/\["The causal layer",\s*"([^"]+)"\]/);
-  assert.ok(method, "the causal METHOD row is missing");
-  assert.match(method[1], /Implemented and evidence-gated/);
-  assert.match(method[1], /illustrative/i);
-  assert.match(method[1], /causal_query/);
-  assert.match(method[1], /unavailable without a registered artifact/);
-  assert.doesNotMatch(method[1], /Experimental/);
-  assert.doesNotMatch(method[1], /does not calculate or display a causal estimate/);
+  assert.match(pageSource, /STATUS_COPY\.synthetic/);
+  assert.match(pageSource, /causal_query effect remains unavailable/);
+  assert.match(causalSource, /data-source-status="synthetic"/);
+  assert.match(causalSource, /kind:\s*"unavailable"/);
+  assert.doesNotMatch(pageSource, /Implemented and evidence-gated/);
 });
 
 test("the causal section stays 2D and cannot present a numeric causal_query effect", async () => {
