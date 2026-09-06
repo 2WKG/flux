@@ -22,6 +22,12 @@ SCREENING_LABEL = (
     "synthetic-topology screening; not a physical siting or permitability claim"
 )
 MAX_FULL_WINDOW_COUNTERFACTUALS = 5
+# Named candidate-population states.  A caller must be able to tell the spec'd
+# ``site_candidates`` population (docs/specs/04-siting-engine.md) apart from the
+# synthetic generator-bus attachment points that stand in for it when no
+# candidate table is available.  The substitution is never silent.
+CANDIDATE_POPULATION_DECLARED = "declared_candidate_table"
+CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE = "synthetic_generator_bus_substitute"
 
 
 class SearchUnavailable(RuntimeError):
@@ -85,7 +91,7 @@ def search_locations(
         )
     ):
         raise SearchUnavailable("placement feasibility policy is unavailable")
-    candidates = _candidate_rows(net, kind, policy)
+    candidate_population, candidates = _candidate_rows(net, kind, policy)
     if not candidates:
         return []
 
@@ -257,8 +263,9 @@ def search_locations(
                 "safety_flags": _get(
                     candidate, "safety_flags", "safety_flags_json", default=[]
                 ),
+                "candidate_population": candidate_population,
                 "candidate_provenance": _get(
-                    candidate, "candidate_provenance", default=[]
+                    candidate, "candidate_provenance", default=None
                 ),
                 "balance": row["balance"],
                 "analysis_label": SCREENING_LABEL,
@@ -315,8 +322,9 @@ def _adapters(value: SearchAdapters | Mapping[str, object] | None) -> SearchAdap
 
 def _candidate_rows(
     net: object, kind: CandidateKind, policy: SearchAdapters
-) -> list[dict[str, object]]:
+) -> tuple[str, list[dict[str, object]]]:
     source: Iterable[object] | None = None
+    population = CANDIDATE_POPULATION_DECLARED
     if policy.candidates is not None:
         source = _invoke(policy.candidates, net=net, kind=kind)
     elif callable(getattr(net, "search_candidates", None)):
@@ -324,6 +332,11 @@ def _candidate_rows(
     elif kind == "producer":
         source = _get(net, "site_candidates", "producer_candidates", default=None)
         if source is None:
+            # The spec'd candidate table is absent.  Synthetic generator-bus
+            # attachment points are a DIFFERENT population, so the result must
+            # say so in a machine-readable field rather than pass them off as
+            # the declared one.
+            population = CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE
             try:
                 from siting.candidate_source import (
                     SyntheticCandidateSourceUnavailable,
@@ -355,7 +368,7 @@ def _candidate_rows(
         candidate.setdefault("bus_id", bus_id)
         candidate.setdefault("synthetic", True)
         rows.append(candidate)
-    return rows
+    return population, rows
 
 
 def _feasibility(

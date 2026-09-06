@@ -8,16 +8,25 @@ import pytest
 
 from siting.candidate_source import (
     MAX_SYNTHETIC_PRODUCER_CANDIDATES,
+    MIN_INTERCONNECT_KV,
     SyntheticCandidateSourceUnavailable,
     _generator_rows,
     producer_candidates,
 )
-from siting.search import SearchAdapters, SearchUnavailable, search_locations
+from siting.search import (
+    CANDIDATE_POPULATION_DECLARED,
+    CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE,
+    SearchAdapters,
+    SearchUnavailable,
+    search_locations,
+)
 from twin.build import build_network
 from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL
 
 
-def _source_db(tmp_path: Path, *, generators: int = 7) -> Path:
+def _source_db(
+    tmp_path: Path, *, generators: int = 7, sub_threshold_bus: int | None = None
+) -> Path:
     path = tmp_path / "synthetic-grid.duckdb"
     with duckdb.connect(str(path)) as con:
         con.execute(
@@ -38,7 +47,7 @@ def _source_db(tmp_path: Path, *, generators: int = 7) -> Path:
                 (
                     index,
                     f"synthetic bus {index}",
-                    230.0,
+                    115.0 if index == sub_threshold_bus else 230.0,
                     -100.0 - index,
                     30.0 + index,
                     "48001",
@@ -179,3 +188,93 @@ def test_missing_source_metadata_fails_closed(tmp_path: Path) -> None:
             scenario_id="interactive",
             adapters=_screening_adapters(),
         )
+
+
+def test_synthetic_topology_label_literal_is_pinned(tmp_path: Path) -> None:
+    # Nothing else under twin/ pins this literal, so a relabel to a permitting
+    # claim would otherwise stay green everywhere.
+    assert SYNTHETIC_TOPOLOGY_LABEL == "synthetic (ACTIVSg2000)"
+
+    net = build_network(_source_db(tmp_path, generators=1))
+    provenance = producer_candidates(net)[0]["candidate_provenance"]
+    assert provenance["topology"] == "synthetic (ACTIVSg2000)"
+
+
+def test_interconnect_voltage_floor_matches_the_spec_and_excludes_low_buses(
+    tmp_path: Path,
+) -> None:
+    # docs/specs/04-siting-engine.md:75-77 keeps buses at base_kv >= 138 and
+    # drops every 115 kV bus.
+    assert MIN_INTERCONNECT_KV == 138.0
+
+    net = build_network(_source_db(tmp_path, generators=4, sub_threshold_bus=3))
+
+    assert [row["candidate_id"] for row in producer_candidates(net)] == [
+        "synthetic-generator:1",
+        "synthetic-generator:2",
+        "synthetic-generator:4",
+    ]
+
+
+def test_substituted_candidate_population_is_declared_in_every_result(
+    tmp_path: Path,
+) -> None:
+    # The spec'd site_candidates table is absent, so search substitutes a
+    # DIFFERENT population (generator buses, interconnect_distance_km 0.0).
+    # That substitution must be visible to a consumer without inspecting the
+    # nested per-candidate provenance.
+    net = build_network(_source_db(tmp_path))
+    assert net.get("site_candidates") is None
+    assert net.get("producer_candidates") is None
+
+    results = search_locations(
+        net,
+        kind="producer",
+        unit_mw=300.0,
+        scenario_id="interactive",
+        n=2,
+        hour=0,
+        adapters=_screening_adapters(),
+    )
+
+    assert results
+    assert CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE != CANDIDATE_POPULATION_DECLARED
+    assert CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE == (
+        "synthetic_generator_bus_substitute"
+    )
+    for row in results:
+        assert row["candidate_population"] == CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE
+        assert row["candidate_population"] != CANDIDATE_POPULATION_DECLARED
+    json.dumps(results, allow_nan=False)
+
+
+def test_declared_candidate_table_is_not_reported_as_the_substitute(
+    tmp_path: Path,
+) -> None:
+    # With the spec'd table present the substitution never happens, so the two
+    # populations stay distinguishable and provenance is absent, not [].
+    net = build_network(_source_db(tmp_path))
+    net["site_candidates"] = [
+        {"candidate_id": "site:coal_retired:1", "bus_id": 1},
+        {"candidate_id": "site:doe_federal:2", "bus_id": 2},
+    ]
+
+    results = search_locations(
+        net,
+        kind="producer",
+        unit_mw=300.0,
+        scenario_id="interactive",
+        n=2,
+        hour=0,
+        adapters=_screening_adapters(),
+    )
+
+    assert sorted(row["candidate_id"] for row in results) == [
+        "site:coal_retired:1",
+        "site:doe_federal:2",
+    ]
+    for row in results:
+        assert row["candidate_population"] == CANDIDATE_POPULATION_DECLARED
+        # A mapping-valued field must not default to a list: a consumer doing
+        # row["candidate_provenance"]["source_kind"] needs an honest absence.
+        assert row["candidate_provenance"] is None
