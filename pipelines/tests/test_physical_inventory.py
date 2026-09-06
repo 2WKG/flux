@@ -9,6 +9,7 @@ from pipelines.physical_inventory import (
     CONTRACT_VERSION,
     PhysicalInventoryError,
     artifact_sha256,
+    ensure_physical_inventory_schema,
     validate_artifact,
     write_artifact,
 )
@@ -193,3 +194,97 @@ def test_accepts_registered_esri_source_crs_and_rejects_unknown_authority_code()
     artifact["content_sha256"] = artifact_sha256(artifact)
     with pytest.raises(PhysicalInventoryError, match="not a registered CRS"):
         validate_artifact(artifact)
+
+
+def test_rejects_an_artifact_whose_digest_does_not_cover_its_own_content() -> None:
+    artifact = _artifact()
+    artifact["assets"][0]["source_record_id"] = "tampered-after-digest"
+    with pytest.raises(PhysicalInventoryError, match="content_sha256 does not match"):
+        validate_artifact(artifact)
+
+
+def test_refuses_a_second_write_of_the_same_artifact_id_with_different_content() -> (
+    None
+):
+    con = duckdb.connect(":memory:")
+    first = _artifact()
+    write_artifact(con, first)
+    conflicting = _artifact()
+    conflicting["assets"][0]["source_record_id"] = "2"
+    conflicting["content_sha256"] = artifact_sha256(conflicting)
+    assert conflicting["artifact_id"] == first["artifact_id"]
+    assert conflicting["content_sha256"] != first["content_sha256"]
+    with pytest.raises(
+        PhysicalInventoryError, match="conflicts with persisted content"
+    ):
+        write_artifact(con, conflicting)
+    assert con.execute(
+        "SELECT content_sha256 FROM physical_inventory_manifests"
+    ).fetchall() == [(first["content_sha256"],)]
+    assert (
+        con.execute(
+            "SELECT count(*) FROM physical_assets WHERE source_record_id='2'"
+        ).fetchone()[0]
+        == 0
+    )
+
+
+def test_rejects_a_crs_code_that_resolves_to_a_different_authority() -> None:
+    # ESRI:102124 is registered, but resolves to EPSG:26701; EPSG:102100 resolves
+    # to ESRI:102100.  Accepting either would silently relabel the declared CRS.
+    for mislabelled in ("ESRI:102124", "EPSG:102100"):
+        artifact = _artifact()
+        artifact["assets"][0]["geometry_crs"] = mislabelled
+        artifact["content_sha256"] = artifact_sha256(artifact)
+        with pytest.raises(
+            PhysicalInventoryError, match="retain its declared authority"
+        ):
+            validate_artifact(artifact)
+
+
+def test_refuses_to_write_into_a_schema_recorded_at_another_contract_version() -> None:
+    con = duckdb.connect(":memory:")
+    write_artifact(con, _artifact())
+    con.execute(
+        "UPDATE physical_inventory_schema_meta SET value='0.9.0' WHERE key='contract_version'"
+    )
+    with pytest.raises(RuntimeError, match="requires an explicit migration"):
+        ensure_physical_inventory_schema(con)
+    con.execute("DELETE FROM physical_inventory_schema_meta")
+    with pytest.raises(RuntimeError, match="requires an explicit migration"):
+        ensure_physical_inventory_schema(con)
+
+
+def test_refuses_a_pre_existing_physical_schema_without_recorded_metadata() -> None:
+    con = duckdb.connect(":memory:")
+    con.execute("CREATE TABLE physical_assets (asset_id TEXT)")
+    with pytest.raises(RuntimeError, match="migrate explicitly"):
+        ensure_physical_inventory_schema(con)
+
+
+class _FailingOn:
+    """Delegate to a real connection but fail one statement, to drive rollback."""
+
+    def __init__(self, con: duckdb.DuckDBPyConnection, fragment: str) -> None:
+        self._con = con
+        self._fragment = fragment
+
+    def execute(self, statement: str, *args: object) -> object:
+        if self._fragment in statement:
+            raise duckdb.Error(f"injected failure on {self._fragment!r}")
+        return self._con.execute(statement, *args)
+
+
+def test_rolls_back_a_partially_written_artifact() -> None:
+    con = duckdb.connect(":memory:")
+    with pytest.raises(duckdb.Error, match="injected failure"):
+        write_artifact(_FailingOn(con, "INSERT INTO physical_coverage"), _artifact())
+    assert (
+        con.execute("SELECT count(*) FROM physical_inventory_manifests").fetchone()[0]
+        == 0
+    )
+    assert con.execute("SELECT count(*) FROM physical_assets").fetchone()[0] == 0
+    assert (
+        con.execute("SELECT count(*) FROM physical_inventory_sources").fetchone()[0]
+        == 0
+    )
