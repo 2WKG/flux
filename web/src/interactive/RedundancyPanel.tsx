@@ -1,36 +1,29 @@
 import type { ClientState } from "../data/client-state";
-import { isRedundancyResponse, type RedundancyResponse } from "../data/interactive-client";
+import type { RedundancyView } from "../data/interactive-client";
 import { fromClientState } from "../failure-states/adapters";
 import { FailureState } from "../failure-states/FailureState";
+import { STATUS_COPY } from "../source-truth";
 
-export type { RedundancyResponse } from "../data/interactive-client";
+export type { RedundancyView } from "../data/interactive-client";
 
 export interface RedundancyPanelProps {
   /** Supplied by the shared interactive client; this panel makes no request itself. */
-  readonly state: ClientState<RedundancyResponse>;
+  readonly state: ClientState<RedundancyView>;
   readonly title?: string;
-}
-
-function malformedState() {
-  return {
-    kind: "malformed" as const,
-    message: "The redundancy response did not include a usable synthetic-bus record.",
-  };
 }
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
 }
 
-function provenanceText(item: RedundancyResponse["evidence"]["provenance"][number]): string {
-  return `${item.sourceId} · ${item.sourceRef}${item.version ? ` · ${item.version}` : ""}`;
-}
-
 /**
- * A presentational bus inspector over the typed `/redundancy?bus_id` result.
- * It makes no request and derives no topology, site, contingency, flow, or
- * distance value in the browser. The shared client rejects a response without
- * provenance before it reaches this component.
+ * A presentational bus inspector over `/interactive/redundancy`.
+ *
+ * It makes no request and derives no score, topology, contingency, flow, or
+ * distance value in the browser. The topology line renders the adapter's
+ * `topology` field, which is the repository's one asserted topology token when
+ * and only when the server set `synthetic_topology: true`; when it did not, the
+ * panel says the topology is unavailable rather than implying source support.
  */
 export function RedundancyPanel({ state, title = "Redundancy inspector" }: RedundancyPanelProps) {
   if (state.kind !== "ready") {
@@ -38,16 +31,17 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
     return failure ? <FailureState state={failure} /> : null;
   }
 
-  // This protects direct consumers that bypass the client's guarded boundary.
-  if (!isRedundancyResponse(state.data)) {
-    return <FailureState state={malformedState()} />;
-  }
-
   const result = state.data;
-  return <section aria-label={title} data-redundancy-truth={result.evidence.artifactTruth}>
+  const truth = result.topology === null ? "unavailable" : "synthetic";
+  return <section aria-label={title} data-redundancy-truth={truth}>
     <header>
       <h2>{title}</h2>
-      <p>Synthetic bus {result.busId}</p>
+      <p>Model bus {result.busId}</p>
+      <p data-redundancy-topology={result.topology ?? ""}>
+        {result.topology === null
+          ? `${STATUS_COPY.unavailable}: this response asserts no topology, so no topology claim is displayed.`
+          : `${STATUS_COPY.synthetic} model evidence · ${result.topology}.`}
+      </p>
       <p>This response identifies a model bus only. Consumer-site mapping is unavailable.</p>
     </header>
 
@@ -56,7 +50,9 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
       <dl>
         <div><dt>N-1 survivability</dt><dd>{formatNumber(result.components.nMinusOneSurvivability)}</dd></div>
         <div><dt>Edge-disjoint paths</dt><dd>{formatNumber(result.components.edgeDisjointPaths)}</dd></div>
-        <div><dt>Server-provided redundancy score</dt><dd>{formatNumber(result.score)}</dd></div>
+        <div><dt>Edge-disjoint path score</dt><dd>{formatNumber(result.components.edgeDisjointPathScore)}</dd></div>
+        <div><dt>Alternative-source proximity</dt><dd>{formatNumber(result.components.alternativeSourceProximity)}</dd></div>
+        <div><dt>Server-provided redundancy score</dt><dd data-redundancy-score>{formatNumber(result.score)}</dd></div>
       </dl>
     </section>
 
@@ -64,6 +60,7 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
       <h3>Worst contingency</h3>
       <p>{result.worstContingency.branchId}</p>
       <p>Source reachable: {result.worstContingency.sourceReachable ? "yes" : "no"}</p>
+      <p>Impact: {formatNumber(result.worstContingency.impact)}</p>
     </section> : null}
 
     {result.components.alternativeSourceHops !== null ? <section aria-label="Screening-distance evidence">
@@ -74,11 +71,17 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
 
     <section aria-label="Evidence and limits">
       <h3>Evidence and limits</h3>
-      <p>Synthetic screening result. No physical-topology or live-response claim is made here.</p>
-      <h4>Server provenance</h4>
-      <ul>{result.evidence.provenance.map((item) => <li key={`${item.sourceId}:${item.sourceRef}`}>{provenanceText(item)}</li>)}</ul>
-      {result.assumptions.length > 0 ? <><h4>Server assumptions</h4><ul>{result.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></> : null}
-      {result.limitations.length > 0 ? <><h4>Server limitations</h4><ul>{result.limitations.map((item) => <li key={item}>{item}</li>)}</ul></> : null}
+      <dl>
+        <div><dt>Evidence status</dt><dd>{result.evidence.status}</dd></div>
+        <div><dt>Scenario</dt><dd>{result.evidence.scenarioId} · hour {result.evidence.hour}</dd></div>
+        <div><dt>Branch selection</dt><dd>{result.evidence.branchSelection}</dd></div>
+        <div><dt>Persistence</dt><dd>{result.evidence.persistence}</dd></div>
+        <div><dt>Cascade</dt><dd>{result.evidence.cascade}</dd></div>
+        <div><dt>Contingencies evaluated</dt><dd>{result.evidence.contingenciesEvaluated ?? STATUS_COPY.unavailable}</dd></div>
+        <div><dt>Active branches</dt><dd>{result.evidence.activeBranchCount ?? STATUS_COPY.unavailable}</dd></div>
+        <div><dt>Source buses</dt><dd>{result.evidence.sourceBuses.join(", ") || STATUS_COPY.unavailable}</dd></div>
+      </dl>
+      {result.evidence.reason ? <p>Reason: {result.evidence.reason}</p> : null}
     </section>
   </section>;
 }

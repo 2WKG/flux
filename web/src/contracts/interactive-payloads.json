@@ -1,0 +1,76 @@
+{
+  "description": "Captured from the real producers by uv run --extra dev python scripts/ci/export_interactive_contracts.py",
+  "routes": {
+    "/interactive/balance": {
+      "method": "GET",
+      "producer": "twin.balance.balance_report",
+      "response": {
+        "bus_ids": [
+          101,
+          102,
+          103
+        ],
+        "capability_basis": "nameplate; not availability-derated",
+        "capability_mw": 200.0,
+        "dispatch_mw": 50.0,
+        "draw_mw": 150.0,
+        "edit_hash": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+        "firm_capability_mw": 120.0,
+        "headroom_mw": 50.0,
+        "limitations": [
+          "Capability is declared nameplate, not availability-derated or a reliability accreditation.",
+          "Wind and solar are shown separately and are not represented as firm capacity.",
+          "Dispatch is an explicit generator schedule; no slack-bus output, unit commitment, OPF, AC voltage, or transient-stability result is inferred."
+        ],
+        "reserve_margin": 0.333333,
+        "scope": "state",
+        "scope_id": null,
+        "solar_capability_mw": 30.0,
+        "unclassified_capability_mw": 0.0,
+        "wind_capability_mw": 50.0
+      }
+    },
+    "/interactive/redundancy": {
+      "method": "GET",
+      "producer": "siting.redundancy.score_redundancy",
+      "response": {
+        "bus_id": "load",
+        "components": {
+          "alternative_source_hops": 2,
+          "alternative_source_proximity": 33.333,
+          "edge_disjoint_path_score": 100.0,
+          "edge_disjoint_paths": 2,
+          "n_minus_one_survivability": 100.0
+        },
+        "evidence": {
+          "active_branch_count": 4,
+          "branch_selection": "highest available DPTF-ranked in-service branches",
+          "cascade": "not_run",
+          "contingencies_evaluated": 4,
+          "hour": 0,
+          "max_contingencies": 20,
+          "persistence": "not_persisted",
+          "scenario_id": "interactive",
+          "source_buses": [
+            "source_a",
+            "source_b"
+          ],
+          "status": "available",
+          "synthetic_topology": true
+        },
+        "score": 86.667,
+        "synthetic_topology": true,
+        "worst_contingency": {
+          "available_source_count": 1,
+          "branch_id": "line:direct",
+          "branch_name": "line:direct",
+          "cascade_metrics": null,
+          "dptf": 90.0,
+          "impact": 1101.0,
+          "nearest_source_hops": 2,
+          "source_reachable": true
+        }
+      }
+    }
+  }
+}

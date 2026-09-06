@@ -116,6 +116,44 @@ test("the six display strings are declared in one place, and every declaration i
   }
 });
 
+/**
+ * The test above only sees a file that binds **three or more** of the six tokens
+ * to a label string. That threshold is why the gate was silent, by construction,
+ * on every panel that re-spelled a single status word -- four surfaces in the
+ * Texas panel batch did exactly that and stayed green. This widens the same
+ * detection to a single binding, with an explicit exemption list, so a new
+ * re-spelling has to be argued for here rather than slipping through under the
+ * quorum.
+ */
+test("no browser file binds even one status token to its own label string", async () => {
+  // Case-sensitive: a lowercase `unavailable: "unavailable"` is a token map, not
+  // a display label. Only a rendered display spelling counts.
+  const DISPLAY_VALUE = /^(?:Source[ -]supported|Source[ -]screened|Hypothetical|Synthetic|Unavailable|Request[ -]failed)$/;
+  const restated = new Map();
+  for (const file of await browserSources()) {
+    const source = stripComments(await readFile(file, "utf8"));
+    const bound = new Map();
+    for (const match of source.matchAll(/\b(source_supported|source_screened|hypothetical|synthetic|unavailable|request_failed)\s*:\s*"([^"]*)"/g)) {
+      if (DISPLAY_VALUE.test(match[2])) bound.set(match[1], match[2]);
+    }
+    if (bound.size > 0) restated.set(path.relative(webRoot.pathname, file), bound);
+  }
+
+  // The pinned inventory of every file that writes a display spelling at all.
+  // A new entry means a surface re-spelled a status word instead of reading
+  // STATUS_COPY, and has to be argued for here.
+  assert.deepEqual(
+    [...restated.keys()],
+    ["src/ask/results/ResultCards.tsx", "src/layers/LayerControls.tsx", "src/source-truth.ts"],
+    "a surface wrote its own copy of a status display string instead of reading STATUS_COPY",
+  );
+  for (const [file, bound] of restated) {
+    for (const [token, value] of bound) {
+      assert.equal(value, STATUS_COPY[token], `${file} spells ${token} differently from its owner`);
+    }
+  }
+});
+
 test("the inspector renders the owner's copy, and never the unhyphenated spelling", () => {
   for (const status of ASSET_STATUS_TOKENS) {
     const rendered = textOf(surface.renderInspector(status));

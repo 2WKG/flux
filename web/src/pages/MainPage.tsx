@@ -35,6 +35,7 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { InteractivePanels } from "../interactive/InteractivePanels";
 
 type Id = "baseline" | "a" | "b";
 type View = "load" | "delta";
@@ -657,6 +658,8 @@ export function App() {
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
       />
+
+      <InteractivePanels scenarioId={selected} busId="load" />
 
       <section className="pipeline">
         <div>
