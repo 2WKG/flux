@@ -24,7 +24,15 @@ REQUIRED_LIMITS = {"syntheticTopologyMapping", "nonNodalAggregate", "restrictedD
 
 
 def _sha256(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    """Hash a tracked text artifact by its canonical LF content.
+
+    These receipts and ledgers are Git-tracked text. A Windows checkout has CRLF
+    line endings and a Linux checkout has LF, so hashing the raw working-tree
+    bytes pins a value that can only ever match one platform. Normalising to LF
+    first yields the hash of the canonical (index) content, which is also what
+    `sha256sum` reports on the Linux runner.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _exact_keys(value: Any, label: str, expected: set[str]) -> dict[str, Any]:
