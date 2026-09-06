@@ -1,8 +1,11 @@
 {
   "schema_version": 1,
   "release_tag": "flux-grid-runtime-v1-20260906",
-  "publication_status": "planned_external_attachment_not_yet_published",
+  "publication_status": "published_external_attachment_verified",
   "asset_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+  "download_url": "https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip",
+  "release_url": "https://github.com/2WKG/flux/releases/tag/flux-grid-runtime-v1-20260906",
+  "asset_bytes": 5321737,
   "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
   "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
   "release_contents": {
@@ -17,11 +20,12 @@
   "provenance": {
     "build": "Generated externally from this tracked procedural Blender pipeline using the frozen source contract.",
     "audit": "Independent external pack audit passed all 18 archetypes, 54 GLBs, metadata, LOD budgets, transforms, connectors, and 18 512px previews.",
-    "placement_boundary": "The release contains reusable geometry only. Rendering a placement still requires an accepted server artifact."
+    "placement_boundary": "The release contains reusable geometry only. It never authorizes Minnesota placement: rendering requires an accepted server artifact with independently accepted geography, provenance, and placement evidence.",
+    "same_origin_install_boundary": "This receipt verifies the published ZIP and its extracted runtime manifest. It does not verify that pre-existing same-origin installed GLBs match that release: a canonical asset repair must validate each installed GLB against canonical bytes before that claim is made."
   },
   "license": {
     "model_license": "CC0-1.0",
     "scope": "All 18 generated asset metadata records declare CC0-1.0; per-asset source-of-shape provenance is carried by the runtime manifest."
   },
-  "release_procedure": "Do not infer publication from this record. Attach the exact filename to the named release tag, read back its bytes and digest, then run the installer against a fresh checkout."
+  "release_procedure": "Publication was read back from the named GitHub release: the exact asset URL served 5,321,737 bytes whose SHA-256 equals archive_sha256, and the extracted runtime manifest equals runtime_manifest_sha256. Install only after verifying the archive and release receipt; do not treat existing same-origin GLBs as matching this release until the canonical asset repair validates them. The static build serves validated installed bytes at the same-origin runtime_base_url."
 }
