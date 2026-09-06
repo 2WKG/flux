@@ -224,7 +224,12 @@ def search_locations(
                 "model_mode": "synthetic",
                 "evaluation": {
                     "peak_hour": hour,
-                    "full_window": True,
+                    "full_window": _full_window_evaluated(row["counterfactual"]),
+                    "scope": _get(
+                        row["counterfactual"],
+                        "evaluation_scope",
+                        default="full_window",
+                    ),
                     "bounded_full_window_candidates": MAX_FULL_WINDOW_COUNTERFACTUALS,
                 },
             }
@@ -387,7 +392,12 @@ def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[objec
     # edits.  Passing a pre-edited net would apply every edit twice.  Its
     # current primitive is a single synthetic snapshot; richer scenario/window
     # adapters receive ``scenario_id`` and ``hour`` through the injected path.
-    return _invoke(runner, net=net, edits=edits)
+    result = _as_mapping(_invoke(runner, net=net, edits=edits))
+    # The current foundation exposes one immutable synthetic snapshot.  Do not
+    # present a repeated snapshot as a scenario-window replay; callers with a
+    # window-aware cascade use the injected adapter boundary above.
+    result.setdefault("evaluation_scope", "single_synthetic_snapshot")
+    return result
 
 
 def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_mw: float, policy: SearchAdapters) -> object:
@@ -409,10 +419,10 @@ def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_m
 
 def _components(kind: CandidateKind, baseline: object, counterfactual: object, baseline_redundancy: object, redundancy: object, balance: object | None) -> dict[str, float]:
     if kind == "producer":
-        baseline_lol = _number(baseline, "lost_load_mwh")
-        candidate_lol = _number(counterfactual, "lost_load_mwh")
-        base_congestion = _number(baseline, "congestion_mwh", "congestion")
-        candidate_congestion = _number(counterfactual, "congestion_mwh", "congestion")
+        baseline_lol = _lost_load_mwh(baseline)
+        candidate_lol = _lost_load_mwh(counterfactual)
+        base_congestion = _congestion_proxy(baseline)
+        candidate_congestion = _congestion_proxy(counterfactual)
         if base_congestion == 0.0:
             congestion_relief_pct = 0.0
         else:
@@ -428,6 +438,41 @@ def _components(kind: CandidateKind, baseline: object, counterfactual: object, b
         "redundancy_score": _redundancy_value(redundancy),
         "headroom_mw": _number(balance, "headroom_mw"),
     }
+
+
+def _lost_load_mwh(result: object) -> float:
+    """Read a declared MWh value or the foundation's one-hour MW snapshot."""
+
+    value = _get(result, "lost_load_mwh", default=None)
+    if value is not None:
+        return _number(result, "lost_load_mwh")
+    # ``run_cascade`` is one declared snapshot.  Its lost-load MW therefore
+    # represents one modeled hour for peak-hour comparison, not a historical
+    # or full-window energy observation.
+    return _number(result, "lost_load_mw")
+
+
+def _congestion_proxy(result: object) -> float:
+    """Return a named synthetic overload proxy when no congestion series exists."""
+
+    explicit = _get(result, "congestion_mwh", "congestion", default=None)
+    if explicit is not None:
+        return _number(result, "congestion_mwh", "congestion")
+    loading = _get(result, "loading_by_element", default=None)
+    if not isinstance(loading, Mapping):
+        raise SearchUnavailable("modeled congestion or line-loading evidence is unavailable")
+    overload = 0.0
+    for element_id, percent in loading.items():
+        if not isinstance(element_id, str):
+            raise SearchUnavailable("line-loading evidence has an invalid element identity")
+        if isinstance(percent, bool) or not isinstance(percent, (int, float)) or not isfinite(float(percent)):
+            raise SearchUnavailable("line-loading evidence has a non-finite percentage")
+        overload += max(0.0, float(percent) - 100.0)
+    return overload
+
+
+def _full_window_evaluated(result: object) -> bool:
+    return _get(result, "evaluation_scope", default="full_window") != "single_synthetic_snapshot"
 
 
 def _assign_objectives(rows: list[dict[str, object]], kind: CandidateKind, *, component_key: str) -> None:
