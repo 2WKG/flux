@@ -209,6 +209,41 @@ class Measurements(unittest.TestCase):
         )
         self.assertEqual(audit.point(m, [1, 2, 3]), [5, 7, 9])
 
+    def test_two_status_materials_are_rejected(self):
+        """`exactly one MAT_STATUS` is the rule that makes status tinting isolated.
+
+        Without it a second slot named MAT_STATUS could be tinted independently -
+        or the runtime could tint the wrong one - so the uniqueness check is the
+        whole guarantee. Softening it to `require(True, ...)` turns this red.
+        """
+        doc, payload = fixture()
+        doc["materials"].append(
+            {
+                "name": "MAT_STATUS",
+                "pbrMetallicRoughness": {"baseColorFactor": [0.5, 0.5, 0.5, 1]},
+            }
+        )
+        with self.assertRaisesRegex(ValueError, "exactly one MAT_STATUS"):
+            self.run_fixture(doc, payload)
+
+    def test_no_status_material_is_rejected(self):
+        doc, payload = fixture()
+        doc["materials"][0]["name"] = "MAT_SHELL"
+        with self.assertRaisesRegex(ValueError, "exactly one MAT_STATUS"):
+            self.run_fixture(doc, payload)
+
+    def test_the_default_catalog_is_the_single_frozen_repository_catalog(self):
+        """The pack must audit against the contract, never against its own fork."""
+        repo = Path(audit.__file__).resolve().parents[5]
+        self.assertEqual(
+            audit.DEFAULT_CATALOG, repo / "data/3d/asset-archetypes-v1.json"
+        )
+        self.assertTrue(audit.DEFAULT_CATALOG.is_file())
+        forked = Path(audit.__file__).resolve().parents[1] / (
+            "source/asset-archetypes-v1.json"
+        )
+        self.assertFalse(forked.exists(), f"{forked} re-forks the frozen catalog")
+
     def test_neutral_status_rejects_baked_color(self):
         doc, payload = fixture()
         doc["materials"][0]["pbrMetallicRoughness"]["baseColorFactor"] = [1, 0, 0, 1]
