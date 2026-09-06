@@ -152,8 +152,13 @@ def acquire_exhaustive(
     raw_dir = cache_dir / "annual-source"
     raw_dir.mkdir(exist_ok=True)
     raw_path = raw_dir / file["name"]
+    meta_path = raw_path.with_name(f"{raw_path.name}.source.json")
     source_url = str(file["download_url"])
-    if not raw_path.exists() or raw_path.stat().st_size != int(file["size"]):
+    if (
+        not raw_path.exists()
+        or raw_path.stat().st_size != int(file["size"])
+        or not meta_path.exists()
+    ):
         response = requests.get(
             source_url, headers={"If-Match": expected_etag}, stream=True, timeout=120
         )
@@ -170,6 +175,34 @@ def acquire_exhaustive(
             raw_hash.update(chunk)
     if raw_path.stat().st_size != int(file["size"]):
         raise EagleiError("annual stream byte count differs from Figshare metadata")
+    metadata = (
+        json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
+    )
+    if metadata and (
+        metadata.get("raw_sha256") != raw_hash.hexdigest()
+        or metadata.get("raw_bytes") != raw_path.stat().st_size
+        or metadata.get("source_system_id") != f"figshare:{article['id']}:{file['id']}"
+    ):
+        raise EagleiError(
+            "annual source sidecar does not bind the cached bytes to this Figshare file"
+        )
+    if not metadata:
+        metadata = {
+            "source_system_id": f"figshare:{article['id']}:{file['id']}",
+            "source_url": source_url,
+            "source_file": file["name"],
+            "source_file_bytes": int(file["size"]),
+            "raw_bytes": raw_path.stat().st_size,
+            "raw_sha256": raw_hash.hexdigest(),
+            "etag": expected_etag,
+            "retrieved_at_utc": utc_now(),
+            "http_status": 200,
+            "acquisition_method": "exhaustive_annual_stream",
+            "etag_pinned": True,
+        }
+        meta_path.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+        )
     with raw_path.open(encoding="utf-8-sig", newline="") as handle:
         reader = csv.DictReader(handle)
         fieldnames = reader.fieldnames or []
@@ -186,10 +219,7 @@ def acquire_exhaustive(
     for row in selected:
         try:
             outage = int(row[customers_field])
-            denominator = (
-                int(row["total_customers"]) if "total_customers" in fieldnames else None
-            )
-            if outage < 0 or (denominator is not None and denominator <= 0):
+            if outage < 0:
                 raise ValueError
         except (TypeError, ValueError):
             invalid_rows += 1
@@ -237,6 +267,7 @@ def acquire_exhaustive(
         "acquisition_method": "exhaustive_annual_stream",
         "acquisition_complete": True,
         "raw_artifact": str(raw_path),
+        "raw_metadata_artifact": str(meta_path),
         "raw_sha256": raw_hash.hexdigest(),
         "raw_bytes": raw_path.stat().st_size,
         "etag": expected_etag,
