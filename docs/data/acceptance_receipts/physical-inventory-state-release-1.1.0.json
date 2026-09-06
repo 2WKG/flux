@@ -1,0 +1,31 @@
+{
+  "contract_version": "1.0.0",
+  "release_version": "1.1.0",
+  "assembled_at": "2026-09-06",
+  "releases": [
+    {
+      "state": "tx",
+      "artifact_id": "tx:physical-inventory:1.1.0",
+      "local_artifact": "data/physical-inventory/releases/tx/physical-inventory-1.1.0.json",
+      "content_sha256": "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496",
+      "asset_count": 11949,
+      "input_artifact_sha256s": [
+        "2a4741058ccf4cce99cbc7e7f4ede0f695e738f66521a1d696d423e2afa70c90",
+        "713cdbd5c6c08856e28ccd346af5b89bcf841cbe0879c08a5f9a511d94cced5a"
+      ],
+      "coverage_claim": "Component coverage rows are preserved; this release does not claim statewide completeness."
+    },
+    {
+      "state": "mn",
+      "artifact_id": "mn:physical-inventory:1.1.0",
+      "local_artifact": "data/physical-inventory/releases/mn/physical-inventory-1.1.0.json",
+      "content_sha256": "4a58995d7cb82eaa5e79d5b9a8777a37d85dee64726c0a459ec57766019130ff",
+      "asset_count": 2447,
+      "input_artifact_sha256s": [
+        "b904e146bfc992ea7f423ecda0cd2f32502459bd690a776c9b2bf0b743425da2",
+        "d92fe0a639f1528b45a2a75231b2903f9f571a8211f5e6f6ec54072375104ded"
+      ],
+      "coverage_claim": "Mille Lacs County and EIA component coverage rows are preserved; this release does not claim statewide completeness."
+    }
+  ]
+}

@@ -27,6 +27,13 @@ def test_composes_disjoint_inputs_with_digest_lineage_and_state_alias() -> None:
     assert all(item["status"] != "complete" for item in combined["coverage"])
 
 
+def test_composes_state_qualified_county_artifact_into_its_state_release() -> None:
+    county = _component("county:line:1", "mn:county", "mn:mille-lacs-county")
+    eia = _component("eia:plant:1", "mn:generation", "mn")
+    combined = assemble_artifacts([county, eia], release_version="1.1.0")
+    assert combined["geography_id"] == "mn"
+
+
 def test_rejects_conflicting_source_and_duplicate_asset() -> None:
     first = _component("a", "tx:a")
     second = _component("b", "tx:b")
