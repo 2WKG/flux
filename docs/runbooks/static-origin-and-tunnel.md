@@ -1,6 +1,6 @@
 # Static origin and tunnel inventory
 
-Last checked: 2026-09-05
+Last checked: 2026-09-06 (merged `master` at `6c0b4caa06`)
 
 This is an inventory, not a provisioning guide. It records only checked-in
 configuration and a public, read-only tunnel check; it intentionally contains no
@@ -26,7 +26,7 @@ public hostname-to-origin mapping is not.
 | Bind port | `PORT`, default `4173` (`server.mjs` calls `app.listen(port)`) |
 | Bind address | Not explicitly configured in source; Node's default listen host is used. Do not assume a loopback or LAN bind without checking the connector host. |
 | Static build | `web/dist/`, built by `npm --prefix web run build` |
-| Demo data | `data/demo/bundle.json`, read directly by the Express route `GET /api/demo`. The file is also bundled into `web/dist/assets/app.js` at build time. |
+| Demo data | `data/demo/bundle.json`, bundled into `web/dist/assets/app.js` at build time. The origin serves no API route (2WKG-300), so regenerating the bundle requires a rebuild. |
 | Service owner | Not recorded in this checkout |
 
 The static server's only environment variable is `PORT`; no value is recorded
@@ -38,8 +38,8 @@ is no checked-in environment file or wrapper that overrides it.
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
-| local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified; reads `data/demo/bundle.json` on every request. The built client does not call it. |
-| `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
+| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route by design; this path falls back to the SPA shell like any unknown path (verified 2026-09-06: `200 text/html`). |
+| `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returned `530` (2026-09-05); no route can be attributed to the local origin yet |
 | optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
 | optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
@@ -50,6 +50,22 @@ contact a provider. The specifications name `ANTHROPIC_API_KEY`,
 `VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
 checked-in static server. The tunnel's own environment-variable names are
 unknown because its configuration is not available in the repository.
+
+## Minnesota demo scope
+
+The Minnesota demonstration is a separate scope with its own planning authority
+([`docs/specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md)). It does not
+create a Minnesota fixture or topology, and it does not reuse the Texas
+ACTIVSg2000 adapter. Its API/SSE routing contract is not yet implemented or
+tunnel-mapped.
+
+The Texas-first shared overview ([`docs/specs/00-overview.md`](../specs/00-overview.md))
+remains the primary reference for the repository's routing, API, and tunnel
+contract. Gate 0 is accepted
+([`docs/design/minnesota-gate-0-approval.md`](../design/minnesota-gate-0-approval.md)),
+which freezes an aggregate-mode boundary only; the network/topology decision gate
+in `10-minnesota-demo.md` is still open. Either way, no Minnesota-specific route,
+fixture, or tunnel mapping is claimed in this inventory.
 
 ## Start and verify the static origin
 
@@ -62,15 +78,15 @@ $env:PORT = 4173 # omit to use the default
 npm --prefix web run start
 ```
 
-In another shell, verify the SPA shell, the demo route, and the built client asset:
+In another shell, verify the SPA shell and the built client asset:
 
 ```powershell
 curl.exe -I http://127.0.0.1:4173/
-curl.exe http://127.0.0.1:4173/api/demo
 curl.exe -I http://127.0.0.1:4173/assets/app.js
 ```
 
-The first should return `200` (built HTML), the second JSON from `data/demo/bundle.json`, and the third the bundled client. Restart the static origin by
+Both should return `200`; the first is the built HTML and the second the bundled
+client, which already contains the demo fixture. Restart the static origin by
 stopping that Node process and rerunning `npm --prefix web run start` with the
 intended `PORT`.
 
