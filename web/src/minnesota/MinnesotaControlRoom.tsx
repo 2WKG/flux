@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { FailureState } from "../failure-states/FailureState";
 import type { RunIdentity } from "../ask/run-state/types";
+import "./MinnesotaControlRoom.css";
 import {
   MINNESOTA_AGGREGATE_ARTIFACT_ID,
   MINNESOTA_AGGREGATE_SCENE_ID,

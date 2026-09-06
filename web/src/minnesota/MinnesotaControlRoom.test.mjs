@@ -18,7 +18,7 @@ await build({
     `,
     resolveDir: fileURLToPath(root), loader: "tsx", sourcefile: "mn-control-room-test.tsx",
   },
-  bundle: true, format: "esm", platform: "node", jsx: "automatic", packages: "external",
+  bundle: true, format: "esm", platform: "node", jsx: "automatic", packages: "external", loader: { ".css": "empty" },
   outfile: fileURLToPath(compiled),
 });
 const room = await import(compiled.href);
