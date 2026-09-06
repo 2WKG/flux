@@ -1,8 +1,13 @@
 # 12 — Interactive Grid Simulation (`twin/`, `siting/`, `copilot/`, `web/`)
 
-> **State scope:** Texas / ACTIVSg2000 only. This spec is the interactive-physics lane and
-> supersedes [`10-minnesota-demo.md`](10-minnesota-demo.md) **for that lane only**. Minnesota
-> remains aggregate-mode per [`docs/research/minnesota/solver-network-feasibility.md`](../research/minnesota/solver-network-feasibility.md)
+> **State scope:** Texas / ACTIVSg2000 only. This spec is the interactive-physics lane. It
+> **supersedes nothing**: [`10-minnesota-demo.md`](10-minnesota-demo.md) sits at lattice level 2
+> and this document at level 4 (`00-overview.md:25-37`), so it cannot be superseded from here.
+> The repo's settled formula applies unchanged (`spec-code-reconciliation.md` D-5): *Minnesota
+> supersedes this as plan, not as behaviour* — this spec describes the Texas lane that runs, and
+> a carve-out, if one is ever wanted, has to be written into `00-overview.md`'s lattice and the
+> `README.md` banner, not asserted here. Minnesota remains aggregate-mode per
+> [`docs/research/minnesota/solver-network-feasibility.md`](../research/minnesota/solver-network-feasibility.md)
 > and must never render lines, flows, loading, trips, or cascades.
 
 Status: draft · Owner: platform + web lanes · Supersedes nothing in specs 01–09; it makes
@@ -48,9 +53,9 @@ transformer-overload path (product invariant). lightsim2grid stays out — it ra
 
 - `twin/net.py` — cached `pandapowerNet` built from the tables above.
 - `twin/cascade.py` — `CascadeResult` (per `03-cascade-sim.md`), now callable on an edited net.
-- `scenario_edits` — new table: `(edit_id, session_id, base_scenario_id, ops_json, created_at, edit_hash)`.
-- `redundancy_scores` — new table: `(bus_id, scenario_id, hour, n1_survival_pct, independent_paths, nearest_alt_source_km, headroom_mw, score, components_json)`.
-- `siting_search_runs` — new table: `(run_id, objective, kind[producer|consumer], unit_mw, scenario_id, ranked_json, computed_at)`.
+- `scenario_edits` — new table: `(edit_id, session_id, base_scenario_id, ops_json, created_at, edit_hash)`; registered in `00-overview.md` §2.2 by amendment **A13**.
+- `redundancy_scores` — new table: `(bus_id, scenario_id, hour, n1_survival_pct, independent_paths, nearest_alt_source_km, headroom_mw, score, components_json)`; registered by **A13**.
+- `siting_search_runs` — new table: `(run_id, objective, kind[producer|consumer], unit_mw, scenario_id, ranked_json, computed_at)`; registered by **A13**.
 - In-memory `GridBalance` — draw, capability, headroom, reserve margin, per region and per island.
 
 ## Algorithm or Design
@@ -172,11 +177,26 @@ Every response from this spec carries:
 
 ```json
 {"model_fidelity": "dc_screening",
- "network_provenance": "synthetic_activsg2000",
+ "network_provenance": "synthetic (ACTIVSg2000)",
  "limitations": ["DC power flow: no reactive power, voltage, or dynamics",
                  "ACTIVSg2000 is a synthetic Texas network, not ERCOT's model",
                  "Nameplate capability, not derated availability"]}
 ```
+
+`network_provenance` carries the repo's canonical topology label verbatim —
+`SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"` (`copilot/routes/layers.py:60`,
+`copilot/routes/scenarios.py:32`, pinned as a `Literal` at `scenarios.py:67,115`, asserted by
+`tests/test_texas_asset_taxonomy.py:154`, mirrored at `web/src/scene/minnesota-adapter.ts:32`,
+recorded in `00-overview.md` §2.3 and named in `spec-code-reconciliation.md` D-5 as the only
+topology label any route emits). Implementations import that constant; they do not spell a
+second variant such as `synthetic_activsg2000`.
+
+**These three labels are top-level siblings of the payload's own fields, not a `data` wrapper.**
+`05-copilot.md:250-252` and `:258-259` are binding here: every route on this surface returns an
+unwrapped success payload (`copilot/api/envelope.py` wraps only the failure envelope). A
+`{model_fidelity, network_provenance, limitations, data}` envelope around a success body is
+**not** authorized by this spec; introducing one requires an amendment to `00-overview.md` and
+`05-copilot.md` in the PR that introduces it.
 
 The UI renders `synthetic` for anything derived from ACTIVSg2000 topology (product invariant),
 `source_backed` only for EIA/EAGLE-I/Census/NRI attributes, and `illustrative` for user edits.
@@ -198,21 +218,32 @@ def search_locations(kind: Literal["producer", "consumer"], unit_mw: float,
                      scenario_id: str, n: int = 10) -> list[RankedLocation]
 ```
 
-HTTP (spec 05 surface):
+HTTP — a compute namespace mounted under the `/interactive` prefix, distinct from the spec 05
+read surface:
 
 ```
-POST /scenario/edit   {base_scenario_id, ops[]}          -> {edit_hash, feasibility[]}
-POST /cascade         {element_ids, scenario_id, hour, edit_hash?}   -> CascadeResult
-GET  /balance         ?scope=&scenario_id=&hour=&edit_hash=          -> GridBalance
-GET  /redundancy      ?bus_id=&scenario_id=&hour=                    -> RedundancyScore
-POST /siting/search   {kind, unit_mw, scenario_id, n}                -> RankedLocation[]
+POST /interactive/scenario/edit  {base_scenario_id, ops[]}                    -> {edit_hash, feasibility[]}
+POST /interactive/cascade        {element_ids, scenario_id, hour, edit_hash?} -> CascadeResult
+GET  /interactive/balance        ?scope=&scenario_id=&hour=&edit_hash=        -> GridBalance
+GET  /interactive/redundancy     ?bus_id=&scenario_id=&hour=                  -> RedundancyScore
+POST /interactive/siting/search  {kind, unit_mw, scenario_id, n}              -> RankedLocation[]
 ```
 
-Copilot tools (completing the nine-tool contract of `00-overview.md` A8, plus three):
-`run_cascade`, `score_site`, `predict_outage` — **register the three that were specified and
-never built** — and new `edit_scenario`, `grid_balance`, `redundancy_score`,
-`search_locations`. Each returns its evidence block per §12.8; the model may not state a
-number these tools did not return.
+The prefix is load-bearing and not cosmetic. `05-copilot.md:253-254` records **D-3**: the
+compute-style cascade route "was never implemented … `GET /cascade` is the only cascade route",
+and `GET /cascade` is a persisted-artifact read (`copilot/routes/predictions.py`). A bare-root
+`POST /cascade` would put a compute verb and a read verb on one path and silently reopen D-3;
+this spec does not reopen it. `/interactive/*` is a separate namespace whose routes compute
+inside the request, and every one of its paths is prefixed. Reintroducing any bare-root
+compute path requires an amendment to `00-overview.md` §4.2 and `05-copilot.md`.
+
+Copilot tools. `run_cascade`, `score_site` and `predict_outage` are **already registered** in
+the frozen `TOOL_REGISTRY` (`copilot/tools/schemas.py:455-473`) and this spec does not add them;
+what it needs is that those three existing read tools accept an optional `edit_hash`, so a
+question asked about an edited net is answered from that net (§12.4, §12.7). The four **new**
+tools are `edit_scenario`, `grid_balance`, `redundancy_score`, `search_locations`, registered by
+amendment **A13** in `00-overview.md`. Each returns its evidence block per §12.8; the model may
+not state a number these tools did not return.
 
 ## Acceptance criteria
 
@@ -226,15 +257,22 @@ number these tools did not return.
 4. Taking a named generator offline reduces island capability and, where demand exceeds it,
    sheds load — reported in MW, not as a status string.
 5. A proposed unit 80 km from the nearest 138 kV bus returns `invalid` with reason `P1`; one
-   12 km away on a 345 kV bus returns `valid`.
+   12 km away on a **230 kV** bus returns `valid` (230 kV is the boundary of the P2
+   `base_kv >= 230` rule, and a 500 kV bus must return `valid` too). ACTIVSg2000 has **no
+   345 kV** — its bus kV classes are 13.2/13.8/18/20/22/24/115/161/230/500
+   (`VERIFICATION.md:46-47`; the same correction was already applied to specs 03 and 04 in
+   `verification/03-04.md:32`, and PR #308's independent rebuild confirms the class list), so no
+   criterion or threshold in this document may name a 345 kV bus.
 6. Two consumer locations, one radially fed and one meshed, return materially different
    redundancy scores, and the component breakdown explains why.
 7. `/balance` for ERCOT at the Uri peak hour returns draw, capability, and headroom whose
    arithmetic a judge can check against the underlying tables.
 8. `search_locations(kind="producer")` returns a ranked list whose #1 differs from a
    naive largest-headroom pick, with the objective components shown.
-9. Every response above carries `model_fidelity`, `network_provenance`, and `limitations`.
-10. An interactive `/cascade` call returns within 10 s.
+9. Every response above carries `model_fidelity`, `network_provenance` (spelled
+   `synthetic (ACTIVSg2000)`), and `limitations` as **top-level fields of an unwrapped
+   success body** — no `data` wrapper (§12.8, `05-copilot.md:250-259`).
+10. An interactive `POST /interactive/cascade` call returns within 10 s.
 
 ## Demo hook
 
@@ -258,8 +296,8 @@ data center — how redundant is that site?" *(score, and the single contingency
 | Block | Work |
 | --- | --- |
 | 1 | `twin/net.py` + net cache; layer API carries role/draw/annotation |
-| 2 | `twin/cascade.py` element kinds + island balancing; `POST /cascade` |
-| 3 | `twin/edits.py` + `twin/feasibility.py` P1–P6; `POST /scenario/edit` |
-| 4 | `twin/balance.py` + `/balance`; `siting/redundancy.py` + precompute |
-| 5 | `siting/search.py` + `/siting/search` |
-| 6 | Copilot tool registration for all seven; UI wiring |
+| 2 | `twin/cascade.py` element kinds + island balancing; `POST /interactive/cascade` |
+| 3 | `twin/edits.py` + `twin/feasibility.py` P1–P6; `POST /interactive/scenario/edit` |
+| 4 | `twin/balance.py` + `/interactive/balance`; `siting/redundancy.py` + precompute |
+| 5 | `siting/search.py` + `/interactive/siting/search` |
+| 6 | Copilot tool registration for the four new tools + `edit_hash` on the three existing ones; UI wiring |
