@@ -185,12 +185,13 @@ already existed. Before starting an issue, check `git worktree list`, open PRs f
 branch, and `list_issues` filtered by `parentId` — `get_issue` on a parent never returns its
 children.
 
-**Two contradictions the team must resolve; both are documented, neither is decided.**
-`README.md` describes Node/Express with `GET /api/demo` and says it "intentionally does not
-use Vite", while `STACK-LOCK.md` locks React+Vite served statically with no API — the built
-app violates the lock twice. And whether `docs/build/converging-swarm-target.md` and
-`swarm-plan.md` are superseded: this file says they are, but copilot work is actively landing
-against spec 05. Tracked in Linear 2WKG-296.
+**One contradiction the team must still resolve.** Whether
+`docs/build/converging-swarm-target.md` and `swarm-plan.md` are superseded: this file says they
+are, but copilot work is actively landing against spec 05. Tracked in Linear 2WKG-296.
+
+The README/`STACK-LOCK.md` runtime contradiction is **decided** (2WKG-300): static assets, no
+demo API. `web/server.mjs` serves `web/dist/` only, the `GET /api/demo` route is removed, and the
+lock's stale "Vite" wording was corrected to esbuild to match `web/scripts/build.mjs`.
 
 **Parallel agents.** Ghadi runs Codex in a second terminal on this repo. Both act as the same
 Linear user, so neither can see the other's claims. Split by workstream, and only one agent
