@@ -27,7 +27,7 @@ from math import isfinite
 from numbers import Real
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from copilot.tools.schemas import Unavailable
 from pipelines.line_upgrade_contracts import (
@@ -134,6 +134,11 @@ class ReconductorArtifact(Frozen):
     multiplier: float = Field(gt=1.0, le=MAX_MULTIPLIER)
     intervention: ReconductorIntervention
 
+    @model_validator(mode="after")
+    def _scenario_matches_key(self) -> ReconductorArtifact:
+        _require_scenario_matches_key(self.key, self.scenario_id)
+        return self
+
 
 class UnavailableReconductorArtifact(Frozen):
     """No intervention for the line. Has no uplift or cost field to fabricate."""
@@ -146,6 +151,19 @@ class UnavailableReconductorArtifact(Frozen):
     reason: UnavailableReason
     unavailable: Unavailable
     detail: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _scenario_matches_key(self) -> UnavailableReconductorArtifact:
+        _require_scenario_matches_key(self.key, self.scenario_id)
+        return self
+
+
+def _require_scenario_matches_key(key: LineKey, scenario_id: str) -> None:
+    """The artifact's scenario is the key's scenario; two identities may not drift."""
+    if scenario_id != key.scenario_id:
+        raise ValueError(
+            "reconductor artifact scenario_id must match the line key scenario_id"
+        )
 
 
 def build_reconductor_artifact(
