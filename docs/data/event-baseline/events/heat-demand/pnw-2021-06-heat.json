@@ -100,9 +100,9 @@
       "units": "Storm Events local begin/end; event type and NWS zone scope",
       "timezone_conversion": "CZ_TIMEZONE PST-8 converted by +8 hours to UTC",
       "filters": "EVENT_ID=961302",
-      "grid_index_mapping": "Historical OR006 NWS zone-to-Multnomah FIPS 41051 crosswalk; artifact SHA256 847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595",
+      "grid_index_mapping": "Historical OR006 NWS zone-to-Multnomah FIPS 41051 crosswalk from bp30mr21.dbx; archived capture https://web.archive.org/web/20210322064256id_/https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx (Memento-Datetime 2021-03-22T06:42:56Z), SHA256 847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595, 323923 bytes; original URL https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx.",
       "gaps": [
-        "Zone report is not a sampled county weather time series; crosswalk is a historical mapping."
+        "Zone report is not a sampled county weather time series; county mapping uses the archived historical crosswalk, whose current primary version differs."
       ]
     }
   ],
