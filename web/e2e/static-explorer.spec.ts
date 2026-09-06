@@ -1,6 +1,22 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 const fixtureDisclosure = /Synthetic five-bus fixture.*no API required/i;
+
+/** The <dd> paired with a summary <dt> in the inspector's status list. */
+function summaryValue(inspector: Locator, term: string): Locator {
+  return inspector.locator("dt", { hasText: new RegExp(`^${term}$`) }).locator("xpath=following-sibling::dd[1]");
+}
+
+/**
+ * Pins the provenance tokens the product's honesty claim rests on, not the free-text
+ * copy around them: the shell's machine status attribute, the rendered status word, and
+ * the absence of any source-backed claim over a synthetic fixture.
+ */
+async function expectSyntheticProvenance(page: Page): Promise<void> {
+  await expect(page.locator(".flux-shell")).toHaveAttribute("data-source-status", "synthetic");
+  await expect(page.locator(".flux-shell__source-status")).toHaveText("Synthetic");
+  await expect(page.getByText(/source[_ -]?backed|source[_ -]?supported|source[_ -]?screened/i)).toHaveCount(0);
+}
 
 test("static explorer supports scenario selection, inspection, and honest offline agent state", async ({ page }) => {
   const requests: string[] = [];
@@ -9,11 +25,17 @@ test("static explorer supports scenario selection, inspection, and honest offlin
   await page.goto("/");
   await expect(page.getByText(fixtureDisclosure)).toBeVisible();
   await expect(page.getByText(/Not a Minnesota or Texas topology/i)).toBeVisible();
+  await expectSyntheticProvenance(page);
 
   await page.getByRole("button", { name: /Candidate A/i }).first().click();
   await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
   await expect(page.getByRole("heading", { name: "Synthetic five-bus fixture" })).toBeVisible();
-  await expect(page.locator(".flux-shell__inspector").getByText("Candidate A", { exact: true })).toBeVisible();
+  const inspector = page.locator(".flux-shell__inspector");
+  await expect(inspector.getByText("Candidate A", { exact: true })).toBeVisible();
+  // The machine tokens, not the prose: relabelling the fixture as source-backed must fail here.
+  await expect(summaryValue(inspector, "Status")).toHaveText("Synthetic");
+  await expect(summaryValue(inspector, "Artifact")).toHaveText("synthetic");
+  await expectSyntheticProvenance(page);
 
   const chat = page.locator(".flux-shell__chat");
   await chat.getByRole("button", { name: "Expand" }).click();
@@ -27,18 +49,24 @@ test("static explorer supports scenario selection, inspection, and honest offlin
   await geography.fill("Review-only synthetic context");
   await expect(geography).toHaveValue("Review-only synthetic context");
   await chat.getByRole("button", { name: "Done editing" }).click();
+  // Wait for the post-action render (the revision bump) before asserting what survived it;
+  // an auto-retrying "still visible" check placed first passes against the pre-commit DOM.
   await expect(chat.getByRole("button", { name: "Edit" })).toBeVisible();
-  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
   await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
 
   await chat.getByRole("button", { name: "Collapse" }).click();
+  await expect(chat.getByRole("button", { name: "Expand" })).toBeVisible();
+  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeHidden();
   await chat.getByRole("button", { name: "Expand" }).click();
-  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
   await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: /Candidate B/i }).first().click();
-  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expect(page.getByText(/NETWORK STATE.*CANDIDATE B/i)).toBeVisible();
   await expect(chat.getByText(/revision .*:b:c3/i).first()).toBeVisible();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expectSyntheticProvenance(page);
 
   expect(requests.some((url) => /\/(ask|api)(?:\/|$|\?)/.test(new URL(url).pathname))).toBeFalsy();
 });
