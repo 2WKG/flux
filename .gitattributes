@@ -5,3 +5,9 @@
 
 *.json text eol=lf
 *.md text eol=lf
+
+# Published physical-inventory releases are gzip streams: never line-ending
+# normalised, and never diffed as text. Their digests are recorded in
+# data/artifacts/physical_inventory/manifest-<release>.json and re-hashed by
+# tests/test_physical_inventory_acceptance.py.
+*.gz binary
