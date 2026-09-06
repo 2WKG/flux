@@ -367,7 +367,19 @@ function App() {
 
       {detail && (
         <div className="overlay" onMouseDown={closeDetail}>
-          <section className="modal" role="dialog" aria-modal="true" aria-label="Data disclosure" onMouseDown={(event) => event.stopPropagation()}>
+          <section
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Data disclosure"
+            onMouseDown={(event) => event.stopPropagation()}
+            onKeyDown={(event) => {
+              if (event.key !== "Tab") return;
+              // The disclosure currently has one native control; retain focus until it closes.
+              event.preventDefault();
+              disclosureClose.current?.focus();
+            }}
+          >
             <button ref={disclosureClose} onClick={closeDetail} aria-label="Close disclosure">×</button>
             <p className="eyebrow">DATA DISCLOSURE</p>
             <h2>Provenance, assumptions, and limits</h2>
