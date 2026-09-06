@@ -135,10 +135,24 @@ class TrainingSample:
     failure_message: str | None = None
     solve_seconds: float | None = None
     topology: str = SYNTHETIC_TOPOLOGY_LABEL
-    solver: str = "pandapower.rundcpp"
+    # Only a row whose labels came out of a solve names the solver. A failed row
+    # names none: a dataclass default there would advertise a run that never
+    # produced output.
+    solver: str | None = None
     schema_version: str = SAMPLE_SCHEMA_VERSION
 
+    def timing_json(self) -> dict[str, Any]:
+        """Wall-clock cost of this row, kept OUT of ``json()``.
+
+        ``solve_seconds`` is machine- and load-dependent. Serialising it into
+        the canonical record made ``samples.jsonl`` and ``manifest.samples_sha256``
+        differ on every regeneration, so timings are published beside the
+        samples instead of inside them.
+        """
+        return {"sample_id": self.sample_id, "solve_seconds": self.solve_seconds}
+
     def json(self) -> dict[str, Any]:
+        """The canonical, byte-reproducible record. No wall-clock value here."""
         return {
             "schema_version": self.schema_version,
             "sample_id": self.sample_id,
@@ -156,7 +170,6 @@ class TrainingSample:
             "labels": None if self.labels is None else self.labels.json(),
             "failure_kind": self.failure_kind,
             "failure_message": self.failure_message,
-            "solve_seconds": self.solve_seconds,
             "limitations": [
                 "DC power flow: no reactive power, voltage, dynamics, protection, or unit commitment",
                 "ACTIVSg2000 is a synthetic Texas network, not ERCOT's model",

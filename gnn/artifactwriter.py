@@ -27,6 +27,7 @@ _OWNED_FILES = {
     "manifest.json",
     "normalization.json",
     "samples.jsonl",
+    "timings.jsonl",
     "split.json",
     "graph",
 }
@@ -86,6 +87,7 @@ class ArtifactWriter:
         self._validate_target()
         self.target.mkdir(parents=True, exist_ok=True)
         self.samples_path = self.target / "samples.jsonl"
+        self.timings_path = self.target / "timings.jsonl"
         self.manifest_path = self.target / "manifest.json"
         self._existing_ids = self._prepare_or_resume()
 
@@ -100,6 +102,13 @@ class ArtifactWriter:
         payload = canonical_json(sample.json()).encode("utf-8") + b"\n"
         with self.samples_path.open("ab") as handle:
             handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        # Wall-clock timings live beside the samples, never inside them, so that
+        # samples.jsonl and manifest.samples_sha256 are byte-reproducible.
+        timing = canonical_json(sample.timing_json()).encode("utf-8") + b"\n"
+        with self.timings_path.open("ab") as handle:
+            handle.write(timing)
             handle.flush()
             os.fsync(handle.fileno())
         self._existing_ids.add(sample.sample_id)
@@ -145,6 +154,11 @@ class ArtifactWriter:
             raise SamplingError(
                 f"cannot finish incomplete artifact: expected {planned_count}, found {len(records)}"
             )
+        labelled_count = sum(record["status"] == "labelled" for record in records)
+        if not labelled_count:
+            raise SamplingError(
+                "refusing to publish a complete artifact with zero labelled samples"
+            )
         index_to_id = {
             record["plan"]["sample_index"]: record["sample_id"] for record in records
         }
@@ -166,8 +180,10 @@ class ArtifactWriter:
             "generation_status": "complete",
             "identity": self.identity,
             "planned_count": int(planned_count),
-            "labelled_count": sum(record["status"] == "labelled" for record in records),
+            "labelled_count": labelled_count,
             "failed_count": sum(record["status"] == "failed" for record in records),
+            # timings.jsonl is deliberately absent from the digest set: it holds
+            # wall-clock values, which are not reproducible.
             "samples_sha256": _sha256(self.samples_path),
             "split_sha256": _sha256(self.target / "split.json"),
             "normalization_sha256": _sha256(self.target / "normalization.json"),

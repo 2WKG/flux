@@ -12,7 +12,7 @@ from typing import Any
 from gnn.artifactwriter import ArtifactWriter, split_by_contingency
 from gnn.contracts import SamplingError
 from gnn.hours import DEFAULT_BA_CODE, hourly_demand_profile, select_hours
-from gnn.label import label_sample
+from gnn.label import label_sample, require_solver_backend
 from gnn.sampler import SamplerConfig, build_plan, canonical_json
 
 
@@ -45,6 +45,9 @@ def generate_training_samples(
     """Generate or resume a bounded sample artifact without modifying DuckDB."""
     policy = config or GenerationConfig()
     policy.validate()
+    # An unimportable solver backend is an environment failure. Refuse before a
+    # single row is written rather than recording every row as a failed label.
+    require_solver_backend()
     source = Path(db_path).resolve()
     profile = hourly_demand_profile(source, ba_code=policy.ba_code)
     hours = select_hours(profile, count=policy.hours, seed=policy.seed)

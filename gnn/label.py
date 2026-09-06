@@ -5,9 +5,31 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from gnn.contracts import HourPoint, PlannedSample, SampleLabels, TrainingSample
+from gnn.contracts import (
+    HourPoint,
+    PlannedSample,
+    SampleLabels,
+    SamplingError,
+    TrainingSample,
+)
 from gnn.hours import demand_provenance, scaled_network
 from gnn.sampler import plan_identity
+
+SOLVER_NAME = "pandapower.rundcpp"
+
+
+def require_solver_backend() -> None:
+    """Fail loudly, once, when the DC solver backend is not importable.
+
+    A missing backend is an ENVIRONMENT failure, not a training label. Without
+    this, every row would be recorded as ``status="failed"`` and the artifact
+    would still publish ``generation_status: "complete"``.
+    """
+    try:
+        from twin.cascade import run_cascade  # noqa: F401
+        from twin.edits import add_generator, add_load, outage  # noqa: F401
+    except ImportError as exc:
+        raise SamplingError(f"solver backend unavailable: {exc}") from exc
 
 
 def label_sample(
@@ -67,6 +89,7 @@ def label_sample(
             scenario_identity=scenario_identity,
             demand=demand,
             labels=labels,
+            solver=SOLVER_NAME,
             solve_seconds=round(time.monotonic() - started, 6),
         )
     except Exception as exc:  # noqa: BLE001 - a solver exception is a failed training label.
