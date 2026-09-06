@@ -38,6 +38,9 @@
 - **Not found vs unavailable:** target does not exist → `not_found`; target exists but its artifact is not built → `unavailable`. **Correction:** `GET /layers/national_hex` when not built returns a `not_found` 404 failure envelope (spec 06 §"Data loading"/`national_hex`: the client hides the toggle with a "not built" tooltip off the 404), not 503.
 - `partial` stays inside the route payload where spec 00 §4.2 puts it (`GET /elements/critical` returns `{"partial": true}` in its body); the envelope does not carry it.
 - Every response carries `X-Request-ID` (stamped by middleware in `install_error_handlers`); a client-supplied header value is reused.
+- Every response carries `X-Flux-Api-Version: v1`. This is response metadata, not a success envelope; success payload bodies remain exactly the route payloads specified by specs 00 and 05.
+- `X-Flux-Artifact` appears only on a successful `GET /cascade` response. Its value is the same resolved immutable `artifact_id` in that response body. It is omitted from every other success response and every failure: a logical artifact named in failure details is not a selected immutable artifact.
+- CORS exposes `X-Request-ID`, `X-Flux-Api-Version`, and `X-Flux-Artifact` to browser API clients.
 
 ## Safety
 

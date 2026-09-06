@@ -18,6 +18,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from copilot.api.envelope import (
+    API_VERSION,
     Failure,
     FailureCode,
     FailureEnvelope,
@@ -28,6 +29,8 @@ from copilot.api.envelope import (
 logger = logging.getLogger("copilot.api")
 
 REQUEST_ID_HEADER = "X-Request-ID"
+API_VERSION_HEADER = "X-Flux-Api-Version"
+ARTIFACT_HEADER = "X-Flux-Artifact"
 INTERNAL_ERROR_MESSAGE = (
     "The service failed to complete this request. The failure is logged under "
     "the request id."
@@ -107,7 +110,10 @@ class InternalError(ApiError):
     retryable = False
 
     def __init__(
-        self, message: str = INTERNAL_ERROR_MESSAGE, *, details: dict[str, str] | None = None
+        self,
+        message: str = INTERNAL_ERROR_MESSAGE,
+        *,
+        details: dict[str, str] | None = None,
     ) -> None:
         super().__init__(message, details=details)
 
@@ -131,7 +137,10 @@ def request_id_of(request: Request) -> str:
 
 
 def failure_response(error: ApiError, request_id: str) -> JSONResponse:
-    headers = {REQUEST_ID_HEADER: request_id}
+    headers = {
+        REQUEST_ID_HEADER: request_id,
+        API_VERSION_HEADER: API_VERSION,
+    }
     if error.retry_after_s is not None:
         headers["Retry-After"] = str(error.retry_after_s)
     return JSONResponse(
@@ -148,6 +157,7 @@ def install_error_handlers(app: FastAPI) -> FastAPI:
     async def _request_id(request: Request, call_next):
         response = await call_next(request)
         response.headers.setdefault(REQUEST_ID_HEADER, request_id_of(request))
+        response.headers.setdefault(API_VERSION_HEADER, API_VERSION)
         return response
 
     @app.exception_handler(ApiError)
@@ -171,6 +181,8 @@ def install_error_handlers(app: FastAPI) -> FastAPI:
     @app.exception_handler(Exception)
     async def _unhandled(request: Request, exc: Exception) -> JSONResponse:
         request_id = request_id_of(request)
-        return failure_response(internal_error_from(exc, request_id=request_id), request_id)
+        return failure_response(
+            internal_error_from(exc, request_id=request_id), request_id
+        )
 
     return app
