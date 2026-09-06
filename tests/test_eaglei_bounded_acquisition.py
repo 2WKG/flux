@@ -243,7 +243,12 @@ def test_bounded_acquisition_returns_the_requested_window(
     assert detail["reported_timestamp_min"] == start.strftime("%Y-%m-%d %H:%M:%S")
     assert (
         detail["coverage_by_county"]["27137"]["coverage_state"]
-        == "complete_15_min_observation"
+        == "not_assessed_from_bounded_range"
+    )
+    assert detail["coverage_by_county"]["27137"]["availability"] == "Unknown"
+    assert (
+        detail["coverage_by_county"]["27137"]["observed_intervals_in_retrieved_rows"]
+        == 4
     )
     assert detail["coverage_by_county"]["27137"]["expected_intervals_at_15_min"] == 4
 
@@ -353,6 +358,48 @@ def test_default_exhaustive_acquisition_handles_fips_major_source(
         result["eaglei"]["coverage_by_county"]["27137"]["coverage_state"]
         == "complete_15_min_observation"
     )
+
+
+def test_bounded_fips_major_false_zero_never_claims_source_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An explicit range probe may miss FIPS-major rows but must remain unknown."""
+    lines = [HEADER]
+    for fips, county, state in (
+        ("06001", "Alameda", "California"),
+        ("27137", "St Louis", "Minnesota"),
+    ):
+        for index in range(SAMPLES):
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            lines.append(f"{fips},{county},{state},{index % 10},{stamp},123\n")
+    source = FakeSource("".join(lines).encode())
+    start = BASE + timedelta(minutes=15 * WINDOW_INDEX)
+    result = eaglei.acquire(
+        event_id="fips-major-bounded",
+        year=2024,
+        start=start,
+        end=start + timedelta(hours=1),
+        states={"Minnesota"},
+        fips={"27137"},
+        cache_dir=tmp_path,
+        allow_full_download=False,
+        max_bytes=2_000_000,
+        session=source,
+    )
+
+    detail = result["eaglei"]
+    assert detail["filtered_rows"] == 0  # reproduces the unsafe probe's false zero
+    assert detail["acquisition_complete"] is False
+    assert detail["coverage_summary"] == "Unknown"
+    assert detail["coverage_by_county"]["27137"] == {
+        "availability": "Unknown",
+        "coverage_state": "not_assessed_from_bounded_range",
+        "observed_intervals_in_retrieved_rows": 0,
+        "expected_intervals_at_15_min": 4,
+    }
+    assert "UncoveredLabel" not in result["receipt"]["gaps"]
 
 
 def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(

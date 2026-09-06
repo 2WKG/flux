@@ -906,7 +906,19 @@ def acquire(
     ]
     valid_rows, invalid_rows = _valid_rows(selected, fieldnames, customers_out_field)
     report_fips = sorted(fips or {row["fips_code"] for row in valid_rows})
-    coverage = _coverage_report(valid_rows, report_fips, expected_times)
+    observed_coverage = _coverage_report(valid_rows, report_fips, expected_times)
+    # The bounded path cannot prove that its byte slice represents all source
+    # rows for a window.  Keep the rows it did observe as diagnostics, but do
+    # not turn a slice-local absence into an UncoveredLabel or a coverage claim.
+    coverage = {
+        code: {
+            "availability": "Unknown",
+            "coverage_state": "not_assessed_from_bounded_range",
+            "observed_intervals_in_retrieved_rows": item["observed_intervals"],
+            "expected_intervals_at_15_min": item["expected_intervals_at_15_min"],
+        }
+        for code, item in observed_coverage.items()
+    }
     denominator_summary = {
         code: {
             "observed_rows_with_total_customers": sum(
@@ -993,7 +1005,7 @@ def acquire(
             (row["run_start_time"] for row in selected), default=None
         ),
         "coverage_by_county": coverage,
-        "coverage_summary": "Available" if coverage else "UncoveredLabel",
+        "coverage_summary": "Unknown",
         "customers_out_summary": {
             code: {
                 "min": min(
@@ -1029,7 +1041,10 @@ def acquire(
             if "total_customers" in fieldnames
             else "unavailable in this annual slice; do not substitute population"
         ),
-        "absence_rule": ABSENCE_RULE,
+        "absence_rule": (
+            "A bounded byte slice cannot characterize missing rows; no source "
+            "absence or coverage classification is emitted."
+        ),
     }
     result = {
         "receipt": {
@@ -1051,12 +1066,11 @@ def acquire(
             "grid_index_mapping": (
                 "none; EAGLE-I rows are keyed by county FIPS, not a model grid index"
             ),
-            "gaps": _gap_entries(coverage)
-            + [
+            "gaps": [
                 (
-                    "bounded range acquisition: only the bracketed byte range "
-                    "was read, so this receipt cannot establish source-wide coverage"
-                )
+                    "bounded range acquisition: only the bracketed byte range was read, "
+                    "so source coverage and absence are not assessed"
+                ),
             ],
             "acquisition": None,
             "capture_method": "bounded_http_range_binary_search",
