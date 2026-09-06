@@ -23,7 +23,8 @@ existing `node --test` globs.
   context without an API request.
 - The static Ask panel remains explicitly unavailable, with its run trace and
   result card explaining that no live tool call or scene action occurred.
-- Context editing remains local and visible.
+- Context editing persists through Ask collapse/reopen and scenario changes,
+  with an opaque revision that advances for both an edit and a selection change.
 - Candidate keyboard activation and modal focus behavior work, including Tab,
   Escape, and focus restoration.
 - Desktop (1440x900), laptop (1024x768), and mobile (390x844) views have no
