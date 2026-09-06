@@ -145,6 +145,15 @@ class SqlInput(ContractModel):
         ),
     ] = None
 
+    @model_validator(mode="after")
+    def _exactly_one_input(self) -> SqlInput:
+        # 00-overview A8 amendment: ``sql`` takes ``query`` XOR ``template_id``.
+        # Enforced at the pydantic boundary so neither ``{}`` nor both fields
+        # can reach an executor.
+        if (self.query is None) == (self.template_id is None):
+            raise ValueError("sql requires exactly one of query or template_id")
+        return self
+
 
 class CiteInput(ContractModel):
     query: Annotated[str, Field(min_length=1, max_length=1_000)]
