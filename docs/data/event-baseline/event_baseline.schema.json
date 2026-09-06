@@ -158,11 +158,7 @@
         "timezone_conversion",
         "filters",
         "grid_index_mapping",
-        "gaps",
-        "capture_method",
-        "verification",
-        "files",
-        "uncertainty"
+        "gaps"
       ],
       "properties": {
         "receipt_id": {

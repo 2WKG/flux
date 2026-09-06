@@ -503,7 +503,7 @@ def test_receipts_carry_the_repo_receipt_convention() -> None:
     for field in ("capture_method", "verification", "files", "uncertainty"):
         candidate = copy.deepcopy(bundle())
         del candidate["source_receipts"][0][field]
-        with pytest.raises(validator.ValidationError, match="schema violation"):
+        with pytest.raises(validator.ValidationError, match="missing"):
             validator.validate_bundle(candidate)
 
     empty = copy.deepcopy(bundle())
