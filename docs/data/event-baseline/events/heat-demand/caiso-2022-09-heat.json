@@ -31,7 +31,8 @@
       "No causal attribution between heat, demand, and county outage values"
     ],
     "source_event_ids": [
-      "caiso-2022-09-heat"
+      "caiso-2022-09-heat",
+      "ncei-stormevents:1057556"
     ]
   },
   "source_receipts": [
@@ -54,6 +55,25 @@
         "No county-grid weather extraction",
         "No county outage label from BA demand"
       ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022-details",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "Storm Events details 2022 c20260625",
+      "retrieved_at_utc": "2026-09-06T07:25:00Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events local begin/end date-times; event type and NWS zone scope",
+      "timezone_conversion": "CZ_TIMEZONE PST-8 converted to UTC by adding 8 hours",
+      "filters": "EVENT_ID 1057556; California Central Sacramento Valley zone CAZ016; Excessive Heat",
+      "grid_index_mapping": "not applicable; authoritative NWS zone report, not gridded weather",
+      "gaps": [
+        "Zone CAZ016 is not a county boundary; no stored zone-to-county intersection artifact"
+      ]
     }
   ],
   "records": [
@@ -67,23 +87,35 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "eia-caiso-202209"
+        "eia-caiso-202209",
+        "ncei-stormevents-2022-details"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
         "source_receipt_ids": [
-          "eia-caiso-202209"
+          "ncei-stormevents-2022-details"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "EIA event context supports candidacy; county-grid weather receipt pending.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "event_report": {
+          "source_event_ids": [
+            "ncei-stormevents:1057556"
+          ],
+          "source_window": {
+            "start_utc": "2022-09-04T18:00:00Z",
+            "end_utc": "2022-09-10T03:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "CAZ016 Central Sacramento Valley",
+          "limitations": "The NCEI report is scoped to an NWS zone rather than Sacramento County; a zone-to-county intersection artifact is not retained."
+        },
+        "notes": "NCEI Excessive Heat zone report intersects the canonical UTC window; it supplies observed weather event evidence only."
       },
       "outage": {
         "coverage": "UncoveredLabel",
