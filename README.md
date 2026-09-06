@@ -12,7 +12,7 @@ npm --prefix web run dev
 
 Full start/stop/smoke steps for the desk and the optional API, verified against master, are in [`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
 
-Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request; `web/server.mjs` still exposes `GET /api/demo` (validating `?scenario=`) over the same file for the recorded 2WKG-296 question above. Ingestion jobs can validate and publish the same versioned contract without changing the client.
+Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request. `web/server.mjs` exposes **no API route**: 2WKG-300 (`db53a83`) deleted `GET /api/demo` along with its scenario selection and failure envelope, and the static origin now returns the SPA shell for every path — `/api/demo` answers `200 text/html` with a body byte-identical to `/`. The Copilot API is a separate FastAPI service ([`docs/specs/05-copilot.md`](docs/specs/05-copilot.md)). Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
 ## Repository context
 
