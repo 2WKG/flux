@@ -10,7 +10,7 @@
 > contains no geographic fixture records and does not derive Minnesota data from the Texas case.
 
 Product name: **Flux** (the repository and package stay `flux`; see `00-overview.md` amendment A8 and the retained pitch document).
-Headline: **grid digital twin + outage prediction + nuclear siting, Texas first** (ACTIVSg2000 / ERCOT),
+Headline: **state-configurable grid resilience analysis: outage context, synthetic-topology analysis where validated, and siting**. The repository's Texas / ACTIVSg2000 / ERCOT topology adapter requires its source artifacts and build; other states require their own validated source artifacts and configuration.
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the
 backup is **Speed-to-Power** (large-load verification + grid headroom ranking, spec 09), whose wire half
 reuses spec 08's tables and `top_lines` tool. The shared contract (repo layout, DuckDB tables, scenario IDs,
