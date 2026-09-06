@@ -24,8 +24,11 @@ hostnames were collected.
 
 ## Local prerequisite check
 
-The checked-in static origin (`web/server.mjs`) owns only `GET /api/demo` and
-the static SPA. It does not expose `POST /ask` or a fixture SSE provider.
+The checked-in static origin (`web/server.mjs`) serves only the static SPA and
+exposes no API route: 2WKG-300 settled the runtime contract as static assets
+only and removed `GET /api/demo` (a fact that postdates this record's
+2026-09-05 check timestamp above, which predates that decision). It does not
+expose `POST /ask` or a fixture SSE provider.
 `cloudflared` is not available on this verification host's command path. The
 existing tunnel inventory in
 [`static-origin-and-tunnel.md`](static-origin-and-tunnel.md) identifies the
