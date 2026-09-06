@@ -10,9 +10,12 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 from copilot.narration import GroundedNarration
-from copilot.providers.grounding import SYSTEM_PROMPT, narration_prompt
-
-MAX_OUTPUT_TOKENS = 1024
+from copilot.providers.grounding import (
+    MAX_OUTPUT_TOKENS,
+    REQUEST_TIMEOUT_SECONDS,
+    SYSTEM_PROMPT,
+    narration_prompt,
+)
 
 
 class ClaudeNarrationProvider:
@@ -25,7 +28,9 @@ class ClaudeNarrationProvider:
         # registry) never requires the SDK or a credential.
         from anthropic import AsyncAnthropic
 
-        self._client = AsyncAnthropic(api_key=api_key)
+        # `AsyncAnthropic(timeout=...)` is seconds.  Without it the SDK applies
+        # its own default and a hung exchange is not bounded by this service.
+        self._client = AsyncAnthropic(api_key=api_key, timeout=REQUEST_TIMEOUT_SECONDS)
         self.model = model
 
     def text(self, narration: GroundedNarration) -> AsyncIterator[str]:

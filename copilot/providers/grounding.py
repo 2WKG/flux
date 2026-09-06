@@ -12,6 +12,15 @@ import json
 
 from copilot.narration import GroundedNarration
 
+# Shared response bounds.  Both adapters answer under the same contract, so the
+# ceiling on generated tokens and the wall-clock ceiling on the HTTP exchange
+# live here rather than being restated (and drifting) per provider.
+MAX_OUTPUT_TOKENS = 1024
+# Wall-clock ceiling handed to each provider SDK.  It bounds the HTTP exchange
+# itself; `copilot.runtime` separately bounds the gap between streamed deltas,
+# so a connection that stays open but stops producing text still terminates.
+REQUEST_TIMEOUT_SECONDS = 60.0
+
 SYSTEM_PROMPT = """You are Flux's grid-planning copilot.
 
 Rules, in order of precedence:

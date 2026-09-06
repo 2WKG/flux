@@ -10,9 +10,12 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 from copilot.narration import GroundedNarration
-from copilot.providers.grounding import SYSTEM_PROMPT, narration_prompt
-
-MAX_OUTPUT_TOKENS = 1024
+from copilot.providers.grounding import (
+    MAX_OUTPUT_TOKENS,
+    REQUEST_TIMEOUT_SECONDS,
+    SYSTEM_PROMPT,
+    narration_prompt,
+)
 
 
 class GeminiNarrationProvider:
@@ -26,7 +29,16 @@ class GeminiNarrationProvider:
         from google import genai
 
         self._genai = genai
-        self._client = genai.Client(api_key=api_key)
+        # `HttpOptions.timeout` is milliseconds in `google.genai` (introspected
+        # against 2.22.0: `types.HttpOptions.model_fields["timeout"]` documents
+        # "Timeout for the request in milliseconds").  Without it the SDK has no
+        # deadline and a hung exchange never returns.
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=genai.types.HttpOptions(
+                timeout=int(REQUEST_TIMEOUT_SECONDS * 1000)
+            ),
+        )
         self.model = model
 
     def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
