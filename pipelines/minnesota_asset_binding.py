@@ -34,6 +34,20 @@ import duckdb
 CONTRACT_ID = "flux:3d-asset-archetypes:v1"
 MATERIAL_SLOT = "MAT_STATUS"
 
+# Gate 6 is deliberately a closed pack rather than a loose collection of
+# models.  This makes a missing or substituted city-essential archetype a
+# validation error at the binding boundary, before a scene can consume it.
+CITY_ESSENTIALS_FORMAT = "flux:minnesota-city-essentials-binding:v1"
+CITY_ESSENTIAL_ARCHETYPE_IDS = (
+    "data_center_campus",
+    "residential_neighborhood",
+    "commercial_buildings",
+    "factory_industrial_facility",
+    "natural_gas_plant",
+    "wind_turbine",
+    "solar_array",
+)
+
 #: The coordinate reference every placement declares. `docs/specs/00-overview.md`
 #: and `docs/specs/10-duckdb-contract.md`: all geometry is EPSG:4326 lon/lat.
 PLACEMENT_CRS = "EPSG:4326"
@@ -358,6 +372,80 @@ def bind_asset(
     }
 
 
+def bind_city_essentials(
+    con: duckdb.DuckDBPyConnection,
+    catalog: dict[str, Any],
+    inventory: dict[str, Any],
+    request: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind the complete Gate 6 city-essential pack.
+
+    The pack is intentionally all-or-nothing: the seven archetypes are the
+    Gate 6 contract, so a caller cannot silently render a partial city scene.
+    Each member still goes through :func:`bind_asset`, which means an absent or
+    ineligible Minnesota artifact remains a non-geographic catalogue preview.
+    """
+    if request.get("format") != CITY_ESSENTIALS_FORMAT:
+        raise AssetBindingError("city-essentials request has an unsupported format")
+    if request.get("contract_id") != CONTRACT_ID:
+        raise AssetBindingError(
+            "city-essentials request contract_id does not match the shared contract"
+        )
+    assets = request.get("assets")
+    if not isinstance(assets, list):
+        raise AssetBindingError("city-essentials request.assets must be an array")
+
+    by_archetype: dict[str, dict[str, Any]] = {}
+    for asset in assets:
+        if not isinstance(asset, dict) or not isinstance(asset.get("model"), dict):
+            raise AssetBindingError(
+                "each city-essentials asset must contain a model object"
+            )
+        archetype_id = asset["model"].get("archetype_id")
+        if not isinstance(archetype_id, str):
+            raise AssetBindingError(
+                "each city-essentials model.archetype_id must be a string"
+            )
+        if archetype_id in by_archetype:
+            raise AssetBindingError(
+                f"city-essentials request duplicates archetype {archetype_id!r}"
+            )
+        by_archetype[archetype_id] = asset
+
+    actual_ids = set(by_archetype)
+    expected_ids = set(CITY_ESSENTIAL_ARCHETYPE_IDS)
+    if actual_ids != expected_ids:
+        missing = sorted(expected_ids - actual_ids)
+        unexpected = sorted(actual_ids - expected_ids)
+        raise AssetBindingError(
+            "city-essentials request must contain exactly the seven Gate 6 "
+            f"archetypes; missing={missing!r}, unexpected={unexpected!r}"
+        )
+
+    bindings = [
+        bind_asset(
+            con,
+            catalog,
+            inventory,
+            by_archetype[archetype_id]["model"],
+            by_archetype[archetype_id].get("placement"),
+        )
+        for archetype_id in CITY_ESSENTIAL_ARCHETYPE_IDS
+    ]
+    return {
+        "format": CITY_ESSENTIALS_FORMAT,
+        "contract_id": CONTRACT_ID,
+        "assets": bindings,
+        "summary": {
+            "total": len(bindings),
+            "placed": sum(binding["render_mode"] == "placed" for binding in bindings),
+            "catalog_previews": sum(
+                binding["render_mode"] == "catalog_preview" for binding in bindings
+            ),
+        },
+    }
+
+
 def bind_from_files(
     catalog_path: Path,
     inventory_path: Path,
@@ -381,5 +469,22 @@ def bind_from_files(
             request.get("model", {}),
             request.get("placement"),
         )
+    finally:
+        con.close()
+
+
+def bind_city_essentials_from_files(
+    catalog_path: Path,
+    inventory_path: Path,
+    request_path: Path,
+    db_path: Path,
+) -> dict[str, Any]:
+    """Load and bind the versioned Gate 6 city-essential request pack."""
+    request = _read_json(request_path)
+    catalog = load_catalog(catalog_path)
+    inventory = load_inventory(inventory_path)
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        return bind_city_essentials(con, catalog, inventory, request)
     finally:
         con.close()

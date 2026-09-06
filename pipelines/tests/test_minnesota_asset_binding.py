@@ -10,6 +10,8 @@ from shapely.geometry import Polygon
 from pipelines.minnesota_asset_binding import (
     AssetBindingError,
     bind_asset,
+    bind_city_essentials,
+    bind_city_essentials_from_files,
     bind_from_files,
 )
 from pipelines.minnesota_schema import ensure_minnesota_schema
@@ -18,6 +20,9 @@ ROOT = Path(__file__).resolve().parents[2]
 
 CATALOG_PATH = ROOT / "data/3d/asset-archetypes-v1.json"
 INVENTORY_PATH = ROOT / "data/sources/minnesota-accepted-artifact-inventory.json"
+CITY_ESSENTIALS_REQUEST_PATH = (
+    ROOT / "data/3d/requests/minnesota-city-essentials-v1.json"
+)
 
 ACCEPTED_ARTIFACT = "mn:scene:coverage:v1"
 ACCEPTED_SCENE = "mn:scene:coverage:v1:facility-1"
@@ -31,6 +36,10 @@ def _catalog() -> dict:
 
 def _inventory() -> dict:
     return json.loads(INVENTORY_PATH.read_text())
+
+
+def _city_essentials_request() -> dict:
+    return json.loads(CITY_ESSENTIALS_REQUEST_PATH.read_text())
 
 
 def _model(archetype_id: str = "transmission_line_segment") -> dict:
@@ -414,3 +423,50 @@ def test_bind_from_files_previews_when_storage_has_no_manifest(tmp_path):
 
     assert binding["render_mode"] == "catalog_preview"
     assert "no mn_artifact_manifests row" in binding["disclosure"]
+
+
+# --- Gate 6 city-essential pack ------------------------------------------------
+
+
+def test_city_essentials_request_semantically_binds_all_seven_as_safe_previews(tmp_path):
+    """The committed Gate 6 request is complete but invents no Minnesota place."""
+    binding = bind_city_essentials(_db(tmp_path), _catalog(), _inventory(), _city_essentials_request())
+
+    assert binding["summary"] == {"total": 7, "placed": 0, "catalog_previews": 7}
+    assert [asset["archetype_id"] for asset in binding["assets"]] == [
+        "data_center_campus",
+        "residential_neighborhood",
+        "commercial_buildings",
+        "factory_industrial_facility",
+        "natural_gas_plant",
+        "wind_turbine",
+        "solar_array",
+    ]
+    assert {asset["semantic_type"] for asset in binding["assets"]} == {
+        "load",
+        "generation",
+    }
+    assert all(asset["render_mode"] == "catalog_preview" for asset in binding["assets"])
+    assert all("coordinates" not in asset for asset in binding["assets"])
+
+
+def test_city_essentials_request_rejects_a_partial_or_substituted_pack(tmp_path):
+    request = _city_essentials_request()
+    request["assets"] = request["assets"][:-1]
+
+    with pytest.raises(AssetBindingError, match="exactly the seven Gate 6 archetypes"):
+        bind_city_essentials(_db(tmp_path), _catalog(), _inventory(), request)
+
+
+def test_city_essentials_file_entry_point_uses_the_committed_request(tmp_path):
+    db_path = tmp_path / "mn.duckdb"
+    con = duckdb.connect(str(db_path))
+    ensure_minnesota_schema(con)
+    con.close()
+
+    binding = bind_city_essentials_from_files(
+        CATALOG_PATH, INVENTORY_PATH, CITY_ESSENTIALS_REQUEST_PATH, db_path
+    )
+
+    assert binding["summary"]["total"] == 7
+    assert binding["summary"]["catalog_previews"] == 7
