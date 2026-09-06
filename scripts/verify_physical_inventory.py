@@ -5,6 +5,7 @@ immutable source-artifact -> normalized inventory boundary from contract 11.
 The receipt records every later end-to-end stage as ``NOT VERIFIED`` until the
 owning API and renderer work supplies executable evidence.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -50,10 +51,14 @@ def _state_scope_matches(value: str, state: str) -> bool:
     """Allow the canonical US-prefixed geography while retaining the state key."""
     candidate = value.lower()
     aliases = {state, f"us-{state}"}
-    return any(candidate == alias or candidate.startswith(f"{alias}:") for alias in aliases)
+    return any(
+        candidate == alias or candidate.startswith(f"{alias}:") for alias in aliases
+    )
 
 
-def _coverage_by_class(artifact: dict[str, Any], state: str) -> dict[str, list[dict[str, Any]]]:
+def _coverage_by_class(
+    artifact: dict[str, Any], state: str
+) -> dict[str, list[dict[str, Any]]]:
     rows: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in artifact["coverage"]:
         if _state_scope_matches(row["scope_id"], state):
@@ -72,7 +77,9 @@ def _is_authoritative_state_denominator(row: dict[str, Any], state: str) -> bool
     )
 
 
-def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str | None = None) -> dict[str, Any]:
+def build_receipt(
+    artifact: dict[str, Any], *, state: str, expected_version: str | None = None
+) -> dict[str, Any]:
     """Verify contract-level parity and return an explicitly offline receipt.
 
     A class can be reported as offline-complete only when an authoritative,
@@ -86,8 +93,13 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
         raise AcceptanceError(f"invalid physical inventory artifact: {exc}") from exc
     geography = artifact["geography_id"].lower()
     if not _state_scope_matches(geography, state):
-        raise AcceptanceError(f"artifact geography {artifact['geography_id']!r} does not match {state!r}")
-    if expected_version is not None and artifact["artifact_version"] != expected_version:
+        raise AcceptanceError(
+            f"artifact geography {artifact['geography_id']!r} does not match {state!r}"
+        )
+    if (
+        expected_version is not None
+        and artifact["artifact_version"] != expected_version
+    ):
         raise AcceptanceError(
             f"artifact version {artifact['artifact_version']!r} does not match expected {expected_version!r}"
         )
@@ -109,15 +121,32 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
     for asset in artifact["assets"]:
         asset_id = asset["asset_id"]
         if asset["geometry_status"] == "unavailable":
-            if any(asset[key] is not None for key in ("geometry_crs", "geometry_precision_m", "geometry_accuracy_basis", "geometry_derivation_method")):
-                errors.append(f"{asset_id}: unavailable geometry must not carry fabricated CRS, precision, or accuracy metadata")
-        elif asset["geometry_status"] == "derived" and "source" not in asset["geometry_derivation_method"].casefold():
-            errors.append(f"{asset_id}: derived geometry accuracy basis must name its source provenance")
+            if any(
+                asset[key] is not None
+                for key in (
+                    "geometry_crs",
+                    "geometry_precision_m",
+                    "geometry_accuracy_basis",
+                    "geometry_derivation_method",
+                )
+            ):
+                errors.append(
+                    f"{asset_id}: unavailable geometry must not carry fabricated CRS, precision, or accuracy metadata"
+                )
+        elif (
+            asset["geometry_status"] == "derived"
+            and "source" not in asset["geometry_derivation_method"].casefold()
+        ):
+            errors.append(
+                f"{asset_id}: derived geometry accuracy basis must name its source provenance"
+            )
         if asset["geometry_status"] != "unavailable":
             try:
                 CRS.from_user_input(asset["geometry_crs"])
             except CRSError:
-                errors.append(f"{asset_id}: geometry CRS {asset['geometry_crs']!r} is not resolvable by PROJ")
+                errors.append(
+                    f"{asset_id}: geometry CRS {asset['geometry_crs']!r} is not resolvable by PROJ"
+                )
     for asset_class in sorted(coverage):
         # Contract forbids duplicate class/scope rows, but retain this guard if
         # the contract becomes additive in a future version.
@@ -137,11 +166,19 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
             errors.append(
                 f"{asset_class}: complete is forbidden without authoritative_state_class:{state} and statewide:{state}"
             )
-        if authoritative and row["observed_count"] + (row["unavailable_count"] or 0) != row["denominator_count"]:
-            errors.append(f"{asset_class}: authoritative denominator must exactly equal observed plus unavailable")
+        if (
+            authoritative
+            and row["observed_count"] + (row["unavailable_count"] or 0)
+            != row["denominator_count"]
+        ):
+            errors.append(
+                f"{asset_class}: authoritative denominator must exactly equal observed plus unavailable"
+            )
         geometry_ready = actual == sourced_geometry[asset_class]
         if claimed_complete and not geometry_ready:
-            errors.append(f"{asset_class}: complete is forbidden while source geometry is absent or non-native")
+            errors.append(
+                f"{asset_class}: complete is forbidden while source geometry is absent or non-native"
+            )
         classes.append(
             {
                 "asset_class": asset_class,
@@ -150,8 +187,12 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
                 "unavailable_geometry_count": unavailable_geometry[asset_class],
                 "coverage_status": row["status"],
                 "source_returned_count": row["observed_count"],
-                "authoritative_state_class_denominator": row["denominator_count"] if authoritative else None,
-                "denominator_evidence": "authoritative_state_class" if authoritative else "source_local_or_unknown",
+                "authoritative_state_class_denominator": row["denominator_count"]
+                if authoritative
+                else None,
+                "denominator_evidence": "authoritative_state_class"
+                if authoritative
+                else "source_local_or_unknown",
                 "source_scope": row["source_scope"],
                 "unavailable_count": row["unavailable_count"],
                 "unknown_or_unreported_count": row["unknown_count"],
@@ -176,7 +217,16 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
             "inventory_mode": artifact["inventory_mode"],
             "electrical_model_mode": artifact["electrical_model_mode"],
             "sources": [
-                {key: source[key] for key in ("source_id", "authority", "source_ref", "source_version", "content_sha256")}
+                {
+                    key: source[key]
+                    for key in (
+                        "source_id",
+                        "authority",
+                        "source_ref",
+                        "source_version",
+                        "content_sha256",
+                    )
+                }
                 for source in artifact["sources"]
             ],
         },
@@ -197,10 +247,18 @@ def build_receipt(artifact: dict[str, Any], *, state: str, expected_version: str
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--artifact", type=Path, required=True, help="canonical physical-inventory JSON")
-    parser.add_argument("--state", required=True, help="artifact geography id, for example tx or mn")
-    parser.add_argument("--expected-version", help="reject an unexpected semantic artifact version")
-    parser.add_argument("--receipt", type=Path, required=True, help="output JSON receipt")
+    parser.add_argument(
+        "--artifact", type=Path, required=True, help="canonical physical-inventory JSON"
+    )
+    parser.add_argument(
+        "--state", required=True, help="artifact geography id, for example tx or mn"
+    )
+    parser.add_argument(
+        "--expected-version", help="reject an unexpected semantic artifact version"
+    )
+    parser.add_argument(
+        "--receipt", type=Path, required=True, help="output JSON receipt"
+    )
     args = parser.parse_args()
     try:
         if args.artifact.suffix == ".gz":
@@ -208,10 +266,14 @@ def main() -> int:
                 artifact = json.load(handle)
         else:
             artifact = json.loads(args.artifact.read_text(encoding="utf-8"))
-        receipt = build_receipt(artifact, state=args.state, expected_version=args.expected_version)
+        receipt = build_receipt(
+            artifact, state=args.state, expected_version=args.expected_version
+        )
     except (OSError, json.JSONDecodeError, AcceptanceError) as exc:
         parser.error(str(exc))
-    args.receipt.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    args.receipt.write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return 0 if receipt["offline_result"] == "VERIFIED" else 1
 
 
