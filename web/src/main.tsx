@@ -723,6 +723,23 @@ export function App() {
     setSceneMode("inventory");
   }, [updateSceneContext]);
 
+  const selectPhysicalInventoryAsset = useCallback((asset: SpatialItem) => {
+    // This is an exact physical-inventory identity from the map adapter. It is
+    // intentionally separate from `selected_element_id`, whose only valid
+    // producer is the synthetic Texas model scene.
+    setGridSelected(asset);
+    setLiveCascade(null);
+    setSelectedModelElementId(undefined);
+    setSceneMode("inventory");
+    updateSceneContext({
+      ...EMPTY_SCENE_CONTEXT,
+      region: controlRoomRegion,
+      county_fips: controlRoomRegion === "texas" ? "48201" : "27053",
+      view_mode: "physical_inventory",
+      selected_physical_asset_id: asset.asset_id,
+    });
+  }, [controlRoomRegion, updateSceneContext]);
+
   const primaryControlRoomProps = createPrimaryDemoRuntime({
     regions: [
       {
@@ -861,7 +878,7 @@ export function App() {
         className="primary-demo__continental-map"
         selectedRegion={controlRoomRegion}
         onRegionSelect={onPrimaryRegionChange}
-        onAssetSelect={setGridSelected}
+        onAssetSelect={selectPhysicalInventoryAsset}
       />}
       inspectorSlot={<><Inspector asset={inspectorAsset} className="asset-inspector" title="Evidence availability" /><HistoricalForecastPanel forecast={historicalForecast} countyFipses={selectedCountyFipses} selectedCountyFips={forecastCountyFips} onCountyChange={setForecastCountyFips} /></>}
       chatSlot={<ChatDockView
@@ -873,7 +890,9 @@ export function App() {
           contextRevision={contextRevision}
           context={sceneContext}
           attemptId={attemptId}
-          sourceLabel="Selected evidence context"
+          sourceLabel={gridSelected
+            ? `Physical inventory · ${gridSelected.asset_id} · ${gridSelected.provenance.source_id}`
+            : "Selected evidence context"}
           sourceStatus={controlRoomRegion === "texas" ? "synthetic" : "unavailable"}
           status={chatStatus}
           error={chatError}

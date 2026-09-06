@@ -26,6 +26,8 @@ export type SceneContext = {
   compare_site_id: string | null;
   /** `selected_element_id: str | None`, 1..128 chars. */
   selected_element_id: string | null;
+  /** Source-inventory identity, resolved by the server for the selected region. */
+  selected_physical_asset_id: string | null;
   /** `unit_mw: int | None`, validated to exactly 300 or 1000. */
   unit_mw: 300 | 1000 | null;
 };
@@ -68,6 +70,7 @@ export const EMPTY_SCENE_CONTEXT: SceneContext = {
   selected_site_id: null,
   compare_site_id: null,
   selected_element_id: null,
+  selected_physical_asset_id: null,
   unit_mw: null,
 };
 
@@ -81,6 +84,7 @@ export const SCENE_CONTEXT_FIELDS = [
   ["selected_site_id", "Selected site"],
   ["compare_site_id", "Compare site"],
   ["selected_element_id", "Selected element"],
+  ["selected_physical_asset_id", "Selected physical asset"],
   ["unit_mw", "Unit size (MW)"],
 ] as const;
 
@@ -136,6 +140,9 @@ export function buildAskRequest(input: {
   checkId(input.context.selected_site_id, "selected_site_id", problems);
   checkId(input.context.compare_site_id, "compare_site_id", problems);
   checkId(input.context.selected_element_id, "selected_element_id", problems);
+  if (input.context.selected_physical_asset_id !== null && !/^[A-Za-z0-9._:-]{1,256}$/.test(input.context.selected_physical_asset_id)) {
+    problems.push("selected_physical_asset_id must be 1-256 ASCII letters, digits, dots, underscores, colons, or hyphens");
+  }
   if (input.context.county_fips !== null && !/^\d{5}$/.test(input.context.county_fips)) {
     problems.push("county_fips must be exactly five digits");
   }

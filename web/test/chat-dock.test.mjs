@@ -123,7 +123,7 @@ test("the dock's scene context is exactly the server's AskContext, field for fie
   const { fields } = await askContextFields();
   await mounted(async ({ api }) => {
     assert.deepEqual(Object.keys(api.EMPTY_SCENE_CONTEXT).sort(), [...fields].sort());
-    assert.equal(fields.length, 9);
+    assert.equal(fields.length, 10);
   });
 });
 
@@ -286,6 +286,11 @@ test("the dock refuses to build a body the server would reject", async () => {
 
     const longId = api.buildAskRequest({ ...base, question: "ok", context: { ...api.EMPTY_SCENE_CONTEXT, scenario_id: "s".repeat(129) } });
     assert.equal(longId.ok, false);
+
+    const physicalAssetId = api.buildAskRequest({ ...base, question: "ok", context: { ...api.EMPTY_SCENE_CONTEXT, selected_physical_asset_id: "line:source_17" } });
+    assert.equal(physicalAssetId.ok, true);
+    const invalidPhysicalAssetId = api.buildAskRequest({ ...base, question: "ok", context: { ...api.EMPTY_SCENE_CONTEXT, selected_physical_asset_id: "physical asset" } });
+    assert.equal(invalidPhysicalAssetId.ok, false);
 
     assert.equal(api.buildAskRequest({ ...base, question: "ok", context: { ...api.EMPTY_SCENE_CONTEXT, hour: 168 } }).ok, false);
     assert.equal(api.buildAskRequest({ ...base, question: "ok", context: { ...api.EMPTY_SCENE_CONTEXT, unit_mw: 500 } }).ok, false);
