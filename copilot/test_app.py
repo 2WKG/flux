@@ -119,6 +119,14 @@ def test_settings_accept_ordinary_local_database_paths(configured_path: str) -> 
     )
 
 
+def test_settings_accept_a_windows_absolute_database_path() -> None:
+    configured_path = r"C:\\flux\\data\\grid.duckdb"
+
+    assert Settings(_env_file=None, duckdb_path=configured_path).duckdb_path == Path(
+        configured_path
+    )
+
+
 def test_settings_normalise_surrounding_whitespace_in_the_database_path() -> None:
     settings = Settings(_env_file=None, duckdb_path="  data/duck/grid.duckdb  ")
 

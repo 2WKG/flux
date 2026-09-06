@@ -55,7 +55,13 @@ class Settings(BaseSettings):
         # normalises `motherduck://x` to `motherduck:/x`, so the check is on the
         # segment rather than on the `://` spelling.  Opening any of them would
         # take this read-only local service off the filesystem and onto a network.
-        if ":" in value_text.split("/", 1)[0]:
+        is_windows_absolute_path = (
+            len(value_text) >= 3
+            and value_text[0].isalpha()
+            and value_text[1] == ":"
+            and value_text[2] in ("/", "\\")
+        )
+        if ":" in value_text.split("/", 1)[0] and not is_windows_absolute_path:
             raise ValueError(
                 "DUCKDB_PATH must be a local file path, not a DuckDB connection "
                 "target (md:, ducklake:, :memory:, or scheme://)"
