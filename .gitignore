@@ -19,3 +19,11 @@ graphify-out/graph.html
 data/eda-report.json
 data/eda-summary.md
 data/demo/*.local.json
+
+# 3D model binaries are never committed: docs/design/3d-asset-contract.md says
+# the asset pipeline (2WKG-374 / 2WKG-320) produces and stores them, not Git.
+# scripts/validate_asset_archetypes.py reports any that appear anyway.
+data/3d/**/*.glb
+data/3d/**/*.gltf
+web/public/**/*.glb
+web/public/**/*.gltf
