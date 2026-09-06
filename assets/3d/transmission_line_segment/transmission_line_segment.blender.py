@@ -27,7 +27,9 @@ def _output_dir() -> Path:
     return Path(args[0]).resolve()
 
 
-def _cube(name: str, location: tuple[float, float, float], scale: tuple[float, float, float]):
+def _cube(
+    name: str, location: tuple[float, float, float], scale: tuple[float, float, float]
+):
     bpy.ops.mesh.primitive_cube_add(location=location)
     object_ = bpy.context.object
     object_.name = name

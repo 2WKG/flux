@@ -38,13 +38,22 @@ def validate_kit() -> list[str]:
     if lods != [18000, 7000, 2000]:
         errors.append("LOD triangle budgets must match the shared archetype")
     if metadata.get("material_slots") != [
-        {"name": "MAT_STATUS", "default": "neutral", "binding": "placement.status_label"}
+        {
+            "name": "MAT_STATUS",
+            "default": "neutral",
+            "binding": "placement.status_label",
+        }
     ]:
         errors.append("a neutral MAT_STATUS slot is required")
     if not metadata.get("license") or not metadata.get("source_of_shape"):
         errors.append("redistribution license and source_of_shape are required")
     source = SOURCE_PATH.read_text(encoding="utf-8")
-    for required in ("MAT_STATUS", "CONN_HV_IN_0", "CONN_HV_OUT_0", "export_format=\"GLB\""):
+    for required in (
+        "MAT_STATUS",
+        "CONN_HV_IN_0",
+        "CONN_HV_OUT_0",
+        'export_format="GLB"',
+    ):
         if required not in source:
             errors.append(f"Blender source must create {required}")
     return errors
