@@ -266,7 +266,16 @@ def test_materialize_names_a_receipt_that_does_not_exist(tmp_path: Path) -> None
     options = _runtime_inputs(tmp_path)
     options["hrrr_receipt"] = tmp_path / "sources" / "absent-receipt.json"
 
-    with pytest.raises(MaterializationError, match="absent-receipt.json"):
+    # The message has to distinguish "no such file" from "unreadable JSON": both
+    # states name the path, so matching the path alone would assert nothing.
+    with pytest.raises(
+        MaterializationError,
+        match=r"required receipt does not exist: .*absent-receipt\.json",
+    ):
+        materialize(**options)
+
+    options["hrrr_receipt"].write_text("{ not json")
+    with pytest.raises(MaterializationError, match="invalid JSON receipt"):
         materialize(**options)
 
 
