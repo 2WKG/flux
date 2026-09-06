@@ -4,7 +4,9 @@ import { FailureState } from "../failure-states/FailureState";
 import type { RunIdentity } from "../ask/run-state/types";
 import {
   MINNESOTA_AGGREGATE_ARTIFACT_ID,
+  MINNESOTA_AGGREGATE_MANIFEST_SHA256,
   MINNESOTA_AGGREGATE_SCENE_ID,
+  MINNESOTA_BASELINE_CONTEXT_ID,
   MINNESOTA_BASELINE_RUN_CONTEXT,
   createMinnesotaRunIdentity,
   minnesotaBookmarkUrl,
@@ -100,6 +102,8 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <p><strong>Baseline:</strong> aggregate coverage</p>
         <p><strong>Artifact:</strong> <code>{MINNESOTA_AGGREGATE_ARTIFACT_ID}</code></p>
         <p><strong>Scene:</strong> <code>{MINNESOTA_AGGREGATE_SCENE_ID}</code></p>
+        <p><strong>Server context:</strong> <code>{MINNESOTA_BASELINE_CONTEXT_ID}</code></p>
+        <p><strong>Manifest digest:</strong> <code>{MINNESOTA_AGGREGATE_MANIFEST_SHA256}</code></p>
         <p><strong>Run:</strong> <code>{run.identity.contextRevision}</code></p>
         <button type="button" onClick={reset}>Reset to baseline</button>
         <button type="button" onClick={copyBookmark}>Copy shareable baseline link</button>
