@@ -219,6 +219,33 @@ def test_bad_gate0_hash_creates_no_output(tmp_path: Path):
     assert not output.exists()
 
 
+@pytest.mark.parametrize(
+    "mutation, error",
+    [
+        (
+            lambda artifacts: artifacts.__setitem__(3, dict(artifacts[0])),
+            "inventory repeats approved artifact",
+        ),
+        (
+            lambda artifacts: artifacts.__setitem__(0, "not an artifact object"),
+            "malformed accepted artifact entry",
+        ),
+    ],
+)
+def test_gate0_inventory_rejects_duplicate_or_malformed_entries(
+    tmp_path: Path, mutation, error: str
+):
+    inventory = json.loads(
+        (ROOT / "data/sources/minnesota-accepted-artifact-inventory.json").read_text()
+    )
+    mutation(inventory["accepted_product_artifacts"])
+    inventory_path = tmp_path / "inventory.json"
+    inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+
+    with pytest.raises(AggregateRuntimeError, match=error):
+        verify_gate0_inputs(repository_root=ROOT, inventory_path=inventory_path)
+
+
 def test_aggregate_input_metric_stays_miso_context_without_allocation():
     inputs = load_aggregate_inputs(repository_root=ROOT)
 

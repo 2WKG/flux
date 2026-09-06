@@ -150,11 +150,26 @@ def verify_gate0_inputs(
     entries = inventory.get("accepted_product_artifacts")
     if not isinstance(entries, list):
         raise AggregateRuntimeError("inventory has no accepted_product_artifacts list")
-    by_id = {
-        entry.get("artifact_id"): entry
-        for entry in entries
-        if isinstance(entry, dict) and isinstance(entry.get("artifact_id"), str)
-    }
+    if len(entries) != len(EXPECTED_ARTIFACT_IDS):
+        raise AggregateRuntimeError(
+            "inventory accepted artifacts must be exactly the four Gate 0 aggregate inputs"
+        )
+    by_id: dict[str, dict[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise AggregateRuntimeError(
+                "inventory has a malformed accepted artifact entry"
+            )
+        artifact_id = entry.get("artifact_id")
+        if artifact_id not in EXPECTED_ARTIFACT_IDS:
+            raise AggregateRuntimeError(
+                "inventory accepted artifacts must be exactly the four Gate 0 aggregate inputs"
+            )
+        if artifact_id in by_id:
+            raise AggregateRuntimeError(
+                f"inventory repeats approved artifact {artifact_id!r}"
+            )
+        by_id[artifact_id] = entry
     if set(by_id) != set(EXPECTED_ARTIFACT_IDS):
         raise AggregateRuntimeError(
             "inventory accepted artifacts must be exactly the four Gate 0 aggregate inputs"
