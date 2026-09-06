@@ -10,14 +10,12 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import hashlib
 import json
 import sys
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
-
-from pyproj import CRS
-from pyproj.exceptions import CRSError
 
 # ``python scripts/verify_physical_inventory.py`` is a documented invocation;
 # add the project root before importing the shared pipeline contract.
@@ -77,8 +75,39 @@ def _is_authoritative_state_denominator(row: dict[str, Any], state: str) -> bool
     )
 
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def published_binding(published_artifact: Path) -> dict[str, str]:
+    """Bind a receipt to the file actually published, by path and by digest.
+
+    The path is recorded repository-relative so a receipt stays portable; a file
+    outside the repository is refused rather than recorded as an absolute path.
+    """
+    resolved = published_artifact.resolve()
+    try:
+        relative = resolved.relative_to(REPO_ROOT)
+    except ValueError as exc:
+        raise AcceptanceError(
+            f"published artifact {published_artifact} is outside the repository; "
+            "publish it under the repository before writing a receipt"
+        ) from exc
+    digest = hashlib.sha256()
+    with resolved.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(chunk)
+    return {
+        "published_path": relative.as_posix(),
+        "published_compressed_sha256": digest.hexdigest(),
+    }
+
+
 def build_receipt(
-    artifact: dict[str, Any], *, state: str, expected_version: str | None = None
+    artifact: dict[str, Any],
+    *,
+    state: str,
+    expected_version: str | None = None,
+    published_artifact: Path | None = None,
 ) -> dict[str, Any]:
     """Verify contract-level parity and return an explicitly offline receipt.
 
@@ -118,35 +147,18 @@ def build_receipt(
     coverage = _coverage_by_class(artifact, state)
     classes: list[dict[str, Any]] = []
     errors: list[str] = []
+    # Contract 11 already rejects fabricated metadata on unavailable geometry and
+    # any CRS PROJ cannot resolve (validate_artifact above), so this verifier does
+    # not restate those checks; it only adds the constraint the contract does not
+    # make: a derived geometry must name the source it was derived from.
     for asset in artifact["assets"]:
-        asset_id = asset["asset_id"]
-        if asset["geometry_status"] == "unavailable":
-            if any(
-                asset[key] is not None
-                for key in (
-                    "geometry_crs",
-                    "geometry_precision_m",
-                    "geometry_accuracy_basis",
-                    "geometry_derivation_method",
-                )
-            ):
-                errors.append(
-                    f"{asset_id}: unavailable geometry must not carry fabricated CRS, precision, or accuracy metadata"
-                )
-        elif (
+        if (
             asset["geometry_status"] == "derived"
             and "source" not in asset["geometry_derivation_method"].casefold()
         ):
             errors.append(
-                f"{asset_id}: derived geometry accuracy basis must name its source provenance"
+                f"{asset['asset_id']}: derived geometry accuracy basis must name its source provenance"
             )
-        if asset["geometry_status"] != "unavailable":
-            try:
-                CRS.from_user_input(asset["geometry_crs"])
-            except CRSError:
-                errors.append(
-                    f"{asset_id}: geometry CRS {asset['geometry_crs']!r} is not resolvable by PROJ"
-                )
     for asset_class in sorted(coverage):
         # Contract forbids duplicate class/scope rows, but retain this guard if
         # the contract becomes additive in a future version.
@@ -205,11 +217,15 @@ def build_receipt(
 
     terminal_sources = {terminal["source_id"] for terminal in artifact["terminals"]}
     edge_sources = {edge["source_id"] for edge in artifact["connectivity_edges"]}
+    binding = (
+        {} if published_artifact is None else published_binding(published_artifact)
+    )
     return {
         "receipt_kind": "physical_inventory_offline_acceptance",
         "receipt_version": "1.0.0",
         "state": state,
         "artifact": {
+            **binding,
             "artifact_id": artifact["artifact_id"],
             "artifact_version": artifact["artifact_version"],
             "contract_version": artifact["contract_version"],
@@ -259,6 +275,14 @@ def main() -> int:
     parser.add_argument(
         "--receipt", type=Path, required=True, help="output JSON receipt"
     )
+    parser.add_argument(
+        "--published-artifact",
+        type=Path,
+        help=(
+            "the published (usually gzipped) file this receipt attests to; its "
+            "repository-relative path and SHA-256 are written into the receipt"
+        ),
+    )
     args = parser.parse_args()
     try:
         if args.artifact.suffix == ".gz":
@@ -267,7 +291,10 @@ def main() -> int:
         else:
             artifact = json.loads(args.artifact.read_text(encoding="utf-8"))
         receipt = build_receipt(
-            artifact, state=args.state, expected_version=args.expected_version
+            artifact,
+            state=args.state,
+            expected_version=args.expected_version,
+            published_artifact=args.published_artifact,
         )
     except (OSError, json.JSONDecodeError, AcceptanceError) as exc:
         parser.error(str(exc))
