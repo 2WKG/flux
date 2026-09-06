@@ -1,0 +1,92 @@
+{
+  "archetype_id": "nuclear_smr_module",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "New nuclear and SMR module",
+  "category": "generation",
+  "minnesota_issue": "2WKG-382",
+  "catalog_limit": "A generic module massing. It is not a vendor design, a licensed reactor, or a sited project, and carries no permitting status.",
+  "container": "glb",
+  "model_filename": "nuclear_smr_module.glb",
+  "preview_filename": "nuclear_smr_module.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 120,
+    "width": 100
+  },
+  "connectors": [
+    "HV_OUT"
+  ],
+  "connector_geometry": [
+    {
+      "name": "CONN_HV_OUT_0",
+      "role": "HV_OUT",
+      "position": [
+        0.0,
+        8.0,
+        -56.0
+      ]
+    }
+  ],
+  "bounds_m": {
+    "min": [
+      -48.5,
+      0.0,
+      -58.20000076293945
+    ],
+    "max": [
+      48.5,
+      52.72124099731445,
+      58.20000076293945
+    ]
+  },
+  "lod_triangle_budget": {
+    "lod0": 32000,
+    "lod1": 12000,
+    "lod2": 3400
+  },
+  "triangles_lod0": 17766,
+  "triangles_lod1": 2556,
+  "triangles_lod2": 388,
+  "lod_measurement_status": "Measured by data/3d/packs/flux-grid-v1/validation/validate_pack.py from the GLBs the Blender pipeline builds. Those GLBs are not committed and the prepared archive is not published, so these counts are not re-derivable from this repository; data/3d/packs/flux-grid-v1/manifest.json records the per-LOD sha256 each count was taken from. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural compact PWR-inspired plant: broad domed containment, connected turbine/generator hall, control/service annex, and a user-requested flared hyperboloid cooling tower adapted from this pack's originally authored coal-plant tower geometry. Architectural context from EDF Sizewell B and Rolls-Royce SMR public descriptions; no third-party mesh, vendor replica, capacity, or claim that every SMR has this dome or cooling system.",
+  "source_pack": {
+    "pack_id": "flux-grid-v1",
+    "manifest": "data/3d/packs/flux-grid-v1/manifest.json",
+    "lod_sha256": {
+      "lod0": "711162c4d7ae245ffbdab84e4d32301276e03efbafa7260bddb9e23915865f2b",
+      "lod1": "30f900085683e6d3932cfd066bce07538458e02b19b69b94e0bd66f360464d0f",
+      "lod2": "058f1d4628ec5e390549c8f4b63838326c9287b3f85e8705622a75ffa6f8a9c4"
+    }
+  },
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview \u2014 not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "nuclear_smr_module.glb",
+      "nuclear_smr_module.preview.png"
+    ],
+    "preview_renderer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "model_producer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "binary_policy": "No .glb and no .preview.png is committed by this change. Both are built by the pack's Blender pipeline, which needs Blender and is not part of this repository's toolchain; the prepared archive is unpublished (data/3d/packs/flux-grid-v1/archive.json has download_url null), so the binaries are declared, not delivered."
+  }
+}

@@ -6,7 +6,8 @@ Unsupported compressed, sparse, skinned, morphing or instanced geometry fails
 explicitly instead of pretending its bounds were checked.
 
 Pass --root as the generated pack directory containing assets/. The default
-catalog is the tracked source catalog beside this validation directory.
+catalog is the repository's single frozen data/3d/asset-archetypes-v1.json; this
+pack keeps no copy of it. Outside a checkout, pass --catalog explicitly.
 """
 
 from __future__ import annotations
@@ -24,8 +25,10 @@ import sys
 import zlib
 from pathlib import Path
 
+# The single frozen catalog, read in place. This pack carries no copy: a fork
+# would let the pack pass against a contract the repository no longer has.
 DEFAULT_CATALOG = (
-    Path(__file__).resolve().parents[1] / "source/asset-archetypes-v1.json"
+    Path(__file__).resolve().parents[5] / "data/3d/asset-archetypes-v1.json"
 )
 COMPONENTS = {
     5120: ("b", 1),
@@ -881,7 +884,7 @@ def main(argv=None):
         "--catalog",
         type=Path,
         default=DEFAULT_CATALOG,
-        help="Archetype catalog; defaults to the tracked source catalog.",
+        help="Archetype catalog; defaults to the repository's frozen catalog.",
     )
     parser.add_argument("--output", type=Path)
     parser.add_argument("--only", nargs="*", default=[])

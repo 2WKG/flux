@@ -3,11 +3,12 @@
   "contract_id": "flux:3d-asset-archetypes:v1",
   "package_name": "flux-grid-assets",
   "generated_at": "2026-09-06T06:26:30.632Z",
-  "completion": "complete",
+  "completion": "source_only_binaries_unpublished",
   "source_contract": {
     "file": "data/3d/asset-archetypes-v1.json",
-    "local_revision": "3eab80c",
-    "sha256": "f7ade755e6a61a634092a9d8437eb5976938057ad02fdd9fad056d39484f0f9c"
+    "sha256": "91f1573366b66c971dfa4ff0a255e8f392831fce3e8dd1e67195143d42b364e6",
+    "last_changed_in": "aa0a2b383a2fea34d4b98957459e090dae630d62",
+    "note": "The sha256 is of the named repository file itself; this pack keeps no copy of the catalog. web/test/flux-grid-install.test.mjs re-hashes the file and fails if the two drift."
   },
   "transform": {
     "unit": "meter",
@@ -875,5 +876,6 @@
     "triangles_lod0": 253521,
     "triangles_lod1": 37330,
     "triangles_lod2": 7288
-  }
+  },
+  "completion_note": "The 18 archetypes and 54 LOD GLBs described below were built and measured, but no binary is committed here and the prepared archive is not published: archive.json carries download_url null and publication_status binary_attachment_pending. Every per-LOD sha256 in this file is a receipt for bytes this repository cannot fetch or re-derive. Treat them as provenance for a later publication step, not as a verified in-repo inventory."
 }
