@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 
 from pipelines import texas_distribution as lane
-from pipelines.physical_inventory import validate_artifact
+from pipelines.physical_inventory import PhysicalInventoryError, validate_artifact
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = (
@@ -84,7 +84,7 @@ def test_a_service_area_polygon_never_becomes_a_physical_asset() -> None:
     session = _session()
     source, capture = lane.fetch_service_area_layer(AUSTIN, session=session)
 
-    artifact = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+    artifact, _ = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
 
     assert capture["returned_features"] == 1
     assert capture["assets_created"] == 0
@@ -97,7 +97,7 @@ def test_the_artifact_validates_against_the_shared_contract() -> None:
     session = _session()
     source, _ = lane.fetch_service_area_layer(AUSTIN, session=session)
 
-    artifact = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+    artifact, _ = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
 
     assert validate_artifact(artifact) is artifact
     assert artifact["artifact_id"] == "us-tx-distribution:physical-inventory:1.0.0"
@@ -109,7 +109,7 @@ def test_every_distribution_class_is_unavailable_with_an_unknown_denominator() -
     session = _session()
     source, _ = lane.fetch_service_area_layer(AUSTIN, session=session)
 
-    coverage = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")["coverage"]
+    coverage = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")[0]["coverage"]
 
     classes = {row["asset_class"] for row in coverage}
     assert classes == {name for name, _ in lane.DISTRIBUTION_COVERAGE_CLASSES}
@@ -202,10 +202,10 @@ def test_the_receipt_reports_the_numbers_the_capture_actually_produced(
 ) -> None:
     session = _session()
     source, capture = lane.fetch_service_area_layer(AUSTIN, session=session)
-    artifact = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+    artifact, verification = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
 
     receipt = lane.build_receipt(
-        [capture], artifact, tmp_path / "out.json", 8194, "a" * 64
+        [capture], artifact, tmp_path / "out.json", 8194, "a" * 64, verification
     )
 
     assert receipt["sources"][0]["declared_count"] == 1
@@ -276,3 +276,143 @@ def test_the_ledger_records_the_rejected_signal_pole_layer_as_out_of_class() -> 
     assert (
         "support" in record["does_not_support"] and "pole" in record["does_not_support"]
     )
+
+
+RUN_RECEIPT = ROOT / "data" / "sources" / "texas-distribution-2026-09-06.json"
+
+
+def test_build_artifact_actually_calls_the_shared_contract_validator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The call site is wired, not merely re-invoked by the test itself.
+
+    Asserting ``validate_artifact(artifact) is artifact`` proves the validator
+    works; it says nothing about whether ``build_artifact`` calls it. This
+    records the call.
+    """
+    session = _session()
+    source, _ = lane.fetch_service_area_layer(AUSTIN, session=session)
+    calls: list[dict[str, Any]] = []
+
+    def recorder(artifact: dict[str, Any]) -> dict[str, Any]:
+        calls.append(artifact)
+        return artifact
+
+    monkeypatch.setattr(lane, "validate_artifact", recorder)
+    artifact, verification = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+
+    assert len(calls) == 1
+    assert calls[0] is artifact
+    assert verification == {
+        "artifact_validated_by": lane.VALIDATOR_NAME,
+        "result": "passed",
+    }
+
+
+def test_an_artifact_that_fails_the_contract_is_never_published(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A failing validation stops the run and can be recorded as ``failed``."""
+    session = _session()
+    source, capture = lane.fetch_service_area_layer(AUSTIN, session=session)
+
+    def rejecting(artifact: dict[str, Any]) -> dict[str, Any]:
+        raise PhysicalInventoryError("unsupported physical inventory contract_version")
+
+    monkeypatch.setattr(lane, "validate_artifact", rejecting)
+    with pytest.raises(lane.TexasDistributionError, match="failed the shared"):
+        lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+
+    rejected, verification = lane.validate_against_contract({"contract_version": "9"})
+    assert rejected is None
+    assert verification["result"] == "failed"
+    assert "contract_version" in verification["detail"]
+
+    # A receipt built from a failed validation says so; ``passed`` is not a
+    # literal the receipt can only ever print.
+    monkeypatch.undo()
+    artifact, _ = lane.build_artifact([source], "2026-09-06T13:44:02+00:00")
+    receipt = lane.build_receipt(
+        [capture], artifact, tmp_path / "out.json", 8194, "a" * 64, verification
+    )
+    assert receipt["verification"]["result"] == "failed"
+
+
+def test_the_committed_run_receipt_rebuilds_from_its_own_record() -> None:
+    """The checked-in receipt must reproduce, not merely be plausible.
+
+    Everything the receipt claims about the artifact — its content digest, the
+    gitignored payload's byte count and digest, its coverage rows and its
+    verification counts — is recomputed here from the receipt's own recorded
+    per-source facts plus the committed layer constants. No network is used;
+    the wire digests the sources carry are the acquisition's evidence and are
+    taken as given.
+    """
+    committed = json.loads(RUN_RECEIPT.read_text(encoding="utf-8"))
+    layers = {layer.source_id: layer for layer in lane.SERVICE_AREA_LAYERS}
+    assert [entry["source_id"] for entry in committed["sources"]] == list(layers)
+
+    sources = []
+    captures = []
+    for entry in committed["sources"]:
+        layer = layers[entry["source_id"]]
+        assert entry["layer_url"] == layer.layer_url
+        assert entry["native_crs"] == layer.native_crs
+        sources.append(
+            {
+                "source_id": layer.source_id,
+                "authority": layer.authority,
+                "source_ref": layer.layer_url,
+                "source_version": layer.source_version,
+                "retrieved_at": entry["retrieved_at"],
+                "license_or_terms": layer.license_or_terms,
+                "content_sha256": entry["content_sha256"],
+            }
+        )
+        captures.append(
+            {
+                "source_id": entry["source_id"],
+                "layer_url": entry["layer_url"],
+                "retrieved_at": entry["retrieved_at"],
+                "declared_count": entry["declared_count"],
+                "returned_features": entry["returned_features"],
+                "native_crs": entry["native_crs"],
+                "response_bytes": entry["response_bytes"],
+                "content_sha256": entry["content_sha256"],
+                "assets_created": entry["assets_created"],
+            }
+        )
+
+    artifact, verification = lane.build_artifact(sources, committed["retrieved_at"])
+    payload = json.dumps(artifact, indent=2) + "\n"
+    published = next(iter(committed["files"].values()))
+    rebuilt = lane.build_receipt(
+        captures,
+        artifact,
+        Path(published["path"]),
+        len(payload.encode()),
+        hashlib.sha256(payload.encode()).hexdigest(),
+        verification,
+    )
+    assert rebuilt == committed
+
+
+def test_the_ledger_forbids_deriving_distribution_from_transmission_or_hifld() -> None:
+    """The temptation this state has data for must be named, not just avoided.
+
+    ``data/sources/receipts/`` already carries ``texas-hifld-transmission-*``
+    captures. The code does not derive distribution from them; the ledger has
+    to say so, because the ledger is what the next acquisition reads.
+    """
+    forbidden = " ".join(
+        _ledger()["implementation_handoff"]["forbidden_derivations"]
+    ).lower()
+    assert "transmission" in forbidden
+    assert "hifld" in forbidden
+    assert "substation" in forbidden
+    named = next(
+        line
+        for line in _ledger()["implementation_handoff"]["forbidden_derivations"]
+        if "HIFLD" in line
+    )
+    assert "transmission" in named.lower()
