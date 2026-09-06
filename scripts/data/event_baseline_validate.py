@@ -238,13 +238,17 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         _require(label, field, where)
     if label["rule_version"] != LABEL_RULE_VERSION:
         raise ValidationError(f"{where}.rule_version: expected {LABEL_RULE_VERSION}")
+    status = label["status"]
+    if "aggregation" not in label and status == "computed":
+        raise ValidationError(
+            f"{where}.aggregation: computed labels must declare {LABEL_AGGREGATION}"
+        )
     aggregation = label.get("aggregation", LABEL_AGGREGATION)
     if aggregation != LABEL_AGGREGATION:
         raise ValidationError(
             f"{where}.aggregation: {LABEL_RULE_VERSION} is spec 02's y_out and takes the "
             f"max customers_out over the window's samples ({LABEL_AGGREGATION})"
         )
-    status = label["status"]
     if status not in {"computed", "unavailable", "UncoveredLabel"}:
         raise ValidationError(f"{where}.status: invalid label status")
     denom = label["customer_denominator"]
