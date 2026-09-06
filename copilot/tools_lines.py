@@ -37,7 +37,7 @@ class TopLinesReader:
             with duckdb.connect(str(self._database_path), read_only=True) as con:
                 partitions = con.execute(
                     """SELECT DISTINCT s.scenario_id, s.ranking_version, s.computed_at,
-                              s.source_name, s.source_ref
+                              s.source_name, s.source_ref, s.source_kind
                        FROM line_upgrade_scores AS s
                        JOIN line_upgrade_detail AS d USING (line_id, scenario_id)
                        WHERE d.region = ? AND s.mw_per_musd IS NOT NULL
@@ -48,7 +48,7 @@ class TopLinesReader:
                     return unavailable_output("artifact_unavailable", "no line-ranking artifact exists for the requested region")
                 if len(partitions) != 1:
                     return unavailable_output("insufficient_evidence", "multiple line-ranking scenario artifacts match the requested region")
-                scenario_id, ranking_version, computed_at, source_name, source_ref = partitions[0]
+                scenario_id, ranking_version, computed_at, source_name, source_ref, artifact_source_kind = partitions[0]
                 where_tech = "" if tech == "any" else "AND d.best_tech = ?"
                 params: list[object] = [region, scenario_id]
                 if tech != "any":
@@ -81,9 +81,9 @@ class TopLinesReader:
                 return unavailable_output("insufficient_evidence", "line-ranking artifact has unsupported source metadata")
             kind = "simulated" if run_id else source_class[method]
             lines.append(LineSummary(line_id=str(line_id), scenario_id=scenario_id, artifact_id=artifact_id, source_class=kind, intervention_type=best, status="available", from_bus=str(from_bus), to_bus=str(to_bus), kv=kv, congestion_usd_yr=congestion or 0.0, uplift_mw=uplift, cost_usd=cost, mw_per_musd=score, ferc_screen_pass=bool(ferc), spark_eligible=bool(spark)))
-        if source_name != "fixture":
+        if artifact_source_kind is None:
             return unavailable_output("insufficient_evidence", "line-ranking artifact has unsupported provenance")
-        provenance = [ArtifactRef(artifact_id=artifact_id, artifact_version=str(computed_at), source_kind="fixture", source_ref=str(source_ref or source_name))]
+        provenance = [ArtifactRef(artifact_id=artifact_id, artifact_version=str(computed_at), source_kind=artifact_source_kind, source_ref=str(source_ref or source_name))]
         return LinesData(status="available", provenance=provenance, region=region, scenario_id=scenario_id, artifact_id=artifact_id, tech=tech, lines=lines)
 
 
