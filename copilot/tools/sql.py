@@ -234,14 +234,22 @@ def _looks_like_cte(tokens: list[_Token], index: int) -> bool:
 
 
 def _validate_functions(tokens: list[_Token]) -> None:
-    for index, token in enumerate(tokens[:-1]):
-        if token.kind != "identifier" or tokens[index + 1].value != "(":
-            continue
-        name = token.value
+    for name in _function_calls(tokens):
         if name in _FORBIDDEN_FUNCTIONS or name.startswith(
             _FORBIDDEN_FUNCTION_PREFIXES
         ):
             raise SqlRejected(f"function {name!r} is not permitted")
+
+
+def _function_calls(tokens: list[_Token]) -> set[str]:
+    """Return unquoted call names for the post-parse macro policy."""
+
+    return {
+        token.value
+        for index, token in enumerate(tokens[:-1])
+        if token.kind in {"identifier", "quoted_identifier"}
+        and tokens[index + 1].value == "("
+    }
 
 
 def _parse_source(
@@ -373,7 +381,9 @@ def _validate_query_tokens(
         index += 1
 
 
-def _validate_statement(query: str, allowed_views: set[str]) -> tuple[str, set[str]]:
+def _validate_statement(
+    query: str, allowed_views: set[str]
+) -> tuple[str, set[str], set[str]]:
     tokens = _tokens(query)
     semicolons = [index for index, token in enumerate(tokens) if token.value == ";"]
     if len(semicolons) > 1 or (semicolons and semicolons[0] != len(tokens) - 1):
@@ -409,7 +419,11 @@ def _validate_statement(query: str, allowed_views: set[str]) -> tuple[str, set[s
     _validate_query_tokens(tokens, set(), allowed_views, relations)
     if not relations:
         raise SqlRejected("query must read at least one approved Minnesota view")
-    return _remove_trailing_terminator(statements[0].query), relations
+    return (
+        _remove_trailing_terminator(statements[0].query),
+        relations,
+        _function_calls(tokens),
+    )
 
 
 def _remove_trailing_terminator(query: str) -> str:
@@ -511,6 +525,17 @@ class MinnesotaSqlExecutor:
         ).fetchall()
         return {str(row[0]).lower() for row in rows}
 
+    def _registered_macro_names(
+        self, connection: duckdb.DuckDBPyConnection
+    ) -> set[str]:
+        """Read the trusted catalog before user SQL can expand a stored macro."""
+
+        rows = connection.execute(
+            "SELECT function_name FROM duckdb_functions() WHERE function_type IN (?, ?)",
+            ["macro", "table_macro"],
+        ).fetchall()
+        return {str(row[0]).lower() for row in rows}
+
     def _run(
         self, connection: duckdb.DuckDBPyConnection, sql: str, relations: set[str]
     ) -> tuple[list[str], list[list[JsonValue]], bool]:
@@ -578,17 +603,40 @@ class MinnesotaSqlExecutor:
                 "no approved Minnesota SQL views are provisioned",
             )
         try:
-            sql, relations = _validate_statement(query, set(self._views))
+            sql, relations, function_calls = _validate_statement(
+                query, set(self._views)
+            )
         except SqlRejected as error:
             return self._unavailable("unsupported_request", str(error))
         try:
             # A connection per request keeps cancellation isolated.  Opening
             # read-only never creates a missing database (checked above).
-            connection = duckdb.connect(str(self._database_path), read_only=True)
+            connection = duckdb.connect(
+                str(self._database_path),
+                read_only=True,
+                config={
+                    "autoinstall_known_extensions": "false",
+                    "autoload_known_extensions": "false",
+                },
+            )
         except Exception:  # noqa: BLE001 - driver errors must not expose local paths.
             return self._unavailable(
                 "artifact_unavailable",
                 "Minnesota SQL artifact cannot be opened read-only",
+            )
+        try:
+            macro_calls = function_calls & self._registered_macro_names(connection)
+        except Exception:  # noqa: BLE001 - a partial catalog cannot authorize execution.
+            connection.close()
+            return self._unavailable(
+                "artifact_unavailable",
+                "Minnesota SQL artifact catalog is not available locally",
+            )
+        if macro_calls:
+            connection.close()
+            return self._unavailable(
+                "unsupported_request",
+                "stored SQL macros are not permitted",
             )
         task = asyncio.create_task(
             asyncio.to_thread(self._run, connection, sql, relations)

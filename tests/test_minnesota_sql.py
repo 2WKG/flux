@@ -143,6 +143,40 @@ def test_empty_accepted_view_is_unavailable(tmp_path: Path) -> None:
     assert result.unavailable.code == "artifact_unavailable"
 
 
+def test_rejects_persisted_scalar_macro_before_expansion(db_path: Path) -> None:
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute("CREATE MACRO mn_leak() AS current_setting('home_directory')")
+    finally:
+        con.close()
+
+    result = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()]), "SELECT mn_leak() FROM mn_summary"
+    )
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.code == "unsupported_request"
+
+
+def test_rejects_quoted_persisted_scalar_macro_before_expansion(
+    db_path: Path,
+) -> None:
+    con = duckdb.connect(str(db_path))
+    try:
+        con.execute("CREATE MACRO \"mn leak\"() AS current_setting('home_directory')")
+    finally:
+        con.close()
+
+    result = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()]), 'SELECT "mn leak"() FROM mn_summary'
+    )
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.code == "unsupported_request"
+
+
 def test_rejected_copy_cannot_create_an_export_target(
     db_path: Path, tmp_path: Path
 ) -> None:
@@ -228,6 +262,8 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
             self.closed = False
 
         def execute(self, statement: str, _parameters: object = None) -> Cursor:
+            if "duckdb_functions" in statement:
+                return Cursor([])
             if "duckdb_views" in statement:
                 return Cursor([("mn_summary",)])
             if statement.startswith("SELECT 1 FROM"):
@@ -242,9 +278,13 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
             self.closed = True
 
     connection = BlockingConnection()
-    monkeypatch.setattr(
-        "copilot.tools.sql.duckdb.connect", lambda *_args, **_kwargs: connection
-    )
+    connect_kwargs: dict[str, object] = {}
+
+    def connect(*_args: object, **kwargs: object) -> BlockingConnection:
+        connect_kwargs.update(kwargs)
+        return connection
+
+    monkeypatch.setattr("copilot.tools.sql.duckdb.connect", connect)
 
     result = _execute(
         MinnesotaSqlExecutor(db_path, [_view()], timeout_seconds=0.01),
@@ -256,3 +296,8 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
     assert "time limit" in result.unavailable.reason
     assert connection.interrupted.is_set()
     assert connection.closed is True
+    assert connect_kwargs["read_only"] is True
+    assert connect_kwargs["config"] == {
+        "autoinstall_known_extensions": "false",
+        "autoload_known_extensions": "false",
+    }
