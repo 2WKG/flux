@@ -46,10 +46,10 @@ ARCHETYPE_FIELDS = {
 LOD1_MAX_SHARE = 0.40
 LOD2_MAX_SHARE = 0.12
 
-# Where a delivered binary would land if the "binaries are not committed"
-# boundary in docs/design/3d-asset-contract.md ever eroded: beside the catalog
-# in data/, or in the web bundle's static directory. Scanned recursively so a
-# model tucked into a subdirectory is still reported.
+# Scan both the source and browser trees for diagnostics. The committed runtime
+# pack is checked separately by tests/test_asset_archetypes.py against catalog
+# identities; this report remains a working-tree inventory and intentionally
+# includes unexpected local binaries.
 MODEL_SEARCH_DIRS = ("data", "web")
 MODEL_SUFFIXES = (".glb", ".gltf")
 # Never walked: vendored, built or generated trees are not deliverables.
@@ -209,7 +209,7 @@ def build_report(catalog: dict[str, Any], root: Path = ROOT) -> dict[str, Any]:
         "validation": {"passed": not errors, "errors": errors},
         "modelFilesPresent": bool(model_files),
         "modelFiles": model_files,
-        "modelFilesNote": "modelFilesPresent is derived: data/ and web/ are walked for .glb/.gltf and every hit is listed in modelFiles. This validates the contract and catalog only; the asset pipeline (2WKG-374 Minnesota, 2WKG-320 Texas) produces and checks the binaries, which are not committed here.",
+        "modelFilesNote": "modelFilesPresent is derived: data/ and web/ are walked for .glb/.gltf and every hit is listed in modelFiles. The checked-in Flux grid runtime pack is validated separately against catalog identities; this report also exposes unexpected local binaries.",
     }
 
 
