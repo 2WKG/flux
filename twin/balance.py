@@ -11,8 +11,7 @@ from collections.abc import Iterable, Sequence
 from math import isfinite
 from typing import Any, Literal
 
-import networkx as nx
-
+from twin.cascade import island_primitives
 from twin.contracts import GridEdit, SimulationInputError
 from twin.edits import apply_edits, edit_hash
 
@@ -25,7 +24,9 @@ _FIRM_FUELS = frozenset(
         "coal",
         "geothermal",
         "hydro",
+        "gas",
         "natural gas",
+        "ng",
         "nuclear",
         "oil",
         "other fossil",
@@ -123,19 +124,21 @@ def _island_scope(net: Any, active: set[int], scope_id: str | int | Sequence[int
     requested = [int(scope_id)] if isinstance(scope_id, (str, int)) else [int(item) for item in scope_id]
     if not requested:
         raise SimulationInputError("balance island scope_id must contain at least one source bus ID")
-    source_to_internal = _source_to_internal(net)
-    try:
-        internal = {source_to_internal[item] for item in requested}
-    except KeyError as exc:
-        raise SimulationInputError(f"unknown bus_id {exc.args[0]!r}") from exc
-    graph = _in_service_graph(net, active)
-    components = [set(component) for component in nx.connected_components(graph)]
-    component = next((item for item in components if next(iter(internal)) in item), None)
-    assert component is not None  # every in-service bus is a graph node
-    if not internal.issubset(component):
+    # The cascade owns component decomposition.  Reuse it so an island balance
+    # never drifts from the cascade's in-service connectivity definition.
+    components = island_primitives(net)
+    matching = next((row for row in components if requested[0] in row["bus_ids"]), None)
+    if matching is None:
+        raise SimulationInputError(f"unknown or out-of-service bus_id {requested[0]!r}")
+    source_bus_ids = {int(bus) for bus in matching["bus_ids"]}
+    if not set(requested).issubset(source_bus_ids):
         raise SimulationInputError("island scope_id spans more than one in-service island")
-    if set(requested) != set(_source_bus_ids(net, component)) and len(requested) != 1:
+    if set(requested) != source_bus_ids and len(requested) != 1:
         raise SimulationInputError("island scope_id must name one source bus or every bus in the island")
+    source_to_internal = _source_to_internal(net)
+    component = {source_to_internal[bus] for bus in source_bus_ids}
+    if not component.issubset(active):
+        raise SimulationInputError("island includes a bus that is not in service")
     resolved: int | list[int] = requested[0] if len(requested) == 1 else sorted(requested)
     return component, resolved
 
@@ -164,24 +167,6 @@ def _source_bus_ids(net: Any, buses: set[int]) -> list[int]:
         return sorted(int(metadata[bus]["bus_id"]) for bus in buses)
     except (KeyError, TypeError, ValueError) as exc:
         raise SimulationInputError("network bus metadata lacks source bus_id") from exc
-
-
-def _in_service_graph(net: Any, active: set[int]) -> nx.Graph:
-    graph = nx.Graph()
-    graph.add_nodes_from(active)
-    for table, first, second in (
-        ("line", "from_bus", "to_bus"),
-        ("impedance", "from_bus", "to_bus"),
-        ("trafo", "hv_bus", "lv_bus"),
-    ):
-        frame = net.get(table)
-        if frame is None or frame.empty:
-            continue
-        for _, row in frame[frame.in_service].iterrows():
-            a, b = int(row[first]), int(row[second])
-            if a in active and b in active:
-                graph.add_edge(a, b)
-    return graph
 
 
 def _load_draw(net: Any, buses: set[int]) -> float:
