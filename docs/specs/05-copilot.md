@@ -141,6 +141,8 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 
 For either mode, strip comments; reject unless the statement, after `sqlglot`-free heuristics, starts with `SELECT` or `WITH`, contains none of `INSERT|UPDATE|DELETE|CREATE|DROP|ALTER|ATTACH|COPY|PRAGMA|INSTALL|LOAD|CALL|EXPORT`, contains a single statement (no `;` except trailing), and the connection is `duckdb.connect(path, read_only=True)`. The denylist is load-bearing, not belt-and-braces: verified on duckdb 1.5.5 that a `read_only=True` connection rejects `INSERT` ("Cannot execute statement of type INSERT on database … attached in read-only mode") and `ATTACH`, but **`COPY (SELECT …) TO '/path'` still writes a file** on a read-only connection — only the denylist stops it. Wrap as `SELECT * FROM (<q>) LIMIT 201` to detect truncation; there is no DuckDB `statement_timeout` (verified: `SET statement_timeout` → "unrecognized configuration parameter", and no `%timeout%` entry in `duckdb_settings()`); use `asyncio.wait_for` plus `conn.interrupt()` (method exists on `DuckDBPyConnection`) on timeout.
 
+Production registry mode rejects every query shape except a deployment-approved template; approved templates, including full-view aggregates, run under the 200-row response cap and enforced five-second interruptible deadline. The response cap does not claim to bound scan work. Each attempt emits a structured execution record containing only template id, parameter count, row count, duration, provenance artifact ids, and safe outcome; it never records raw SQL, bound values, paths, secrets, or driver exception text. Logging callback failure cannot change the tool result.
+
 `regulatory_path` in `score_site` is a lookup from `site_candidates.kind` (spec 04 defines it): `coal_retired|coal_retiring → "ADVANCE Act brownfield / DOE coal-to-nuclear"`, `nuclear_existing → "NRC early site permit, existing licensed site"`, `federal → "DOE authorization on federal land (EO 14301)"`, `defense → "DoD installation (EO 14299 / Army Janus)"`. The model must still `cite` before repeating it.
 
 ### System prompt (`agent/system_prompt.py`) — contents
@@ -210,22 +212,28 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `GET /scenarios` | — | `[{scenario_id, name, kind, ts_start, ts_end, hours:int, has_cascade:bool, has_predictions:bool}]` |
 | `GET /layers/{name}` | see table | GeoJSON / Arrow / JSON |
 | `POST /cascade` | `{element_ids:[str], scenario_id, hour}` | `run_cascade` dict |
-| `GET /cascade` (Minnesota artifact read) | `scenario_id` (required) | `{status:"available", run_id, scenario_id, artifact_id, model_mode:"topology", provenance:[…], limitations:[…]}` |
 | `POST /site-score` | `{site_id, unit_mw, scenario_id}` | `score_site` dict |
 | `POST /predict` | `{county_fips, scenario_id, horizon_h?}` | `predict_outage` dict (UI uses it for the county click card) |
-| `GET /predictions` (Minnesota artifact read) | `scenario_id?`, `county_fips?`, `model_kind?` (`lightgbm` or `heuristic`), `limit=1..1000` | `{status:"available", predictions:[qualified persisted rows]}` |
 | `GET /lines/top` | `region, tech=any, n=10` | `top_lines` dict |
+| `GET /predictions` (2WKG-104 Minnesota artifact read) | `scenario_id?` (`^[a-z0-9][a-z0-9_-]*$`, ≤64), `county_fips?` (`^\d{5}$`), `model_kind? ∈ {lightgbm, heuristic}`, `limit=1000` (1–1000) | bare array `[{scenario_id, county_fips, ts, p_out, customers_at_risk, driver, model_kind, model_version, artifact_sha256, split_id, feature_set_version, evaluation_sha256, rule_id, rule_version, persisted_at, evaluation_status, qualified, qualification_reason}]` — only rows whose cited evaluation is persisted `qualified = TRUE` (filtered in SQL before `LIMIT` via `models.outage.persistence.query_predictions(qualified_only=True)`), ordered `(scenario_id, county_fips, ts)`. Heuristic rows cite no evaluation and are by design never qualified: an artifact with only unqualified/heuristic rows is `503 unavailable` reason `no_qualified_prediction`; absent DB / absent `outage_predictions`·`prediction_provenance`·`evaluation_artifacts` table / drifted columns are `database_missing` / `missing` / `schema_mismatch`; malformed params are the shared 422 `invalid_input` |
+| `GET /cascade` (2WKG-104 Minnesota artifact read) | `scenario_id` (required, same shape), `run_id?` (≤128) | one qualified persisted `cascade_runs` run, unwrapped: `{run_id, scenario_id, artifact_id, model_mode:"topology", geography_id, hours:[{hour, tripped_element_ids, lost_load_mw, counties_dark, critical_loads_lost}], provenance:[{source_name, source_ref, source_version, retrieved_at, license_or_terms, source_record_id, content_sha256, is_derived}], limitations:[str], source_kind, topology, attributes}` — qualified means the run's `mn_model_results` row is `validated`, its `mn_artifact_manifests` row is `available` with `model_mode = 'topology'`, and it has ≥1 `mn_artifact_provenance` row and ≥1 limitation. `lost_load_mw` is MW (`attributes` carries unit/source per field); `source_kind`/`topology` (`"synthetic (ACTIVSg2000)"` or `null`) are derived from the artifact's and the row's persisted provenance, never a constant — no derivable label → `503` reason `topology_label_unavailable`. Without `run_id` the qualified run with the greatest manifest `created_at` wins (then lexical `run_id` desc — the only run-level timestamp). No qualified run → `503` reason `topology_cascade_unsupported_or_absent` (`run_id` echoed when given); `run_id` not persisted at all → `404 not_found`; table absent (incl. the `mn_*` namespace) / column drift / NULL `lost_load_mw` / malformed manifest → `503` reason `missing` / `schema_mismatch` / `invalid_topology_artifact` (never a 500, never an invented number) |
 | `POST /compare` (A8) | `{scenario_id, intervention_ids:[str]}` | `compare_interventions` dict (UI: "compare a site with a line upgrade" card) |
 | `GET /elements/critical` (A8) | `region, n=10` | `top_critical_elements` dict (UI: critical-elements panel) |
 | `POST /ask` | see below | `text/event-stream` |
 
-The Minnesota `GET` routes above are read-only artifact retrieval. `GET /cascade`
-returns only the latest persisted run for a scenario whose model result is validated and
-whose available topology manifest has nonempty provenance and limitations. It does not
-invoke the compute behavior of `POST /cascade`, which remains this table's existing
-route contract. `GET /predictions` excludes unqualified evaluation artifacts; a missing
-or unqualified prediction artifact returns the documented unavailable failure envelope
-rather than an empty success.
+The Minnesota `GET` routes above are read-only artifact retrieval and, like every
+route here, return unwrapped payloads (`copilot/api/envelope.py`: only the failure
+envelope is wrapped). `GET /cascade` returns only the latest persisted run for a scenario
+whose model result is validated and whose available topology manifest has nonempty
+provenance and limitations. It does not invoke the compute behavior of `POST /cascade`,
+which remains this table's existing route contract. `GET /predictions` excludes
+unqualified evaluation artifacts; a missing or unqualified prediction artifact returns the
+documented unavailable failure envelope rather than an empty success.
+
+Every response carries `X-Request-ID` and `X-Flux-Api-Version: v1` without wrapping a
+success body. `X-Flux-Artifact` appears only on a successful `GET /cascade` response
+and equals that payload's resolved immutable `artifact_id`; it is omitted elsewhere,
+including every failure response.
 
 `POST /ask` request:
 
