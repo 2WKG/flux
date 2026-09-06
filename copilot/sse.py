@@ -107,6 +107,37 @@ class CopilotEventStream:
         del self._pending_calls[call_id]
         return event
 
+    def text(self, delta: str) -> SseEvent:
+        """Emit one non-empty, already-grounded display fragment."""
+        self._require_active()
+        if not delta:
+            raise ValueError("text delta must not be empty")
+        return self._event("text", {"delta": delta})
+
+    def citation(self, citation_id: str, hit: Mapping[str, Any]) -> SseEvent:
+        """Emit an exact citation hit after the caller has accepted ``cite``."""
+        self._require_active()
+        required = ("doc", "title", "page", "chunk_id")
+        if not citation_id or any(not hit.get(key) for key in required):
+            raise ValueError("citation requires identity fields from a cite hit")
+        return self._event("citation", {"citation_id": citation_id, **dict(hit)})
+
+    def error(self, code: str, message: str, *, retryable: bool) -> SseEvent:
+        """Emit the one explicit failure terminal; pending calls are abandoned."""
+        self._require_active()
+        if not code or not message:
+            raise ValueError("error requires a code and message")
+        event = self._event(
+            "error",
+            {
+                "status": "failed",
+                "error": {"code": code, "message": message, "retryable": retryable},
+            },
+        )
+        self._terminal = True
+        self._pending_calls.clear()
+        return event
+
     def done(
         self,
         *,
