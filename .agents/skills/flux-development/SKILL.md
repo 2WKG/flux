@@ -1,11 +1,11 @@
 ---
 name: flux-development
-description: Implement and verify Flux using its amended technical contract and pragmatic hackathon workflow. Use for work in Wyzard1004/flux, not Buckeye operations.
+description: Implement and verify Flux using its amended technical contract and pragmatic hackathon workflow. Use for work in 2WKG/flux, not Buckeye operations.
 ---
 
 # Flux development
 
-Locate the Flux checkout by its `Wyzard1004/flux` remote. On Joshua's laptop it
+Locate the Flux checkout by its `2WKG/flux` remote. On Joshua's laptop it
 is `/Users/joshua/buckeye-swarm/flux`. Resolve the paths below against that
 checkout, not the current chat directory or a global skill symlink.
 
@@ -52,7 +52,7 @@ available; install test browser dependencies when the implementation needs them.
 ## Integrations and boundaries
 
 Use the configured Linear MCP to identify the correct Flux workspace and issue
-before updating work tracking. Use `gh` and Git for `Wyzard1004/flux`;
+before updating work tracking. Use `gh` and Git for `2WKG/flux`;
 verify repository access and PR base before writing remotely. Respect the
 user's requested scope for comments, issue creation, pushes, and merges.
 

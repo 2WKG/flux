@@ -1,0 +1,92 @@
+{
+  "archetype_id": "school_emergency_services",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "School and emergency-services building",
+  "category": "critical_load",
+  "minnesota_issue": "2WKG-393",
+  "catalog_limit": "Depicts no shelter designation, capacity, or emergency role; those are artifact attributes.",
+  "container": "glb",
+  "model_filename": "school_emergency_services.glb",
+  "preview_filename": "school_emergency_services.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 100,
+    "width": 70
+  },
+  "connectors": [
+    "MV_FEED"
+  ],
+  "connector_geometry": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        31.4,
+        1.48,
+        37.15
+      ]
+    }
+  ],
+  "bounds_m": {
+    "min": [
+      -34.0,
+      0.0,
+      -48.0
+    ],
+    "max": [
+      34.0,
+      15.278722763061523,
+      48.0
+    ]
+  },
+  "lod_triangle_budget": {
+    "lod0": 22000,
+    "lod1": 8500,
+    "lod2": 2400
+  },
+  "triangles_lod0": 9524,
+  "triangles_lod1": 1448,
+  "triangles_lod2": 320,
+  "lod_measurement_status": "Measured by data/3d/packs/flux-grid-v1/validation/validate_pack.py from the GLBs the Blender pipeline builds. Those GLBs are not committed and the prepared archive is not published, so these counts are not re-derivable from this repository; data/3d/packs/flux-grid-v1/manifest.json records the per-LOD sha256 each count was taken from. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry authored for this Flux asset pack; no external meshes or textures.",
+  "source_pack": {
+    "pack_id": "flux-grid-v1",
+    "manifest": "data/3d/packs/flux-grid-v1/manifest.json",
+    "lod_sha256": {
+      "lod0": "ddd3af4fd82de6ec70650d37b604eae2e8643fb860db6e87530cb072351dd786",
+      "lod1": "af4465e30090e29972d01649b552c76e134fbe4533dd17f97a296773e5c7c3de",
+      "lod2": "bdcf85306c98b2f1defaed1f8ce4fd0840b21c307388c0408779ff054e0b8b05"
+    }
+  },
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview \u2014 not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "school_emergency_services.glb",
+      "school_emergency_services.preview.png"
+    ],
+    "preview_renderer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "model_producer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "binary_policy": "No .glb and no .preview.png is committed by this change. Both are built by the pack's Blender pipeline, which needs Blender and is not part of this repository's toolchain; the prepared archive is unpublished (data/3d/packs/flux-grid-v1/archive.json has download_url null), so the binaries are declared, not delivered."
+  }
+}
