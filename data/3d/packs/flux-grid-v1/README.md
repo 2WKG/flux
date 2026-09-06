@@ -30,18 +30,28 @@ pack keeps **no copy of the catalog**; `validation/validate_pack.py` reads the
 single frozen `data/3d/asset-archetypes-v1.json` in place, so a pack that drifts
 from the contract fails instead of passing against its own fork.
 
-`releases/flux-grid-runtime-v1-20260906.json` is a separate planned-release
-receipt for the externally generated runtime archive. It records the intended
-tag, exact filename, manifest and archive SHA-256 values, source-contract
-identity, audit scope, provenance and CC0-1.0 license statement. It does not
-publish, attach, or make the archive available. The historical `archive.json`,
-`manifest.json`, and their binary pins remain unchanged.
+`releases/flux-grid-runtime-v1-20260906.json` is the verified publication
+receipt for the runtime-only release `flux-grid-runtime-v1-20260906`. Its exact
+asset URL is
+`https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip`:
+the 5,321,737-byte ZIP hashes to
+`44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78`,
+and its extracted runtime manifest hashes to
+`068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b`.
+This release evidence is distinct from the historical source-only `archive.json`
+and `manifest.json`, whose unpublished binary pins remain unchanged.
+
+The receipt verifies the downloaded ZIP and its extracted runtime manifest.
+The canonical asset repair separately validated all 54 installed same-origin
+`/assets/flux-grid/` GLBs byte-for-byte against that release's manifest; the
+receipt does not add any geography or placement authorization.
 
 No geography, server response, accepted placement or application scene is added.
 
 ## Binary download and build-copy
 
-`archive.json` pins the public distribution: **24,713,909 bytes**, SHA-256
+The legacy source archive recorded by `archive.json` remains unpublished:
+**24,713,909 bytes**, SHA-256
 `ee032fe57c2cb61495271d6387a24f3acf9abd68e84e3b5dd2546ab90d45b39c`.
 Its publication status and download URL are explicit; a null URL means the
 binary attachment is still pending, not an available remote download. Because
@@ -59,13 +69,14 @@ handoff byte-for-byte. Public preparation normalized detailed audit-report
 paths and removed three superseded receipts; the original local archive is
 unchanged. Ordinary author-home metadata remains embedded in the Blender files.
 
-Once downloaded from the stated publication location:
+For the verified runtime release, download the exact release asset stated above
+and verify both the ZIP digest and its release receipt before installation:
 
 ```sh
-shasum -a 256 flux-grid-assets-public.zip
-# Compare the full digest above before extracting.
-unzip flux-grid-assets-public.zip -d /path/to/asset-workspace
-node scripts/install_flux_grid_pack.mjs /path/to/asset-workspace/flux-grid-assets
+shasum -a 256 flux-grid-runtime-v1-20260906T103700Z.zip
+# Must equal 44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78.
+unzip flux-grid-runtime-v1-20260906T103700Z.zip -d /path/to/asset-workspace
+node scripts/install_flux_grid_pack.mjs /path/to/asset-workspace/flux-grid-runtime-v1-20260906T103700Z
 ```
 
 Run the installer from this checkout. It verifies every runtime file against
@@ -91,7 +102,9 @@ not exercised or required by this same-origin path.
 array with accepted artifact ID, identity, longitude/latitude, altitude in
 metres, heading, readable label and exact server status token. Missing/failed
 states produce no fallback geometry. Mounting is intentionally left to the
-existing scene/placement owner after its acceptance boundary.
+existing scene/placement owner after its acceptance boundary. A geometry release
+never authorizes a Minnesota placement: the owner must separately accept the
+server artifact, geographic/provenance evidence and placement eligibility.
 
 The deck.gl/MapLibre React overlay and the deck 9.3 / MapLibre 6 instance
 compatibility facade that used to sit beside it are **not part of this change**.

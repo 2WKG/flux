@@ -9,5 +9,15 @@
   "package_root": "flux-grid-assets",
   "original_private_handoff_sha256": "8635e7404d5c0f1487bd07281de66222379d81be27205124ad8a1fcc6abbcb85",
   "public_copy_changes": "Detailed validation-report paths made package-relative; three superseded development receipts omitted; inventory rebuilt. All 54 GLBs and both Blender masters are byte-identical to the approved handoff. Generic author-home metadata remains embedded in the Blender masters.",
-  "runtime_delivery": "Download and verify the archive, then copy verified assets into the existing same-origin static build. The attachment is not a runtime CDN."
+  "runtime_delivery": "Download and verify the archive, then copy verified assets into the existing same-origin static build. The attachment is not a runtime CDN.",
+  "runtime_release": {
+    "release_tag": "flux-grid-runtime-v1-20260906",
+    "filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+    "bytes": 5321737,
+    "sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+    "download_url": "https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip",
+    "publication_status": "published_external_attachment_verified",
+    "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+    "note": "This separately published runtime release is not the legacy source archive described above. Its immutable publication receipt is under releases/."
+  }
 }
