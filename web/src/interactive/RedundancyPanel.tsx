@@ -44,11 +44,10 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
   }
 
   const result = state.data;
-  const hasSyntheticTruth = result.evidence.artifactTruth === "synthetic";
   return <section aria-label={title} data-redundancy-truth={result.evidence.artifactTruth}>
     <header>
       <h2>{title}</h2>
-      <p>{hasSyntheticTruth ? "Synthetic bus" : "Server-described bus"} {result.busId}</p>
+      <p>Synthetic bus {result.busId}</p>
       <p>This response identifies a model bus only. Consumer-site mapping is unavailable.</p>
     </header>
 
@@ -75,7 +74,7 @@ export function RedundancyPanel({ state, title = "Redundancy inspector" }: Redun
 
     <section aria-label="Evidence and limits">
       <h3>Evidence and limits</h3>
-      <p>{hasSyntheticTruth ? "Synthetic screening result." : "Server-described screening result."} No physical-topology or live-response claim is made here.</p>
+      <p>Synthetic screening result. No physical-topology or live-response claim is made here.</p>
       <h4>Server provenance</h4>
       <ul>{result.evidence.provenance.map((item) => <li key={`${item.sourceId}:${item.sourceRef}`}>{provenanceText(item)}</li>)}</ul>
       {result.assumptions.length > 0 ? <><h4>Server assumptions</h4><ul>{result.assumptions.map((item) => <li key={item}>{item}</li>)}</ul></> : null}
