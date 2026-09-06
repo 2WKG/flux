@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createRoot } from "react-dom/client";
+import { mountFailureStateHarness } from "./browser-harness";
 import { FailureState } from "./FailureState";
 import type { FailureStateInput } from "./types";
 
@@ -22,4 +22,4 @@ function Trace() {
   </main>;
 }
 
-createRoot(document.getElementById("root")!).render(<Trace />);
+mountFailureStateHarness(document.getElementById("root")!, <Trace />);

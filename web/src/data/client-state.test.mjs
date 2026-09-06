@@ -108,7 +108,7 @@ test("read client maps network rejection without pretending that the server is u
   const client = createReadApiClient(async () => { throw new TypeError("offline"); });
 
   assert.deepEqual(await client.get("/scenarios", isScenarioList, notEmpty), {
-    kind: "failed", source: "network", message: NETWORK_FAILURE_MESSAGE,
+    kind: "failed", source: "network", reason: "unreachable", message: NETWORK_FAILURE_MESSAGE,
   });
 });
 
@@ -177,4 +177,78 @@ test("SSE client close() disconnects a real SSE server through the default trans
     server.closeAllConnections();
     await new Promise((resolve) => server.close(resolve));
   }
+});
+
+// The read client used to wrap every throw in `networkFailure()`, so a user who
+// cancelled a request was told the service could not be reached. These assert
+// each real cause survives the catch.
+const { RequestTimeoutError, ResponseSizeError } = await import(
+  pathToFileURL(join(outputDirectory, "transport.js")).href
+);
+const {
+  CANCELLED_MESSAGE,
+  TIMEOUT_MESSAGE,
+  RESPONSE_TOO_LARGE_MESSAGE,
+  INVALID_OPTIONS_MESSAGE,
+} = await import(pathToFileURL(join(outputDirectory, "client-state.js")).href);
+
+async function failWith(error) {
+  const client = createReadApiClient(async () => { throw error; });
+  return client.get("https://example.test/scenarios", isScenarioList, notEmpty);
+}
+
+test("a cancelled request is reported as cancelled, not as an unreachable service", async () => {
+  const state = await failWith(new DOMException("Request aborted", "AbortError"));
+  assert.equal(state.kind, "failed");
+  assert.equal(state.source, "network");
+  assert.equal(state.reason, "cancelled");
+  assert.equal(state.message, CANCELLED_MESSAGE);
+  assert.notEqual(state.message, NETWORK_FAILURE_MESSAGE);
+});
+
+test("an expired deadline is reported as a timeout, not as an unreachable service", async () => {
+  const state = await failWith(new RequestTimeoutError(10_000));
+  assert.equal(state.reason, "timeout");
+  assert.equal(state.message, TIMEOUT_MESSAGE);
+  assert.notEqual(state.message, NETWORK_FAILURE_MESSAGE);
+});
+
+test("a discarded oversized body is reported as oversized, not as an unreachable service", async () => {
+  const state = await failWith(new ResponseSizeError(5 * 1024 * 1024));
+  assert.equal(state.reason, "response_too_large");
+  assert.equal(state.message, RESPONSE_TOO_LARGE_MESSAGE);
+  assert.notEqual(state.message, NETWORK_FAILURE_MESSAGE);
+});
+
+test("invalid request options are reported as such, not as an unreachable service", async () => {
+  const state = await failWith(new RangeError("timeoutMs must be a positive, finite number"));
+  assert.equal(state.reason, "invalid_options");
+  assert.equal(state.message, INVALID_OPTIONS_MESSAGE);
+  assert.notEqual(state.message, NETWORK_FAILURE_MESSAGE);
+});
+
+test("a genuine transport error is still the unreachable network failure", async () => {
+  const state = await failWith(new TypeError("offline"));
+  assert.equal(state.reason, "unreachable");
+  assert.equal(state.message, NETWORK_FAILURE_MESSAGE);
+});
+
+test("the four client-side causes do not collapse onto one another", async () => {
+  const reasons = await Promise.all([
+    failWith(new DOMException("Request aborted", "AbortError")),
+    failWith(new RequestTimeoutError(1)),
+    failWith(new ResponseSizeError(1)),
+    failWith(new RangeError("bad options")),
+    failWith(new TypeError("offline")),
+  ]);
+  assert.equal(new Set(reasons.map((state) => state.reason)).size, 5);
+  assert.equal(new Set(reasons.map((state) => state.message)).size, 5);
+});
+
+test("the SSE client keeps the same distinctions on connect", async () => {
+  const sse = createSseClient(async () => { throw new DOMException("Request aborted", "AbortError"); });
+  const state = await sse.connect("https://example.test/ask", () => null);
+  assert.equal(state.kind, "failed");
+  assert.equal(state.reason, "cancelled");
+  assert.equal(state.message, CANCELLED_MESSAGE);
 });

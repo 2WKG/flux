@@ -2,18 +2,35 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { createServer } from "node:http";
-import { rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const webRoot = fileURLToPath(new URL("../..", import.meta.url));
-const dist = "/tmp/flux-351-browser-assertion";
 const chromePath = process.env.FLUX_CHROME_PATH;
 
-test("browser trace keeps context and invokes supplied recovery callbacks", { skip: !chromePath && "set FLUX_CHROME_PATH to run this real-browser assertion" }, async () => {
-  const { chromium } = await import("playwright-core");
-  await rm(dist, { recursive: true, force: true });
+/**
+ * `@playwright/test` is a declared devDependency (pinned to the same version as
+ * the e2e lane), so a missing import is a real breakage, not "no browser". When
+ * FLUX_CHROME_PATH is set the import failure is re-thrown with that distinction
+ * spelled out rather than surfacing as a product-looking assertion failure.
+ */
+async function loadChromium() {
+  try {
+    return (await import("@playwright/test")).chromium;
+  } catch (error) {
+    throw new Error(
+      `the browser driver is not installed (run npm ci in web/); this is a dependency failure, not a product failure: ${error.message}`,
+      { cause: error },
+    );
+  }
+}
+
+test("browser trace keeps context and invokes supplied recovery callbacks", { skip: !chromePath && "no Chrome: set FLUX_CHROME_PATH to run this real-browser assertion" }, async () => {
+  const chromium = await loadChromium();
+  const dist = await mkdtemp(path.join(os.tmpdir(), "flux-351-browser-"));
   execFileSync("npm", ["run", "build"], {
     cwd: webRoot,
     env: { ...process.env, FLUX_WEB_ENTRY: "src/failure-states/browser-trace.entry.tsx", FLUX_WEB_DIST: dist },

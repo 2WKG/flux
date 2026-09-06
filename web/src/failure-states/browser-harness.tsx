@@ -1,8 +1,7 @@
+import type { ReactNode } from "react";
 import { createRoot } from "react-dom/client";
-import { FailureState } from "./FailureState";
-import type { FailureStateProps } from "./types";
 
-/** Mounts supplied fixture states for browser verification; it makes no request. */
-export function mountFailureStateHarness(target: Element, props: FailureStateProps) {
-  createRoot(target).render(<FailureState {...props} />);
+/** Mounts a supplied fixture tree for browser verification; it makes no request. */
+export function mountFailureStateHarness(target: Element, tree: ReactNode) {
+  createRoot(target).render(tree);
 }
