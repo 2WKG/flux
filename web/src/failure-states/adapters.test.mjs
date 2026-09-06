@@ -4,7 +4,7 @@ import test from "node:test";
 
 const root = new URL("../..", import.meta.url).pathname;
 const bundle = await build({ entryPoints: [new URL("./adapters.ts", import.meta.url).pathname], bundle: true, format: "esm", platform: "node", write: false, absWorkingDir: root });
-const { fromClientState, fromSseTerminalError, statusOf } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString("base64")}`);
+const { fromClientState, fromSseTerminalError, fromStreamClose, statusOf } = await import(`data:text/javascript;base64,${Buffer.from(bundle.outputFiles[0].contents).toString("base64")}`);
 
 test("maps client outcomes without converting them to ready data", () => {
   assert.deepEqual(fromClientState({ kind: "loading" }), { kind: "loading", retainedContext: undefined });
@@ -82,6 +82,27 @@ test("an unlisted SSE code becomes request_failed with the raw code kept, never 
   assert.equal(fromSseTerminalError({ code: "unavailable" }).code, "unavailable");
 });
 
+test("a stream that closed without a terminal event is request_failed with the named code, never unavailable", () => {
+  // OQ-1, decided (docs/specs/spec-code-reconciliation.md): the schema promises
+  // exactly one terminal event, so a silent close is a broken contract and the
+  // request is what failed -- nothing said a dependency was missing.
+  for (const reason of ["eof", "abort", "network"]) {
+    const mapped = fromStreamClose({ reason });
+    assert.equal(statusOf(mapped), "request_failed", `${reason} must be request_failed`);
+    assert.notEqual(statusOf(mapped), "unavailable", `${reason} must not be reported as unavailable`);
+    assert.equal(mapped.code, "stream_ended_without_terminal", `${reason} must carry the named code`);
+    assert.ok(mapped.message, `${reason} must carry a cause the screen can show`);
+  }
+  // A default close is still a named failure, not an unlabelled one.
+  const fallback = fromStreamClose();
+  assert.equal(statusOf(fallback), "request_failed");
+  assert.equal(fallback.code, "stream_ended_without_terminal");
+  // The server supplied no retry advice, so the adapter invents none.
+  assert.equal(fallback.retryAfterSeconds, undefined);
+  // It must not be confused with the server's own `unavailable` terminal error.
+  assert.notEqual(fallback.code, fromSseTerminalError({ code: "unavailable" }).code);
+});
+
 test("no adapter output can emit a status token outside the frozen Gate-0 set", () => {
   const inputs = [
     fromClientState({ kind: "unavailable", source: "server", message: "u", retryAfterSeconds: null, requestId: "r" }),
@@ -92,6 +113,7 @@ test("no adapter output can emit a status token outside the frozen Gate-0 set", 
     fromClientState({ kind: "failed", source: "server", message: "s" }),
     ...SSE_V1_CODES.map((code) => fromSseTerminalError({ code })),
     fromSseTerminalError({ code: "not_a_v1_code" }),
+    ...["eof", "abort", "network"].map((reason) => fromStreamClose({ reason })),
   ];
   for (const input of inputs) {
     const status = statusOf(input);
