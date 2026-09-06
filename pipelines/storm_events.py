@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import dataclass
+from datetime import datetime
+from itertools import pairwise
 from pathlib import Path
 
 import pandas as pd
 
-from pipelines.common import fips5, utc_naive
+from pipelines.common import fips5, sha256_file, utc_naive
 from pipelines.db import log_artifact, replace_frame
 from pipelines.state_scope import scope
 
@@ -21,6 +25,64 @@ _TEXAS_CZ_TIMEZONES = {
     "CDT-5": "Etc/GMT+5",
     "MDT-6": "Etc/GMT+6",
 }
+
+
+@dataclass(frozen=True)
+class NwsCrosswalkRelease:
+    """A source-pinned NWS correlation file and its usable local-time interval."""
+
+    release: str
+    path: str | Path
+    valid_from: datetime
+    valid_until: datetime
+    source_url: str
+    sha256: str
+
+
+def select_nws_crosswalk_release(
+    when: datetime, releases: Sequence[NwsCrosswalkRelease]
+) -> NwsCrosswalkRelease | None:
+    """Select exactly one release with a half-open historical interval.
+
+    ``None`` is deliberate: callers must leave zone rows unexpanded when no
+    release covers their raw local-standard-time begin timestamp. A later
+    edition is never an implicit fallback.
+    """
+
+    matches = [
+        release
+        for release in releases
+        if release.valid_from <= when < release.valid_until
+    ]
+    if len(matches) > 1:
+        raise ValueError(f"overlapping NWS crosswalk releases for {when.isoformat()}")
+    return matches[0] if matches else None
+
+
+def _validate_nws_crosswalk_releases(
+    releases: Sequence[NwsCrosswalkRelease],
+) -> tuple[NwsCrosswalkRelease, ...]:
+    """Reject incomplete or ambiguous release metadata before reading raw data."""
+
+    if not releases:
+        raise ValueError("Storm Events zone expansion requires explicit NWS releases")
+    ordered = tuple(sorted(releases, key=lambda release: release.valid_from))
+    for release in ordered:
+        if not release.release or not release.source_url or not release.sha256:
+            raise ValueError("NWS crosswalk releases require release and source_url")
+        if (
+            not Path(release.path).is_file()
+            or sha256_file(release.path) != release.sha256
+        ):
+            raise ValueError(f"NWS crosswalk bytes do not match {release.release}")
+        if release.valid_from >= release.valid_until:
+            raise ValueError(f"invalid NWS interval for {release.release}")
+    for earlier, later in pairwise(ordered):
+        if earlier.valid_until > later.valid_from:
+            raise ValueError(
+                f"overlapping NWS crosswalk intervals: {earlier.release}, {later.release}"
+            )
+    return ordered
 
 
 def _cz_timezone(value: object) -> str:
@@ -56,7 +118,11 @@ def _scope_events(raw: pd.DataFrame, states=None) -> pd.DataFrame:
 
 
 def load_storm_events(
-    con, detail_gzip: str, zone_crosswalk: str, year: int, states=None
+    con,
+    detail_gzip: str,
+    zone_crosswalk_releases: Sequence[NwsCrosswalkRelease],
+    year: int,
+    states=None,
 ) -> int:
     path = Path(detail_gzip)
     raw = pd.read_csv(path, compression="gzip", low_memory=False)
@@ -74,9 +140,20 @@ def load_storm_events(
     }
     if missing := required - set(selected.columns):
         raise ValueError(f"Storm Events file missing {sorted(missing)}")
-    zones = _zone_crosswalk(zone_crosswalk, selected_scope)
+    has_zone_rows = selected["CZ_TYPE"].eq("Z").any()
+    releases = (
+        _validate_nws_crosswalk_releases(zone_crosswalk_releases)
+        if has_zone_rows
+        else ()
+    )
+    zones = {
+        release.release: _zone_crosswalk(release.path, selected_scope)
+        for release in releases
+    }
     records: list[dict[str, object]] = []
     unmatched_zones: dict[str, int] = {}
+    unavailable_intervals: dict[str, int] = {}
+    used_releases: set[str] = set()
     for row in selected.itertuples(index=False):
         event = row._asdict()
         source_tz = _cz_timezone(event["CZ_TIMEZONE"])
@@ -84,11 +161,20 @@ def load_storm_events(
             targets = [fips5(int(event["STATE_FIPS"]) * 1000 + int(event["CZ_FIPS"]))]
             method = "direct_county"
         else:
-            targets = zones.get(str(int(event["CZ_FIPS"])).zfill(3), [])
-            method = "nws_crosswalk"
-            if not targets:
-                zone = str(int(event["CZ_FIPS"])).zfill(3)
-                unmatched_zones[zone] = unmatched_zones.get(zone, 0) + 1
+            zone = str(int(event["CZ_FIPS"])).zfill(3)
+            release = select_nws_crosswalk_release(
+                utc_naive(event["BEGIN_DATE_TIME"], source_tz), releases
+            )
+            if release is None:
+                targets = []
+                method = "nws_crosswalk_unavailable"
+                unavailable_intervals[zone] = unavailable_intervals.get(zone, 0) + 1
+            else:
+                targets = zones[release.release].get(zone, [])
+                method = f"nws_crosswalk:{release.release}"
+                used_releases.add(release.release)
+                if not targets:
+                    unmatched_zones[zone] = unmatched_zones.get(zone, 0) + 1
         for county_fips in targets:
             if county_fips is None:
                 continue
@@ -178,6 +264,10 @@ def load_storm_events(
         )
         con.execute(
             "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
+            ["noaa_storm_events", f"{year}:interval:%"],
+        )
+        con.execute(
+            "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
             ["noaa_storm_events", f"{year}:scope:%"],
         )
         if selected.empty:
@@ -204,6 +294,18 @@ def load_storm_events(
                     f"{count} {scope_label} zone-type Storm Events had no county crosswalk mapping",
                 ],
             )
+        for zone, count in unavailable_intervals.items():
+            con.execute(
+                "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+                [
+                    "noaa_storm_events",
+                    f"{year}:interval:{zone}",
+                    (
+                        f"{count} {scope_label} zone-type Storm Events had no "
+                        "explicitly valid NWS crosswalk release"
+                    ),
+                ],
+            )
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")
@@ -216,12 +318,18 @@ def load_storm_events(
         rows_loaded=rows,
         schema_fingerprint="event id,time,type,county/zone,magnitude",
     )
-    log_artifact(
-        con,
-        source="nws_zone_county",
-        source_release="bp16ap26",
-        path=zone_crosswalk,
-        rows_loaded=len(zones),
-        schema_fingerprint="state,zone,county_fips",
-    )
+    for release in releases:
+        if release.release in used_releases:
+            log_artifact(
+                con,
+                source="nws_zone_county",
+                source_release=release.release,
+                path=release.path,
+                rows_loaded=len(zones[release.release]),
+                schema_fingerprint=(
+                    "state,zone,county_fips; "
+                    f"valid=[{release.valid_from.isoformat()},"
+                    f"{release.valid_until.isoformat()}); url={release.source_url}"
+                ),
+            )
     return rows
