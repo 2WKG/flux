@@ -268,8 +268,8 @@ POST /site-score   {site_id, unit_mw, scenario_id}    → one persisted site_sco
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows, filtered in SQL before LIMIT (05 §Routes, 2WKG-104)
 GET  /lines/top?region=&tech=any&limit=50&offset=0    → one bounded deterministic page of the persisted line-upgrade ranking as the top_lines dict; limit is capped at TOP_LINES_MAX_LIMIT (50) and the frozen tool input top_lines(region, tech, n) stays unpaginated (05 §Routes, 2WKG-172)
-POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
-GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
+POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict + evidence/comparison_status; persisted deltas only, never derived (05 §Routes, A8, 2WKG-173)
+GET  /elements/critical?region=&n=10&offset=0         → top_critical_elements(...) dict incl. scenario_ids, + offset/evidence; partial counts the relation, not the page (05 §Routes, A8, 2WKG-173)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
 ```
 

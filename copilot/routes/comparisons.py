@@ -20,6 +20,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from copilot.api import UnavailableError
 from copilot.api.pagination import DeterministicOrder, PageRequest, SortTerm
+from copilot.routes.scenarios import _derive_labels
 
 router = APIRouter(tags=["comparisons"])
 
@@ -47,6 +48,14 @@ class _DeclaredUnavailable(ValueError):
     """A persisted manifest explicitly says that its result is unavailable."""
 
 
+class _MissingDelta(ValueError):
+    """A persisted comparison artifact does not carry a documented A8 field."""
+
+
+class _UnlabelledSource(ValueError):
+    """Persisted provenance does not identify the artifact's source class."""
+
+
 def _unavailable(reason: str, *, artifact: str, **details: str) -> UnavailableError:
     messages = {
         "database_missing": "The comparison database is unavailable.",
@@ -63,6 +72,14 @@ def _unavailable(reason: str, *, artifact: str, **details: str) -> UnavailableEr
         "artifact_unavailable": "The requested persisted result is unavailable.",
         "ambiguous_identity": (
             "More than one persisted result claims the requested identity."
+        ),
+        "source_kind_unavailable": (
+            "The persisted provenance does not identify the artifact's source "
+            "class, so no truthful evidence reference can be built."
+        ),
+        "persisted_delta_unavailable": (
+            "The persisted comparison artifact does not carry the documented "
+            "A8 comparison fields, and this route never derives them."
         ),
     }
     return UnavailableError(
@@ -132,6 +149,58 @@ def _require_identity_keys(
     return value
 
 
+def _as_finite(value: object, *, label: str) -> float:
+    if (
+        not isinstance(value, int | float)
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+    ):
+        raise _PersistedInvalid(f"{label} must be a finite number")
+    return float(value)
+
+
+def _required_component(components: dict[str, Any], key: str) -> Any:
+    """Read one persisted A8 component or fail by name; never default it."""
+
+    if key not in components:
+        raise _MissingDelta(key)
+    return components[key]
+
+
+def _a8_intervention(
+    intervention_id: str, components: dict[str, Any]
+) -> dict[str, Any]:
+    """Project one persisted comparison score onto the frozen A8 shape.
+
+    Every value is read from the persisted component payload.  ``kind`` is the
+    prefix of the persisted intervention identity itself (``site:`` / ``line:``,
+    already pinned by ``CompareRequest``), not a guess.  A component the
+    artifact does not carry is a named failure, never a zero.
+    """
+
+    lol = _as_finite(
+        _required_component(components, "lol_reduction_mwh"),
+        label="lol_reduction_mwh",
+    )
+    customer_hours = _as_finite(
+        _required_component(components, "customer_hours_avoided"),
+        label="customer_hours_avoided",
+    )
+    if lol < 0 or customer_hours < 0:
+        raise _PersistedInvalid("A8 comparison measures must be non-negative")
+    return {
+        "intervention_id": intervention_id,
+        "kind": "site" if intervention_id.startswith("site:") else "line",
+        "run_id": _as_string(_required_component(components, "run_id"), label="run_id"),
+        "lol_reduction_mwh": lol,
+        "customer_hours_avoided": customer_hours,
+        "critical_loads_protected": _as_string_list(
+            _required_component(components, "critical_loads_protected"),
+            label="critical_loads_protected",
+        ),
+    }
+
+
 def _as_limitations(value: object) -> list[str]:
     if isinstance(value, str):
         try:
@@ -196,6 +265,43 @@ def _provenance(
     return provenance
 
 
+def _artifact_refs(
+    artifact_id: str, provenance: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    """Build the frozen `ArtifactRef` evidence list from persisted provenance.
+
+    Every value is persisted: the manifest's `artifact_id`, and each provenance
+    row's `source_version` and `source_ref`.  `source_kind` is derived from the
+    persisted source labels by the same `_derive_labels` the cascade and
+    site-score reads use; a source it cannot label is a named failure rather
+    than a guessed class.
+    """
+
+    refs: list[dict[str, Any]] = []
+    for entry in provenance:
+        source_kind, _ = _derive_labels(entry["source_name"], entry["source_ref"])
+        if source_kind is None:
+            raise _UnlabelledSource(artifact_id)
+        refs.append(
+            {
+                "artifact_id": artifact_id,
+                "artifact_version": entry["source_version"],
+                "source_kind": source_kind,
+                "source_ref": entry["source_ref"],
+            }
+        )
+    return refs
+
+
+def _merge_refs(
+    refs: list[dict[str, Any]], new: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
+    for ref in new:
+        if ref not in refs:
+            refs.append(ref)
+    return refs
+
+
 def _comparison_score_rows(
     con: duckdb.DuckDBPyConnection,
     *,
@@ -206,7 +312,7 @@ def _comparison_score_rows(
     return con.execute(
         f"""SELECT m.artifact_id, m.availability, m.model_mode, m.identity_json, m.limitations_json,
                   s.metric, s.score_value, s.score_unit, s.score_components_json,
-                  s.regulatory_label
+                  s.regulatory_label, m.assumptions_json
              FROM mn_artifact_manifests AS m
              JOIN mn_score_results AS s USING (artifact_id)
              WHERE m.artifact_kind='score' AND m.geography_id='mn'
@@ -270,6 +376,7 @@ def _score_payload(
         score_unit,
         components_json,
         regulatory_label,
+        assumptions_json,
     ) = row
     artifact_id = _as_string(artifact_id, label="artifact_id")
     if availability == "unavailable":
@@ -294,6 +401,7 @@ def _score_payload(
         "regulatory_label": _as_string(regulatory_label, label="regulatory_label"),
         "provenance": _provenance(con, artifact_id),
         "limitations": _as_limitations(limitations_json),
+        "assumptions": _as_limitations(assumptions_json),
     }
     identity = _as_object(identity_json, label="identity_json")
     source_identity = _as_object(
@@ -332,6 +440,10 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
             else []
         )
         selected: dict[str, dict[str, Any]] = {}
+        a8: dict[str, dict[str, Any]] = {}
+        baselines: set[str] = set()
+        assumptions: list[str] = []
+        refs: list[dict[str, Any]] = []
         unsupported = False
         for row in rows:
             try:
@@ -367,6 +479,36 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
             key = str(intervention_id)
             if key in selected:
                 raise _unavailable("ambiguous_identity", artifact="comparison")
+            try:
+                a8[key] = _a8_intervention(key, components)
+                baselines.add(
+                    _as_string(
+                        _required_component(components, "baseline_run_id"),
+                        label="baseline_run_id",
+                    )
+                )
+            except _MissingDelta as exc:
+                raise _unavailable(
+                    "persisted_delta_unavailable",
+                    artifact="comparison",
+                    field=str(exc.args[0]),
+                    intervention_id=key,
+                ) from exc
+            except _PersistedInvalid as exc:
+                raise _unavailable(
+                    "invalid_persisted_result", artifact="comparison"
+                ) from exc
+            try:
+                _merge_refs(
+                    refs, _artifact_refs(score["artifact_id"], score["provenance"])
+                )
+            except _UnlabelledSource as exc:
+                raise _unavailable(
+                    "source_kind_unavailable", artifact="comparison"
+                ) from exc
+            for assumption in score["assumptions"]:
+                if assumption not in assumptions:
+                    assumptions.append(assumption)
             selected[key] = {
                 **score,
                 "scenario_id": payload.scenario_id,
@@ -399,9 +541,23 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
                 }:
                     raise _unavailable("artifact_unavailable", artifact="comparison")
             raise _unavailable("no_qualified_result", artifact="comparison")
+        if len(baselines) != 1:
+            # Two qualified artifacts citing different baselines cannot be
+            # compared; saying so is the only honest answer.
+            raise _unavailable("ambiguous_identity", artifact="comparison")
         return {
+            # The frozen A8 `compare_interventions` fields, read from the
+            # persisted components and never derived here.
+            "status": "available",
+            "provenance": refs,
             "scenario_id": payload.scenario_id,
-            "interventions": [selected[item] for item in payload.intervention_ids],
+            "baseline_run_id": next(iter(baselines)),
+            "interventions": [a8[item] for item in payload.intervention_ids],
+            "assumptions": assumptions,
+            # The persisted evidence behind each A8 row, keyed by intervention.
+            # Documented in docs/specs/05-copilot.md as this route's addition to
+            # the A8 dict; the A8 half above validates against InterventionsData.
+            "evidence": [selected[item] for item in payload.intervention_ids],
             "comparison_status": "persisted_scores_not_derived_deltas",
         }
     except duckdb.BinderException as exc:
@@ -432,7 +588,7 @@ def critical_elements(
             con.execute(
                 f"""SELECT m.artifact_id, m.availability, m.model_mode, m.identity_json, m.limitations_json,
                        s.metric, s.score_value, s.score_unit, s.score_components_json,
-                       s.regulatory_label
+                       s.regulatory_label, m.assumptions_json
                   FROM mn_artifact_manifests AS m
                   JOIN mn_score_results AS s USING (artifact_id)
                   WHERE m.artifact_kind='score' AND m.geography_id=?
@@ -466,6 +622,7 @@ def critical_elements(
                     )
             raise _unavailable("no_qualified_result", artifact="critical_elements")
         elements: list[dict[str, Any]] = []
+        refs: list[dict[str, Any]] = []
         for row in rows:
             try:
                 score, components, source_identity = _score_payload(con, row)
@@ -497,6 +654,9 @@ def critical_elements(
                 runs = components.get("runs")
                 if not isinstance(runs, int) or isinstance(runs, bool) or runs < 0:
                     raise _PersistedInvalid("runs must be a non-negative integer")
+                _merge_refs(
+                    refs, _artifact_refs(score["artifact_id"], score["provenance"])
+                )
                 elements.append(
                     {
                         **score,
@@ -513,6 +673,10 @@ def critical_elements(
                         "runs": runs,
                     }
                 )
+            except _UnlabelledSource as exc:
+                raise _unavailable(
+                    "source_kind_unavailable", artifact="critical_elements"
+                ) from exc
             except _DeclaredUnavailable as exc:
                 raise _unavailable(
                     "artifact_unavailable", artifact="critical_elements"
@@ -521,12 +685,44 @@ def critical_elements(
                 raise _unavailable(
                     "invalid_persisted_result", artifact="critical_elements"
                 ) from exc
+        matching = con.execute(
+            """SELECT count(*)
+                 FROM mn_artifact_manifests AS m
+                 JOIN mn_score_results AS s USING (artifact_id)
+                WHERE m.artifact_kind='score' AND m.geography_id=?
+                  AND json_extract_string(m.identity_json,
+                        '$.source_identity.family')='critical_elements'
+                  AND json_extract_string(m.identity_json,
+                        '$.source_identity.region')=?
+                  AND s.metric='critical_element'""",
+            [region, region],
+        ).fetchone()
+        total = int(matching[0]) if matching else 0
         return {
+            # The frozen A8 `top_critical_elements` fields.
+            "status": "available",
+            "provenance": refs,
             "region": region,
             "n": n,
+            "scenario_ids": sorted({element["scenario_id"] for element in elements}),
+            "elements": [
+                {
+                    "element_id": element["element_id"],
+                    "kind": element["kind"],
+                    "lost_load_mw": element["lost_load_mw"],
+                    "critical_loads_lost": element["critical_loads_lost"],
+                    "runs": element["runs"],
+                }
+                for element in elements
+            ],
+            # `partial` means "fewer than n elements have any persisted run"
+            # (docs/specs/05-copilot.md), counted over the whole filtered
+            # relation - not "this page ended", which offset would make false.
+            "partial": total < n,
+            # This route's documented addition to the A8 dict: the page cursor
+            # and the persisted evidence behind each element above.
             "offset": offset,
-            "elements": elements,
-            "partial": len(elements) < n,
+            "evidence": elements,
         }
     except duckdb.BinderException as exc:
         raise _unavailable("schema_mismatch", artifact="mn_score_results") from exc
