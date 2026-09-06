@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import pandapower as pp
 from pandapower.converter.matpower import from_mpc
 
 from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationUnavailableError
@@ -46,6 +47,11 @@ def build_network(
     callers cannot mistake it for physical Texas inventory.
     """
     path = Path(case_path) if case_path is not None else default_case_path()
+    # The live Texas case remains the default.  The shared fixture contract
+    # also supplies synthetic electrical tables in DuckDB, which later policy
+    # layers use without requiring a downloaded MATPOWER artifact.
+    if db_path is None and path.suffix == ".duckdb":
+        return _build_network_from_duckdb(path)
     if not path.is_file():
         raise SimulationUnavailableError(f"MATPOWER case is unavailable: {path}")
     try:
@@ -60,6 +66,129 @@ def build_network(
     _attach_element_ids(net)
     if db_path is not None:
         attach_current_bus_coordinates(net, db_path)
+    return net
+
+
+def _build_network_from_duckdb(path: Path) -> Any:
+    if not path.is_file():
+        raise SimulationUnavailableError(f"grid database unavailable: {path}")
+    con = duckdb.connect(str(path), read_only=True)
+    try:
+        tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
+        required = {"buses", "lines", "gens", "loads"}
+        missing = sorted(required - tables)
+        if missing:
+            raise SimulationUnavailableError(
+                "grid database missing tables: " + ", ".join(missing)
+            )
+        buses = con.execute(
+            "SELECT bus_id, name, base_kv, lon, lat, county_fips FROM buses ORDER BY bus_id"
+        ).fetchall()
+        lines = con.execute(
+            "SELECT line_id, from_bus, to_bus, base_kv, r_pu, x_pu, rate_a_mw, length_km, is_transformer FROM lines ORDER BY line_id"
+        ).fetchall()
+        gens = con.execute(
+            "SELECT gen_id, bus_id, fuel, pmax_mw FROM gens ORDER BY gen_id"
+        ).fetchall()
+        loads = con.execute(
+            "SELECT load_id, bus_id, p_mw_nominal FROM loads ORDER BY load_id"
+        ).fetchall()
+        critical = (
+            con.execute(
+                "SELECT cl_id, kind, name, bus_id FROM critical_loads ORDER BY cl_id"
+            ).fetchall()
+            if "critical_loads" in tables
+            else []
+        )
+    finally:
+        con.close()
+    if not buses:
+        raise SimulationUnavailableError("grid database has no bus records")
+    net = pp.create_empty_network(sn_mva=100.0, f_hz=60.0)
+    net["flux_topology"] = SYNTHETIC_TOPOLOGY_LABEL
+    net["flux_source_db"] = str(path.resolve())
+    net["flux_bus_index"], net["flux_element_lookup"], net["flux_bus_metadata"] = (
+        {},
+        {},
+        {},
+    )
+    net["flux_critical_loads"] = {}
+    for source_id, name, kv, lon, lat, county in buses:
+        index = pp.create_bus(
+            net,
+            float(kv),
+            name=str(name),
+            geo=json.dumps({"type": "Point", "coordinates": [float(lon), float(lat)]}),
+        )
+        net.flux_bus_index[int(source_id)] = int(index)
+        net.flux_bus_metadata[int(index)] = {
+            "bus_id": int(source_id),
+            "county_fips": None if county is None else str(county),
+        }
+    for line_id, first, second, kv, r_pu, x_pu, rate, length, transformer in lines:
+        source_id = int(line_id)
+        a, b = net.flux_bus_index[int(first)], net.flux_bus_index[int(second)]
+        rating = float(rate) if rate and float(rate) > 0 else 100_000.0
+        if transformer:
+            index = pp.create_impedance(
+                net,
+                a,
+                b,
+                rft_pu=float(r_pu) * rating / 100,
+                xft_pu=float(x_pu) * rating / 100,
+                sn_mva=rating,
+                name=f"impedance:{source_id}",
+            )
+            table, element_id = "impedance", f"impedance:{source_id}"
+        else:
+            km = max(float(length or 0), 1e-6)
+            zbase = float(kv) ** 2 / 100
+            index = pp.create_line_from_parameters(
+                net,
+                a,
+                b,
+                km,
+                float(r_pu) * zbase / km,
+                float(x_pu) * zbase / km,
+                0.0,
+                rating / (3**0.5 * float(kv)),
+                name=f"line:{source_id}",
+            )
+            table, element_id = "line", f"line:{source_id}"
+        net[table].at[index, "flux_element_id"] = element_id
+        net.flux_element_lookup[element_id] = (table, int(index))
+    for pos, (gen_id, bus_id, fuel, pmax) in enumerate(gens):
+        element_id = f"generator:{int(gen_id)}"
+        bus = net.flux_bus_index[int(bus_id)]
+        if pos == 0:
+            index = pp.create_ext_grid(net, bus, name=element_id)
+            table = "ext_grid"
+        else:
+            index = pp.create_gen(
+                net, bus, p_mw=0.0, vm_pu=1.0, max_p_mw=float(pmax), name=element_id
+            )
+            table = "gen"
+        net[table].at[index, "flux_element_id"] = element_id
+        net[table].at[index, "pmax_mw"] = float(pmax)
+        net[table].at[index, "fuel"] = str(fuel)
+        net.flux_element_lookup[element_id] = (table, int(index))
+    for load_id, bus_id, demand in loads:
+        element_id = f"load:{int(load_id)}"
+        index = pp.create_load(
+            net,
+            net.flux_bus_index[int(bus_id)],
+            p_mw=float(demand),
+            q_mvar=0.0,
+            name=element_id,
+        )
+        net.load.at[index, "flux_element_id"] = element_id
+        net.load.at[index, "flux_nominal_p_mw"] = float(demand)
+        net.flux_element_lookup[element_id] = ("load", int(index))
+    for cl_id, kind, name, bus_id in critical:
+        if bus_id is not None:
+            net.flux_critical_loads.setdefault(int(bus_id), []).append(
+                {"cl_id": str(cl_id), "kind": str(kind), "name": str(name)}
+            )
     return net
 
 

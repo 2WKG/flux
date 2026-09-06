@@ -16,6 +16,7 @@ from twin.cascade import (
 )
 from twin.contracts import (
     SYNTHETIC_TOPOLOGY_LABEL,
+    GridEdit,
     SimulationCancelledError,
     SimulationError,
     SimulationInputError,
@@ -25,6 +26,7 @@ from twin.contracts import (
 
 __all__ = [
     "SYNTHETIC_TOPOLOGY_LABEL",
+    "GridEdit",
     "SimulationCancelledError",
     "SimulationError",
     "SimulationInputError",

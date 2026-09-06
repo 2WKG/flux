@@ -26,7 +26,7 @@ from twin.contracts import (
 )
 
 
-def run_cascade(
+def _run_legacy_cascade(
     element_ids: list[str],
     scenario_id: str,
     hour: int,
@@ -173,6 +173,79 @@ def run_cascade(
             )
         persist_result(result, db_path, counterfactual_site_id=counterfactual_site_id)
     return result.json()
+
+
+def run_cascade(
+    element_ids: list[str] | Any,
+    scenario_id: str | Iterable[Any] = "interactive",
+    hour: int = 0,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Run the established public scenario API and retain fixture-edit support.
+
+    The latter form is used by the DuckDB fixture foundation:
+    ``run_cascade(net, edits)``.  It is deliberately a compatibility adapter;
+    the public interactive API remains ``run_cascade(element_ids, scenario, hour)``.
+    """
+    if hasattr(element_ids, "bus"):
+        net = element_ids
+        edits = tuple(scenario_id) if not isinstance(scenario_id, str) else ()
+        forced = [
+            str(edit.element_id)
+            for edit in edits
+            if getattr(edit, "kind", "") in {"outage", "remove"}
+        ]
+        return _run_legacy_cascade(forced, "fixture", 0, net=net, **kwargs)
+    if not isinstance(scenario_id, str):
+        raise SimulationInputError("scenario_id must be a non-empty string")
+    return _run_legacy_cascade(element_ids, scenario_id, hour, **kwargs)
+
+
+def island_primitives(net: Any, edits: Iterable[Any] = ()) -> list[dict[str, Any]]:
+    """Expose immutable connectivity facts for policy and balance helpers."""
+    from twin.edits import apply_edits, edit_hash
+
+    edits_tuple = tuple(edits)
+    candidate = apply_edits(net, edits_tuple)
+    metadata = candidate.get("flux_bus_metadata", {})
+    rows: list[dict[str, Any]] = []
+    for component in sorted(
+        nx.connected_components(_in_service_graph(candidate)), key=min
+    ):
+        source_ids = [
+            int(metadata.get(int(bus), {}).get("bus_id", bus))
+            for bus in sorted(component)
+        ]
+        capacity = 0.0
+        for table in ("gen", "sgen"):
+            frame = candidate.get(table)
+            if frame is not None and not frame.empty:
+                capacity += float(
+                    frame.loc[frame.in_service & frame.bus.isin(component), "max_p_mw"]
+                    .fillna(0)
+                    .sum()
+                )
+        rows.append(
+            {
+                "bus_ids": source_ids,
+                "load_mw": round(
+                    float(
+                        candidate.load.loc[
+                            candidate.load.in_service
+                            & candidate.load.bus.isin(component),
+                            "p_mw",
+                        ].sum()
+                    ),
+                    6,
+                ),
+                "available_generation_mw": round(capacity, 6),
+                "has_grid_forming_source": bool(
+                    _source_buses(candidate).intersection(component)
+                ),
+                "edit_hash": edit_hash(edits_tuple),
+            }
+        )
+    return rows
 
 
 def scenario_identity(

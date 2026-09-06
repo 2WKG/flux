@@ -12,6 +12,8 @@ from typing import Any, Literal
 
 SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
 
+EditKind = Literal["outage", "remove", "add_gen", "add_load", "add_line"]
+
 
 class SimulationError(RuntimeError):
     """Base class for an explicit simulation failure."""
@@ -31,6 +33,27 @@ class SimulationSolveError(SimulationError):
 
 class SimulationCancelledError(SimulationError):
     """A caller cancelled a synchronous DC run before it was persisted."""
+
+
+@dataclass(frozen=True)
+class GridEdit:
+    """One immutable topology or injection edit used by the policy helpers."""
+
+    kind: EditKind
+    element_id: str
+    bus_id: int | None = None
+    from_bus_id: int | None = None
+    to_bus_id: int | None = None
+    p_mw: float | None = None
+    pmax_mw: float | None = None
+    r_pu: float | None = None
+    x_pu: float | None = None
+    rate_a_mw: float | None = None
+    base_kv: float | None = None
+    length_km: float | None = None
+
+    def json(self) -> dict[str, Any]:
+        return {key: value for key, value in asdict(self).items() if value is not None}
 
 
 @dataclass(frozen=True)
