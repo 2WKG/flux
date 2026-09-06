@@ -252,9 +252,9 @@ test("source truth is derived by explicit rule, and never defaults to a plausibl
     sourceKind: "fixture",
     topology: null,
   });
-  // The default scene names the topology from its own backend contract, while
-  // this fixture helper remains restricted to the checked-in lesson bundle.
-  assert.match(text, new RegExp(escapeRegExp(shell.SYNTHETIC_TOPOLOGY_LABEL)));
+  // The default scene names its backend model contract directly. The helper's
+  // parenthesized label remains restricted to the lesson fixture vocabulary.
+  assert.match(text, /ACTIVSg2000 network geometry/);
 
   // An ACTIVSg-derived source is the one topology this repository can assert.
   assert.deepEqual(
@@ -289,7 +289,8 @@ test("the built bundle actually ships the shell, the dock, and the derived label
     "Full synthetic Texas topology",
     "map scene-viewport",
     "Not available in this offline build",
-    "no asserted topology",
+    "model API required",
+    "Texas model topology unavailable",
     bundle.execution.provenance.artifactId,
   ]) {
     assert.ok(built.includes(marker), `built bundle is missing ${marker}`);
