@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "question": "Does this tracked Blender pipeline produce the same bytes twice, and does it reproduce the digests already pinned in manifest.json / package.SHA256SUMS?",
+  "method": "Two consecutive builds of source/pipeline/build_pack.py from the same checkout, catalog and Blender install, into two empty directories, compared file by file with sha256. Preview PNGs that differed were additionally compared on their decompressed IDAT pixel stream.",
+  "toolchain": {
+    "blender": "5.2.1 LTS (hash 9e2066aef7ef, build date 2026-08-25)",
+    "os": "macOS 26.6.2",
+    "arch": "arm64",
+    "measured_on": "2026-09-06"
+  },
+  "same_toolchain_rebuild": {
+    "glb": { "files": 54, "byte_identical": 54 },
+    "meta_json": { "files": 18, "byte_identical": 18 },
+    "preview_png": { "files": 18, "byte_identical": 0, "pixels_identical": 18 },
+    "blend_master": { "files": 1, "byte_identical": 0 },
+    "total_glb_bytes": 15170796
+  },
+  "why_previews_differ": "Only Blender's embedded tEXt metadata differs: Date, RenderTime, cycles.ViewLayer.total_time, cycles.ViewLayer.render_time, cycles.ViewLayer.synchronization_time. The decompressed IDAT pixel stream is byte-identical for all 18 previews, so the render is deterministic and the container is not.",
+  "reproduces_the_committed_pins": false,
+  "committed_pin_divergence": {
+    "observed_total_glb_bytes": 15170796,
+    "readme_total_glb_bytes": 15170916,
+    "delta_bytes": -120,
+    "independent_review_measurement": "An independent review of PR #255 rebuilt on Blender 5.2.1 LTS and reported all 54 triangle counts identical to manifest.json but 16 of 54 GLB sha256 values different, and scripts/install_flux_grid_pack.mjs rejecting the rebuilt package at assets/battery_storage/battery_storage.glb.",
+    "cause_not_recovered": "Neither manifest.json, package.SHA256SUMS, archive.json nor releases/ records the Blender version, exporter version or OS that produced the pinned digests, so the toolchain that would reproduce them cannot now be identified."
+  },
+  "what_this_means": [
+    "Geometry is reproducible: same source, same catalog, same Blender gives byte-identical GLBs and metadata, and the review reproduced every triangle count on a separate build.",
+    "Receipts are not reproducible: preview PNGs carry render timestamps, so package.SHA256SUMS differs between two builds on one machine even before any toolchain change.",
+    "The committed binary digests are one unrecorded machine's receipts. They are not a reproducibility claim and must not be read as one.",
+    "Consequence: a locally rebuilt package cannot pass an installer that verifies against the committed inventory. Until the archive is published, verify a rebuild against the audit its own build produced, which is what source/pipeline/assemble_runtime_pack.py now enforces."
+  ],
+  "not_measured": [
+    "Any other Blender version, exporter version, OS or CPU architecture.",
+    "Whether stripping the render-time tEXt chunks would make package.SHA256SUMS reproducible; that would change every committed preview digest and is not attempted here."
+  ]
+}
