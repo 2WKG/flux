@@ -441,9 +441,13 @@ def test_composite_mapping_requires_all_inputs_without_double_counting(tmp_path)
                 "retrieved_at_utc": datetime.now(UTC).isoformat(),
             },
             {
+                # The hazard release has its own row count.  Reconciling the
+                # county table against it too would report 5 != 1, so this row
+                # makes double counting visible instead of merely warned about.
                 "source_id": "fema-nri",
                 "status": "ok",
-                "row_count": 1,
+                "row_count": 5,
+                "curated_row_count": 5,
                 "retrieved_at_utc": datetime.now(UTC).isoformat(),
             },
         ],
@@ -456,6 +460,7 @@ def test_composite_mapping_requires_all_inputs_without_double_counting(tmp_path)
     codes = {alert["code"] for alert in report["alerts"]}
     assert "unoperated_source" not in codes
     assert "source_curated_mismatch" not in codes
+    assert "reconciliation_unavailable" not in codes
     assert report["dashboard_eligible"]
 
 

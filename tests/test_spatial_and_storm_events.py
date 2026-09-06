@@ -295,3 +295,135 @@ def test_dod_county_assignment_prevents_cross_county_bus_matches(tmp_path):
         con.close()
     assert assignments == [("Inside", 1), ("No local bus", None)]
     assert methods == [(1, 1, "same_county"), (3, None, "unassigned_no_eligible_bus")]
+
+
+def _storm_details(tmp_path, cz_timezone: str):
+    details = tmp_path / "details.csv.gz"
+    pd.DataFrame(
+        [
+            {
+                "EVENT_ID": 1,
+                "STATE": "TEXAS",
+                "STATE_FIPS": 48,
+                "CZ_TYPE": "C",
+                "CZ_FIPS": 1,
+                "CZ_TIMEZONE": cz_timezone,
+                "BEGIN_DATE_TIME": "2021-07-01 12:00:00",
+                "END_DATE_TIME": "2021-07-01 13:00:00",
+                "EVENT_TYPE": "High Wind",
+                "MAGNITUDE": 50,
+            }
+        ]
+    ).to_csv(details, index=False, compression="gzip")
+    crosswalk = tmp_path / "zones.dbx"
+    crosswalk.write_text("TX|001|XXX|Example||Example|48001|CST-6\n")
+    return details, crosswalk
+
+
+def _seed_one_county(con):
+    replace_frame(
+        con,
+        "counties",
+        pd.DataFrame(
+            [
+                {
+                    "county_fips": "48001",
+                    "name": "Example",
+                    "state": "TX",
+                    "pop": 1,
+                    "geom_wkb": Polygon(
+                        [(-99, 29), (-95, 29), (-95, 33), (-99, 33)]
+                    ).wkb,
+                }
+            ]
+        ),
+        source_name="test",
+        source_ref="storm-fixture",
+        fixture_batch_id="test",
+    )
+
+
+def test_load_storm_events_applies_ncei_daylight_label_offsets(tmp_path):
+    # Wire test: the CDT-5 label is honoured at the loader, not only in the
+    # helper.  12:00 at UTC-5 is 17:00 UTC.
+    details, crosswalk = _storm_details(tmp_path, "CDT-5")
+    con = connect(str(tmp_path / "grid.duckdb"))
+    try:
+        _seed_one_county(con)
+        assert load_storm_events(con, str(details), str(crosswalk), 2021) == 1
+        observed = con.execute("SELECT ts_begin FROM storm_events").fetchall()
+    finally:
+        con.close()
+    assert observed == [(pd.Timestamp("2021-07-01 17:00:00"),)]
+
+
+def test_load_storm_events_rejects_undocumented_timezone_loudly(tmp_path):
+    # The pre-2WKG-414 negative example was CDT-5; that label is now documented,
+    # so an undocumented label must still fail the load instead of guessing.
+    details, crosswalk = _storm_details(tmp_path, "PST-8")
+    con = connect(str(tmp_path / "grid.duckdb"))
+    try:
+        _seed_one_county(con)
+        with pytest.raises(ValueError, match="unsupported Storm Events CZ_TIMEZONE"):
+            load_storm_events(con, str(details), str(crosswalk), 2021)
+        assert con.execute("SELECT count(*) FROM storm_events").fetchone() == (0,)
+    finally:
+        con.close()
+
+
+def test_load_dod_never_reuses_a_cl_id_owned_by_another_facility_kind(tmp_path):
+    # Wire test for the reserved-id rule at the load_dod call site: a hospital
+    # row already holding the NTAD-derived id must survive, and the DoD row
+    # must take a different id.
+    from pipelines.critical_loads import _stable_id
+
+    polygon = Polygon([(-98.2, 29.8), (-97.8, 29.8), (-97.8, 30.2), (-98.2, 30.2)])
+    feature = {
+        "type": "Feature",
+        "properties": {
+            "mirtaLocationsIdpk": 77,
+            "stateNameCode": "TX",
+            "siteOperationalStatus": "act",
+            "siteName": "Fixture Base",
+            "siteReportingComponent": "usa",
+            "isJointBase": False,
+        },
+        "geometry": {"type": "Polygon", "coordinates": [list(polygon.exterior.coords)]},
+    }
+    geojson = tmp_path / "dod.geojson"
+    geojson.write_text(json.dumps({"type": "FeatureCollection", "features": [feature]}))
+    reserved = _stable_id("ntad_military_bases", "mirtaLocationsIdpk:77")
+    con = connect(str(tmp_path / "grid.duckdb"))
+    try:
+        _seed_one_county(con)
+        replace_frame(
+            con,
+            "critical_loads",
+            pd.DataFrame(
+                [
+                    {
+                        "cl_id": reserved,
+                        "kind": "hospital",
+                        "name": "Fixture Hospital",
+                        "lon": -98.0,
+                        "lat": 30.0,
+                        "bus_id": None,
+                        "county_fips": "48001",
+                    }
+                ]
+            ),
+            where="kind = 'hospital'",
+            source_name="test",
+            source_ref="hospitals",
+            fixture_batch_id="test",
+        )
+        assert load_dod(con, str(geojson), min_area_km2=1) == 1
+        rows = con.execute(
+            "SELECT kind, cl_id FROM critical_loads ORDER BY kind"
+        ).fetchall()
+    finally:
+        con.close()
+    assert rows[1] == ("hospital", reserved)
+    assert rows[0][0] == "dod"
+    assert rows[0][1] != reserved
+    assert rows[0][1] > 0
