@@ -115,8 +115,8 @@ states; the state is a `county_fips` prefix, not a separate schema.
   load) rather than mapped by a later edition.
 - **`eia_generator_inventory` is national, not state-scoped.** Any state's
   EIA-860 load replaces the whole relation.
-- **The published store manifest under-reports its scope.**
-  `schema_meta.manifest` records `"state_scope":"tx"` because
-  `pipelines.build_state_context` does not rewrite the manifest that
-  `pipelines.build` wrote. The data is correct; the manifest's scope field is
-  not, and a reader should use `ingest_log` scope keys instead.
+- **The published store manifest describes the full promoted store.**
+  Every context promotion rebuilds `schema_meta.manifest` and
+  `data/parquet/manifest.json` from the staged database. Its `state_scope`
+  reflects every loaded county state (for example, `mn-tx`), and its table
+  counts and digests describe the same promoted rows.
