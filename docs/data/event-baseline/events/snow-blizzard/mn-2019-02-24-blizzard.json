@@ -107,28 +107,15 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei-stormevents-2019"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "NCEI:StormEvents:803577"
-          ],
-          "source_window": {
-            "start_utc": "2019-02-24T15:00:00Z",
-            "end_utc": "2019-02-25T00:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "MNZ070 (Dakota)",
-          "limitations": "Zone report is not a county time series."
-        },
-        "notes": "NCEI event intersects the canonical window."
+        "event_report": null,
+        "notes": "NCEI EVENT_ID 803577 is retained as zone-level shortfall context; its report is not a county time series, so county weather coverage is not assessed."
       },
       "outage": {
         "coverage": "uncovered",

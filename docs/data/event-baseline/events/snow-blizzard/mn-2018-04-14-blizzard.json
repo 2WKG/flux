@@ -108,28 +108,15 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei-stormevents-2018"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "NCEI:StormEvents:740148"
-          ],
-          "source_window": {
-            "start_utc": "2018-04-14T16:00:00Z",
-            "end_utc": "2018-04-15T01:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "MNZ060 (Hennepin)",
-          "limitations": "Zone report establishes observed blizzard conditions but is not a county time series."
-        },
-        "notes": "NCEI EVENT_ID 740148 intersects the canonical county window."
+        "event_report": null,
+        "notes": "NCEI EVENT_ID 740148 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
       },
       "outage": {
         "coverage": "uncovered",
