@@ -1,6 +1,6 @@
 # 09 — Backup: Speed-to-Power (large-load verification + grid headroom ranking)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Data and grid claims must remain within each selected state's declared artifact and model contract. The repository's Texas topology adapter requires its source artifacts and build; [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
 Status: **backup** (pitch v2 "Idea 2"). Not on the weekend critical path. Built only if (a) the judges
 signal they want something narrower/nearer-term, (b) the format allows two entries, or (c) the Idea 1

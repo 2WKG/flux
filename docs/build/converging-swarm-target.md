@@ -11,10 +11,7 @@ related:
 
 # Flux hackathon build target
 
-Build a credible, demoable Texas-first grid digital twin: outage prediction,
-cascade simulation, firm-generation siting, line-upgrade ranking, and a
-tool-grounded copilot. Flux must make the origin and limits of every result
-clear enough to defend during a five-minute demo.
+Build a credible, demoable state-configurable grid resilience product: state-scoped public context, plus outage prediction, cascade simulation, firm-generation siting, line-upgrade ranking, and a tool-grounded copilot where a state has validated topology inputs. The repository's Texas / ACTIVSg2000 / ERCOT adapter also requires its source artifacts and build. Flux must make the origin and limits of every result clear enough to defend during a five-minute demo.
 
 Read `docs/specs/README.md` and then the complete amended
 `docs/specs/00-overview.md` before work. The amended overview is the current
@@ -24,12 +21,7 @@ older frozen gates or stale quantitative requirements.
 
 ## Delivery focus
 
-The demo should support one coherent path: select a storm, inspect its outage
-risk and cascade, compare a candidate generation site with the baseline, view
-line-upgrade evidence, and ask a question whose answer traces to tool output
-and sources. The frontend must display synthetic-topology labeling. National
-topology, CEII utility data, Grid2Op operation, and the backup pitch remain
-outside this build target.
+The demo should support one coherent path for a state with validated topology: select a storm, inspect its outage risk and cascade, compare a candidate generation site with the baseline, view line-upgrade evidence, and ask a question whose answer traces to tool output and sources. It must also exercise the non-Texas state-context ingestion path with declared source artifacts, while keeping topology, flow, cascade, and siting unavailable until that state has a validated topology contract. The frontend must display synthetic-topology labeling. CEII utility data, Grid2Op operation, and the backup pitch remain outside this build target.
 
 ## Feature ownership and dependency path
 

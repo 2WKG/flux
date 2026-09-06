@@ -12,15 +12,24 @@ Use this skill when Flux work needs a worker, more than one independent worker, 
 - Give any code, documentation, investigation, or verification change to one Terra worker. The root does not take an implementation shortcut for a small change.
 - Use one Terra worker for a small coherent task. A short paragraph containing the objective, authority, scope, acceptance check, and expected handoff is enough.
 - Use separate Terra workers only for genuinely independent work. Give each a non-overlapping claim over files **and** shared interfaces, schemas, database/runtime state, deployment surfaces, and contracts.
+- Give one owner each shared persistence, schema, runtime, or API surface in a wave.
 - Use an Astra sub-orchestrator only for a distinct, sufficiently large stream that needs its own coordination. It still uses the same brief and reporting rules; the root remains accountable.
 - If work shares a file, contract, runtime state, or dependency sequence, keep one owner or order the work. Do not parallelize it merely because the filenames differ.
 
+## Converging-swarm design
+
+For multi-issue Flux work, begin with a converging-swarm design before assigning implementation. Inspect the current Linear issues, integration base and working state, shared contract, and existing claims. Use repository and issue evidence to remove or bound zombie blockers.
+
+Record each issue's exact ID and branch, owner, files and shared surfaces, acceptance evidence, and worktree base. Separate hard start dependencies from integration-only joins, then schedule the independent work in available worker slots and recycle a slot as a dependency completes. Converge the completed branches through the shared surfaces and proportionate integration verification.
+
+Do not turn the plan into frozen gates, arbitrary numerical thresholds, or required approval rituals. Exclude product areas the request explicitly defers.
+
 ## Before delegation
 
-1. Read the current issue or request, contract, affected local guidance, working state, and relevant existing claims.
+1. For multi-issue work, produce the converging-swarm design above; for a single coherent task, read the current issue or request, contract, affected local guidance, working state, and relevant existing claims.
 2. State the observable outcome and identify shared interfaces or runtime concerns before splitting work.
 3. For new Linear issue work, use its exact `gitBranchName`. For an existing associated branch, resume that branch. Do not infer a branch, issue ID, or sync state when Linear is unavailable.
-4. Record every parallel claim: owner, files and shared surfaces, dependency, and expected output.
+4. Record every parallel claim: owner, files and shared surfaces, hard start dependencies, integration joins, and expected output.
 5. Give the worker authority for normal in-scope choices. Ask the user only when an action is outside existing authorization; do not ask again for an authorized PR or Linear write.
 
 Read-only inspection of Buckeye materials is allowed when relevant. Never write Flux material into Buckeye-associated repositories, and never borrow Buckeye secrets, control-plane procedures, virtual machines, or sandbox tooling.
