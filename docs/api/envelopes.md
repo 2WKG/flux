@@ -40,7 +40,8 @@
 - Every response carries `X-Request-ID` (stamped by middleware in `install_error_handlers`); a client-supplied header value is reused.
 - Every response carries `X-Flux-Api-Version: v1`. This is response metadata, not a success envelope; success payload bodies remain exactly the route payloads specified by specs 00 and 05.
 - `X-Flux-Artifact` appears only on a successful `GET /cascade` response. Its value is the same resolved immutable `artifact_id` in that response body. It is omitted from every other success response and every failure: a logical artifact named in failure details is not a selected immutable artifact.
-- CORS exposes `X-Request-ID`, `X-Flux-Api-Version`, and `X-Flux-Artifact` to browser API clients.
+- CORS exposes `X-Request-ID`, `X-Flux-Api-Version`, `X-Flux-Artifact`, and the
+  `POST /ask` acknowledgement `X-Flux-Attempt-Id` to browser API clients.
 
 ## Safety
 

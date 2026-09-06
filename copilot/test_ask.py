@@ -20,7 +20,7 @@ from copilot.retrieval.chunking import SourceDocument, chunk_document
 from copilot.retrieval.search import SparseIndex, retrieve
 from copilot.routes.ask import HEARTBEAT_SECONDS, AskRequest, _heartbeat
 from copilot.routes.interventions import SiteScoreRequest, read_site
-from copilot.runtime import ToolTurn
+from copilot.runtime import AsyncNarrationProvider, ToolTurn
 from copilot.tools.schemas import ArtifactRef, CiteData, RetrievalHit
 from copilot.tools.sql import ApprovedMinnesotaView, MinnesotaSqlExecutor
 
@@ -207,10 +207,17 @@ def _available_turn() -> ToolTurn:
 
 
 class _ImmediateBackend:
-    def __init__(self, provider: _Provider | None) -> None:
+    def __init__(
+        self,
+        provider: AsyncNarrationProvider | None,
+        lifecycle_sent: asyncio.Event | None = None,
+    ) -> None:
         self.provider = provider
+        self.lifecycle_sent = lifecycle_sent
 
     async def turn(self, payload: AskRequest) -> ToolTurn:
+        if self.lifecycle_sent is not None:
+            assert self.lifecycle_sent.is_set()
         return _available_turn()
 
 
@@ -421,16 +428,16 @@ def test_ask_live_stream_heartbeats_and_cancels_a_blocked_provider(
     """The ASGI response remains live while cooperative provider work blocks."""
     ask_module = importlib.import_module("copilot.routes.ask")
 
-    provider = _BlockingProvider()
-    app = create_app(
-        Settings(duckdb_path=tmp_path / "missing.duckdb"),
-        ask_backend=_ImmediateBackend(provider),
-    )
     monkeypatch.setattr(ask_module, "HEARTBEAT_SECONDS", 0.001)
 
     async def drive() -> list[bytes]:
         lifecycle_sent = asyncio.Event()
         heartbeat_sent = asyncio.Event()
+        provider = _BlockingProvider()
+        app = create_app(
+            Settings(duckdb_path=tmp_path / "missing.duckdb"),
+            ask_backend=_ImmediateBackend(provider, lifecycle_sent),
+        )
         sent: list[bytes] = []
         received_body = False
 
@@ -474,13 +481,14 @@ def test_ask_live_stream_heartbeats_and_cancels_a_blocked_provider(
         await asyncio.wait_for(app(scope, receive, send), timeout=1)
         assert lifecycle_sent.is_set()
         assert heartbeat_sent.is_set()
+        assert provider.started.is_set()
+        assert provider.cancelled.is_set()
         return sent
 
     sent = asyncio.run(drive())
     assert any(b"event: lifecycle" in body for body in sent)
     assert any(b": keepalive" in body for body in sent)
-    assert provider.started.is_set()
-    assert provider.cancelled.is_set()
+    assert not any(b"event: done" in body for body in sent)
 
 
 def test_ask_converts_a_cooperative_backend_failure_after_lifecycle(
@@ -498,6 +506,20 @@ def test_ask_converts_a_cooperative_backend_failure_after_lifecycle(
         "message": "The local Copilot backend failed.",
         "retryable": False,
     }
+
+
+def test_ask_exposes_attempt_acknowledgement_to_an_allowed_browser_origin(
+    tmp_path: Path,
+) -> None:
+    response = _client(tmp_path / "missing.duckdb", None).post(
+        "/ask",
+        json=_body(),
+        headers={"Origin": "http://localhost:5173"},
+    )
+
+    assert response.headers["X-Flux-Attempt-Id"] == ATTEMPT
+    exposed = response.headers["Access-Control-Expose-Headers"].lower()
+    assert "x-flux-attempt-id" in exposed
 
 
 def test_actual_site_score_api_read_is_fixture_labeled_and_non_mutating(
