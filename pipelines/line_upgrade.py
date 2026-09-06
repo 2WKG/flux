@@ -25,9 +25,13 @@ import math
 import sys
 from collections.abc import Iterable
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 import duckdb
+import pandas as pd
 
+from pipelines.congestion import CongestionArtifactError, load_congestion_artifact
 from pipelines.line_upgrade_contracts import (
     Congestion,
     DlrIntervention,
@@ -43,6 +47,8 @@ from pipelines.line_upgrade_contracts import (
     mw_per_musd,
     rank,
 )
+from twin.dlr import Conductor, dlr_cost_usd, dlr_summary, hourly_ratings_mw
+from twin.reconductor import ReconductorArtifact, build_reconductor_artifact
 
 LineUpgradeResult = LineUpgradeRecord
 """Alias kept for the name this module was introduced with."""
@@ -255,23 +261,238 @@ def write_ranking(con: duckdb.DuckDBPyConnection, ranking: PersistedRanking) -> 
     return len(ranking.score_rows)
 
 
-def main(argv: list[str] | None = None) -> int:
-    """Spec 08's ``python -m pipelines.line_upgrade --region`` is not built yet.
+class LineUpgradeArtifactError(ValueError):
+    """A line-upgrade input artifact is incomplete or contradicts its request."""
 
-    2WKG-112 ships ``score_line`` / ``rank_results`` / ``persist_ranking`` /
-    ``write_ranking``. ``score_lines`` needs the inventory, congestion and
-    uplift inputs from 2WKG-108/109/110, so the CLI refuses loudly rather than
-    exiting 0 having done nothing.
+
+def _load_artifact(path: Path, *, scenario_id: str, region: str) -> dict[str, Any]:
+    try:
+        artifact = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise LineUpgradeArtifactError(
+            f"cannot read line-upgrade artifact {path}: {exc}"
+        ) from exc
+    if (
+        not isinstance(artifact, dict)
+        or artifact.get("format") != "flux-line-upgrade-v1"
+    ):
+        raise LineUpgradeArtifactError("artifact format must be 'flux-line-upgrade-v1'")
+    if artifact.get("scenario_id") != scenario_id or artifact.get("region") != region:
+        raise LineUpgradeArtifactError(
+            "artifact scenario_id and region must match request"
+        )
+    if artifact.get("source_kind") not in {
+        "fixture",
+        "observed",
+        "simulated",
+        "heuristic",
+    }:
+        raise LineUpgradeArtifactError(
+            "artifact source_kind must be explicit and supported"
+        )
+    if not isinstance(artifact.get("lines"), list):
+        raise LineUpgradeArtifactError("artifact lines must be an array")
+    return artifact
+
+
+def _sha(value: object, field: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(c not in "0123456789abcdef" for c in value)
+    ):
+        raise LineUpgradeArtifactError(f"{field} must be a lowercase SHA-256")
+    return value
+
+
+def _artifact_rows(artifact: dict[str, Any]) -> dict[int, dict[str, Any]]:
+    rows: dict[int, dict[str, Any]] = {}
+    for index, row in enumerate(artifact["lines"]):
+        if (
+            not isinstance(row, dict)
+            or isinstance(row.get("line_id"), bool)
+            or not isinstance(row.get("line_id"), int)
+        ):
+            raise LineUpgradeArtifactError(
+                f"artifact lines[{index}].line_id must be an integer"
+            )
+        line_id = row["line_id"]
+        if line_id in rows:
+            raise LineUpgradeArtifactError(f"artifact repeats line_id {line_id}")
+        rows[line_id] = row
+    return rows
+
+
+def _interventions(
+    *,
+    key: LineKey,
+    static_rating_mw: float | None,
+    base_kv: float,
+    length_km: float,
+    artifact_row: dict[str, Any],
+    provenance: LineUpgradeProvenance,
+) -> tuple[Intervention, ...]:
+    """Build only interventions whose qualified inputs are explicitly supplied."""
+    interventions: list[Intervention] = []
+    dlr = artifact_row.get("dlr")
+    if isinstance(dlr, dict):
+        weather = dlr.get("weather")
+        conductor = dlr.get("conductor")
+        if (
+            isinstance(weather, list)
+            and isinstance(conductor, dict)
+            and static_rating_mw is not None
+        ):
+            try:
+                ratings = hourly_ratings_mw(
+                    str(key.line_id),
+                    Conductor(**conductor),
+                    pd.DataFrame(weather),
+                    base_kv,
+                    static_rating_mw,
+                )
+                summary = dlr_summary(ratings)
+                if summary.get("status") == "ok":
+                    interventions.append(
+                        DlrIntervention(
+                            uplift_mw=summary["dlr_uplift_mw"],
+                            hours_above_static=summary["hours_above_static"],
+                            cost_usd=dlr_cost_usd(length_km),
+                        )
+                    )
+            except (TypeError, ValueError):
+                pass
+    reconductor = artifact_row.get("reconductor")
+    if isinstance(reconductor, dict):
+        result = build_reconductor_artifact(
+            key=key,
+            scenario_id=key.scenario_id,
+            rate_a_mw=static_rating_mw,
+            material=reconductor.get("material"),
+            kcmil=reconductor.get("kcmil"),
+            length_km=length_km,
+            base_kv=base_kv,
+            costs=reconductor.get("costs", {}),
+        )
+        if isinstance(result, ReconductorArtifact):
+            interventions.append(result.intervention)
+    return tuple(interventions)
+
+
+def score_lines(
+    *,
+    db_path: Path,
+    artifact_path: Path,
+    congestion_path: Path,
+    region: str,
+    scenario_id: str,
+    write: bool = True,
+) -> PersistedRanking:
+    """Score every selected inventory line from explicit qualified artifacts.
+
+    Missing per-line inputs intentionally yield unavailable records.  The
+    returned artifact retains those records even though DuckDB has no score row
+    for them, so callers can report coverage instead of implying completeness.
     """
-
-    args = sys.argv[1:] if argv is None else argv
-    print(
-        "pipelines.line_upgrade: score_lines/--region is not implemented yet "
-        f"(args={args!r}); this module provides score_line, rank_results, "
-        "persist_ranking and write_ranking only.",
-        file=sys.stderr,
+    artifact = _load_artifact(artifact_path, scenario_id=scenario_id, region=region)
+    rows = _artifact_rows(artifact)
+    try:
+        congestion = load_congestion_artifact(congestion_path, scenario_id=scenario_id)
+    except CongestionArtifactError as exc:
+        raise LineUpgradeArtifactError(str(exc)) from exc
+    provenance = LineUpgradeProvenance(
+        ranking_version=artifact.get("ranking_version"),
+        computed_at=artifact.get("computed_at"),
+        grid_input_sha256=_sha(artifact.get("grid_input_sha256"), "grid_input_sha256"),
+        weather_input_sha256=_sha(
+            artifact.get("weather_input_sha256"), "weather_input_sha256"
+        )
+        if artifact.get("weather_input_sha256") is not None
+        else None,
+        cost_params_sha256=_sha(
+            artifact.get("cost_params_sha256"), "cost_params_sha256"
+        ),
     )
-    return 2
+    storage = StorageProvenance(
+        source_name=artifact.get("source_name"),
+        source_ref=artifact.get("source_ref"),
+        source_version=artifact.get("source_version"),
+        fixture_batch_id=artifact.get("fixture_batch_id"),
+        source_kind=artifact["source_kind"],
+    )
+    con = duckdb.connect(str(db_path), read_only=not write)
+    try:
+        inventory = con.execute(
+            """SELECT l.line_id, l.base_kv, l.rate_a_mw, l.length_km
+               FROM lines AS l JOIN buses AS b ON b.bus_id = l.from_bus
+               WHERE b.ba_code = ? ORDER BY l.line_id""",
+            [region],
+        ).fetchall()
+        if not inventory:
+            raise LineUpgradeArtifactError(f"no inventory lines for region {region!r}")
+        records: list[LineUpgradeRecord] = []
+        for line_id, base_kv, rating, length_km in inventory:
+            key = LineKey(line_id=line_id, region=region, scenario_id=scenario_id)
+            row = rows.get(line_id, {})
+            records.append(
+                score_line(
+                    key=key,
+                    provenance=provenance,
+                    congestion=congestion.get(line_id),
+                    static_rating_mw=rating,
+                    interventions=_interventions(
+                        key=key,
+                        static_rating_mw=rating,
+                        base_kv=base_kv,
+                        length_km=length_km,
+                        artifact_row=row,
+                        provenance=provenance,
+                    ),
+                    owner=row.get("owner")
+                    if isinstance(row.get("owner"), str)
+                    else None,
+                )
+            )
+        ranking = persist_ranking(records, storage)
+        if write:
+            write_ranking(con, ranking)
+        return ranking
+    finally:
+        con.close()
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Build a ranking only from explicit DB, line, and congestion artifacts."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--db", type=Path, required=True)
+    parser.add_argument("--artifact", type=Path, required=True)
+    parser.add_argument("--congestion", type=Path, required=True)
+    parser.add_argument("--region", required=True)
+    parser.add_argument("--scenario-id", required=True)
+    args = parser.parse_args(argv)
+    try:
+        ranking = score_lines(
+            db_path=args.db,
+            artifact_path=args.artifact,
+            congestion_path=args.congestion,
+            region=args.region,
+            scenario_id=args.scenario_id,
+        )
+    except (LineUpgradeArtifactError, duckdb.Error, ValueError) as exc:
+        print(f"pipelines.line_upgrade: unavailable: {exc}", file=sys.stderr)
+        return 2
+    print(
+        json.dumps(
+            {
+                "scored": len(ranking.score_rows),
+                "unavailable": len(ranking.unavailable),
+            },
+            sort_keys=True,
+        )
+    )
+    return 0
 
 
 if __name__ == "__main__":
