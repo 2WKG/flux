@@ -482,3 +482,242 @@ def _consume(event: SseEvent) -> dict[str, object]:
         "event": fields["event"],
         "data": json.loads(fields["data"]),
     }
+
+
+CITATION_HIT = {
+    "doc": "10-cfr-part-100.pdf",
+    "title": "10 CFR Part 100",
+    "page": 12,
+    "chunk_id": "10cfr100-p12-c2",
+    "locator": "§ 100.10",
+    "excerpt": "…",
+    "url": None,
+}
+
+
+def test_text_emits_a_non_empty_delta() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        stream.text("")
+    event = stream.text("A county-level ")
+
+    assert event.event == "text"
+    assert event.data == {"v": 1, "seq": 2, "delta": "A county-level "}
+
+
+def test_citation_emits_exactly_the_documented_wire_shape() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    event = stream.citation("cite_1", CITATION_HIT)
+
+    assert event.event == "citation"
+    assert event.data == {"v": 1, "seq": 2, "citation_id": "cite_1", **CITATION_HIT}
+    assert list(event.data)[:3] == ["v", "seq", "citation_id"]
+
+
+@pytest.mark.parametrize("missing", ["doc", "title", "chunk_id"])
+def test_citation_requires_non_empty_string_identity_fields(missing: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    for bad in ("", None, 7):
+        with pytest.raises(ValueError, match=f"non-empty string {missing!r}"):
+            stream.citation("cite_1", {**CITATION_HIT, missing: bad})
+    with pytest.raises(ValueError, match=f"non-empty string {missing!r}"):
+        hit = dict(CITATION_HIT)
+        del hit[missing]
+        stream.citation("cite_1", hit)
+    # Rejections consumed no sequence number.
+    assert stream.citation("cite_1", CITATION_HIT).seq == 2
+
+
+@pytest.mark.parametrize("page", ["12", 0, -1, True, None, 1.0])
+def test_citation_page_must_be_a_positive_integer(page: object) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="positive integer page"):
+        stream.citation("cite_1", {**CITATION_HIT, "page": page})
+
+
+def test_citation_id_must_be_a_unique_non_empty_string() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="citation_id"):
+        stream.citation("", CITATION_HIT)
+    with pytest.raises(ValueError, match="citation_id"):
+        stream.citation(7, CITATION_HIT)  # type: ignore[arg-type]
+    stream.citation("cite_1", CITATION_HIT)
+    with pytest.raises(StreamStateError, match="already emitted"):
+        stream.citation("cite_1", CITATION_HIT)
+    assert stream.citation("cite_2", CITATION_HIT).seq == 3
+
+
+@pytest.mark.parametrize(
+    "extra",
+    [
+        {"v": 7},
+        {"seq": 999},
+        {"citation_id": "spoof"},
+        {"score": 0.9},
+        {"text": "raw chunk"},
+        {"source": "https://example.test"},
+        {"provenance": {"retrieved_at": "x"}},
+    ],
+)
+def test_citation_rejects_undocumented_and_envelope_fields(
+    extra: dict[str, object],
+) -> None:
+    """A hit can neither leak backend fields nor overwrite ``v``/``seq``/``citation_id``."""
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="undocumented fields"):
+        stream.citation("cite_1", {**CITATION_HIT, **extra})
+    event = stream.citation("cite_1", CITATION_HIT)
+    assert (event.data["v"], event.data["seq"], event.data["citation_id"]) == (
+        1,
+        2,
+        "cite_1",
+    )
+
+
+def test_citation_optional_fields_are_string_or_null_and_excerpt_is_capped() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    for key in ("locator", "excerpt", "url"):
+        with pytest.raises(ValueError, match=f"{key!r} must be a string or null"):
+            stream.citation("cite_1", {**CITATION_HIT, key: 12})
+    minimal = {key: CITATION_HIT[key] for key in ("doc", "title", "page", "chunk_id")}
+    event = stream.citation("cite_1", minimal)
+    assert (event.data["locator"], event.data["excerpt"], event.data["url"]) == (
+        None,
+        None,
+        None,
+    )
+
+    long = stream.citation("cite_2", {**CITATION_HIT, "excerpt": "x" * 1201})
+    assert len(long.data["excerpt"]) == 1200
+    assert long.data["excerpt_truncated"] is True
+    exact = stream.citation("cite_3", {**CITATION_HIT, "excerpt": "x" * 1200})
+    assert "excerpt_truncated" not in exact.data
+
+
+def test_citation_requires_an_active_stream() -> None:
+    stream = CopilotEventStream()
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.citation("cite_1", CITATION_HIT)
+    stream.start()
+    stream.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.citation("cite_1", CITATION_HIT)
+
+
+@pytest.mark.parametrize(
+    "code", ["", "banana", "api_error", "UNAVAILABLE", "timeout", "invalid_input"]
+)
+def test_error_rejects_codes_outside_the_closed_v1_set(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="unsupported error code"):
+        stream.error(code, "A safe message.", retryable=False)
+    # The rejected terminal left the stream open and consumed no sequence number.
+    assert stream.done(verified=True).seq == 2
+
+
+@pytest.mark.parametrize(
+    "code",
+    sorted(
+        [
+            "invalid_request",
+            "unavailable",
+            "deadline",
+            "upstream_error",
+            "tool_error",
+            "refusal",
+            "cancelled",
+            "protocol_error",
+        ]
+    ),
+)
+def test_error_accepts_each_closed_v1_code_as_the_one_terminal(code: str) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    event = stream.error(code, "A safe message.", retryable=True)
+
+    assert event.event == "error"
+    assert event.data == {
+        "v": 1,
+        "seq": 3,
+        "status": "failed",
+        "error": {"code": code, "message": "A safe message.", "retryable": True},
+    }
+    # ``error`` closes the stream: the abandoned call cannot be settled and no
+    # second terminal or application event may follow.
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.error(code, "A safe message.", retryable=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.text("late")
+
+
+def test_error_bounds_the_message_and_requires_an_active_stream() -> None:
+    stream = CopilotEventStream()
+    with pytest.raises(StreamStateError, match="lifecycle start"):
+        stream.error("unavailable", "A safe message.", retryable=False)
+    stream.start()
+
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.error("unavailable", "", retryable=False)
+    with pytest.raises(ValueError, match="1..1024 characters"):
+        stream.error("unavailable", "x" * 1025, retryable=False)
+    event = stream.error("unavailable", "x" * 1024, retryable=False)
+    assert event.seq == 2
+    assert event.data["error"]["retryable"] is False
+
+    finished = CopilotEventStream()
+    finished.start()
+    finished.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        finished.error("unavailable", "A safe message.", retryable=False)
+
+
+def test_done_reports_unverified_findings_only_when_unverified() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+
+    with pytest.raises(ValueError, match="verified answer cannot carry"):
+        stream.done(verified=True, unverified_numbers=["999"])
+    with pytest.raises(ValueError, match="verified answer cannot carry"):
+        stream.done(verified=True, unverified_citations=["[d p.1]"])
+    with pytest.raises(ValueError, match="verified answer cannot carry"):
+        stream.done(verified=True, reason="regulatory_claim_without_cite")
+    with pytest.raises(ValueError, match="must not contain empty strings"):
+        stream.done(verified=False, unverified_citations=[""])
+
+    done = stream.done(
+        verified=False,
+        unverified_numbers=["999"],
+        unverified_citations=["[d p.1]"],
+        reason="regulatory_claim_without_cite",
+    )
+    assert done.data == {
+        "v": 1,
+        "seq": 2,
+        "status": "completed",
+        "verified": False,
+        "unverified_numbers": ["999"],
+        "unverified_citations": ["[d p.1]"],
+        "reason": "regulatory_claim_without_cite",
+    }
