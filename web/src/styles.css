@@ -192,6 +192,11 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .interactive-panels h2 { font-size: 1.25rem; margin: .2rem 0 }
 .interactive-panels dl { display: grid; gap: 6px; margin: .6rem 0 }
 .interactive-panels dl > div { display: flex; justify-content: space-between; gap: 16px }
+/* The annotated Texas nodes mounted by src/texas-nodes/TexasNodesPanel.tsx. */
+.texas-nodes { margin-top: 16px; padding: 25px; display: grid; gap: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.texas-nodes h2 { font-size: 1.25rem; margin: .2rem 0 }
+.texas-node-markers { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) }
+.texas-node-markers article { border: 1px solid #234962; border-radius: 10px; padding: 12px; display: grid; gap: 4px }
 .pipeline { margin-top: 16px; padding: 25px; display: flex; justify-content: space-between; gap: 30px }
 .pipeline h2 { font-size: 1.5rem; margin: .4rem 0 }
 .pipeline > p { max-width: 520px; margin: 0 }
