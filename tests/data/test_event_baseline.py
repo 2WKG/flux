@@ -39,6 +39,10 @@ def bundle() -> dict:
         "filters": "test fixture",
         "grid_index_mapping": "not applicable",
         "gaps": ["synthetic test fixture"],
+        "capture_method": "synthetic fixture, no bytes retrieved",
+        "verification": {"sha256_computed_from_response_body": False},
+        "files": {},
+        "uncertainty": "synthetic fixture; establishes nothing about the real source",
     }
     return {
         "schema_version": "event-baseline/v1",
@@ -95,8 +99,8 @@ def bundle() -> dict:
                     "evidence_kind": "time_series_or_grid",
                     "observation_kind": "observed",
                     "source_receipt_ids": ["source_receipt"],
-                    "expected_samples": 6,
-                    "observed_samples": 6,
+                    "expected_samples": 24,
+                    "observed_samples": 24,
                     "missing_timestamps": [],
                     "event_report": None,
                     "notes": "fixture",
@@ -106,8 +110,8 @@ def bundle() -> dict:
                     "evidence_kind": "time_series_or_grid",
                     "observation_kind": "observed",
                     "source_receipt_ids": ["source_receipt"],
-                    "expected_samples": 6,
-                    "observed_samples": 6,
+                    "expected_samples": 24,
+                    "observed_samples": 24,
                     "missing_timestamps": [],
                     "event_report": None,
                     "notes": "fixture",
@@ -116,8 +120,9 @@ def bundle() -> dict:
                 "label": {
                     "rule_version": "county_outage_5pct_v1",
                     "status": "computed",
-                    "observed_outage_customers": 5,
-                    "customer_denominator": {"status": "available", "value": 100},
+                    "aggregation": "max_customers_out_over_window_samples",
+                    "observed_outage_customers": 50,
+                    "customer_denominator": {"status": "available", "value": 1000},
                     "outage_rate": 0.05,
                     "positive": True,
                 },
@@ -146,7 +151,9 @@ def test_uncovered_eaglei_label_cannot_be_accepted() -> None:
             "positive": None,
         }
     )
-    with pytest.raises(validator.ValidationError, match="accepted"):
+    with pytest.raises(
+        validator.ValidationError, match="UncoveredLabel may not masquerade"
+    ):
         validator.validate_bundle(candidate)
 
 
@@ -189,7 +196,7 @@ def test_missing_denominator_is_honest_accepted_observation() -> None:
     candidate["records"][0]["label"].update(
         {
             "status": "unavailable",
-            "observed_outage_customers": 5,
+            "observed_outage_customers": 50,
             "customer_denominator": {"status": "unavailable", "value": None},
             "outage_rate": None,
             "positive": None,
@@ -315,3 +322,199 @@ def test_operational_eaglei_receipt_maps_to_acquisition_proof() -> None:
     )
     assert proof["source_file_id"] == 53581661
     assert proof["filtered_artifact_sha256"] == "b" * 64
+
+
+def test_window_must_be_aligned_to_the_six_hour_vocabulary() -> None:
+    """docs/specs/02-outage-model.md: 'Window = 6 h, aligned to 00/06/12/18 UTC'."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["window_start_utc"] = "2021-01-01T15:00:00Z"
+    candidate["records"][0]["window_end_utc"] = "2021-01-01T21:00:00Z"
+    # the published schema refuses the unaligned start by pattern ...
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(candidate)
+    # ... and the hand-written rule refuses it independently of the schema.
+    with pytest.raises(validator.ValidationError, match="aligned to"):
+        validator.validate_bundle_rules(candidate)
+
+
+def test_window_must_be_exactly_six_hours() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["window_end_utc"] = "2021-01-01T18:00:00Z"
+    with pytest.raises(validator.ValidationError, match="exactly six hours"):
+        validator.validate_bundle(candidate)
+
+
+def test_five_percent_rule_is_enforced_on_both_sides() -> None:
+    below = copy.deepcopy(bundle())
+    below["records"][0]["label"].update(
+        {"observed_outage_customers": 49, "outage_rate": 0.049, "positive": False}
+    )
+    validator.validate_bundle(below)
+    below["records"][0]["label"]["positive"] = True
+    with pytest.raises(validator.ValidationError, match="five-percent rule"):
+        validator.validate_bundle(below)
+
+    at_threshold = copy.deepcopy(bundle())
+    at_threshold["records"][0]["label"]["positive"] = False
+    with pytest.raises(validator.ValidationError, match="five-percent rule"):
+        validator.validate_bundle(at_threshold)
+
+
+def test_outage_rate_must_equal_observed_over_denominator() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["label"]["outage_rate"] = 0.5
+    with pytest.raises(validator.ValidationError, match="outage_rate must equal"):
+        validator.validate_bundle(candidate)
+
+
+def test_label_aggregation_is_spec_02_max() -> None:
+    """docs/specs/02-outage-model.md: max customers_out over the 15-min samples."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["label"]["aggregation"] = "mean_over_window_samples"
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(candidate)
+
+
+def test_denominator_below_five_hundred_customers_is_unusable() -> None:
+    """docs/specs/02-outage-model.md drops counties with total_customers < 500."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["label"]["customer_denominator"]["value"] = 400
+    candidate["records"][0]["label"]["observed_outage_customers"] = 20
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(candidate)
+
+    # the same rule holds when the schema's numeric bound is not the first to fire
+    bare = copy.deepcopy(bundle())
+    record = bare["records"][0]["label"]
+    record["customer_denominator"]["value"] = 400
+    record["observed_outage_customers"] = 20
+    record["outage_rate"] = 0.05
+    with pytest.raises(validator.ValidationError, match="total_customers < 500"):
+        validator._validate_label(record, "covered", "label")
+
+
+def test_duplicate_county_window_identity_is_refused() -> None:
+    candidate = copy.deepcopy(bundle())
+    twin = copy.deepcopy(candidate["records"][0])
+    twin["record_id"] = "test-record-twin"
+    candidate["records"].append(twin)
+    with pytest.raises(
+        validator.ValidationError, match="duplicate canonical county-window identity"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_source_row_key_must_name_a_slice_receipt() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["source_row_keys"] = [
+        "not_a_slice_receipt:test-release:27053:2021-01-01T06:00:00Z"
+    ]
+    with pytest.raises(
+        validator.ValidationError, match="each key must be <slice receipt_id>"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_accepted_requires_matched_covered_weather_and_outage() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"]["coverage"] = "uncovered"
+    with pytest.raises(
+        validator.ValidationError,
+        match="accepted requires matched covered weather and outage evidence",
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_accepted_requires_real_source_row_keys_and_slices() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["source_evidence_status"] = "unavailable"
+    candidate["records"][0]["source_row_keys"] = []
+    candidate["records"][0]["source_slices"] = []
+    with pytest.raises(
+        validator.ValidationError, match="available source-row keys and slices"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_eaglei_gap_requires_uncovered_label_status() -> None:
+    candidate = copy.deepcopy(bundle())
+    record = candidate["records"][0]
+    candidate["event"]["disposition"] = "candidate_only"
+    record["disposition"] = "candidate_only"
+    record["matched_coverage_decision"] = "unavailable"
+    record["outage"]["coverage"] = "UncoveredLabel"
+    record["label"].update(
+        {
+            "status": "unavailable",
+            "observed_outage_customers": None,
+            "customer_denominator": {"status": "unavailable", "value": None},
+            "outage_rate": None,
+            "positive": None,
+        }
+    )
+    with pytest.raises(
+        validator.ValidationError, match="EAGLE-I gap requires label.status"
+    ):
+        validator.validate_bundle(candidate)
+
+
+def test_published_schema_is_enforced_not_decorative() -> None:
+    """The schema file is the single structural definition, not documentation."""
+    candidate = copy.deepcopy(bundle())
+    candidate["unexpected_top_level_key"] = "should be refused"
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(candidate)
+
+    per_record = copy.deepcopy(bundle())
+    per_record["records"][0]["unexpected_record_key"] = "should be refused"
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(per_record)
+
+    missing = copy.deepcopy(bundle())
+    del missing["records"][0]["label"]
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(missing)
+
+
+def test_receipts_carry_the_repo_receipt_convention() -> None:
+    """capture_method / verification / files / uncertainty, as in pipelines/hrrr.py."""
+    for field in ("capture_method", "verification", "files", "uncertainty"):
+        candidate = copy.deepcopy(bundle())
+        del candidate["source_receipts"][0][field]
+        with pytest.raises(validator.ValidationError, match="schema violation"):
+            validator.validate_bundle(candidate)
+
+    empty = copy.deepcopy(bundle())
+    empty["source_receipts"][0]["capture_method"] = "   "
+    with pytest.raises(validator.ValidationError, match="non-empty statement"):
+        validator.validate_bundle(empty)
+
+
+def test_eaglei_covered_window_expects_fifteen_minute_cadence() -> None:
+    """docs/specs/01-data-ingest.md: EAGLE-I is 15-minute cadence -> 24 per window."""
+    candidate = copy.deepcopy(bundle())
+    receipt = candidate["source_receipts"][0]
+    receipt["provider"] = "EAGLE-I / ORNL"
+    receipt["acquisition"] = {
+        "acquisition_complete": True,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1196000000,
+        "integrity_basis": "figshare_file_metadata_md5_and_size",
+        "raw_artifact_uri": "approved://raw",
+        "raw_artifact_sha256": "a" * 64,
+        "source_sidecar_uri": "approved://sidecar",
+        "source_sidecar_sha256": "c" * 64,
+        "filtered_artifact_uri": "approved://filtered",
+        "filtered_artifact_sha256": "b" * 64,
+    }
+    validator.validate_bundle(candidate)
+
+    hourly = copy.deepcopy(candidate)
+    hourly["records"][0]["outage"].update(
+        {"expected_samples": 6, "observed_samples": 6}
+    )
+    with pytest.raises(validator.ValidationError, match="15-minute cadence"):
+        validator.validate_bundle(hourly)

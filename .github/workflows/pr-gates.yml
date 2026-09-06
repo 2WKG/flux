@@ -196,8 +196,8 @@ jobs:
           if [ "${{ github.event_name }}" = "merge_group" ]; then exit 0; fi
           git fetch --no-tags origin "$BASE_BRANCH"
           changed=$(git diff --name-only "origin/$BASE_BRANCH...HEAD")
-          frozen="copilot/tools/schemas.py copilot/api/envelope.py copilot/api/errors.py pipelines/db.py"
-          specs="docs/specs/00-overview.md docs/specs/05-copilot.md docs/specs/10-duckdb-contract.md"
+          frozen="copilot/tools/schemas.py copilot/api/envelope.py copilot/api/errors.py pipelines/db.py docs/data/event-baseline/event_baseline.schema.json"
+          specs="docs/specs/00-overview.md docs/specs/05-copilot.md docs/specs/10-duckdb-contract.md docs/data/event-baseline/README.md"
           touched=""
           for f in $frozen; do
             if printf '%s\n' "$changed" | grep -qx "$f"; then touched="$touched $f"; fi
@@ -208,7 +208,7 @@ jobs:
               echo "frozen file(s)$touched changed together with $s"; exit 0
             fi
           done
-          echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables) in this PR."
+          echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables, docs/data/event-baseline/README.md for the event baseline schema) in this PR."
           exit 1
 
   linear-key:

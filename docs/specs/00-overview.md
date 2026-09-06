@@ -60,7 +60,8 @@ flux/
 ├── pyproject.toml               # uv-managed, Python 3.12, one root project; deps for every python dir
 ├── uv.lock
 ├── scripts/
-│   └── data/download.sh         # every raw download, idempotent, writes data/raw/<source>/
+│   ├── data/download.sh         # every raw download, idempotent, writes data/raw/<source>/
+│   └── data/event_baseline_*.py # historical event baseline validator/assembler (2WKG-461)
 ├── data/
 │   ├── raw/<source>/            # UNTRACKED (.gitignore). e.g. data/raw/eaglei/, data/raw/activsg2000/
 │   ├── duck/grid.duckdb         # THE database. One file. Every unit reads/writes here.
@@ -72,6 +73,7 @@ flux/
 ├── causal/                      # pgmpy/DoWhy layer (spec 07)
 ├── copilot/                     # FastAPI + Claude tool-calling (spec 05); also serves read APIs to web/
 ├── web/                         # Vite + React + deck.gl + MapLibre, pnpm (spec 06)
+├── docs/data/event-baseline/    # historical event baseline contract, schema, and events/<hazard>/ bundles
 └── docs/specs/                  # this directory
 ```
 
@@ -80,6 +82,9 @@ Rules:
   hand-off artifact between units; whoever finishes an ingest posts the DuckDB file to the shared drive / box.
 - No PostGIS this weekend. All geometry is WKB blobs or `lon`/`lat` columns in DuckDB, EPSG:4326.
   DuckDB `spatial` extension is allowed for `ST_*` functions inside pipelines.
+- `docs/data/event-baseline/event_baseline.schema.json` is the single structural definition of an event
+  baseline bundle; `docs/data/event-baseline/README.md` is its owning spec and `gate/spec-authority`
+  freezes the pair. Bundles live only under `docs/data/event-baseline/events/<hazard>/`.
 - One `pyproject.toml` at root. No per-directory Python packages. Import paths are `pipelines.*`, `twin.*`,
   `models.outage.*`, `siting.*`, `causal.*`, `copilot.*`.
 

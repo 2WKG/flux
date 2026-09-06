@@ -1,6 +1,8 @@
 # Historical event baseline contract
 
-This directory defines the collection contract for 2WKG-460. It records
+This directory defines the collection contract for 2WKG-460/461 (the hazard
+bundles are 2WKG-462 through 2WKG-472; the catalog and held-out split are
+2WKG-473). It records
 research evidence; it does not establish a causal relationship, a grid model,
 or a forecast score. Raw downloads and credentials stay in approved storage
 outside Git.
@@ -14,7 +16,12 @@ docs/data/event-baseline/events/<hazard>/<event_id>.json
 ```
 
 The bundle is JSON conforming to
-`docs/data/event-baseline/event_baseline.schema.json`. The final audit owns
+`docs/data/event-baseline/event_baseline.schema.json`. That file is the single
+structural definition: `scripts/data/event_baseline_validate.py` loads and
+enforces it (including `additionalProperties: false`) before applying the
+cross-field rules a JSON Schema cannot express. Every `*.json` committed under
+`events/` is validated by `tests/data/test_event_baseline_bundles.py`, so
+`gate/pytest` — not a reviewer's memory — is the enforcement point. The final audit owns
 the assembled `event_catalog.csv` and split manifests. `event_baseline_assemble.py`
 can assemble validated bundles into that catalog, but collection work must not
 write a partial catalog at the repository root.
@@ -25,7 +32,13 @@ The canonical label identity is the tuple
 `(county_fips, scenario_id, window_start_utc)`. `county_fips` is a five-digit
 FIPS code and every row declares the boundary vintage used to resolve it.
 `window_start_utc` and `window_end_utc` are UTC timestamps and define a
-half-open six-hour interval `[start, end)`. Event, context, and recovery
+half-open six-hour interval `[start, end)`. Six-hour windows are a **closed
+vocabulary aligned to 00/06/12/18 UTC** (`docs/specs/02-outage-model.md`:
+"Window = 6 h, aligned to 00/06/12/18 UTC"). An unaligned start such as
+`15:00:00Z` is refused by name: two bundles could otherwise cover the same
+county-hour under two overlapping windows and the assembler's
+`(county_fips, scenario_id, window_start_utc)` dedup key would not see the
+collision, and nothing would join to `outage_predictions.ts`. Event, context, and recovery
 windows are also UTC half-open intervals; context contains the event and
 recovery ends after the event. `event_id` is stable across county windows;
 `parent_system_id` groups the same meteorological system and is the split and
@@ -62,9 +75,12 @@ cannot have `disposition="accepted"` or a computed/accepted label.
 selected county-window, record `expected_samples`, `observed_samples`, and
 `missing_timestamps`. An accepted row must have a positive expected count,
 equal observed and expected counts, and no missing timestamps for EAGLE-I
-outage labels and any weather `time_series_or_grid` evidence. An hourly
-EAGLE-I six-hour window normally documents six samples, but record the actual
-expected cadence/count rather than assuming it.
+outage labels and any weather `time_series_or_grid` evidence. EAGLE-I is
+**15-minute cadence** (minutes `00/15/30/45`, verified on the 2021 and 2024
+files — `docs/specs/01-data-ingest.md`), so a covered six-hour EAGLE-I window
+expects **24 samples**, not six; the validator enforces that count for covered
+`time_series_or_grid` outage evidence backed by an EAGLE-I receipt. Other
+sources record their own real cadence rather than assuming one.
 
 Weather evidence declares both `evidence_kind` and `observation_kind`.
 `time_series_or_grid` supplies the count-based completeness evidence above and
@@ -83,18 +99,48 @@ Coverage acceptance and label computation are distinct. A row can be accepted
 with observed outage coverage while its customer denominator is unavailable;
 in that case `label.status="unavailable"` and no rate or positive/negative
 label is asserted. Do not use population as a proxy. The versioned rule
-`county_outage_5pct_v1` computes `outage_rate = observed_outage_customers /
-customer_denominator` and marks positive when the rate is at least `0.05`.
-Only `label.status="computed"` may carry a rate or `positive` value.
+`county_outage_5pct_v1` **is** spec 02's `y_out`, not a variant of it
+(`docs/specs/02-outage-model.md`). It therefore fixes both halves the label
+needs:
+
+- `observed_outage_customers` is the **max** `customers_out` over the window's
+  15-minute samples (spec 02 `max_out`); every row states this explicitly as
+  `label.aggregation = "max_customers_out_over_window_samples"`, and no other
+  aggregation is admissible.
+- `customer_denominator.value` is `total_customers` for the county and must be
+  at least **500**. Spec 02 drops counties with `total_customers < 500`, so a
+  smaller denominator is unusable rather than merely small.
+
+`outage_rate = observed_outage_customers / customer_denominator` and `positive`
+is true when the rate is at least `0.05`. Only `label.status="computed"` may
+carry a rate or `positive` value.
 
 ## Provenance and source starter receipts
 
-Every bundle identifies source receipts by ID. A receipt records provider,
-URL, release/version, retrieval time, access/license terms, raw and filtered
-SHA-256 when known, byte size or ETag when available, units, timezone
-conversion, filters, and grid-index mapping. Record unavailable fields as
-`null` with an explanatory gap rather than inventing them. Accepted rows cite
-their receipts through `provenance_receipt_ids`.
+Every bundle identifies source receipts by ID. The receipt follows the repo's
+existing source-receipt convention (`pipelines/hrrr.py`, `pipelines/tests/
+fixtures/hrrr/PROVENANCE.json`) rather than forking a second one, so one reader
+can read both kinds. Required, in the same sense as the HRRR receipt:
+
+- `capture_method` — how the bytes were obtained; this is how a reader tells a
+  byte-for-byte GET from a hand-edited extract.
+- `verification` — an object recording at least
+  `sha256_computed_from_response_body`; this is how a reader knows a hash was
+  computed from the response body rather than typed in.
+- `files` — logical name → `{url, bytes, sha256}` map. It may be `{}` when the
+  receipt's single artifact is already described by `url`/`raw_sha256`/`bytes`.
+- `uncertainty` — what this receipt does and does not establish.
+
+Plus provider, URL, release/version, retrieval time, access/license terms, raw
+and filtered SHA-256 when known, byte size or ETag when available, and the
+research-specific additions this contract adds on top of the HRRR shape: units,
+timezone conversion, filters, grid-index mapping, and `gaps`. The three shared
+fields carry explicit suffixes here (`retrieved_at_utc`, `url`,
+`license_or_access`) because bundles are hand-authored JSON where the UTC and
+access-terms meaning has to be unmissable; the semantics are identical to the
+HRRR receipt's `retrieved_at`, `source_url`, and `license_access`. Record
+unavailable fields as `null` with an explanatory gap rather than inventing them.
+Accepted rows cite their receipts through `provenance_receipt_ids`.
 
 For an EAGLE-I receipt used to assert definitive outage coverage or an
 `UncoveredLabel`, add `acquisition`: complete annual-stream method, source
@@ -138,7 +184,15 @@ Every row declares `mode`.
 
 ## Commands
 
-Validate one or more bundles before handoff:
+`gate/pytest` already validates everything committed under `events/`. To
+validate before you commit:
+
+```bash
+uv run python scripts/data/event_baseline_validate.py \
+  --events-dir docs/data/event-baseline/events
+```
+
+or name individual bundles:
 
 ```bash
 uv run python scripts/data/event_baseline_validate.py \
