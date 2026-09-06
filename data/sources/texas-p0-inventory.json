@@ -158,7 +158,7 @@
       "checked_in_receipt": "data/sources/texas-noaa-storm-events-2021-2024.json",
       "status": "validated",
       "ingestion_timestamp": "2026-09-06T04:40:00Z",
-      "reason": "Both public files were retrieved, hashed, and passed the existing loader for qualified rows. Twenty-two 2021 legacy-zone records are explicitly rejected/unsupported because no source-backed historical mapping was retrieved."
+      "reason": "Both public files were retrieved and hashed. The current interval-selected loader uses archived NWS-original bp10nv20 for Uri and bp05mr24 for Beryl; the 22 legacy rows are an all-2021 bp16 historical-validation figure, not current fixed-window rejections."
     },
     {
       "id": "nws-zone-county-crosswalk",
@@ -182,17 +182,18 @@
       "category": "public weather",
       "provider": "NOAA HRRR archive",
       "source_url": "https://registry.opendata.aws/noaa-hrrr-pds/",
-      "vintage": "run- and forecast-lead-specific; no P0 run manifest is checked in",
+      "vintage": "fixed Uri 2021 and Beryl 2024 historical f00/f01 runs",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [],
+      "artifacts": [{"logical_name": "grid.duckdb", "immutable_id": "sha256:38453f9a1666f10e6b63af34d524ded71fc9416e14294a8c99e5a387f463a76f", "raw_path": "hrrr/runs/20260906T054451Z/grid.duckdb"}],
       "coverage": "Declared Texas scenario-window county-hour weather. Wind and temperature use f00; precipitation and freezing-rain accumulations use f01.",
       "timezone": "UTC",
       "units": {"wind": "m/s", "gust": "m/s", "temperature": "degrees C", "precipitation": "mm", "freezing_rain": "mm"},
       "destinations": ["weather_hourly"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
+      "checked_in_receipt": "data/sources/texas-hrrr-2021-2024-run.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T05:52:00Z",
       "feasibility_evidence": "data/sources/texas-hrrr-manifest-feasibility.json",
-      "reason": "A reproducible f00/f01 rule for the fixed Uri and Beryl windows is recorded in the linked feasibility evidence, and representative official objects are reachable. This clone has no HRRR county-grid index, loader, GRIB transform, raw subset, checksum, or weather_hourly output, so it cannot validate a weather input yet."
+      "reason": "The completed four-worker run recorded 85,344 county-hour rows and 336 paired source-run records using the declared f00/f01 rule. The ignored database, content-addressed raw subsets, and per-hour receipts are bound by the checked-in run receipt; the feasibility artifact remains historical planning evidence."
     },
     {
       "id": "ntad-military-bases-fy2024",
