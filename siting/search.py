@@ -18,7 +18,9 @@ from math import isfinite
 from typing import Literal
 
 CandidateKind = Literal["producer", "consumer"]
-SCREENING_LABEL = "synthetic-topology screening; not a physical siting or permitability claim"
+SCREENING_LABEL = (
+    "synthetic-topology screening; not a physical siting or permitability claim"
+)
 MAX_FULL_WINDOW_COUNTERFACTUALS = 5
 
 
@@ -133,10 +135,7 @@ def search_locations(
     if not eligible:
         return []
 
-    eligible_candidates = [
-        _as_mapping(row["candidate"])
-        for row in eligible
-    ]
+    eligible_candidates = [_as_mapping(row["candidate"]) for row in eligible]
     baseline_peak = _cascade(net, scenario_id, hour, tuple(edits), policy)
     baseline_redundancy: object | None = (
         _baseline_redundancy(
@@ -255,7 +254,9 @@ def search_locations(
                 "edit_hash": _edit_hash(candidate_edits, policy),
                 "counterfactual": row["counterfactual"],
                 "feasibility": row["feasibility"],
-                "safety_flags": _get(candidate, "safety_flags", "safety_flags_json", default=[]),
+                "safety_flags": _get(
+                    candidate, "safety_flags", "safety_flags_json", default=[]
+                ),
                 "balance": row["balance"],
                 "analysis_label": SCREENING_LABEL,
                 "model_mode": "synthetic",
@@ -274,15 +275,23 @@ def search_locations(
     return results
 
 
-def _validate_request(kind: str, unit_mw: float, scenario_id: str, n: int, hour: int) -> None:
+def _validate_request(
+    kind: str, unit_mw: float, scenario_id: str, n: int, hour: int
+) -> None:
     if kind not in {"producer", "consumer"}:
         raise ValueError("kind must be 'producer' or 'consumer'")
     if not _finite_positive(unit_mw):
         raise ValueError("unit_mw must be a finite positive MW value")
     if not isinstance(scenario_id, str) or not scenario_id.strip():
         raise ValueError("scenario_id must be a non-empty string")
-    if isinstance(n, bool) or not isinstance(n, int) or not 1 <= n <= MAX_FULL_WINDOW_COUNTERFACTUALS:
-        raise ValueError(f"n must be an integer from 1 to {MAX_FULL_WINDOW_COUNTERFACTUALS}")
+    if (
+        isinstance(n, bool)
+        or not isinstance(n, int)
+        or not 1 <= n <= MAX_FULL_WINDOW_COUNTERFACTUALS
+    ):
+        raise ValueError(
+            f"n must be an integer from 1 to {MAX_FULL_WINDOW_COUNTERFACTUALS}"
+        )
     if isinstance(hour, bool) or not isinstance(hour, int) or hour < 0:
         raise ValueError("hour must be a non-negative integer")
 
@@ -301,7 +310,9 @@ def _adapters(value: SearchAdapters | Mapping[str, object] | None) -> SearchAdap
     raise TypeError("adapters must be SearchAdapters, a mapping, or None")
 
 
-def _candidate_rows(net: object, kind: CandidateKind, policy: SearchAdapters) -> list[dict[str, object]]:
+def _candidate_rows(
+    net: object, kind: CandidateKind, policy: SearchAdapters
+) -> list[dict[str, object]]:
     source: Iterable[object] | None = None
     if policy.candidates is not None:
         source = _invoke(policy.candidates, net=net, kind=kind)
@@ -334,20 +345,58 @@ def _candidate_rows(net: object, kind: CandidateKind, policy: SearchAdapters) ->
     return rows
 
 
-def _feasibility(net: object, candidate: Mapping[str, object], edit: object, kind: CandidateKind, unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
-    fn = policy.feasibility or _find_callable(net, "placement_feasibility", "feasibility")
+def _feasibility(
+    net: object,
+    candidate: Mapping[str, object],
+    edit: object,
+    kind: CandidateKind,
+    unit_mw: float,
+    scenario_id: str,
+    hour: int | None,
+    edits: tuple[object, ...],
+    policy: SearchAdapters,
+) -> object:
+    fn = policy.feasibility or _find_callable(
+        net, "placement_feasibility", "feasibility"
+    )
     if fn is not None:
-        return _invoke(fn, net=net, candidate=candidate, edit=edit, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+        return _invoke(
+            fn,
+            net=net,
+            candidate=candidate,
+            edit=edit,
+            kind=kind,
+            unit_mw=unit_mw,
+            scenario_id=scenario_id,
+            hour=hour,
+            edits=edits,
+        )
     fn = _import_callable("twin.feasibility", "evaluate_feasibility")
     if fn is None:
         raise SearchUnavailable("placement feasibility policy is unavailable")
     return _invoke(fn, net=net, edit=edit)
 
 
-def _balance(net: object, candidate: Mapping[str, object], unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
+def _balance(
+    net: object,
+    candidate: Mapping[str, object],
+    unit_mw: float,
+    scenario_id: str,
+    hour: int | None,
+    edits: tuple[object, ...],
+    policy: SearchAdapters,
+) -> object:
     fn = policy.balance or _find_callable(net, "balance", "assess_balance")
     if fn is not None:
-        return _invoke(fn, net=net, candidate=candidate, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+        return _invoke(
+            fn,
+            net=net,
+            candidate=candidate,
+            unit_mw=unit_mw,
+            scenario_id=scenario_id,
+            hour=hour,
+            edits=edits,
+        )
     fn = _import_callable("twin.balance", "balance_report")
     if fn is None:
         raise SearchUnavailable("consumer balance/corridor policy is unavailable")
@@ -361,10 +410,28 @@ def _balance(net: object, candidate: Mapping[str, object], unit_mw: float, scena
     return report
 
 
-def _redundancy(net: object, candidate: Mapping[str, object] | None, kind: CandidateKind, unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
+def _redundancy(
+    net: object,
+    candidate: Mapping[str, object] | None,
+    kind: CandidateKind,
+    unit_mw: float,
+    scenario_id: str,
+    hour: int | None,
+    edits: tuple[object, ...],
+    policy: SearchAdapters,
+) -> object:
     fn = policy.redundancy or _find_callable(net, "redundancy", "redundancy_score")
     if fn is not None:
-        return _invoke(fn, net=net, candidate=candidate, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+        return _invoke(
+            fn,
+            net=net,
+            candidate=candidate,
+            kind=kind,
+            unit_mw=unit_mw,
+            scenario_id=scenario_id,
+            hour=hour,
+            edits=edits,
+        )
     fn = _import_callable("siting.redundancy", "score_redundancy")
     if fn is None:
         raise SearchUnavailable("redundancy policy is unavailable")
@@ -404,10 +471,10 @@ def _baseline_redundancy(
     population rather than a fabricated system-wide redundancy number.
     """
 
-    if policy.redundancy is not None or _find_callable(net, "redundancy", "redundancy_score"):
-        return _redundancy(
-            net, None, kind, unit_mw, scenario_id, hour, edits, policy
-        )
+    if policy.redundancy is not None or _find_callable(
+        net, "redundancy", "redundancy_score"
+    ):
+        return _redundancy(net, None, kind, unit_mw, scenario_id, hour, edits, policy)
     values = [
         _redundancy_value(
             _redundancy(net, candidate, kind, unit_mw, scenario_id, hour, edits, policy)
@@ -415,14 +482,26 @@ def _baseline_redundancy(
         for candidate in candidates
     ]
     if not values:
-        raise SearchUnavailable("producer search has no candidate buses for redundancy baseline")
+        raise SearchUnavailable(
+            "producer search has no candidate buses for redundancy baseline"
+        )
     return {"mean_redundancy": sum(values) / len(values)}
 
 
-def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
+def _cascade(
+    net: object,
+    scenario_id: str,
+    hour: int | None,
+    edits: tuple[object, ...],
+    policy: SearchAdapters,
+) -> object:
     if policy.cascade is not None:
-        return _invoke(policy.cascade, net=net, scenario_id=scenario_id, hour=hour, edits=edits)
-    runner = _find_callable(net, "run_cascade") or _import_callable("twin.cascade", "run_cascade")
+        return _invoke(
+            policy.cascade, net=net, scenario_id=scenario_id, hour=hour, edits=edits
+        )
+    runner = _find_callable(net, "run_cascade") or _import_callable(
+        "twin.cascade", "run_cascade"
+    )
     if runner is None:
         raise SearchUnavailable("cascade counterfactual interface is unavailable")
     # ``twin.cascade.run_cascade`` owns immutable application of the ordered
@@ -437,14 +516,21 @@ def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[objec
     return result
 
 
-def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_mw: float, policy: SearchAdapters) -> object:
+def _candidate_edit(
+    candidate: Mapping[str, object],
+    kind: CandidateKind,
+    unit_mw: float,
+    policy: SearchAdapters,
+) -> object:
     fields = {
         "kind": "add_gen" if kind == "producer" else "add_load",
         "element_id": f"search:{kind}:{_candidate_id(candidate)}",
         "bus_id": _required(candidate, "bus_id"),
         "p_mw": float(unit_mw),
         "pmax_mw": float(unit_mw) if kind == "producer" else None,
-        "length_km": _get(candidate, "interconnect_distance_km", "length_km", default=None),
+        "length_km": _get(
+            candidate, "interconnect_distance_km", "length_km", default=None
+        ),
     }
     factory = policy.edit_factory or _import_callable("twin.contracts", "GridEdit")
     if factory is None:
@@ -454,7 +540,14 @@ def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_m
     return _invoke(factory, **fields)
 
 
-def _components(kind: CandidateKind, baseline: object, counterfactual: object, baseline_redundancy: object, redundancy: object, balance: object | None) -> dict[str, float]:
+def _components(
+    kind: CandidateKind,
+    baseline: object,
+    counterfactual: object,
+    baseline_redundancy: object,
+    redundancy: object,
+    balance: object | None,
+) -> dict[str, float]:
     if kind == "producer":
         baseline_lol = _lost_load_mwh(baseline)
         candidate_lol = _lost_load_mwh(counterfactual)
@@ -463,10 +556,13 @@ def _components(kind: CandidateKind, baseline: object, counterfactual: object, b
         if base_congestion == 0.0:
             congestion_relief_pct = 0.0
         else:
-            congestion_relief_pct = 100.0 * (base_congestion - candidate_congestion) / abs(base_congestion)
+            congestion_relief_pct = (
+                100.0 * (base_congestion - candidate_congestion) / abs(base_congestion)
+            )
         return {
             "lost_load_reduction_mwh": baseline_lol - candidate_lol,
-            "mean_redundancy_uplift": _redundancy_value(redundancy) - _redundancy_value(baseline_redundancy),
+            "mean_redundancy_uplift": _redundancy_value(redundancy)
+            - _redundancy_value(baseline_redundancy),
             "congestion_relief_pct": congestion_relief_pct,
         }
     if balance is None:
@@ -497,22 +593,35 @@ def _congestion_proxy(result: object) -> float:
         return _number(result, "congestion_mwh", "congestion")
     loading = _get(result, "loading_by_element", default=None)
     if not isinstance(loading, Mapping):
-        raise SearchUnavailable("modeled congestion or line-loading evidence is unavailable")
+        raise SearchUnavailable(
+            "modeled congestion or line-loading evidence is unavailable"
+        )
     overload = 0.0
     for element_id, percent in loading.items():
         if not isinstance(element_id, str):
-            raise SearchUnavailable("line-loading evidence has an invalid element identity")
-        if isinstance(percent, bool) or not isinstance(percent, (int, float)) or not isfinite(float(percent)):
+            raise SearchUnavailable(
+                "line-loading evidence has an invalid element identity"
+            )
+        if (
+            isinstance(percent, bool)
+            or not isinstance(percent, (int, float))
+            or not isfinite(float(percent))
+        ):
             raise SearchUnavailable("line-loading evidence has a non-finite percentage")
         overload += max(0.0, float(percent) - 100.0)
     return overload
 
 
 def _full_window_evaluated(result: object) -> bool:
-    return _get(result, "evaluation_scope", default="full_window") != "single_synthetic_snapshot"
+    return (
+        _get(result, "evaluation_scope", default="full_window")
+        != "single_synthetic_snapshot"
+    )
 
 
-def _assign_objectives(rows: list[dict[str, object]], kind: CandidateKind, *, component_key: str) -> None:
+def _assign_objectives(
+    rows: list[dict[str, object]], kind: CandidateKind, *, component_key: str
+) -> None:
     if not rows:
         return
     names = (
@@ -532,7 +641,10 @@ def _assign_objectives(rows: list[dict[str, object]], kind: CandidateKind, *, co
         }
         components["normalized"] = normalized
         row[component_key] = components
-        row["objective"] = sum(weight * normalized[name] for name, weight in zip(names, weights, strict=True))
+        row["objective"] = sum(
+            weight * normalized[name]
+            for name, weight in zip(names, weights, strict=True)
+        )
 
 
 def _rank_key(row: Mapping[str, object]) -> tuple[float, str]:
@@ -560,7 +672,9 @@ def _edit_hash(edits: tuple[object, ...], policy: SearchAdapters) -> str:
         raise SearchUnavailable("shared edit_hash returned no hash")
     # Only a bridge for tests before the shared contracts land.  It remains
     # ordered so a different intervention sequence has a different identity.
-    payload = json.dumps([_jsonable(edit) for edit in edits], sort_keys=True, separators=(",", ":"))
+    payload = json.dumps(
+        [_jsonable(edit) for edit in edits], sort_keys=True, separators=(",", ":")
+    )
     return sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -627,7 +741,9 @@ def _required(value: object, *names: str) -> object:
 def _candidate_id(candidate: Mapping[str, object]) -> str:
     value = _get(candidate, "candidate_id", "site_id", "id", "name", default=None)
     if not isinstance(value, (str, int)) or isinstance(value, bool) or not str(value):
-        raise SearchUnavailable("candidate requires a stable candidate_id, site_id, id, or name")
+        raise SearchUnavailable(
+            "candidate requires a stable candidate_id, site_id, id, or name"
+        )
     return str(value)
 
 
@@ -637,12 +753,19 @@ def _passed(value: object, *names: str) -> bool:
 
 
 def _feasible(value: object) -> bool:
-    return _passed(value, "feasible", "passed", "allowed") or _get(value, "status", default=None) == "valid"
+    return (
+        _passed(value, "feasible", "passed", "allowed")
+        or _get(value, "status", default=None) == "valid"
+    )
 
 
 def _number(value: object, *names: str) -> float:
     raw = _get(value, *names, default=None)
-    if isinstance(raw, bool) or not isinstance(raw, (int, float)) or not isfinite(float(raw)):
+    if (
+        isinstance(raw, bool)
+        or not isinstance(raw, (int, float))
+        or not isfinite(float(raw))
+    ):
         raise SearchUnavailable(f"required finite metric {names[0]!r} is unavailable")
     return float(raw)
 
@@ -652,7 +775,12 @@ def _redundancy_value(value: object) -> float:
 
 
 def _finite_positive(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, (int, float)) and isfinite(float(value)) and float(value) > 0.0
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, (int, float))
+        and isfinite(float(value))
+        and float(value) > 0.0
+    )
 
 
 def _jsonable(value: object) -> object:
