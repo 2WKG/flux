@@ -251,6 +251,8 @@ POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
 POST /site-score   {site_id, unit_mw, scenario_id}    → score_site(...) dict
 POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /lines/top?region=&tech=any&n=10                 → top_lines(...) dict
+GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows (05 §Routes, 2WKG-104)
+GET  /cascade?scenario_id=&run_id=                    → one persisted cascade_runs run {run_id, scenario_id, hours, provenance, attributes} (05 §Routes, 2WKG-104)
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict   (A8)
 GET  /elements/critical?region=&n=10                  → top_critical_elements(...) dict   (A8)
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
