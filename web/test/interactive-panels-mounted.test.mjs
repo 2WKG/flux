@@ -34,10 +34,11 @@ test("the shipped interactive boundary keeps the /interactive prefix and the POS
   for (const suffix of ["/scenario/edit", "/cascade", "/balance", "/redundancy", "/siting/search"]) {
     assert.ok(built.includes("${INTERACTIVE_ROOT_PREFIX}" + suffix), `the ${suffix} root is not in the shipped bundle`);
   }
-  // The camelCase contract this boundary used to declare emitted no real
-  // response; if any of its field names reappear in the shipped artifact the
-  // invented shape is back.
-  for (const invented of ["servedLoadMw", "generationMw", "slackMw", "residualMw"]) {
+  // The balance boundary must not revive its old invented camelCase response.
+  // `generationMw` is now legitimately present in the frozen teaching-cascade
+  // trace, so this check remains scoped to the balance-only invented fields.
+  for (const invented of ["servedLoadMw", "slackMw", "residualMw"]) {
     assert.ok(!built.includes(invented), `the invented balance field ${invented} is back in the bundle`);
   }
+  assert.ok(built.includes("Synthetic five-bus teaching network"), "the frozen teaching trace is missing from the bundle");
 });

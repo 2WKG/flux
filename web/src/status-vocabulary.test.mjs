@@ -235,7 +235,8 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   assert.match(explainer, /data-request-state="unavailable"/);
   assert.match(explainer, /data-request-status="unavailable"/);
   assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
-  assert.match(explainer, /Nothing on this page is model output/);
+  assert.match(explainer, /This section replays that trace; it computes nothing\./);
+  assert.match(explainer, /Synthetic five-bus teaching network; not ACTIVSg2000, not a physical asset, and not an interconnection result\./);
 
   for (const rendered of [main, explainer]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
