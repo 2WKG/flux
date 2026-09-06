@@ -4,7 +4,7 @@
   "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp16ap26.dbx",
   "vintage": "bp16ap26 crosswalk edition",
   "license_access": "NWS web data are public domain absent an applicable exception.",
-  "files": {"bp16ap26.dbx": {"bytes": 350723, "sha256": "69d3472d4d576b8a4924efb7a43108f7c64111f503e15efd650f43dc617a6f12"}},
+  "files": {"bp10nv20.dbx": {"bytes": 321354, "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6", "original_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx", "archive_url": "https://web.archive.org/web/20201019003757id_/https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx", "effective_interval": "[2020-11-10,2021-03-30)"}, "bp05mr24.dbx": {"bytes": 339683, "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e", "original_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx", "archive_url": "https://web.archive.org/web/20240928223402id_/https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx", "effective_interval": "[2024-03-05,2024-09-10)"}, "bp16ap26.dbx": {"bytes": 350723, "sha256": "69d3472d4d576b8a4924efb7a43108f7c64111f503e15efd650f43dc617a6f12"}},
   "validation": {"schema": "headerless pipe-delimited 11 columns", "scope": "TX", "total_rows": 4875, "texas_rows": 308, "texas_zones": 298, "texas_county_fips": 254, "texas_null_or_duplicate_county_fips": 0, "result": "passed"},
   "uncertainty": "This current edition does not contain four legacy Texas zone identifiers used by 2021 Storm Events. It is retained as the declared source artifact and does not establish historical equivalence for replacements."
 }
