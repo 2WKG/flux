@@ -1,0 +1,385 @@
+"""Bind reusable 3D models to Minnesota scene evidence without inventing places.
+
+Archetypes describe geometry only. This is the import boundary between an
+archetype's metadata and a Minnesota placement artifact. A model without an
+accepted, placement-capable Minnesota identity remains a catalogue preview.
+
+Acceptance is *read from storage*, never taken from the caller's request. The
+request may claim anything; the only facts that promote a model to a placed
+Minnesota asset are the artifact's own rows in the shared DuckDB namespace
+(`pipelines/minnesota_schema.py`):
+
+* `mn_artifact_manifests.availability == 'available'` -- the Unavailable label
+  in `docs/design/minnesota-demo-narrative-ia.md` is derived from exactly this
+  field, so an absent or `unavailable` manifest hides the dependent layer.
+* `mn_score_results.regulatory_label` -- when the artifact carries a score, the
+  narrative-IA status-label table admits `source_supported` and
+  `source_screened`; `hypothetical` is explicitly "never rendered as permitted,
+  approved, or ready to build" and therefore never positions geometry.
+
+This module places points only. Lines, buses, and any topology edge stay out:
+the accepted-artifact inventory marks every topology class `unavailable` and
+prohibits "topology, line, bus, flow, loading, trip, or outage claims".
+"""
+
+from __future__ import annotations
+
+import json
+import math
+from pathlib import Path
+from typing import Any
+
+import duckdb
+
+CONTRACT_ID = "flux:3d-asset-archetypes:v1"
+MATERIAL_SLOT = "MAT_STATUS"
+
+#: The coordinate reference every placement declares. `docs/specs/00-overview.md`
+#: and `docs/specs/10-duckdb-contract.md`: all geometry is EPSG:4326 lon/lat.
+PLACEMENT_CRS = "EPSG:4326"
+
+#: `mn_score_results.regulatory_label` values that may position geometry, from
+#: the status-label table in `docs/design/minnesota-demo-narrative-ia.md`.
+ACCEPTED_REGULATORY_LABELS = frozenset({"source_supported", "source_screened"})
+
+#: EPSG:4326 axis ranges, matching `_coordinate_contract_error` in
+#: `pipelines/consumer_contracts.py`.
+LONGITUDE_RANGE = (-180.0, 180.0)
+LATITUDE_RANGE = (-90.0, 90.0)
+
+#: Documented fallback extent for Minnesota (WGS 84 decimal degrees), rounded
+#: outward from the published state extent of the TIGER 2024 `STATEFP=27`
+#: boundary (about -97.24..-89.49 longitude, 43.50..49.38 latitude). It is only
+#: used when no accepted Minnesota geometry artifact is stored; when
+#: `mn_geography_artifacts` holds an available boundary, that real geometry --
+#: the county union written by `pipelines/minnesota_source_evidence.py` -- is
+#: the authority and this box is not consulted.
+MINNESOTA_BBOX = (-97.3, 43.4, -89.4, 49.5)
+
+_MN_GEOMETRY_SQL = """
+    SELECT g.geometry_wkb
+    FROM mn_geography_artifacts g
+    JOIN mn_artifact_manifests m USING (artifact_id)
+    WHERE m.availability = 'available'
+      AND g.coordinate_status <> 'unavailable'
+      AND g.geometry_wkb IS NOT NULL
+"""
+
+
+class AssetBindingError(ValueError):
+    """Raised when an asset cannot be safely imported under the shared contract."""
+
+
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def load_catalog(path: Path) -> dict[str, Any]:
+    catalog = _read_json(path)
+    if catalog.get("contractId") != CONTRACT_ID:
+        raise AssetBindingError("asset catalog has an unsupported contract id")
+    return catalog
+
+
+def load_inventory(path: Path) -> dict[str, Any]:
+    return _read_json(path)
+
+
+def _catalog_entry(catalog: dict[str, Any], archetype_id: str) -> dict[str, Any]:
+    for entry in catalog.get("archetypes", []):
+        if entry.get("id") == archetype_id:
+            return entry
+    raise AssetBindingError(f"unknown archetype: {archetype_id}")
+
+
+def _inventory_entry(
+    inventory: dict[str, Any], artifact_id: str
+) -> dict[str, Any] | None:
+    for artifact in inventory.get("accepted_product_artifacts", []):
+        if artifact.get("artifact_id") == artifact_id:
+            return artifact
+    return None
+
+
+def _preview(entry: dict[str, Any], reason: str) -> dict[str, Any]:
+    """Return a conspicuous, non-geographic preview rather than a fake placement."""
+    return {
+        "render_mode": "catalog_preview",
+        "semantic_type": entry["category"],
+        "archetype_id": entry["id"],
+        "footprint_m": entry["footprint_m"],
+        "connectors": entry["connectors"],
+        "lod_triangles": entry["lod_triangles"],
+        "material": {"slot": MATERIAL_SLOT, "status_label": "unavailable"},
+        "disclosure": f"Illustrative catalogue preview — not Minnesota infrastructure: {reason}",
+    }
+
+
+def _acceptance(
+    con: duckdb.DuckDBPyConnection, artifact_id: str
+) -> tuple[str | None, str]:
+    """Read acceptance for one artifact from storage.
+
+    Returns ``(status_label, reason)``. ``status_label`` is ``None`` when the
+    artifact may not position geometry, and ``reason`` then names why. This is
+    the only place acceptance is decided; nothing in the caller's request can
+    substitute for these rows.
+    """
+
+    manifest = con.execute(
+        "SELECT availability FROM mn_artifact_manifests WHERE artifact_id = ?",
+        [artifact_id],
+    ).fetchone()
+    if manifest is None:
+        return None, (
+            f"no mn_artifact_manifests row for artifact {artifact_id!r}; "
+            "Minnesota identity is unavailable"
+        )
+    if manifest[0] != "available":
+        return None, (
+            f"artifact {artifact_id!r} has mn_artifact_manifests.availability "
+            f"{manifest[0]!r}, not 'available'"
+        )
+
+    score = con.execute(
+        "SELECT regulatory_label FROM mn_score_results WHERE artifact_id = ?",
+        [artifact_id],
+    ).fetchone()
+    if score is None:
+        # No score row: the manifest alone carries the artifact, and the shared
+        # material slot reports the availability fact rather than inventing a
+        # regulatory claim the storage layer never made.
+        return "available", ""
+    if score[0] not in ACCEPTED_REGULATORY_LABELS:
+        return None, (
+            f"artifact {artifact_id!r} has mn_score_results.regulatory_label "
+            f"{score[0]!r}, which is not in the accepted set "
+            f"{sorted(ACCEPTED_REGULATORY_LABELS)!r}"
+        )
+    return score[0], ""
+
+
+def _inventory_prohibition(entry: dict[str, Any] | None) -> str | None:
+    """Name an inventory prohibition that forbids positioning this artifact.
+
+    The accepted-artifact inventory is the policy boundary: it states, in prose,
+    which uses each artifact permits. Two of its current entries prohibit
+    "facility placement" and "map or 3D point placement", so any prohibition
+    mentioning placement fails closed here rather than being overridden by a
+    manifest row.
+    """
+
+    if entry is None:
+        return None
+    for prohibited in entry.get("prohibited_uses", []):
+        if isinstance(prohibited, str) and "placement" in prohibited.lower():
+            return (
+                f"the accepted-artifact inventory prohibits {prohibited!r} for "
+                f"artifact {entry.get('artifact_id')!r}"
+            )
+    return None
+
+
+def _number(value: Any, field: str) -> float:
+    """Accept only a real, finite number. ``bool`` is not a coordinate."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise AssetBindingError(
+            f"placement.coordinates.{field} must be a numeric {PLACEMENT_CRS} "
+            f"coordinate, got {type(value).__name__}"
+        )
+    number = float(value)
+    if not math.isfinite(number):
+        raise AssetBindingError(
+            f"placement.coordinates.{field} must be finite, got {value!r}"
+        )
+    return number
+
+
+def _minnesota_geometries(con: duckdb.DuckDBPyConnection) -> list[bytes]:
+    try:
+        rows = con.execute(_MN_GEOMETRY_SQL).fetchall()
+    except duckdb.Error:
+        # No Minnesota namespace in this database at all.
+        return []
+    return [row[0] for row in rows if row[0] is not None]
+
+
+def _reject_outside_minnesota(
+    con: duckdb.DuckDBPyConnection, longitude: float, latitude: float
+) -> None:
+    """Require the point to fall inside accepted Minnesota geography."""
+    geometries = _minnesota_geometries(con)
+    if geometries:
+        from shapely.geometry import Point
+        from shapely.wkb import loads as wkb_loads
+
+        point = Point(longitude, latitude)
+        if any(wkb_loads(bytes(wkb)).covers(point) for wkb in geometries):
+            return
+        raise AssetBindingError(
+            f"placement coordinates ({longitude}, {latitude}) fall outside the "
+            "accepted Minnesota geography artifact"
+        )
+
+    west, south, east, north = MINNESOTA_BBOX
+    if not (west <= longitude <= east and south <= latitude <= north):
+        raise AssetBindingError(
+            f"placement coordinates ({longitude}, {latitude}) fall outside the "
+            f"Minnesota bounding box {MINNESOTA_BBOX}"
+        )
+
+
+def _validated_coordinates(
+    con: duckdb.DuckDBPyConnection, placement: dict[str, Any]
+) -> dict[str, Any]:
+    coordinates = placement.get("coordinates")
+    if not isinstance(coordinates, dict):
+        raise AssetBindingError("placement.coordinates must be an object")
+
+    declared_crs = coordinates.get("crs", placement.get("crs", PLACEMENT_CRS))
+    if declared_crs != PLACEMENT_CRS:
+        raise AssetBindingError(
+            f"placement coordinates must be declared {PLACEMENT_CRS}, got "
+            f"{declared_crs!r}"
+        )
+
+    longitude = _number(coordinates.get("longitude"), "longitude")
+    latitude = _number(coordinates.get("latitude"), "latitude")
+    for value, (lower, upper), axis in (
+        (longitude, LONGITUDE_RANGE, "longitude"),
+        (latitude, LATITUDE_RANGE, "latitude"),
+    ):
+        if not lower <= value <= upper:
+            raise AssetBindingError(
+                f"placement.coordinates.{axis} {value} is not a valid "
+                f"{PLACEMENT_CRS} {axis} in [{lower}, {upper}]"
+            )
+    _reject_outside_minnesota(con, longitude, latitude)
+    return {"longitude": longitude, "latitude": latitude, "crs": PLACEMENT_CRS}
+
+
+def _validated_scene_id(placement: dict[str, Any], artifact_id: str) -> str:
+    scene_id = placement.get("scene_id")
+    if not isinstance(scene_id, str) or not scene_id:
+        raise AssetBindingError("placement.scene_id must be a non-empty string")
+    if not scene_id.startswith(artifact_id):
+        # Scene identity is derived from accepted evidence, never invented by the
+        # requester: it must live under the artifact that supplied it.
+        raise AssetBindingError(
+            f"placement.scene_id {scene_id!r} is not namespaced under its source "
+            f"artifact {artifact_id!r}"
+        )
+    return scene_id
+
+
+def _validated_truth_label(
+    placement: dict[str, Any], inventory: dict[str, Any]
+) -> None:
+    """Reject a truth_label outside the inventory's declared vocabulary.
+
+    The label is *not* an acceptance input -- storage decides that -- but a
+    request carrying a token the inventory never defined is a contract breach,
+    not a missing artifact.
+    """
+
+    truth_label = placement.get("truth_label")
+    if truth_label is None:
+        return
+    known = inventory.get("truth_labels", [])
+    if truth_label not in known:
+        raise AssetBindingError(
+            f"placement.truth_label {truth_label!r} is not one of the accepted "
+            f"artifact inventory's truth_labels {list(known)!r}"
+        )
+
+
+def bind_asset(
+    con: duckdb.DuckDBPyConnection,
+    catalog: dict[str, Any],
+    inventory: dict[str, Any],
+    model: dict[str, Any],
+    placement: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Validate model metadata and bind it only to accepted Minnesota evidence.
+
+    Missing or ineligible evidence is a normal demo state: callers receive a
+    labelled catalogue preview naming the reason, with no coordinates and no
+    scene identity. Malformed input -- a coordinate that cannot be EPSG:4326, a
+    point outside Minnesota, an undeclared archetype -- is a contract breach and
+    raises :class:`AssetBindingError`.
+    """
+    archetype_id = model.get("archetype_id")
+    if not isinstance(archetype_id, str):
+        raise AssetBindingError("model.archetype_id is required")
+    entry = _catalog_entry(catalog, archetype_id)
+
+    if model.get("contract_id") != CONTRACT_ID:
+        raise AssetBindingError("model contract_id does not match the shared contract")
+    if not isinstance(model.get("glb_uri"), str) or not model["glb_uri"].endswith(
+        ".glb"
+    ):
+        raise AssetBindingError("model.glb_uri must identify a .glb import")
+    for field in ("footprint_m", "connectors", "lod_triangles"):
+        if model.get(field) != entry[field]:
+            raise AssetBindingError(f"model {field} does not match archetype metadata")
+
+    if not placement:
+        return _preview(entry, "no accepted Minnesota placement artifact was supplied")
+
+    _validated_truth_label(placement, inventory)
+
+    artifact_id = placement.get("source_artifact_id")
+    if not isinstance(artifact_id, str) or not artifact_id:
+        return _preview(
+            entry, "placement.source_artifact_id does not name a Minnesota artifact"
+        )
+
+    status_label, reason = _acceptance(con, artifact_id)
+    if status_label is None:
+        return _preview(entry, reason)
+    if prohibition := _inventory_prohibition(_inventory_entry(inventory, artifact_id)):
+        return _preview(entry, prohibition)
+
+    scene_id = _validated_scene_id(placement, artifact_id)
+    coordinates = _validated_coordinates(con, placement)
+
+    return {
+        "render_mode": "placed",
+        "scene_id": scene_id,
+        "source_artifact_id": artifact_id,
+        "semantic_type": entry["category"],
+        "archetype_id": entry["id"],
+        "crs": PLACEMENT_CRS,
+        "coordinates": coordinates,
+        "footprint_m": entry["footprint_m"],
+        "connectors": entry["connectors"],
+        "lod_triangles": entry["lod_triangles"],
+        "material": {"slot": MATERIAL_SLOT, "status_label": status_label},
+    }
+
+
+def bind_from_files(
+    catalog_path: Path,
+    inventory_path: Path,
+    request_path: Path,
+    db_path: Path,
+) -> dict[str, Any]:
+    """Load one import request and return its render-safe binding payload.
+
+    ``db_path`` is the Minnesota DuckDB database that supplies acceptance; it is
+    opened read-only because binding never writes evidence.
+    """
+    request = _read_json(request_path)
+    catalog = load_catalog(catalog_path)
+    inventory = load_inventory(inventory_path)
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        return bind_asset(
+            con,
+            catalog,
+            inventory,
+            request.get("model", {}),
+            request.get("placement"),
+        )
+    finally:
+        con.close()
