@@ -37,6 +37,7 @@ from pipelines.line_upgrade_contracts import (
     LineUpgradeRecord,
     ScoredLine,
     StorageProvenance,
+    UnattributedCongestion,
     UnavailableLine,
     UnavailableReason,
     mw_per_musd,
@@ -89,6 +90,10 @@ def score_line(
     if congestion is None:
         return UnavailableLine(
             key=key, provenance=provenance, reason=UnavailableReason.NO_CONGESTION_INPUT
+        )
+    if isinstance(congestion, UnattributedCongestion):
+        return UnavailableLine(
+            key=key, provenance=provenance, reason=UnavailableReason.UNMAPPED_CONSTRAINT
         )
     if (
         static_rating_mw is None
