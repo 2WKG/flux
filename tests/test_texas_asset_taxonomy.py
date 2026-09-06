@@ -32,11 +32,17 @@ def test_taxonomy_rejects_an_unknown_source_or_missing_policy():
 
     unknown = copy.deepcopy(taxonomy)
     unknown["entries"][0]["source_record_ids"] = ["not-a-source"]
-    assert any("only reference inventory" in error for error in validate_taxonomy(unknown, catalog, inventory))
+    assert any(
+        "only reference inventory" in error
+        for error in validate_taxonomy(unknown, catalog, inventory)
+    )
 
     silent = copy.deepcopy(taxonomy)
     silent["entries"][0]["truth_label_policy"] = ""
-    assert any("must be non-empty" in error for error in validate_taxonomy(silent, catalog, inventory))
+    assert any(
+        "must be non-empty" in error
+        for error in validate_taxonomy(silent, catalog, inventory)
+    )
 
 
 def test_taxonomy_rejects_a_catalog_gap_and_illustrative_label_drift():
@@ -46,8 +52,14 @@ def test_taxonomy_rejects_a_catalog_gap_and_illustrative_label_drift():
 
     gap = copy.deepcopy(taxonomy)
     gap["entries"].pop()
-    assert any("every shared archetype" in error for error in validate_taxonomy(gap, catalog, inventory))
+    assert any(
+        "every shared archetype" in error
+        for error in validate_taxonomy(gap, catalog, inventory)
+    )
 
     drifted = copy.deepcopy(taxonomy)
     drifted["canonical_truth_labels"].append("illustrative")
-    assert any("must match" in error for error in validate_taxonomy(drifted, catalog, inventory))
+    assert any(
+        "must match" in error
+        for error in validate_taxonomy(drifted, catalog, inventory)
+    )
