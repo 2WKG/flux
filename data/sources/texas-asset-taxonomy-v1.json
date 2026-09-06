@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "taxonomy_id": "texas-asset-taxonomy-v1",
+  "scope": "A placement-policy crosswalk for the legacy Texas P0 inventory. Archetypes are reusable shapes from the shared 3D contract; this file neither creates a placement nor asserts that a raw source, curated database, or Texas demo artifact exists.",
+  "asset_contract": "data/3d/asset-archetypes-v1.json",
+  "inventory": "data/sources/texas-p0-inventory.json",
+  "canonical_truth_labels": [
+    "source_supported",
+    "source_screened",
+    "hypothetical",
+    "synthetic",
+    "unavailable",
+    "request_failed"
+  ],
+  "illustrative_wording_policy": "The legacy word 'illustrative' is not a truth label. A stated analytical alternative is hypothetical only when a server artifact explicitly says so; an asset without the required evidence is unavailable.",
+  "entries": [
+    {"archetype_id": "transmission_line_segment", "source_record_ids": ["activsg2000-current"], "truth_label_policy": "Synthetic only when placed from the validated ACTIVSg2000 artifact. It is not real ERCOT connectivity; without an accepted placement artifact it is unavailable."},
+    {"archetype_id": "substation_transformer_yard", "source_record_ids": ["activsg2000-current"], "truth_label_policy": "Synthetic only when placed from the validated ACTIVSg2000 artifact. It is not a surveyed substation or a service connection; without an accepted placement artifact it is unavailable."},
+    {"archetype_id": "military_base", "source_record_ids": ["ntad-military-bases-fy2024"], "truth_label_policy": "Source-supported only after an accepted NTAD-derived placement preserves source, vintage, geometry, and coverage. The current P0 record is unavailable, so no placement may claim source support."},
+    {"archetype_id": "hospital", "source_record_ids": [], "truth_label_policy": "No approved Texas P0 facility source is inventoried. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "water_treatment_plant", "source_record_ids": [], "truth_label_policy": "No approved Texas P0 facility source is inventoried. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "coal_plant_retiring_site", "source_record_ids": ["pudl-eia860-v2026.2.0"], "truth_label_policy": "Source-supported only after an accepted PUDL/EIA placement preserves the plant record, vintage, and coverage. Proximity to synthetic topology never establishes a grid connection; the current source record is unavailable."},
+    {"archetype_id": "nuclear_smr_module", "source_record_ids": [], "truth_label_policy": "A proposal can be hypothetical only when a server artifact explicitly identifies it as an analytical alternative and preserves its limitations. It must never imply a licensed, permitted, or sited reactor; otherwise it is unavailable."},
+    {"archetype_id": "data_center_campus", "source_record_ids": [], "truth_label_policy": "No approved Texas P0 facility source is inventoried. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "residential_neighborhood", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no population, customer, or service claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "commercial_buildings", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no occupancy, demand, or service claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "factory_industrial_facility", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no process, demand, output, or emissions claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "natural_gas_plant", "source_record_ids": ["pudl-eia860-v2026.2.0"], "truth_label_policy": "Source-supported only after an accepted PUDL/EIA placement preserves the plant record, vintage, and coverage. Capacity or connectivity cannot be inferred from the mesh; the current source record is unavailable."},
+    {"archetype_id": "wind_turbine", "source_record_ids": ["pudl-eia860-v2026.2.0"], "truth_label_policy": "Source-supported only after an accepted PUDL/EIA placement preserves the plant record, vintage, and coverage. Rotor motion never establishes observed generation; the current source record is unavailable."},
+    {"archetype_id": "solar_array", "source_record_ids": ["pudl-eia860-v2026.2.0"], "truth_label_policy": "Source-supported only after an accepted PUDL/EIA placement preserves the plant record, vintage, and coverage. Panel geometry never establishes capacity or output; the current source record is unavailable."},
+    {"archetype_id": "battery_storage", "source_record_ids": ["pudl-eia860-v2026.2.0"], "truth_label_policy": "Source-supported only after an accepted PUDL/EIA placement preserves the plant record, vintage, and coverage. Containers never establish MWh, duration, or state of charge; the current source record is unavailable."},
+    {"archetype_id": "warehouse_logistics_center", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no demand, operator, or throughput claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "ev_charging_station", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no charger rating, utilization, or grid-service claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."},
+    {"archetype_id": "school_emergency_services", "source_record_ids": [], "truth_label_policy": "The generic archetype carries no shelter, emergency role, capacity, or service claim. A placement is unavailable unless a later approved, provenance-preserving source artifact supplies it."}
+  ]
+}
