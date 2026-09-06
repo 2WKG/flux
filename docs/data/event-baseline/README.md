@@ -58,6 +58,13 @@ provenance receipt references. An EAGLE-I gap is exactly
 `outage.coverage="UncoveredLabel"`; it is never a zero outage. Such a row
 cannot have `disposition="accepted"` or a computed/accepted label.
 
+`covered` is a completeness claim, not merely a nonempty interval. For each
+selected county-window, record `expected_samples`, `observed_samples`, and
+`missing_timestamps`. An accepted row must have a positive expected count,
+equal observed and expected counts, and no missing timestamps for both weather
+and outage evidence. An hourly EAGLE-I six-hour window normally documents six
+samples, but record the actual expected cadence/count rather than assuming it.
+
 Coverage acceptance and label computation are distinct. A row can be accepted
 with observed outage coverage while its customer denominator is unavailable;
 in that case `label.status="unavailable"` and no rate or positive/negative
@@ -81,6 +88,10 @@ and `source_slices`: receipt ID plus county/time slice. These are evidence
 identities, not raw-file hashes: the same annual source file may legitimately
 support many records. The final split audit uses them to detect source-row
 reuse without guessing from an annual file hash.
+
+Each key is formatted `<receipt_id>:<source-native-row-key>` and its receipt ID
+must appear in `source_slices`. This makes the row key traceable to concrete
+receipt/slice evidence without requiring an annual raw-file hash to be unique.
 
 Set `source_evidence_status="available"` when a row claims matched coverage;
 then both lists are nonempty. A candidate without fetched county rows uses
