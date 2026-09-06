@@ -34,6 +34,13 @@ import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-cli
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
+import { CascadePlaybackPanel, type CascadeSelectableElement } from "../interactive/CascadePlaybackPanel";
+import {
+  createInteractiveClient,
+  INTERACTIVE_HOUR,
+  INTERACTIVE_SCENARIO_ID,
+  INTERACTIVE_SEED,
+} from "../data/interactive-client";
 
 type Id = "baseline" | "a" | "b";
 type View = "load" | "delta";
@@ -83,6 +90,24 @@ function newAttemptId(): string {
 }
 
 const READ_CLIENT = createReadApiClient();
+
+/**
+ * The interactive cascade seam. `INTERACTIVE_CLIENT` owns the two POST routes
+ * (PR #331); the panel is handed them and holds no `fetch` of its own. Until a
+ * build serves those routes every run ends in the panel's named `unavailable`
+ * state carrying the transport's reason — the offline fallback is a named
+ * state, not the product.
+ *
+ * The selectable elements are this page's own bundled synthetic corridors, so
+ * nothing about the selection list is invented; the server decides whether it
+ * can act on them.
+ */
+const INTERACTIVE_CLIENT = createInteractiveClient();
+const CASCADE_ELEMENTS: readonly CascadeSelectableElement[] = data.network.lines.map((line) => ({
+  id: line.id,
+  label: `${BUSES[line.from].name} \u2192 ${BUSES[line.to].name}`,
+  kind: "line",
+}));
 
 const reducedMotion = () =>
   typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -591,6 +616,16 @@ export function App() {
         </article>
 
       </section>
+
+      <CascadePlaybackPanel
+        className="cascade-playback"
+        elements={CASCADE_ELEMENTS}
+        scenarioId={INTERACTIVE_SCENARIO_ID}
+        hour={INTERACTIVE_HOUR}
+        seed={INTERACTIVE_SEED}
+        prepareEdit={INTERACTIVE_CLIENT.prepareEdit}
+        runCascade={INTERACTIVE_CLIENT.runCascade}
+      />
 
       <section className="pipeline">
         <div>

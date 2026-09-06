@@ -60,6 +60,8 @@ test("every landed panel is mounted in the one App", () => {
     "Texas topology workspace": /aria-label="Full synthetic Texas topology workspace"/,
     "Texas model mount": /class="map scene-viewport"/,
     "named model-route fallback": /Texas model topology unavailable/,
+    "cascade playback panel": /aria-label="Cascade playback"/,
+    "cascade playback controls": /<legend>Elements to take offline<\/legend>/,
   };
   const missing = Object.entries(mounted).filter(([, pattern]) => !pattern.test(markup)).map(([name]) => name);
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);

@@ -183,6 +183,14 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .relief li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #17334a; font-size: .78rem; color: #b9d2e4 }
 .relief em { font-style: normal; font-weight: 800; color: var(--relief); font-variant-numeric: tabular-nums }
 
+/* The interactive cascade panel (2WKG-442). It sits in the page flow between the
+   physical inventory and the source/model contract band. */
+.cascade-playback { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px; display: grid; gap: .75rem }
+.cascade-playback fieldset { display: grid; gap: .35rem; border: 1px solid var(--line-strong); border-radius: .5rem; padding: .7rem }
+.cascade-playback label { display: inline-flex; gap: .4rem; align-items: center; color: var(--ink); font-size: .82rem }
+.cascade-playback button { padding: 5px 9px; border: 1px solid var(--line-strong); border-radius: 6px; color: var(--ink) }
+.cascade-playback ul { margin: .3rem 0; padding-left: 1.1rem; color: var(--muted); font-size: .8rem }
+
 .pipeline { margin-top: 16px; padding: 25px; display: flex; justify-content: space-between; gap: 30px }
 .pipeline h2 { font-size: 1.5rem; margin: .4rem 0 }
 .pipeline > p { max-width: 520px; margin: 0 }
