@@ -114,10 +114,10 @@ def _numerals(text: str) -> list[tuple[str, float, int]]:
     for match in _NUMERAL.finditer(scrubbed):
         digits = match.group("digits")
         fraction = match.group("fraction") or ""
-        printed = digits + fraction
+        multiplier = match.group("multiplier") or ""
+        printed = digits + fraction + multiplier
         value = float(digits.replace(",", "") + fraction)
         decimals = len(fraction) - 1 if fraction else 0
-        multiplier = match.group("multiplier")
         if multiplier:
             value *= _MULTIPLIERS[multiplier]
             # Rounding tolerance applies to the printed digits, not to the
