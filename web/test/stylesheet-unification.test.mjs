@@ -18,10 +18,18 @@ const webRoot = fileURLToPath(new URL("../", import.meta.url));
 const styles = await readFile(path.join(webRoot, "src/styles.css"), "utf8");
 const withoutComments = styles.replace(/\/\*[\s\S]*?\*\//g, "");
 
-/** `{selector, declarations}` for every top-level and nested rule. */
+/**
+ * `{selector, declarations, context}` for every top-level and nested rule.
+ *
+ * `context` is the chain of enclosing at-rule preludes (`@media (max-width:
+ * 1180px)`, and so on), empty for a rule that applies unconditionally. The
+ * empty-block check below needs it: a class whose only surviving declaration
+ * sits inside a `@media` block has no baseline appearance at all, which is the
+ * failure this file exists to catch.
+ */
 function parseRules(css) {
   const rules = [];
-  const walk = (body) => {
+  const walk = (body, context) => {
     let index = 0;
     while (index < body.length) {
       const open = body.indexOf("{", index);
@@ -35,15 +43,15 @@ function parseRules(css) {
       }
       const prelude = body.slice(index, open).trim();
       const inner = body.slice(open + 1, close - 1);
-      if (prelude.startsWith("@") && inner.includes("{")) walk(inner);
+      if (prelude.startsWith("@") && inner.includes("{")) walk(inner, context ? `${context} ${prelude}` : prelude);
       else if (!prelude.startsWith("@")) {
         const declarations = inner.split(";").map((entry) => entry.trim()).filter(Boolean);
-        for (const selector of prelude.split(",")) rules.push({ selector: selector.trim(), declarations });
+        for (const selector of prelude.split(",")) rules.push({ selector: selector.trim(), declarations, context });
       }
       index = close;
     }
   };
-  walk(css);
+  walk(css, "");
   return rules;
 }
 
@@ -89,11 +97,26 @@ function ownRules(name) {
 }
 
 test("every adopted class owns at least one real declaration, not an empty block", () => {
+  // Outside any at-rule. A responsive `@media` override is not a visual system:
+  // `.layer-controls`'s primary rule could be emptied to `{ }` and the class
+  // would still have owned a declaration through `@media (max-width: 1180px)`,
+  // which is precisely the merge failure this file is here to catch.
   const empty = ADOPTED_CLASSES.filter((name) => {
-    const owned = ownRules(name);
+    const owned = ownRules(name).filter((rule) => rule.context === "");
     return owned.length === 0 || owned.every((rule) => rule.declarations.length === 0);
   });
-  assert.deepEqual(empty, [], `adopted classes with no declaration of their own: ${empty.join(", ")}`);
+  assert.deepEqual(empty, [], `adopted classes with no unconditional declaration of their own: ${empty.join(", ")}`);
+});
+
+test("the empty-block check is scoped to unconditional rules", () => {
+  // The check's own teeth, proved on a sheet rather than asserted in prose: a
+  // class declared only inside `@media` must not satisfy it.
+  const onlyInMedia = parseRules(".probe { }\n@media (max-width: 100px) { .probe { padding: 1rem } }");
+  const unconditional = onlyInMedia.filter((rule) => rule.selector === ".probe" && rule.context === "");
+  assert.equal(onlyInMedia.length, 2, "both rules parse");
+  assert.equal(unconditional.length, 1, "the primary rule is the only unconditional one");
+  assert.deepEqual(unconditional[0].declarations, [], "and it is empty, so the class fails the check");
+  assert.equal(onlyInMedia.find((rule) => rule.context !== "")?.context, "@media (max-width: 100px)");
 });
 
 test("the unified sheet is one physical file; the four component sheets are gone", async () => {
