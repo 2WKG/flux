@@ -50,10 +50,16 @@ function assetManifest(value: unknown): FluxAssetManifest | null {
     value.transform.forward !== "-Z" || value.transform.pivot !== "ground_center" || !Array.isArray(value.assets) || value.assets.length === 0) return null;
   const validFile = (file: unknown) => record(file) && typeof file.path === "string" && typeof file.sha256 === "string" &&
     typeof file.bytes === "number" && Number.isFinite(file.bytes);
-  const validAsset = (asset: unknown) => record(asset) && typeof asset.archetype_id === "string" && typeof asset.semantic_name === "string" &&
-    typeof asset.category === "string" && record(asset.footprint_m) && typeof asset.footprint_m.width === "number" &&
-    typeof asset.footprint_m.length === "number" && record(asset.lods) && ["lod0", "lod1", "lod2"].every((lod) => validFile(asset.lods[lod]) && typeof asset.lods[lod].triangles === "number");
-  return value.assets.every(validAsset) ? value as FluxAssetManifest : null;
+  const validAsset = (asset: unknown) => {
+    if (!record(asset) || typeof asset.archetype_id !== "string" || typeof asset.semantic_name !== "string" ||
+      typeof asset.category !== "string" || !record(asset.footprint_m) || typeof asset.footprint_m.width !== "number" ||
+      typeof asset.footprint_m.length !== "number" || !record(asset.lods)) return false;
+    return ["lod0", "lod1", "lod2"].every((lod) => {
+      const file = asset.lods[lod];
+      return validFile(file) && typeof file.triangles === "number";
+    });
+  };
+  return value.assets.every(validAsset) ? value as unknown as FluxAssetManifest : null;
 }
 
 /**
