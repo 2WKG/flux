@@ -95,6 +95,16 @@ function newAttemptId(): string {
 
 const READ_CLIENT = createReadApiClient();
 
+// The initial screen is the Texas physical-inventory map. Seed the same
+// explicit context into the chat contract so its first question is grounded
+// even before the operator clicks a state polygon or source feature.
+const INITIAL_PHYSICAL_CONTEXT: SceneContext = {
+  ...EMPTY_SCENE_CONTEXT,
+  region: "texas",
+  county_fips: "48201",
+  view_mode: "physical_inventory",
+};
+
 type DemoWeatherRecord = { ts: string; condition: string; label: string; observed_or_forecast: string; wind_ms: number; gust_ms: number; temp_c: number; ice_mm: number; precip_mm: number; provenance: string[]; rule: string };
 type DemoBrief = { regions: Array<{ id: string; mode: string; availability: string }>; scenarios: Array<{ scenario_id: string; name: string; kind: string; provenance: string[]; weather: DemoWeatherRecord[] }> };
 type DemoForecastPayload = Parameters<typeof historicalForecastFromPayload>[0];
@@ -427,7 +437,7 @@ export function App() {
     kind: "loading",
     message: "Checking the evidence API for this scene.",
   });
-  const [sceneContext, setSceneContext] = useState<SceneContext>(EMPTY_SCENE_CONTEXT);
+  const [sceneContext, setSceneContext] = useState<SceneContext>(INITIAL_PHYSICAL_CONTEXT);
   const [sceneRevision, setSceneRevision] = useState(0);
   const [chatPrefill, setChatPrefill] = useState<{ value: string; revision: number }>({ value: "", revision: 0 });
   const [initialAttemptId] = useState<string>(() => newAttemptId());
@@ -460,7 +470,7 @@ export function App() {
   const [liveCascade, setLiveCascade] = useState<CascadePlayback | null>(null);
   const [selectedModelElementId, setSelectedModelElementId] = useState<string | undefined>();
   const currentRegionRef = useRef<RegionId>("texas");
-  const currentSceneContextRef = useRef<SceneContext>(EMPTY_SCENE_CONTEXT);
+  const currentSceneContextRef = useRef<SceneContext>(INITIAL_PHYSICAL_CONTEXT);
   const currentAttemptRef = useRef(initialAttemptId);
 
   const contextRevision = `${controlRoomRegion}:${sceneRevision}:${attemptId}`;
