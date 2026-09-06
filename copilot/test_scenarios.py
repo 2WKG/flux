@@ -292,6 +292,25 @@ def test_missing_database_file_is_the_shared_unavailable_envelope(
     }
 
 
+def test_detail_missing_database_file_is_the_shared_unavailable_envelope(
+    tmp_path: Path,
+) -> None:
+    """The detail route has its own unavailable state, not only the catalog's."""
+    response = _client(tmp_path / "missing.duckdb").get("/scenarios/mn_winter_2023_snow")
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "unavailable"
+    assert body["data"] is None
+    assert body["error"] == {
+        "code": "unavailable",
+        "message": "The database artifact is unavailable.",
+        "retryable": True,
+        "retry_after_s": 30,
+        "details": {"artifact": "database", "reason": "missing"},
+    }
+
+
 @pytest.mark.parametrize(
     ("dropped_table", "expected_artifact"),
     [

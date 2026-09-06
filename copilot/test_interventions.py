@@ -43,10 +43,14 @@ def test_site_and_comparison_reads_are_server_side(tmp_path: Path):
 
 
 def test_missing_artifact_is_unavailable(tmp_path: Path):
-    r = client(tmp_path / "none.duckdb").post(
-        "/site-score", json={"site_id": "1", "unit_mw": 300, "scenario_id": "x"}
-    )
+    """Both intervention routes report the shared unavailable envelope."""
+    c = client(tmp_path / "none.duckdb")
+    r = c.post("/site-score", json={"site_id": "1", "unit_mw": 300, "scenario_id": "x"})
     assert r.status_code == 503 and r.json()["status"] == "unavailable"
+    assert r.json()["error"]["details"] == {"artifact": "database", "reason": "missing"}
+    q = c.post("/compare", json={"scenario_id": "x", "intervention_ids": ["site:1"]})
+    assert q.status_code == 503 and q.json()["status"] == "unavailable"
+    assert q.json()["error"]["details"] == {"artifact": "database", "reason": "missing"}
 
 
 def test_line_comparison_is_not_invented(tmp_path: Path):
