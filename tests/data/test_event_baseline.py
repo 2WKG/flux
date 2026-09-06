@@ -215,7 +215,8 @@ def test_zone_event_report_cannot_claim_covered_county_weather() -> None:
         "notes": "fixture",
     }
     with pytest.raises(
-        validator.ValidationError, match="covered weather requires a county-scoped report"
+        validator.ValidationError,
+        match="covered weather requires a county-scoped report",
     ):
         validator.validate_bundle(candidate)
 
