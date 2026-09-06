@@ -125,7 +125,7 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
     assert.ok(directives[directive], `CSP has no ${directive}`);
     for (const value of directives[directive]) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
         `${directive} allows ${value}, which can reach an off-origin server`,
       );
     }
