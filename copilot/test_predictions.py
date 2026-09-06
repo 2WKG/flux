@@ -93,7 +93,12 @@ def _prediction_database(
         con.close()
 
 
-def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> None:
+def _cascade_database(
+    path: Path,
+    *,
+    model_mode: str | None = "topology",
+    artifact_id: str = "mn:model:storm-run-1",
+) -> None:
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE cascade_runs (run_id TEXT, scenario_id TEXT)")
@@ -102,7 +107,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     "model_result",
                     SCHEMA_VERSION,
                     "mn",
@@ -118,7 +123,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     0,
                     "fixture:topology",
                     "fixtures/topology.json",
@@ -133,7 +138,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     "fixture-cascade",
                     "v1",
                     "mn-storm-run-1",
@@ -276,6 +281,22 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
         "artifact": "cascade_runs",
         "reason": "topology_cascade_unsupported_or_absent",
     }
+
+
+def test_cascade_rejects_an_artifact_id_unsafe_for_an_http_header(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "unsafe-artifact.duckdb"
+    _cascade_database(database, artifact_id="mn:storm\r\nX-Injected: yes")
+
+    response = _client(database).get(
+        "/cascade", params={"scenario_id": "mn_winter_2023_snow"}
+    )
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+    assert "X-Flux-Artifact" not in response.headers
+    assert "X-Injected" not in response.headers
 
 
 def test_prediction_invalid_limit_is_rejected(tmp_path: Path) -> None:

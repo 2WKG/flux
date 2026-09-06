@@ -155,7 +155,13 @@ def install_error_handlers(app: FastAPI) -> FastAPI:
 
     @app.middleware("http")
     async def _request_id(request: Request, call_next):
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception as exc:  # noqa: BLE001 - HTTP boundary renders safe failures
+            request_id = request_id_of(request)
+            response = failure_response(
+                internal_error_from(exc, request_id=request_id), request_id
+            )
         response.headers.setdefault(REQUEST_ID_HEADER, request_id_of(request))
         response.headers.setdefault(API_VERSION_HEADER, API_VERSION)
         return response
