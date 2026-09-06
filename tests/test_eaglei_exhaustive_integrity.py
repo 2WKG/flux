@@ -45,7 +45,7 @@ def _write_completed_source(
         json.dumps(
             {
                 "source_system_id": "figshare:24237376:53581661",
-                "source_file_id": "53581661",
+                "source_file_id": 53581661,
                 "source_metadata_url": eaglei.FIGSHARE_ARTICLE_URL,
                 "source_url": "https://example.invalid/eaglei_outages_2024.csv",
                 "source_file": raw.name,

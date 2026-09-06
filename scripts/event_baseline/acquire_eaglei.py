@@ -159,7 +159,7 @@ def trusted_annual_metadata(
         or metadata.get("source_metadata_url") != FIGSHARE_ARTICLE_URL
         or not isinstance(source_id, str)
         or not re.fullmatch(r"figshare:24237376:\d+", source_id)
-        or metadata.get("source_file_id") != source_file_id
+        or str(metadata.get("source_file_id")) != source_file_id
         or metadata.get("source_file") != expected_name
         or raw_path.name != expected_name
         or metadata.get("source_file_bytes") != len(raw_bytes)
