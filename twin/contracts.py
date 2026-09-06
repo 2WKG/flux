@@ -82,8 +82,9 @@ class CascadeResult:
     hour: int
     tripped_element_ids: tuple[CascadeEvent, ...]
     lost_load_mw: float
+    served_load_mw: float
     counties_dark: tuple[str, ...]
-    critical_loads_lost: tuple[str, ...]
+    critical_loads_lost: tuple[Any, ...]
     topology: str = SYNTHETIC_TOPOLOGY_LABEL
     solver: str = "pandapower.rundcpp"
     synthetic: bool = True
@@ -99,6 +100,7 @@ class CascadeResult:
             "hour": self.hour,
             "tripped_element_ids": [event.json() for event in self.tripped_element_ids],
             "lost_load_mw": float(self.lost_load_mw),
+            "served_load_mw": float(self.served_load_mw),
             "counties_dark": list(self.counties_dark),
             "critical_loads_lost": list(self.critical_loads_lost),
             "topology": self.topology,

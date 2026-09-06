@@ -119,6 +119,7 @@ def _build_network_from_duckdb(path: Path) -> Any:
             float(kv),
             name=str(name),
             geo=json.dumps({"type": "Point", "coordinates": [float(lon), float(lat)]}),
+            index=int(source_id),
         )
         net.flux_bus_index[int(source_id)] = int(index)
         net.flux_bus_metadata[int(index)] = {
@@ -165,7 +166,12 @@ def _build_network_from_duckdb(path: Path) -> Any:
             table = "ext_grid"
         else:
             index = pp.create_gen(
-                net, bus, p_mw=0.0, vm_pu=1.0, max_p_mw=float(pmax), name=element_id
+                net,
+                bus,
+                p_mw=float(pmax),
+                vm_pu=1.0,
+                max_p_mw=float(pmax),
+                name=element_id,
             )
             table = "gen"
         net[table].at[index, "flux_element_id"] = element_id
@@ -356,7 +362,7 @@ def network_summary(net: Any) -> dict[str, int | str]:
         "lines": len(net.line),
         "impedance_branches": len(net.impedance),
         "loads": len(net.load),
-        "generators": len(net.gen),
+        "generators": len(net.ext_grid) + len(net.gen),
     }
 
 

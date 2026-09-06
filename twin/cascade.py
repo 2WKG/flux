@@ -76,7 +76,14 @@ def _run_legacy_cascade(
     metadata = (
         _metadata_from_database(db_path, scenario_net)
         if db_path is not None
-        else ({}, {})
+        else (
+            {
+                int(bus): str(values["county_fips"])
+                for bus, values in scenario_net.get("flux_bus_metadata", {}).items()
+                if values.get("county_fips") is not None
+            },
+            dict(scenario_net.get("flux_critical_loads", {})),
+        )
     )
     county_by_bus, critical_by_bus = metadata
     loading_by_element: dict[str, float] = {}
@@ -88,6 +95,12 @@ def _run_legacy_cascade(
         lost_load_mw += island_lost
         dark_buses.update(island_buses)
         events.extend(island_events)
+        deficit_lost, deficit_buses, deficit_events = _shed_capacity_deficits(
+            scenario_net, stage
+        )
+        lost_load_mw += deficit_lost
+        dark_buses.update(deficit_buses)
+        events.extend(deficit_events)
         _solve(scenario_net)
         overloads = _overloaded_elements(scenario_net, overload_limit_pct)
         loading_by_element.update(
@@ -119,9 +132,16 @@ def _run_legacy_cascade(
     )
     critical_lost = tuple(
         sorted(
-            critical_id
-            for bus in dark_buses
-            for critical_id in critical_by_bus.get(bus, ())
+            (
+                critical
+                for bus in dark_buses
+                for critical in critical_by_bus.get(bus, ())
+            ),
+            key=lambda value: (
+                str(value.get("cl_id", value))
+                if isinstance(value, Mapping)
+                else str(value)
+            ),
         )
     )
     forced_key = tuple(event.element_id for event in events if event.cause == "forced")
@@ -158,6 +178,10 @@ def _run_legacy_cascade(
         hour=hour,
         tripped_element_ids=tuple(events),
         lost_load_mw=round(float(lost_load_mw), 6),
+        served_load_mw=round(
+            float(scenario_net.load.loc[scenario_net.load.in_service, "p_mw"].sum()),
+            6,
+        ),
         counties_dark=counties_dark,
         critical_loads_lost=critical_lost,
         topology=str(scenario_net.get("flux_topology", SYNTHETIC_TOPOLOGY_LABEL)),
@@ -172,7 +196,13 @@ def _run_legacy_cascade(
                 "write=True requires a cascade_runs database path"
             )
         persist_result(result, db_path, counterfactual_site_id=counterfactual_site_id)
-    return result.json()
+    payload = result.json()
+    from twin.edits import edit_hash, outage
+
+    payload["edit_hash"] = edit_hash(
+        tuple(outage(element_id) for element_id in canonical_forced)
+    )
+    return payload
 
 
 def run_cascade(
@@ -1038,6 +1068,56 @@ def _source_buses(net: Any) -> set[int]:
     return {int(value) for value in net.ext_grid.loc[net.ext_grid.in_service, "bus"]}
 
 
+def _available_capacity(net: Any, buses: set[int]) -> float:
+    column = "max_p_mw" if "max_p_mw" in net.gen.columns else "p_mw"
+    capacity = float(
+        net.gen.loc[net.gen.in_service & net.gen.bus.isin(buses), column]
+        .fillna(0.0)
+        .sum()
+    )
+    for _, row in net.ext_grid[
+        net.ext_grid.in_service & net.ext_grid.bus.isin(buses)
+    ].iterrows():
+        limit = row.get("pmax_mw")
+        if limit is None or float(limit) != float(limit):
+            return float("inf")
+        capacity += max(float(limit), 0.0)
+    return capacity
+
+
+def _shed_capacity_deficits(
+    net: Any, stage: int
+) -> tuple[float, set[int], list[CascadeEvent]]:
+    """Shed only the finite unmet share of an energized synthetic island."""
+    sources = _source_buses(net)
+    lost, dark_buses, events = 0.0, set(), []
+    for component in nx.connected_components(_in_service_graph(net)):
+        if not sources.intersection(component):
+            continue
+        load_indexes = net.load.index[
+            net.load.in_service & net.load.bus.isin(component)
+        ]
+        demand = float(net.load.loc[load_indexes, "p_mw"].sum())
+        available = _available_capacity(net, component)
+        if demand <= 0 or available >= demand:
+            continue
+        served_fraction = max(available, 0.0) / demand
+        for index in load_indexes:
+            before = float(net.load.at[index, "p_mw"])
+            shed = before * (1.0 - served_fraction)
+            if shed <= 0:
+                continue
+            net.load.at[index, "p_mw"] = before - shed
+            lost += shed
+            dark_buses.add(int(net.load.at[index, "bus"]))
+            events.append(
+                CascadeEvent(
+                    str(net.load.at[index, "flux_element_id"]), "load", stage, "island"
+                )
+            )
+    return lost, dark_buses, events
+
+
 def _incident_element_count(net: Any, bus_id: int) -> int:
     return sum(
         int(
@@ -1190,7 +1270,6 @@ def _county_impacts(net: Any, county_by_bus: Mapping[int, str]) -> list[dict[str
         {
             "county_fips": county,
             "lost_mw": round(lost_mw, 6),
-            "customers_out": None,
             "fraction_dark": round(lost_mw / totals[county], 6)
             if totals[county]
             else 0.0,

@@ -98,7 +98,6 @@ def test_county_impact_reports_synthetic_load_fraction_without_customer_claim(
         {
             "county_fips": "48001",
             "lost_mw": 10.0,
-            "customers_out": None,
             "fraction_dark": 1.0,
             "basis": "synthetic modeled load; customer count unavailable",
         }

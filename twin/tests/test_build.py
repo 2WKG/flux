@@ -28,7 +28,7 @@ def test_build_network_imports_a_matpower_case(tmp_path) -> None:
         "lines": 1,
         "impedance_branches": 0,
         "loads": 1,
-        "generators": 0,
+        "generators": 1,
     }
     assert net.line.at[0, "flux_element_id"] == "line:1"
 

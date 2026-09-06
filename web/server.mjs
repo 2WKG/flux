@@ -47,7 +47,7 @@ function proxied(pathname, method) {
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' blob:",
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
