@@ -52,6 +52,69 @@ The repository's standard local start/stop instructions remain
 owned elsewhere in [`static-origin-and-tunnel.md`](static-origin-and-tunnel.md);
 this handoff does not amend either runbook.
 
+## Deck.gl and MapLibre renderer readiness
+
+The approved renderer foundation is deck.gl 9.3.11 over MapLibre GL 6.7.0,
+using `react-map-gl/maplibre` 8.1.3 and an interleaved `MapboxOverlay` from
+`@deck.gl/mapbox`. It is renderer infrastructure, not an acceptance of a
+feature layer, state geography, topology, placement, or asset. Its initial
+render may therefore contain **zero accepted feature layers** and must show an
+explicit provenance/status disclosure that those data are unavailable.
+
+The current synthetic fixture remains a screen-space Cartesian preview. It
+must never be converted to WGS84, drawn as a MapLibre feature, or used to
+choose a map camera, placement, or source-backed status. A MapLibre mount and
+deck.gl overlay do not change that fact.
+
+When a networked basemap is configured, spec 06's current default is
+OpenFreeMap dark:
+
+```
+https://tiles.openfreemap.org/styles/dark
+```
+
+Leave MapLibre's attribution control enabled; do not set
+`attributionControl: false`. The configured style provides the required
+OpenFreeMap/OpenMapTiles/OpenStreetMap attribution. An unavailable basemap is
+a separate renderer/network condition from unavailable feature data. A
+foundation that deliberately avoids a remote basemap fetch must disclose that
+it has not exercised external tiles, glyphs, or attribution delivery.
+
+For the interleaved overlay, attach `MapboxOverlay({interleaved: true})` with
+`useControl`, update it with the layer list, and choose `beforeId` from the
+loaded style's first `symbol` layer at runtime. The OpenFreeMap dark style's
+known default is `water_name`, but style identifiers vary; do not hard-code a
+label id as a general contract. If no symbol layer exists, record the overlay
+mode and label-order limitation instead of pretending labels were preserved.
+
+### Later 3D asset gate
+
+The frozen asset contract remains authoritative: a deliverable is a neutral
+`.glb` with metre unit scale 1.0, Y-up, −Z-forward, right-handed coordinates,
+and a `ground_center` pivot. `ScenegraphLayer` is the intended deck.gl layer
+only after a server artifact supplies a placement's WGS84 position, identity,
+provenance, and frozen status. Its `scenegraph` URL/promise, `getPosition`,
+`getOrientation`, `getScale`, and `pickable` behavior must be exercised with a
+neutral test asset before accepting a real asset path.
+
+Binary `.glb`/`.gltf` files are deliberately untracked. Before a static build
+can render one, an asset owner must provide its immutable URL or build-copy
+step, SHA-256, licence metadata, loader/CORS behavior, and a load failure that
+renders `unavailable` without fallback geometry. Asset axes must be proven in
+the actual ScenegraphLayer adapter; do not assume a glTF's local Y-up/−Z axes
+are automatically the same as a map placement's world axes.
+
+`MAT_STATUS` is also a proof obligation. The frozen contract requires a
+status material slot, while ScenegraphLayer's documented `getColor` is used
+only when no texture is present. A textured glTF therefore needs a verified
+material-tint adapter or a separate contract-compliant status presentation;
+do not claim that `getColor` alone tints a named material slot.
+
+Keep renderer data references stable and use deck.gl update triggers for
+selection/status changes so those changes do not rebuild geometry buffers.
+That is an implementation readiness rule, not a performance result; no
+accepted 3D performance budget exists yet.
+
 ## Two operating modes
 
 | Mode | What it serves | Required inputs | What it does not prove |
