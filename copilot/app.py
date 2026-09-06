@@ -22,6 +22,8 @@ from copilot.config import Settings, load_settings
 from copilot.providers import build_narration_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
+from copilot.routes.assets import placements_router
+from copilot.routes.assets import router as assets_router
 from copilot.routes.comparisons import router as comparisons_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
@@ -82,6 +84,8 @@ def create_app(
         return await http_exception_handler(request, exc)
 
     app.include_router(health_router)
+    app.include_router(assets_router)
+    app.include_router(placements_router)
     app.include_router(layers_router)
     app.include_router(physical_layers_router)
     app.include_router(interventions_router)
