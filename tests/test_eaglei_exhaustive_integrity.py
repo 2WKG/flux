@@ -28,6 +28,8 @@ def _file(payload: bytes) -> dict[str, object]:
         "id": 53581661,
         "name": "eaglei_outages_2024.csv",
         "size": len(payload),
+        "supplied_md5": hashlib.md5(payload).hexdigest(),
+        "computed_md5": hashlib.md5(payload).hexdigest(),
         "download_url": "https://example.invalid/eaglei_outages_2024.csv",
     }
 
@@ -43,16 +45,23 @@ def _write_completed_source(
         json.dumps(
             {
                 "source_system_id": "figshare:24237376:53581661",
+                "source_file_id": "53581661",
+                "source_metadata_url": eaglei.FIGSHARE_ARTICLE_URL,
                 "source_url": "https://example.invalid/eaglei_outages_2024.csv",
                 "source_file": raw.name,
                 "source_file_bytes": len(payload),
                 "raw_bytes": len(payload),
                 "raw_sha256": hashlib.sha256(payload).hexdigest(),
+                "raw_md5": hashlib.md5(payload).hexdigest(),
+                "supplied_md5": hashlib.md5(payload).hexdigest(),
+                "computed_md5": hashlib.md5(payload).hexdigest(),
                 "etag": etag,
+                "etag_pinned": True,
                 "retrieved_at_utc": "2026-09-06T00:00:00Z",
                 "http_status": 200,
                 "acquisition_method": "exhaustive_annual_stream",
                 "acquisition_complete": True,
+                "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
             }
         ),
         encoding="utf-8",
@@ -216,7 +225,11 @@ def test_same_size_raw_cache_without_matching_metadata_is_not_reused(
     try:
         receipt = _acquire(tmp_path, desired)
     except eaglei.EagleiError as error:
-        assert "sidecar" in str(error) or "cache" in str(error)
+        assert (
+            "sidecar" in str(error)
+            or "cache" in str(error)
+            or "manifest" in str(error)
+        )
         assert not calls, "untrusted bytes must not be silently reused"
     else:
         assert calls, "a stale same-size cache must be refreshed before use"
@@ -331,10 +344,65 @@ def test_batch_verifies_trusted_sidecar_before_opening_a_csv_parser(
 
     monkeypatch.setattr(eaglei.csv, "DictReader", forbidden_reader)
 
-    with pytest.raises(eaglei.EagleiError, match="sidecar|cache|metadata"):
+    with pytest.raises(eaglei.EagleiError, match="sidecar|cache|metadata|manifest"):
         eaglei.batch_scan_requests(requests_path, tmp_path)
 
     monkeypatch.setattr(eaglei.csv, "DictReader", original_reader)
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("acquisition_complete", False),
+        ("source_system_id", "figshare:other-article:53581661"),
+        ("source_file", "different.csv"),
+        ("source_file_bytes", 0),
+        ("integrity_basis", "none"),
+        ("raw_md5", "0" * 32),
+        ("supplied_md5", "0" * 32),
+        ("computed_md5", "0" * 32),
+    ],
+)
+def test_batch_rejects_an_incomplete_or_unbound_manifest_before_csv_parsing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    field: str,
+    invalid_value: object,
+) -> None:
+    payload = (
+        HEADER
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:00:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:15:00,123\n"
+    ).encode()
+    raw = _write_completed_source(tmp_path, payload)
+    sidecar = raw.with_name(f"{raw.name}.source.json")
+    metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+    metadata[field] = invalid_value
+    sidecar.write_text(json.dumps(metadata), encoding="utf-8")
+    requests_path = tmp_path / "requests.json"
+    requests_path.write_text(
+        json.dumps(
+            [
+                {
+                    "event_id": "untrusted",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T00:30:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["27137"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    def forbidden_reader(*args: object, **kwargs: object) -> object:
+        raise AssertionError("an untrusted annual source reached CSV parsing")
+
+    monkeypatch.setattr(eaglei.csv, "DictReader", forbidden_reader)
+
+    with pytest.raises(eaglei.EagleiError, match="sidecar|cache|metadata|manifest"):
+        eaglei.batch_scan_requests(requests_path, tmp_path)
 
 
 def test_two_same_year_batch_requests_parse_the_annual_csv_once(

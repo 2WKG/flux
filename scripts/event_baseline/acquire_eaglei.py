@@ -134,6 +134,57 @@ def outage_field(fieldnames: list[str]) -> str:
     raise EagleiError("no documented customer-outage field is present")
 
 
+def trusted_annual_metadata(
+    raw_path: Path, *, year: int, expected_file: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Validate a completed annual cache before it can establish coverage."""
+    meta_path = raw_path.with_name(f"{raw_path.name}.source.json")
+    try:
+        metadata = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError) as error:
+        raise EagleiError("annual source manifest is missing or invalid") from error
+
+    raw_bytes = raw_path.read_bytes()
+    raw_sha256 = hashlib.sha256(raw_bytes).hexdigest()
+    raw_md5 = hashlib.md5(raw_bytes).hexdigest()
+    source_id = metadata.get("source_system_id")
+    source_file_id = str(source_id).rsplit(":", 1)[-1]
+    expected_name = f"eaglei_outages_{year}.csv"
+    allowed_basis = {
+        "figshare_file_metadata_md5_and_size",
+        "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+    }
+    if (
+        metadata.get("acquisition_complete") is not True
+        or metadata.get("source_metadata_url") != FIGSHARE_ARTICLE_URL
+        or not isinstance(source_id, str)
+        or not re.fullmatch(r"figshare:24237376:\d+", source_id)
+        or metadata.get("source_file_id") != source_file_id
+        or metadata.get("source_file") != expected_name
+        or raw_path.name != expected_name
+        or metadata.get("source_file_bytes") != len(raw_bytes)
+        or metadata.get("raw_bytes") != len(raw_bytes)
+        or metadata.get("raw_sha256") != raw_sha256
+        or metadata.get("raw_md5") != raw_md5
+        or metadata.get("supplied_md5") != raw_md5
+        or metadata.get("computed_md5") != raw_md5
+        or metadata.get("integrity_basis") not in allowed_basis
+    ):
+        raise EagleiError("annual source manifest does not bind trusted Figshare bytes")
+    if metadata["integrity_basis"].endswith("etag_pinned_full_stream") and (
+        metadata.get("etag_pinned") is not True or not metadata.get("etag")
+    ):
+        raise EagleiError("annual source manifest lacks ETag-pinned transfer evidence")
+    if expected_file is not None and (
+        source_file_id != str(expected_file["id"])
+        or metadata["source_file_bytes"] != int(expected_file["size"])
+        or metadata["supplied_md5"] != expected_file.get("supplied_md5")
+        or metadata["computed_md5"] != expected_file.get("computed_md5")
+    ):
+        raise EagleiError("annual source manifest disagrees with Figshare file metadata")
+    return metadata
+
+
 def acquire_exhaustive(
     *,
     article: dict[str, Any],
@@ -171,40 +222,33 @@ def acquire_exhaustive(
             for chunk in response.iter_content(chunk_size=1_048_576):
                 if chunk:
                     handle.write(chunk)
-    raw_hash = hashlib.sha256()
-    with raw_path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1_048_576), b""):
-            raw_hash.update(chunk)
-    if raw_path.stat().st_size != int(file["size"]):
-        raise EagleiError("annual stream byte count differs from Figshare metadata")
-    metadata = (
-        json.loads(meta_path.read_text(encoding="utf-8")) if meta_path.exists() else {}
-    )
-    if metadata and (
-        metadata.get("raw_sha256") != raw_hash.hexdigest()
-        or metadata.get("raw_bytes") != raw_path.stat().st_size
-        or metadata.get("source_system_id") != f"figshare:{article['id']}:{file['id']}"
-    ):
-        raise EagleiError(
-            "annual source sidecar does not bind the cached bytes to this Figshare file"
-        )
-    if not metadata:
+    if not meta_path.exists():
+        raw_bytes = raw_path.read_bytes()
         metadata = {
             "source_system_id": f"figshare:{article['id']}:{file['id']}",
+            "source_file_id": str(file["id"]),
+            "source_metadata_url": FIGSHARE_ARTICLE_URL,
             "source_url": source_url,
             "source_file": file["name"],
             "source_file_bytes": int(file["size"]),
-            "raw_bytes": raw_path.stat().st_size,
-            "raw_sha256": raw_hash.hexdigest(),
+            "raw_bytes": len(raw_bytes),
+            "raw_sha256": hashlib.sha256(raw_bytes).hexdigest(),
+            "raw_md5": hashlib.md5(raw_bytes).hexdigest(),
+            "supplied_md5": file.get("supplied_md5"),
+            "computed_md5": file.get("computed_md5"),
             "etag": expected_etag,
             "retrieved_at_utc": utc_now(),
             "http_status": 200,
             "acquisition_method": "exhaustive_annual_stream",
             "etag_pinned": True,
+            "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+            "acquisition_complete": True,
         }
         meta_path.write_text(
             json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
+    metadata = trusted_annual_metadata(raw_path, year=year, expected_file=file)
+    raw_hash = metadata["raw_sha256"]
     if selected_rows is None:
         with raw_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
@@ -275,8 +319,8 @@ def acquire_exhaustive(
         "acquisition_complete": True,
         "raw_artifact": str(raw_path),
         "raw_metadata_artifact": str(meta_path),
-        "raw_sha256": raw_hash.hexdigest(),
-        "raw_bytes": raw_path.stat().st_size,
+        "raw_sha256": raw_hash,
+        "raw_bytes": metadata["raw_bytes"],
         "etag": expected_etag,
         "filtered_artifact": str(selected_path),
         "filtered_sha256": hashlib.sha256(selected_path.read_bytes()).hexdigest(),
@@ -335,10 +379,7 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
         raw_path = cache_dir / "annual-source" / f"eaglei_outages_{year}.csv"
         if not raw_path.exists():
             raise EagleiError(f"missing completed annual source: {raw_path}")
-        meta = json.loads(raw_path.with_name(f"{raw_path.name}.source.json").read_text(encoding="utf-8"))
-        digest = hashlib.sha256(raw_path.read_bytes()).hexdigest()
-        if meta.get("raw_sha256") != digest or meta.get("raw_bytes") != raw_path.stat().st_size:
-            raise EagleiError("annual source sidecar does not bind the cached bytes")
+        meta = trusted_annual_metadata(raw_path, year=year)
         with raw_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
             batch_fieldnames = reader.fieldnames or []
@@ -352,7 +393,14 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
                     ):
                         request["rows"].append(row)
         for request in group:
-            file = {"id": str(meta["source_system_id"]).rsplit(":", 1)[-1], "name": raw_path.name, "size": raw_path.stat().st_size, "download_url": meta.get("source_url", "cached://annual-source")}
+            file = {
+                "id": str(meta["source_system_id"]).rsplit(":", 1)[-1],
+                "name": raw_path.name,
+                "size": raw_path.stat().st_size,
+                "supplied_md5": meta["supplied_md5"],
+                "computed_md5": meta["computed_md5"],
+                "download_url": meta.get("source_url", "cached://annual-source"),
+            }
             article = {"id": 24237376, "license": {"name": "CC BY 4.0"}}
             results.append(acquire_exhaustive(article=article, file=file, event_id=request["event_id"], year=year, start=request["start"], end=request["end"], states=request["states"], fips=request["fips"], cache_dir=cache_dir, expected_etag=meta.get("etag"), selected_rows=request["rows"], selected_fieldnames=batch_fieldnames))
     return results
