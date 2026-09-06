@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from copilot.app import create_app
 from copilot.config import Settings
@@ -515,3 +516,50 @@ def test_a_missing_simulation_core_names_itself_in_the_tool_result() -> None:
     assert "synthetic_core_unavailable" in reason
     assert "provider" not in reason.lower()
     assert answer
+
+
+def test_the_frozen_tool_schemas_bound_their_list_inputs() -> None:
+    """P4: the bound lives in the FROZEN contract, not only at the HTTP layer.
+
+    Widening `max_length` in `copilot/tools/schemas.py` must turn this red;
+    the HTTP-layer bound in `copilot/interactive_routes.py` is a separate
+    assertion in `copilot/test_interactive_routes.py`.
+    """
+
+    at_the_bound = validate_tool_input(
+        "scenario_edit",
+        {
+            "base_scenario_id": "interactive",
+            "ops": [
+                {"op": "outage", "element_id": f"line:{index}"} for index in range(64)
+            ],
+            "hour": 0,
+            "seed": 0,
+        },
+    )
+    assert len(at_the_bound.ops) == 64
+
+    with pytest.raises(ValidationError):
+        validate_tool_input(
+            "scenario_edit",
+            {
+                "base_scenario_id": "interactive",
+                "ops": [
+                    {"op": "outage", "element_id": f"line:{index}"}
+                    for index in range(65)
+                ],
+                "hour": 0,
+                "seed": 0,
+            },
+        )
+
+    with pytest.raises(ValidationError):
+        validate_tool_input(
+            "cascade",
+            {
+                "element_ids": [f"line:{index}" for index in range(65)],
+                "scenario_id": "interactive",
+                "hour": 0,
+                "seed": 0,
+            },
+        )
