@@ -2,6 +2,7 @@ export { ControlRoom, cascadeIsPlayable, topologyIsDisplayable } from "./Control
 export { PrimaryDemo } from "./PrimaryDemo";
 export { TexasModelStage, qualifiedSceneEvents, resolveSceneEvents } from "./TexasModelStage";
 export { HistoricalForecastPanel } from "./HistoricalForecast";
+export { SyntheticTexasModelMap } from "./SyntheticTexasModelMap";
 export { createPrimaryDemoRuntime, historicalForecastFromPayload, texasModelSceneFromPayload } from "./runtime";
 export type {
   CascadeEvent,
@@ -20,4 +21,4 @@ export type {
 export type { PrimaryDemoProps, PrimarySceneMode } from "./PrimaryDemo";
 export type { ComponentFailureAction, ModelCascadeEvent, QualifiedModelCascade, TexasModelScene } from "./TexasModelStage";
 export type { HistoricalCountForecast } from "./HistoricalForecast";
-export type { HistoricalModelInput, PrimaryDemoRuntimeInput } from "./runtime";
+export type { HistoricalModelInput, ModelGeometryElement, ModelPayload, PrimaryDemoRuntimeInput } from "./runtime";

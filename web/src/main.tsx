@@ -29,9 +29,12 @@ import {
   HistoricalForecastPanel,
   PrimaryDemo,
   ControlRoom,
+  SyntheticTexasModelMap,
   createPrimaryDemoRuntime,
   historicalForecastFromPayload,
+  texasModelSceneFromPayload,
   type HistoricalCountForecast,
+  type ModelPayload,
   type PrimarySceneMode,
   type RegionId,
   type TexasModelScene,
@@ -100,6 +103,12 @@ function isDemoBrief(value: unknown): value is DemoBrief {
 
 function isDemoForecastPayload(value: unknown): value is DemoForecastPayload {
   return Boolean(value && typeof value === "object" && typeof (value as Record<string, unknown>).status === "string");
+}
+
+function isModelPayload(value: unknown): value is ModelPayload {
+  if (!value || typeof value !== "object") return false;
+  const status = (value as Record<string, unknown>).status;
+  return status === "available" || status === "partial" || status === "unavailable";
 }
 
 function weatherSymbol(condition: string): "clear" | "cloudy" | "rain" | "snow" | "wind" | "storm" | "heat" | "unknown" {
@@ -385,6 +394,8 @@ export function App() {
   const [sceneMode, setSceneMode] = useState<PrimarySceneMode>("inventory");
   const [weatherFrames, setWeatherFrames] = useState<ReturnType<typeof createPrimaryDemoRuntime>["scenarios"][number]["weather"]>([]);
   const [historicalForecast, setHistoricalForecast] = useState<HistoricalCountForecast>({ availability: "unavailable", reason: "The historical trajectory has not been requested." });
+  const [modelPayload, setModelPayload] = useState<ModelPayload>({ status: "unavailable", reason: "The synthetic model geometry has not been requested." });
+  const [selectedModelElementId, setSelectedModelElementId] = useState<string | undefined>();
 
   const contextRevision = `${selected}:${attemptId}`;
 
@@ -433,6 +444,15 @@ export function App() {
     loadRegistryDataStatuses(READ_CLIENT, { signal: controller.signal })
       .then((statuses) => setDataStatuses(statuses))
       .catch(() => undefined);
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    // These are server-verified canonical model IDs, not physical layer IDs.
+    READ_CLIENT.get<ModelPayload>("/demo/model?element_id=line%3A973&element_id=generator%3A1", isModelPayload, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => setModelPayload(state.kind === "ready" ? state.data : { status: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The model geometry is unavailable." }))
+      .catch(() => setModelPayload({ status: "unavailable", reason: "The model geometry could not be read." }));
     return () => controller.abort();
   }, []);
 
@@ -631,13 +651,22 @@ export function App() {
     },
   });
 
-  const texasModelScene: TexasModelScene = {
-    availability: "unavailable",
-    topologyLabel: "synthetic (ACTIVSg2000)",
-    synthetic: true,
-    elementIds: [],
-    limitations: ["The independently keyed synthetic model visual and qualified browser cascade readback are not supplied by this build."],
-  };
+  const texasModelSceneBase = texasModelSceneFromPayload(modelPayload, {
+    message: "Select a verified synthetic model ID, then ask the configured Copilot to run the component-failure scenario.",
+    selectedElementId: selectedModelElementId,
+    onSelectElement: (elementId) => {
+      setSelectedModelElementId(elementId);
+      setSceneContext((context) => ({ ...context, scenario_id: "uri_2021", hour: 0, selected_element_id: elementId }));
+    },
+    onRequestFailure: () => { if (!chatOpen) toggleChat("toggle"); },
+  });
+  const texasModelScene: TexasModelScene = texasModelSceneBase.availability !== "unavailable" ? {
+    ...texasModelSceneBase,
+    visual: <SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={(elementId) => {
+      setSelectedModelElementId(elementId);
+      setSceneContext((context) => ({ ...context, scenario_id: "uri_2021", hour: 0, selected_element_id: elementId }));
+    }} />,
+  } : texasModelSceneBase;
 
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
     const identity: RunIdentity = { attemptId, contextRevision };

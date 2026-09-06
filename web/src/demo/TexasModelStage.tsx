@@ -78,7 +78,7 @@ export function TexasModelStage({ scene }: { scene: TexasModelScene }) {
             {scene.elementIds.map((id) => <option key={id} value={id}>{id}</option>)}
           </select>
         </label>
-        <button type="button" onClick={action.onRequestFailure} disabled={action.availability !== "available" || !action.selectedElementId || !action.onRequestFailure}>Request component failure</button>
+        <button type="button" onClick={action.onRequestFailure} disabled={action.availability !== "available" || !action.selectedElementId || !action.onRequestFailure}>Open component-failure request</button>
         <p>{action.message}</p>
       </div> : null}
       {events.length > 0 && scene.cascade ? <div className="texas-model-stage__events" aria-label="Qualified cascade events">

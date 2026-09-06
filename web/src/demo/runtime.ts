@@ -99,12 +99,20 @@ export function historicalForecastFromPayload(payload: {
   };
 }
 
-type ModelPayload = {
+export interface ModelGeometryElement {
+  readonly element_id?: string;
+  readonly resolved?: boolean;
+  readonly role?: string;
+  readonly geometry?: { readonly type?: string; readonly coordinates?: unknown };
+  readonly coordinates?: unknown;
+}
+
+export type ModelPayload = {
   readonly status: "available" | "partial" | "unavailable";
   readonly reason?: string;
   readonly data?: {
     readonly topology?: { readonly label?: string; readonly synthetic?: boolean; readonly solver?: string };
-    readonly elements?: readonly { readonly element_id?: string; readonly resolved?: boolean }[];
+    readonly elements?: readonly ModelGeometryElement[];
     readonly capabilities?: { readonly selected_component_failure?: boolean };
   };
 };
