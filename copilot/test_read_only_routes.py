@@ -87,6 +87,10 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         200,
     ),
     ("GET", "/demo/model"): (lambda client: client.get("/demo/model"), 200),
+    ("GET", "/explainer/toy-cascade"): (
+        lambda client: client.get("/explainer/toy-cascade"),
+        200,
+    ),
     ("GET", "/api/v1/grid/layers/{layer}"): (
         lambda client: client.get(
             "/api/v1/grid/layers/line", params={"state": "tx", "version": "1.1.0"}
