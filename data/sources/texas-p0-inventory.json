@@ -48,7 +48,10 @@
       "source_url": "https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip",
       "vintage": "National Risk Index v1.20",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [{"logical_name": "NRI_Table_Counties.zip", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}],
+      "artifacts": [
+        {"logical_name": "NRI_Counties_TX.json", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Counties_TX.json"},
+        {"logical_name": "NRI_Table_Counties.zip", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}
+      ],
       "coverage": "Texas county population and composite natural-hazard risk; it is screening context, not site-specific engineering analysis.",
       "timezone": "not applicable",
       "units": {"risk_score": "source index score", "population": "people"},

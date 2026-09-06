@@ -43,9 +43,22 @@ def _is_public(record: dict[str, Any]) -> bool:
     return record["license_access"].get("access") == "public"
 
 
+# Statuses that assert evidence is checked into the repository. Every one of them
+# must point at a tracked receipt and carry the receipt's retrieval timestamp;
+# the two remaining statuses must carry neither.
+EVIDENCED_STATUSES = frozenset({"ingested", "validated"})
+UNEVIDENCED_STATUSES = frozenset({"unavailable", "excluded"})
+
+
 def validate_inventory(inventory: dict[str, Any]) -> list[str]:
     """Return schema and honesty errors without reaching out to a provider."""
+    return _validate(inventory)[0]
+
+
+def _validate(inventory: dict[str, Any]) -> tuple[list[str], set[int]]:
+    """Return errors plus the indices of records that failed validation."""
     errors: list[str] = []
+    invalid: set[int] = set()
     if inventory.get("schema_version") != 1:
         errors.append("schema_version must be 1")
     caveat = inventory.get("synthetic_geometry_caveat", "").lower()
@@ -55,54 +68,86 @@ def validate_inventory(inventory: dict[str, Any]) -> list[str]:
         )
     records = inventory.get("records")
     if not isinstance(records, list) or not records:
-        return errors + ["records must be a non-empty list"]
+        return errors + ["records must be a non-empty list"], set()
     seen: set[str] = set()
     for index, record in enumerate(records):
-        prefix = f"records[{index}]"
-        if not isinstance(record, dict):
-            errors.append(f"{prefix} must be an object")
-            continue
-        missing = REQUIRED_RECORD_FIELDS - record.keys()
-        if missing:
-            errors.append(f"{prefix} is missing {', '.join(sorted(missing))}")
-            continue
-        identifier = record["id"]
-        if not isinstance(identifier, str) or not identifier:
-            errors.append(f"{prefix}.id must be a non-empty string")
-        elif identifier in seen:
-            errors.append(f"duplicate record id: {identifier}")
-        else:
-            seen.add(identifier)
-        if record["status"] not in ALLOWED_STATUSES:
-            errors.append(f"{prefix}.status must be one of {sorted(ALLOWED_STATUSES)}")
-        if not isinstance(record["reason"], str) or not record["reason"].strip():
-            errors.append(f"{prefix}.reason must explain the status")
-        if not str(record["source_url"]).startswith("https://"):
-            errors.append(f"{prefix}.source_url must be an https URL")
-        access = record["license_access"]
-        if (
-            not isinstance(access, dict)
-            or not access.get("license")
-            or not access.get("access")
-        ):
-            errors.append(f"{prefix}.license_access must name license and access")
-        elif not _is_public(record):
+        before = len(errors)
+        _validate_record(record, f"records[{index}]", seen, errors)
+        if len(errors) > before:
+            invalid.add(index)
+    return errors, invalid
+
+
+def _validate_record(
+    record: Any, prefix: str, seen: set[str], errors: list[str]
+) -> None:
+    if not isinstance(record, dict):
+        errors.append(f"{prefix} must be an object")
+        return
+    missing = REQUIRED_RECORD_FIELDS - record.keys()
+    if missing:
+        errors.append(f"{prefix} is missing {', '.join(sorted(missing))}")
+        return
+    identifier = record["id"]
+    if not isinstance(identifier, str) or not identifier:
+        errors.append(f"{prefix}.id must be a non-empty string")
+    elif identifier in seen:
+        errors.append(f"duplicate record id: {identifier}")
+    else:
+        seen.add(identifier)
+    if record["status"] not in ALLOWED_STATUSES:
+        errors.append(f"{prefix}.status must be one of {sorted(ALLOWED_STATUSES)}")
+    if not isinstance(record["reason"], str) or not record["reason"].strip():
+        errors.append(f"{prefix}.reason must explain the status")
+    if not str(record["source_url"]).startswith("https://"):
+        errors.append(f"{prefix}.source_url must be an https URL")
+    access = record["license_access"]
+    if (
+        not isinstance(access, dict)
+        or not access.get("license")
+        or not access.get("access")
+    ):
+        errors.append(f"{prefix}.license_access must name license and access")
+    elif not _is_public(record):
+        errors.append(
+            f"{prefix} is outside this public-only inventory (access must be public)"
+        )
+    artifacts = record["artifacts"]
+    if not isinstance(artifacts, list) or not all(
+        isinstance(artifact, dict) and isinstance(artifact.get("logical_name"), str)
+        for artifact in artifacts
+    ):
+        errors.append(
+            f"{prefix}.artifacts must be a list of objects with a logical_name"
+        )
+        artifacts = []
+    if not isinstance(record["units"], dict) or not record["units"]:
+        errors.append(f"{prefix}.units must be a non-empty object")
+    if not isinstance(record["destinations"], list):
+        errors.append(f"{prefix}.destinations must be a list")
+    status = record["status"]
+    if status == "validated" and not any(
+        artifact.get("immutable_id") for artifact in artifacts
+    ):
+        errors.append(
+            f"{prefix}.validated record needs an immutable artifact identifier"
+        )
+    receipt = record.get("checked_in_receipt")
+    timestamp = record["ingestion_timestamp"]
+    if status in EVIDENCED_STATUSES:
+        if not isinstance(receipt, str) or not receipt.strip():
+            errors.append(f"{prefix}.{status} record needs a checked_in_receipt path")
+        if not isinstance(timestamp, str) or not timestamp.strip():
+            errors.append(f"{prefix}.{status} record needs an ingestion_timestamp")
+    elif status in UNEVIDENCED_STATUSES:
+        if receipt is not None:
             errors.append(
-                f"{prefix} is outside this public-only inventory (access must be public)"
+                f"{prefix}.{status} record must not claim a checked_in_receipt"
             )
-        if not isinstance(record["artifacts"], list):
-            errors.append(f"{prefix}.artifacts must be a list")
-        if not isinstance(record["units"], dict) or not record["units"]:
-            errors.append(f"{prefix}.units must be a non-empty object")
-        if not isinstance(record["destinations"], list):
-            errors.append(f"{prefix}.destinations must be a list")
-        if record["status"] == "validated" and not any(
-            artifact.get("immutable_id") for artifact in record["artifacts"]
-        ):
+        if timestamp is not None:
             errors.append(
-                f"{prefix}.validated record needs an immutable artifact identifier"
+                f"{prefix}.{status} record must have a null ingestion_timestamp"
             )
-    return errors
 
 
 def _runtime_artifacts(record: dict[str, Any], raw_root: Path) -> list[dict[str, Any]]:
@@ -177,14 +222,23 @@ def _receipt_validation(
 
 
 def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
-    errors = validate_inventory(inventory)
+    errors, invalid = _validate(inventory)
     records = []
-    for record in inventory.get("records", []):
-        runtime_artifacts = (
-            _runtime_artifacts(record, raw_root) if isinstance(record, dict) else []
-        )
-        receipt_validation, receipt_errors = _receipt_validation(record)
-        errors.extend(receipt_errors)
+    raw_records = inventory.get("records")
+    for index, record in enumerate(
+        raw_records if isinstance(raw_records, list) else []
+    ):
+        if not isinstance(record, dict):
+            record = {}
+        if index in invalid:
+            # The record already failed validation; never run artifact or receipt
+            # checks on a shape we did not validate.
+            runtime_artifacts: list[dict[str, Any]] = []
+            receipt_validation = None
+        else:
+            runtime_artifacts = _runtime_artifacts(record, raw_root)
+            receipt_validation, receipt_errors = _receipt_validation(record)
+            errors.extend(receipt_errors)
         records.append(
             {
                 "id": record.get("id"),
@@ -202,6 +256,7 @@ def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
                 "reason": record.get("reason"),
                 "artifacts": runtime_artifacts,
                 "checked_in_receipt": receipt_validation,
+                "schema_valid": index not in invalid,
             }
         )
     counts = Counter(record["status"] for record in records)
@@ -220,6 +275,17 @@ def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
     return report
 
 
+def _error_report(message: str) -> dict[str, Any]:
+    return {
+        "report_schema_version": 1,
+        "inventory_id": None,
+        "generated_at": datetime.now(UTC).isoformat(timespec="seconds"),
+        "validation": {"passed": False, "errors": [message]},
+        "summary": {status: 0 for status in sorted(ALLOWED_STATUSES)},
+        "records": [],
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -229,14 +295,32 @@ def main() -> int:
     parser.add_argument(
         "--report",
         type=Path,
-        default=Path("data/texas-p0-inventory-validation-report.json"),
+        default=None,
+        help=(
+            "Write the JSON report to this path instead of stdout. Generated reports "
+            "carry a timestamp; keep them outside the repository."
+        ),
     )
     args = parser.parse_args()
-    inventory = json.loads(args.inventory.read_text(encoding="utf-8"))
-    report = build_report(inventory, args.raw_root)
-    args.report.parent.mkdir(parents=True, exist_ok=True)
-    args.report.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps(report, indent=2))
+    try:
+        inventory = json.loads(args.inventory.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError) as error:
+        report = _error_report(f"inventory unreadable: {args.inventory}: {error}")
+    except json.JSONDecodeError as error:
+        report = _error_report(
+            f"inventory is invalid JSON: {args.inventory}: {error.msg}"
+        )
+    else:
+        if not isinstance(inventory, dict):
+            report = _error_report(f"inventory must be a JSON object: {args.inventory}")
+        else:
+            report = build_report(inventory, args.raw_root)
+    rendered = json.dumps(report, indent=2) + "\n"
+    if args.report is None:
+        print(rendered, end="")
+    else:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        args.report.write_text(rendered, encoding="utf-8")
     return 0 if report["validation"]["passed"] else 1
 
 
