@@ -27,7 +27,7 @@ COVERAGE_STATUSES = frozenset({"complete", "partial", "unknown", "unavailable"})
 DDL = (
     "CREATE TABLE physical_inventory_schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)",
     """CREATE TABLE physical_inventory_manifests (artifact_id TEXT PRIMARY KEY, contract_version TEXT NOT NULL,
-    geography_id TEXT NOT NULL, artifact_version TEXT NOT NULL, inventory_mode TEXT NOT NULL CHECK(inventory_mode IN ('physical_observed','fixture','synthetic')),
+    geography_id TEXT NOT NULL, artifact_version TEXT NOT NULL, canonical_json TEXT NOT NULL, inventory_mode TEXT NOT NULL CHECK(inventory_mode IN ('physical_observed','fixture','synthetic')),
     electrical_model_mode TEXT NOT NULL CHECK(electrical_model_mode IN ('none','source_backed','synthetic','aggregate')),
     created_at TIMESTAMP NOT NULL, content_sha256 TEXT NOT NULL CHECK(regexp_full_match(content_sha256, '[0-9a-f]{64}')))""",
     """CREATE TABLE physical_inventory_sources (artifact_id TEXT NOT NULL REFERENCES physical_inventory_manifests(artifact_id), source_id TEXT NOT NULL,
@@ -35,7 +35,7 @@ DDL = (
     license_or_terms TEXT NOT NULL, content_sha256 TEXT NOT NULL CHECK(regexp_full_match(content_sha256, '[0-9a-f]{64}')), PRIMARY KEY(artifact_id,source_id))""",
     """CREATE TABLE physical_assets (artifact_id TEXT NOT NULL REFERENCES physical_inventory_manifests(artifact_id), asset_id TEXT NOT NULL,
     asset_class TEXT NOT NULL, asset_kind TEXT NOT NULL, source_id TEXT NOT NULL, source_record_id TEXT NOT NULL,
-    geometry_geojson JSON, geometry_crs TEXT, geometry_precision_m DOUBLE, geometry_accuracy_basis TEXT,
+    geometry_geojson JSON, geometry_crs TEXT, geometry_precision_m DOUBLE, geometry_accuracy_basis TEXT, geometry_derivation_method TEXT,
     geometry_status TEXT NOT NULL CHECK(geometry_status IN ('source','derived','unavailable')), PRIMARY KEY(artifact_id,asset_id),
     FOREIGN KEY(artifact_id,source_id) REFERENCES physical_inventory_sources(artifact_id,source_id))""",
     """CREATE TABLE physical_asset_terminals (artifact_id TEXT NOT NULL, terminal_id TEXT NOT NULL, asset_id TEXT NOT NULL,
@@ -47,7 +47,7 @@ DDL = (
     FOREIGN KEY(artifact_id,to_terminal_id) REFERENCES physical_asset_terminals(artifact_id,terminal_id), FOREIGN KEY(artifact_id,source_id) REFERENCES physical_inventory_sources(artifact_id,source_id))""",
     """CREATE TABLE physical_coverage (artifact_id TEXT NOT NULL REFERENCES physical_inventory_manifests(artifact_id), asset_class TEXT NOT NULL,
     scope_id TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('complete','partial','unknown','unavailable')), observed_count BIGINT NOT NULL CHECK(observed_count >= 0),
-    denominator_count BIGINT CHECK(denominator_count >= 0), unavailable_count BIGINT CHECK(unavailable_count >= 0), denominator_basis TEXT NOT NULL, source_scope TEXT NOT NULL, reason TEXT NOT NULL,
+    denominator_count BIGINT CHECK(denominator_count >= 0), unknown_count BIGINT CHECK(unknown_count >= 0), unavailable_count BIGINT CHECK(unavailable_count >= 0), denominator_basis TEXT NOT NULL, source_scope TEXT NOT NULL, reason TEXT NOT NULL,
     PRIMARY KEY(artifact_id,asset_class,scope_id))""",
 )
 
@@ -107,12 +107,15 @@ def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(assets,list): raise PhysicalInventoryError("assets must be an array")
     asset_ids=set()
     for i,row in enumerate(assets):
-        need={"asset_id","asset_class","asset_kind","source_id","source_record_id","geometry","geometry_crs","geometry_precision_m","geometry_accuracy_basis","geometry_status"}
+        need={"asset_id","asset_class","asset_kind","source_id","source_record_id","geometry","geometry_crs","geometry_precision_m","geometry_accuracy_basis","geometry_derivation_method","geometry_status"}
         if set(row)!=need: raise PhysicalInventoryError(f"assets[{i}] has incompatible fields")
         if not all(isinstance(row[k],str) and row[k] for k in ("asset_id","asset_kind","source_id","source_record_id","geometry_status")) or row["asset_id"] in asset_ids or row["asset_class"] not in ASSET_CLASSES or row["source_id"] not in source_ids: raise PhysicalInventoryError(f"assets[{i}] has invalid identity/class/source")
         asset_ids.add(row["asset_id"])
         if row["geometry_status"] not in {"source","derived","unavailable"}: raise PhysicalInventoryError(f"assets[{i}] invalid geometry_status")
-        if row["geometry_status"] != "unavailable" and (not isinstance(row["geometry_crs"],str) or re.fullmatch(r"EPSG:\d+",row["geometry_crs"]) is None or not isinstance(row["geometry_precision_m"],(int,float)) or isinstance(row["geometry_precision_m"],bool) or row["geometry_precision_m"] < 0 or not isinstance(row["geometry_accuracy_basis"],str) or not row["geometry_accuracy_basis"]): raise PhysicalInventoryError(f"assets[{i}] needs an EPSG CRS, precision, and accuracy basis")
+        if row["geometry_status"] == "unavailable" and any(row[key] is not None for key in ("geometry_crs","geometry_precision_m","geometry_accuracy_basis","geometry_derivation_method")): raise PhysicalInventoryError(f"assets[{i}] unavailable geometry must not have CRS, precision, accuracy, or derivation values")
+        if row["geometry_status"] != "unavailable" and (not isinstance(row["geometry_crs"],str) or re.fullmatch(r"EPSG:\d+",row["geometry_crs"]) is None or row["geometry_precision_m"] is not None and (not isinstance(row["geometry_precision_m"],(int,float)) or isinstance(row["geometry_precision_m"],bool) or row["geometry_precision_m"] < 0) or not isinstance(row["geometry_accuracy_basis"],str) or not row["geometry_accuracy_basis"]): raise PhysicalInventoryError(f"assets[{i}] needs an EPSG CRS and accuracy basis; numeric precision may be null only when unknown")
+        if row["geometry_status"] == "derived" and (not isinstance(row["geometry_derivation_method"],str) or not row["geometry_derivation_method"]): raise PhysicalInventoryError(f"assets[{i}] derived geometry needs a derivation method")
+        if row["geometry_status"] == "source" and row["geometry_derivation_method"] is not None: raise PhysicalInventoryError(f"assets[{i}] source geometry must not claim a derivation method")
         _geometry(row["geometry"],row["geometry_status"],row["geometry_crs"],f"assets[{i}]")
     if not isinstance(artifact["terminals"], list) or not isinstance(artifact["connectivity_edges"], list) or not isinstance(artifact["coverage"], list): raise PhysicalInventoryError("terminals, connectivity_edges, and coverage must be arrays")
     terminal_ids=set()
@@ -125,14 +128,17 @@ def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
         edge_ids.add(row["edge_id"])
     coverage_keys=set()
     for i,row in enumerate(artifact["coverage"]):
-        need={"asset_class","scope_id","status","observed_count","denominator_count","unavailable_count","denominator_basis","source_scope","reason"}
-        if set(row)!=need or row["asset_class"] not in ASSET_CLASSES or not isinstance(row["scope_id"],str) or not row["scope_id"] or row["status"] not in COVERAGE_STATUSES or not isinstance(row["observed_count"],int) or isinstance(row["observed_count"],bool) or row["observed_count"]<0 or row["unavailable_count"] is not None and (not isinstance(row["unavailable_count"],int) or isinstance(row["unavailable_count"],bool) or row["unavailable_count"]<0) or not all(isinstance(row[k],str) and row[k] for k in ("denominator_basis","source_scope","reason")): raise PhysicalInventoryError(f"coverage[{i}] has invalid class/status/counts")
+        need={"asset_class","scope_id","status","observed_count","denominator_count","unknown_count","unavailable_count","denominator_basis","source_scope","reason"}
+        if set(row)!=need or row["asset_class"] not in ASSET_CLASSES or not isinstance(row["scope_id"],str) or not row["scope_id"] or row["status"] not in COVERAGE_STATUSES or not isinstance(row["observed_count"],int) or isinstance(row["observed_count"],bool) or row["observed_count"]<0 or any(row[key] is not None and (not isinstance(row[key],int) or isinstance(row[key],bool) or row[key]<0) for key in ("unknown_count","unavailable_count")) or not all(isinstance(row[k],str) and row[k] for k in ("denominator_basis","source_scope","reason")): raise PhysicalInventoryError(f"coverage[{i}] has invalid class/status/counts")
         denom=row["denominator_count"]
         if denom is not None and (not isinstance(denom,int) or isinstance(denom,bool) or denom<0): raise PhysicalInventoryError(f"coverage[{i}].denominator_count must be non-negative or null")
-        if row["status"]=="complete" and (denom is None or row["unavailable_count"] is None or row["observed_count"]+row["unavailable_count"]<denom): raise PhysicalInventoryError(f"coverage[{i}] cannot claim complete without a reconciled denominator")
+        if row["status"]=="complete" and (denom is None or row["unknown_count"] != 0 or row["unavailable_count"] != 0 or row["observed_count"] != denom): raise PhysicalInventoryError(f"coverage[{i}] cannot claim complete without exact reconciled counts")
         key=(row["asset_class"],row["scope_id"])
         if key in coverage_keys: raise PhysicalInventoryError(f"coverage[{i}] duplicates class/scope")
         coverage_keys.add(key)
+    if not coverage_keys: raise PhysicalInventoryError("coverage must declare at least one class/scope")
+    missing_classes={row["asset_class"] for row in assets} - {key[0] for key in coverage_keys}
+    if missing_classes: raise PhysicalInventoryError(f"coverage is required for observed asset classes: {sorted(missing_classes)!r}")
     return artifact
 
 def ensure_physical_inventory_schema(con: duckdb.DuckDBPyConnection) -> None:
@@ -159,12 +165,12 @@ def write_artifact(con: duckdb.DuckDBPyConnection, artifact: dict[str, Any]) -> 
         return aid
     con.execute("BEGIN")
     try:
-        con.execute("INSERT INTO physical_inventory_manifests VALUES (?,?,?,?,?,?,?,?)",[aid,artifact["contract_version"],artifact["geography_id"],artifact["artifact_version"],artifact["inventory_mode"],artifact["electrical_model_mode"],_timestamp(artifact["created_at"],"created_at"),artifact["content_sha256"]])
+        con.execute("INSERT INTO physical_inventory_manifests VALUES (?,?,?,?,?,?,?,?,?)",[aid,artifact["contract_version"],artifact["geography_id"],artifact["artifact_version"],_canonical(artifact),artifact["inventory_mode"],artifact["electrical_model_mode"],_timestamp(artifact["created_at"],"created_at"),artifact["content_sha256"]])
         for row in artifact["sources"]: con.execute("INSERT INTO physical_inventory_sources VALUES (?,?,?,?,?,?,?,?)",[aid,row["source_id"],row["authority"],row["source_ref"],row["source_version"],_timestamp(row["retrieved_at"],"retrieved_at"),row["license_or_terms"],row["content_sha256"]])
-        for row in artifact["assets"]: con.execute("INSERT INTO physical_assets VALUES (?,?,?,?,?,?,?,?,?,?,?)",[aid,row["asset_id"],row["asset_class"],row["asset_kind"],row["source_id"],row["source_record_id"],_canonical(row["geometry"]) if row["geometry"] is not None else None,row["geometry_crs"],row["geometry_precision_m"],row["geometry_accuracy_basis"],row["geometry_status"]])
+        for row in artifact["assets"]: con.execute("INSERT INTO physical_assets VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",[aid,row["asset_id"],row["asset_class"],row["asset_kind"],row["source_id"],row["source_record_id"],_canonical(row["geometry"]) if row["geometry"] is not None else None,row["geometry_crs"],row["geometry_precision_m"],row["geometry_accuracy_basis"],row["geometry_derivation_method"],row["geometry_status"]])
         for row in artifact["terminals"]: con.execute("INSERT INTO physical_asset_terminals VALUES (?,?,?,?,?)",[aid,row["terminal_id"],row["asset_id"],row["source_id"],row["source_record_id"]])
         for row in artifact["connectivity_edges"]: con.execute("INSERT INTO physical_connectivity_edges VALUES (?,?,?,?,?,?)",[aid,row["edge_id"],row["from_terminal_id"],row["to_terminal_id"],row["source_id"],row["source_record_id"]])
-        for row in artifact["coverage"]: con.execute("INSERT INTO physical_coverage VALUES (?,?,?,?,?,?,?,?,?,?)",[aid,row["asset_class"],row["scope_id"],row["status"],row["observed_count"],row["denominator_count"],row["unavailable_count"],row["denominator_basis"],row["source_scope"],row["reason"]])
+        for row in artifact["coverage"]: con.execute("INSERT INTO physical_coverage VALUES (?,?,?,?,?,?,?,?,?,?,?)",[aid,row["asset_class"],row["scope_id"],row["status"],row["observed_count"],row["denominator_count"],row["unknown_count"],row["unavailable_count"],row["denominator_basis"],row["source_scope"],row["reason"]])
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK"); raise
