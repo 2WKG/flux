@@ -7,279 +7,51 @@ namespace, so the tests cannot drift from the columns the routes read.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from hashlib import sha256
 from pathlib import Path
 
 import duckdb
 import pytest
-from fastapi.testclient import TestClient
 
-import pipelines.db as pdb
+from copilot._artifact_fixtures import (
+    FIXTURE_PROVENANCE as _FIXTURE_PROVENANCE,
+)
+from copilot._artifact_fixtures import (
+    OTHER_SCENARIO,
+    SCENARIO,
+)
+from copilot._artifact_fixtures import (
+    UNLABELLED_PROVENANCE as _UNLABELLED_PROVENANCE,
+)
+from copilot._artifact_fixtures import (
+    Prediction as _Prediction,
+)
+from copilot._artifact_fixtures import (
+    Run as _Run,
+)
+from copilot._artifact_fixtures import (
+    cascade_database as _cascade_database,
+)
+from copilot._artifact_fixtures import (
+    client as _client,
+)
+from copilot._artifact_fixtures import (
+    details as _details,
+)
+from copilot._artifact_fixtures import (
+    evaluation_sha as _evaluation_sha,
+)
+from copilot._artifact_fixtures import (
+    file_sha256 as _file_sha256,
+)
+from copilot._artifact_fixtures import (
+    prediction_database as _prediction_database,
+)
+from copilot._artifact_fixtures import (
+    real_database as _real_database,
+)
 from copilot.api import API_VERSION
-from copilot.app import create_app
-from copilot.config import Settings
 from copilot.routes import predictions as predictions_module
-from models.outage.persistence import PersistenceError, ensure_persistence_schema
-from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
-
-SCENARIO = "mn_winter_2023_snow"
-OTHER_SCENARIO = "mn_spring_2024_flood"
-_FIXTURE_PROVENANCE = (
-    "fixture:flux-demo",
-    "fixture://minnesota",
-    "1.0.0",
-    "2026-01-01 00:00:00",
-    "fixture:flux-demo@1.0.0",
-)
-_ACTIVSG_PROVENANCE = (
-    "twin.cascade",
-    "data/raw/activsg2000/scenarios_ACTIVSg2000.m",
-    "2018",
-    "2026-09-05 12:00:00",
-    "activsg2000@2018",
-)
-_UNLABELLED_PROVENANCE = (
-    "vendor.export",
-    "s3://bucket/export.parquet",
-    "1",
-    "2026-09-05 12:00:00",
-    "vendor@1",
-)
-
-
-def _client(path: Path) -> TestClient:
-    return TestClient(create_app(Settings(duckdb_path=path)))
-
-
-def _file_sha256(path: Path) -> str:
-    return sha256(path.read_bytes()).hexdigest()
-
-
-def _evaluation_sha(index: int) -> str:
-    return f"{index:064x}"
-
-
-def _real_database(path: Path, *, scenarios: tuple[str, ...] = (SCENARIO,)) -> None:
-    """Create the shared 2.1.0 contract with the scenarios the fixtures reference."""
-    con = pdb.connect(path)
-    try:
-        for scenario_id in scenarios:
-            con.execute(
-                "INSERT INTO scenarios VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    scenario_id,
-                    "Minnesota winter storm",
-                    "historical",
-                    "2023-01-01 00:00:00",
-                    "2023-01-08 00:00:00",
-                    *_FIXTURE_PROVENANCE,
-                ],
-            )
-    finally:
-        con.close()
-
-
-@dataclass(frozen=True)
-class _Prediction:
-    county_fips: str
-    qualified: bool | None = True  # None: heuristic row, no evaluation cited
-    scenario_id: str = SCENARIO
-    hour: int = 0
-
-
-def _prediction_database(path: Path, rows: tuple[_Prediction, ...]) -> None:
-    """Persist prediction rows on the real DDL; the routes only read them."""
-    scenarios = tuple(dict.fromkeys(row.scenario_id for row in rows)) or (SCENARIO,)
-    _real_database(path, scenarios=scenarios)
-    con = duckdb.connect(str(path))
-    try:
-        ensure_persistence_schema(con)
-        for county in dict.fromkeys(row.county_fips for row in rows):
-            con.execute(
-                "INSERT INTO counties VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [county, f"County {county}", "MN", 1000, b"\x00", *_FIXTURE_PROVENANCE],
-            )
-        for index, row in enumerate(rows):
-            ts = f"2023-01-01 {row.hour:02}:00:00"
-            con.execute(
-                "INSERT INTO outage_predictions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    row.scenario_id,
-                    row.county_fips,
-                    ts,
-                    0.4,
-                    100,
-                    "ice",
-                    *_FIXTURE_PROVENANCE,
-                ],
-            )
-            if row.qualified is None:
-                con.execute(
-                    """INSERT INTO prediction_provenance
-                       (scenario_id, county_fips, ts, model_kind, rule_id, rule_version,
-                        persisted_at)
-                       VALUES (?, ?, ?, 'heuristic', 'rule-1', 'r1', ?)""",
-                    [row.scenario_id, row.county_fips, ts, "2026-09-05 00:00:00"],
-                )
-                continue
-            evaluation = _evaluation_sha(index)
-            con.execute(
-                """INSERT INTO evaluation_artifacts VALUES
-                   (?, 'ready', ?, ?, ?, 'model-v1', 'holdout-v1', NULL, '{}', '{}',
-                    NULL, 'not_applicable', NULL, NULL, ?)""",
-                [
-                    evaluation,
-                    row.qualified,
-                    None if row.qualified else "brier_above_acceptance",
-                    "a" * 64,
-                    "2026-09-05 00:00:00",
-                ],
-            )
-            con.execute(
-                """INSERT INTO prediction_provenance
-                   (scenario_id, county_fips, ts, model_kind, model_version,
-                    artifact_sha256, split_id, feature_set_version, evaluation_sha256,
-                    persisted_at)
-                   VALUES (?, ?, ?, 'lightgbm', 'model-v1', ?, 'holdout-v1',
-                           'features-v1', ?, ?)""",
-                [
-                    row.scenario_id,
-                    row.county_fips,
-                    ts,
-                    "a" * 64,
-                    evaluation,
-                    "2026-09-05 00:00:00",
-                ],
-            )
-    finally:
-        con.close()
-
-
-@dataclass(frozen=True)
-class _Run:
-    """One persisted cascade run and the Minnesota artifact that qualifies it."""
-
-    run_id: str
-    created_at: str = "2026-09-05 00:00:00"
-    hours: tuple[int, ...] = (0,)
-    scenario_id: str = SCENARIO
-    provenance: tuple[str, str, str | None, str | None, str] = _ACTIVSG_PROVENANCE
-    # None: a bare cascade row with no Minnesota artifact at all.
-    model_mode: str | None = "topology"
-    availability: str = "available"
-    validation_status: str = "validated"
-    with_provenance: bool = True
-    limitations: str = '["Fixture topology evidence only."]'
-    # Two available topology manifests can cite one ``model_run_id``; the suffix
-    # builds that tie without a second cascade_runs row.
-    artifact_suffix: str = ""
-    artifact_id_override: str | None = None
-    cascade_rows: bool = True
-    # None: a model result exists exactly when the manifest is available.  Set it
-    # explicitly to persist a result for a manifest the route must still refuse,
-    # so the WHERE clause that refuses it is the only thing standing in the way.
-    with_model_result: bool | None = None
-
-    @property
-    def artifact_id(self) -> str:
-        if self.artifact_id_override is not None:
-            return self.artifact_id_override
-        return f"mn:model:{self.run_id}{self.artifact_suffix}"
-
-
-def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
-    _real_database(path)
-    con = duckdb.connect(str(path))
-    try:
-        ensure_minnesota_schema(con)
-        for run in runs:
-            for hour in run.hours if run.cascade_rows else ():
-                con.execute(
-                    "INSERT INTO cascade_runs VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)",
-                    [
-                        run.run_id,
-                        run.scenario_id,
-                        hour,
-                        '[{"element_id": "line-7", "kind": "line", "stage": 1, "cause": "weather"}]',
-                        12.5 * (hour + 1),
-                        '["27000"]',
-                        '["cl-1"]',
-                        run.provenance[0],
-                        run.provenance[1],
-                        run.provenance[2],
-                        run.provenance[3],
-                        run.provenance[4],
-                    ],
-                )
-            if run.model_mode is None:
-                continue
-            con.execute(
-                "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    run.artifact_id,
-                    "model_result",
-                    SCHEMA_VERSION,
-                    "mn",
-                    run.availability,
-                    run.model_mode,
-                    "{}",
-                    run.created_at,
-                    "[]",
-                    run.limitations,
-                    "[]",
-                ],
-            )
-            if run.with_provenance:
-                con.execute(
-                    "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    [
-                        run.artifact_id,
-                        0,
-                        run.provenance[0],
-                        run.provenance[1],
-                        run.provenance[2] or "v1",
-                        run.provenance[3] or "2026-09-05 00:00:00",
-                        "test fixture",
-                        run.run_id,
-                        "b" * 64,
-                        False,
-                    ],
-                )
-            if not (
-                run.availability == "available"
-                if run.with_model_result is None
-                else run.with_model_result
-            ):
-                continue
-            topology = run.model_mode == "topology"
-            con.execute(
-                "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    run.artifact_id,
-                    "fixture-cascade",
-                    "v1",
-                    run.run_id,
-                    "a" * 64,
-                    run.validation_status,
-                    "lost_load_mw",
-                    1.0,
-                    "MW",
-                    None if topology else "regional sum",
-                    100.0 if topology else None,
-                    "pandapower" if topology else None,
-                    "fixture-converter" if topology else None,
-                ],
-            )
-    finally:
-        con.close()
-
-
-def _details(response) -> dict[str, str]:  # type: ignore[no-untyped-def]
-    body = response.json()
-    assert body["status"] in {"unavailable", "error"}
-    return body["error"]["details"]
-
+from models.outage.persistence import PersistenceError
 
 # --- GET /predictions -------------------------------------------------------
 
@@ -732,7 +504,7 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
     assert response.status_code == 503
     assert _details(response) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "cascade_artifact_unavailable",
     }
     assert response.headers["X-Flux-Api-Version"] == API_VERSION
     assert "X-Flux-Artifact" not in response.headers
@@ -773,14 +545,31 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
     assert latest.status_code == 503
     assert _details(latest) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "topology_cascade_unsupported",
     }
     # The run exists but is unqualified: named, not 404.
     assert named.status_code == 503
     assert _details(named) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "topology_cascade_unsupported",
         "run_id": run.run_id,
+    }
+
+
+def test_not_applicable_model_cannot_be_relabelled_as_a_cascade(
+    tmp_path: Path,
+) -> None:
+    """The other contract-defined non-topology mode is unsupported too."""
+    database = tmp_path / "not-applicable-cascade.duckdb"
+    run = _Run("mn_winter_2023_snow-s0-0a11ca7e", model_mode="not_applicable")
+    _cascade_database(database, (run,))
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported",
     }
 
 
@@ -808,7 +597,7 @@ def test_unavailable_manifest_is_not_a_qualified_cascade(tmp_path: Path) -> None
 
     assert response.status_code == 503
     assert "X-Flux-Artifact" not in response.headers
-    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+    assert _details(response)["reason"] == "cascade_artifact_unavailable"
 
 
 def test_manifest_without_provenance_is_not_a_qualified_cascade(
@@ -825,7 +614,7 @@ def test_manifest_without_provenance_is_not_a_qualified_cascade(
 
     assert response.status_code == 503
     assert "X-Flux-Artifact" not in response.headers
-    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+    assert _details(response)["reason"] == "cascade_artifact_unavailable"
 
 
 def test_cascade_artifact_with_empty_limitations_is_invalid(tmp_path: Path) -> None:
@@ -882,7 +671,7 @@ def test_cascade_without_a_run_for_the_scenario_is_unavailable(tmp_path: Path) -
     assert response.status_code == 503
     assert _details(response) == {
         "artifact": "cascade_runs",
-        "reason": "topology_cascade_unsupported_or_absent",
+        "reason": "cascade_not_computed",
     }
 
 
@@ -971,4 +760,114 @@ def test_missing_cascade_database_is_unavailable(tmp_path: Path) -> None:
     assert _details(response) == {
         "artifact": "cascade_runs",
         "reason": "database_missing",
+    }
+
+
+class _CountingResult:
+    """Records how many rows the route actually materialises from a query."""
+
+    def __init__(self, result, counts: list[int]) -> None:  # type: ignore[no-untyped-def]
+        self._result = result
+        self._counts = counts
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        rows = self._result.fetchall()
+        self._counts.append(len(rows))
+        return rows
+
+    def fetchone(self) -> tuple[object, ...] | None:
+        row = self._result.fetchone()
+        self._counts.append(0 if row is None else 1)
+        return row
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._result, name)
+
+
+class _CountingConnection:
+    """Wraps the real connection; counts rows read by the status classification."""
+
+    def __init__(self, con, counts: list[int]) -> None:  # type: ignore[no-untyped-def]
+        self._con = con
+        self._counts = counts
+
+    def execute(self, sql: str, *args: object, **kwargs: object) -> object:
+        result = self._con.execute(sql, *args, **kwargs)
+        # The status classification is the only query joining the mn_* tables
+        # from cascade_runs with a LEFT JOIN.
+        if "LEFT JOIN mn_model_results" in sql:
+            return _CountingResult(result, self._counts)
+        return result
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._con, name)
+
+
+def test_cascade_status_classification_reads_one_row_for_a_seventy_two_hour_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``cascade_runs`` is one row per HOUR; the 3-value enum reads one row.
+
+    Without aggregation this query returns one row per persisted hour (72 here)
+    purely to pick a reason for an already-failing request.
+    """
+    database = tmp_path / "seventy-two-hours.duckdb"
+    run = _Run(
+        "mn_winter_2023_snow-s0-72h00072",
+        model_mode="aggregate",
+        hours=tuple(range(72)),
+    )
+    _cascade_database(database, (run,))
+    with duckdb.connect(str(database), read_only=True) as con:
+        assert (
+            con.execute(
+                "SELECT count(*) FROM cascade_runs WHERE scenario_id = ?", [SCENARIO]
+            ).fetchone()[0]
+            == 72
+        )
+
+    counts: list[int] = []
+    real_connect = duckdb.connect
+    monkeypatch.setattr(
+        duckdb,
+        "connect",
+        lambda *a, **k: _CountingConnection(real_connect(*a, **k), counts),
+    )
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported",
+    }
+    assert counts == [1]
+
+
+def test_an_unavailable_topology_run_outranks_an_aggregate_run(tmp_path: Path) -> None:
+    """Most recoverable wins: a topology artifact present is never "unsupported".
+
+    The scenario holds an aggregate run AND a genuine topology run whose manifest
+    is merely unavailable.  Reporting ``topology_cascade_unsupported`` would tell
+    the operator the model cannot do topology cascade when it demonstrably can;
+    the precedence is pinned in ``docs/specs/05-copilot.md`` §Routes.
+    """
+    database = tmp_path / "mixed-cascade-states.duckdb"
+    _cascade_database(
+        database,
+        (
+            _Run("mn_winter_2023_snow-s0-a66re6a8", model_mode="aggregate"),
+            _Run(
+                "mn_winter_2023_snow-s0-70p0106y",
+                availability="unavailable",
+                with_model_result=True,
+            ),
+        ),
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "cascade_artifact_unavailable",
     }

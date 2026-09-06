@@ -992,7 +992,8 @@
     {"label": "pudl/v2026.2.0/out_eia__yearly_generators.parquet", "paths": [["pudl", "v2026.2.0", "out_eia__yearly_generators.parquet"]]},
     {"label": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv", "paths": [["eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv"]]},
     {"label": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv", "paths": [["eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv"]]},
-    {"label": "nws_zone_county/bp16ap26/bp16ap26.dbx", "paths": [["nws_zone_county", "bp16ap26", "bp16ap26.dbx"]]},
+    {"label": "nws_zone_county/bp10nv20/bp10nv20.dbx", "paths": [["nws_zone_county", "bp10nv20", "bp10nv20.dbx"]]},
+    {"label": "nws_zone_county/bp05mr24/bp05mr24.dbx", "paths": [["nws_zone_county", "bp05mr24", "bp05mr24.dbx"]]},
     {"label": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", "paths": [["storm_events", "2021", "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"]]},
     {"label": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", "paths": [["storm_events", "2024", "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"]]},
     {"label": "eaglei/support/MCC.csv", "paths": [["eaglei", "support", "MCC.csv"]]},
@@ -1000,5 +1001,23 @@
     {"label": "eaglei/2021/eaglei_outages_2021.csv", "paths": [["eaglei", "2021", "eaglei_outages_2021.csv"]]},
     {"label": "eaglei/2024/eaglei_outages_2024.csv", "paths": [["eaglei", "2024", "eaglei_outages_2024.csv"]]},
     {"label": "ntad_military_bases/fy2024/texas.geojson", "paths": [["ntad_military_bases", "fy2024", "texas.geojson"]]}
+  ],
+  "nws_crosswalk_releases": [
+    {
+      "release": "bp10nv20",
+      "path": ["nws_zone_county", "bp10nv20", "bp10nv20.dbx"],
+      "valid_from": "2021-02-11T00:00:00",
+      "valid_until": "2021-02-21T00:00:00",
+      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx",
+      "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6"
+    },
+    {
+      "release": "bp05mr24",
+      "path": ["nws_zone_county", "bp05mr24", "bp05mr24.dbx"],
+      "valid_from": "2024-07-07T00:00:00",
+      "valid_until": "2024-07-11T00:00:00",
+      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx",
+      "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e"
+    }
   ]
 }
