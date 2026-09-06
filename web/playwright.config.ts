@@ -22,10 +22,14 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "node scripts/build.mjs && node server.mjs",
+    // Not `node server.mjs`: the App is server-backed, so the proof needs the
+    // real FastAPI app behind the origin's read forward. `scripts/e2e-stack.mjs`
+    // boots both and tears both down. The budget covers a cold `uv sync` plus
+    // the ~25 s first `import copilot.app`.
+    command: "node scripts/build.mjs && node scripts/e2e-stack.mjs",
     env: { PORT: String(port) },
     url: baseURL,
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 600_000,
   },
 });
