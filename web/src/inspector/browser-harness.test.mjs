@@ -44,16 +44,19 @@ const text = (asset) => render(asset).replace(/<[^>]*>/g, " ").replace(/\s+/g, "
 test("a source-supported asset renders its server-asserted identity and fields", () => {
   const rendered = text(fixtures.sourceBacked);
   assert.match(rendered, /Server-described asset/);
-  assert.match(rendered, /Status Source supported/);
-  assert.match(rendered, /Artifact Source supported/);
+  assert.match(rendered, /Status Source-supported/);
+  assert.match(rendered, /Artifact Source-supported/);
   assert.match(rendered, /Server supplied MW/);
   assert.match(rendered, /Uncertainty: Uncertainty supplied by server/);
 });
 
 test("a screened asset is labelled screened, never supported", () => {
   const rendered = text(fixtures.sourceScreened);
-  assert.match(rendered, /Status Source screened/);
-  assert.match(rendered, /Artifact Source screened/);
+  assert.match(rendered, /Status Source-screened/);
+  assert.match(rendered, /Artifact Source-screened/);
+  assert.doesNotMatch(rendered, /Source-supported/);
+  // The IA copy is hyphenated (`docs/design/minnesota-demo-narrative-ia.md`, the
+  // truth-label table); the unhyphenated spelling must not return.
   assert.doesNotMatch(rendered, /Source supported/);
 });
 

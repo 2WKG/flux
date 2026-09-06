@@ -12,7 +12,10 @@ process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true 
 // test with this Node binary (the .bin/tsc shim is POSIX-only) and import the output.
 execFileSync(
   process.execPath,
-  ["./node_modules/typescript/bin/tsc", "src/renderer/scene-view.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--outDir", outputDirectory],
+  // `--rootDir src` pins the emitted layout, exactly as src/scene/minnesota-adapter.test.mjs
+  // does: this module now names the shared vocabulary (src/labels.ts), so tsc would
+  // otherwise re-root the output on whatever the common directory turns out to be.
+  ["./node_modules/typescript/bin/tsc", "src/renderer/scene-view.ts", "--target", "ES2022", "--module", "NodeNext", "--moduleResolution", "NodeNext", "--rootDir", "src", "--outDir", outputDirectory],
   { cwd: new URL("../..", import.meta.url), stdio: "inherit" },
 );
 const {
@@ -21,7 +24,7 @@ const {
   acceptedPoints,
   sceneViewFor,
   statusLabelOf,
-} = await import(pathToFileURL(join(outputDirectory, "scene-view.js")).href);
+} = await import(pathToFileURL(join(outputDirectory, "renderer", "scene-view.js")).href);
 
 /** An ACTIVSg2000-family node: synthetic topology at central-Minnesota coordinates. */
 function syntheticTopologyScene() {
