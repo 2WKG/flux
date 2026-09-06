@@ -661,6 +661,12 @@
     "LineSummary": {
       "additionalProperties": false,
       "properties": {
+        "artifact_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
         "congestion_usd_yr": {
           "minimum": 0,
           "title": "Congestion Usd Yr",
@@ -681,6 +687,14 @@
           "title": "From Bus",
           "type": "string"
         },
+        "intervention_type": {
+          "enum": [
+            "dlr",
+            "reconductor"
+          ],
+          "title": "Intervention Type",
+          "type": "string"
+        },
         "kv": {
           "exclusiveMinimum": 0,
           "title": "Kv",
@@ -697,9 +711,29 @@
           "title": "Mw Per Musd",
           "type": "number"
         },
+        "scenario_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "source_class": {
+          "enum": [
+            "observed",
+            "simulated",
+            "proxy"
+          ],
+          "title": "Source Class",
+          "type": "string"
+        },
         "spark_eligible": {
           "title": "Spark Eligible",
           "type": "boolean"
+        },
+        "status": {
+          "const": "available",
+          "title": "Status",
+          "type": "string"
         },
         "to_bus": {
           "maxLength": 128,
@@ -715,6 +749,11 @@
       },
       "required": [
         "line_id",
+        "scenario_id",
+        "artifact_id",
+        "source_class",
+        "intervention_type",
+        "status",
         "from_bus",
         "to_bus",
         "kv",
@@ -731,6 +770,12 @@
     "LinesData": {
       "additionalProperties": false,
       "properties": {
+        "artifact_id": {
+          "maxLength": 256,
+          "minLength": 1,
+          "title": "Artifact Id",
+          "type": "string"
+        },
         "lines": {
           "items": {
             "$ref": "#/$defs/LineSummary"
@@ -750,6 +795,12 @@
           "maxLength": 64,
           "minLength": 1,
           "title": "Region",
+          "type": "string"
+        },
+        "scenario_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Scenario Id",
           "type": "string"
         },
         "status": {
@@ -779,6 +830,8 @@
       "required": [
         "status",
         "region",
+        "scenario_id",
+        "artifact_id",
         "tech",
         "lines"
       ],
