@@ -58,13 +58,16 @@ class Settings(BaseSettings):
         # normalises `motherduck://x` to `motherduck:/x`, so the check is on the
         # segment rather than on the `://` spelling.  Opening any of them would
         # take this read-only local service off the filesystem and onto a network.
-        if ":" in value_text.split("/", 1)[0]:
+        path = Path(value_text)
+        # A drive-qualified path is local on Windows, but not on POSIX. Consult
+        # the running platform's Path implementation so a local Windows artifact
+        # is accepted without admitting a virtual DuckDB target.
+        if ":" in value_text.split("/", 1)[0] and not path.is_absolute():
             raise ValueError(
                 "DUCKDB_PATH must be a local file path, not a DuckDB connection "
                 "target (md:, ducklake:, :memory:, or scheme://)"
             )
 
-        path = Path(value_text)
         if path.is_dir():
             raise ValueError("DUCKDB_PATH must name a file, not a directory")
         return path

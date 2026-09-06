@@ -131,18 +131,17 @@ def test_settings_accept_a_real_absolute_database_path(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize("configured_path", ["C:/flux/data/grid.duckdb", "Z:/x.duckdb"])
-def test_settings_reject_a_drive_letter_prefix_that_is_not_absolute_here(
+def test_settings_only_accepts_a_drive_letter_path_when_local_to_this_platform(
     configured_path: str,
 ) -> None:
-    """A ``<letter>:`` prefix is a connection-target shape on this platform.
-
-    ``Path("Z:/x.duckdb").is_absolute()`` is ``False`` on POSIX, so admitting it
-    would have the service create a relative directory literally named ``Z:``.
-    The guard is deliberately platform-independent: the same string is refused
-    everywhere rather than being validated differently per operating system.
-    """
-    with pytest.raises(ValidationError, match="not a DuckDB connection target"):
-        Settings(_env_file=None, duckdb_path=configured_path)
+    """Drive paths are local on Windows but target-shaped on POSIX."""
+    if Path(configured_path).is_absolute():
+        assert Settings(
+            _env_file=None, duckdb_path=configured_path
+        ).duckdb_path == Path(configured_path)
+    else:
+        with pytest.raises(ValidationError, match="not a DuckDB connection target"):
+            Settings(_env_file=None, duckdb_path=configured_path)
 
 
 def test_settings_normalise_surrounding_whitespace_in_the_database_path() -> None:
