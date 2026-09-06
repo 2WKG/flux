@@ -2,7 +2,7 @@
   "receipt": {
     "capture_method": "generated",
     "generator": "event_baseline_requests.py",
-    "generator_commit": "3d40a1f4f368c2686ce953002b2da25691c1ea3b",
+    "generator_commit": "dd3c252f2ceb9ff64511d499865a55793cfbedf6",
     "generator_path": "scripts/data/event_baseline_requests.py",
     "generator_sha256": "6bc2523a94d0b236c89283e7a1cac4c5a23314303300f748b8a9402068d09bba",
     "input_bundle_count": 40,

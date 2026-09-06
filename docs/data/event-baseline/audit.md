@@ -22,8 +22,9 @@ bundle are recorded in `splits/audit.json.receipt` and
 ## Status: insufficient_corpus
 
 `splits/audit.json` reports `"status": "insufficient_corpus"`, not `pass`. The
-bundle corpus in the tree today supports **2 accepted county-window records**
-out of 40 bundles, in 2 singleton groups, and the calibration split is empty.
+bundle corpus in the tree today holds 40 bundles with **0 accepted
+county-window records** — 23 `candidate_only` and 17 `shortfall` — so all three
+splits are empty.
 An audit whose every leakage check is a collision detector cannot demonstrate
 anything on a corpus with no collisions, so the split generator refuses (exit
 status 1) instead of reporting a vacuous pass. The declared floor is 12 accepted
@@ -35,8 +36,14 @@ rows, at least one non-singleton group, and three non-empty splits; it lives in
 The manifests in [`splits/`](splits/) are still written, so the state is
 inspectable, but they are **not** a defensible held-out split and must not be
 used as one. They will be regenerated, and the status is expected to reach
-`pass`, once the remaining event-bundle PRs (#237, #238, #240, #241, #242,
-#243) land and the corpus is large enough.
+`pass`, once the remaining event-bundle PRs (#237, #238, #241, #243) land and
+the corpus carries accepted records again.
+
+Nothing downstream reads a frozen catalog: every generator above reads the
+bundles under `--events-dir` at generation time, so a bundle downgraded from
+`accepted` to `candidate_only` cannot survive in a regenerated artifact. On top
+of the contract validator, `accepts()` refuses an accepted record whose window
+does not start on the 00/06/12/18Z grid or does not span six hours.
 
 ## What was replaced, and why
 
