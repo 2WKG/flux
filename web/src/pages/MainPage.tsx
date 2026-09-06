@@ -37,6 +37,7 @@ import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
 import { loadPrimaryScene, type PrimarySceneState } from "../data/primary-scene";
 import { PrimaryScene } from "../renderer/PrimaryScene";
+import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
 type View = "load" | "delta";
@@ -362,6 +363,7 @@ export function App() {
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
+  const [texasModel, setTexasModel] = useState<TexasModelPayload>({ status: "unavailable", reason: "Loading the synthetic Texas model." });
 
   // The primary simulation scene (2WKG-479). It is state on this shell like
   // every other panel's: the read lives in `src/data/primary-scene.ts` and the
@@ -476,6 +478,21 @@ export function App() {
       .catch(() => undefined);
     return () => controller.abort();
   }, [primarySceneAttempt]);
+  // This is a separate, explicitly synthetic topology surface. It never uses
+  // physical-inventory coordinates or the 3D asset-placement feed.
+  useEffect(() => {
+    const controller = new AbortController();
+    READ_CLIENT.get<TexasModelPayload>("/demo/model", isTexasModelPayload, () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        setTexasModel(state.kind === "ready" ? state.data : {
+          status: "unavailable",
+          reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The model route returned no topology.",
+        });
+      })
+      .catch(() => { if (!controller.signal.aborted) setTexasModel({ status: "unavailable", reason: "The model topology could not be read." }); });
+    return () => controller.abort();
+  }, []);
 
   const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
   // No producer supplies an evidence disclosure yet, so every layer that would
@@ -575,7 +592,9 @@ export function App() {
             </div>
           </div>
 
-          <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />
+          {texasModel.status === "available" || texasModel.status === "partial"
+            ? <TexasTopologyMap payload={texasModel} />
+            : <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />}
 
           <div className="legend">
             {view === "load"
@@ -742,4 +761,3 @@ export function App() {
     </main>
   );
 }
-

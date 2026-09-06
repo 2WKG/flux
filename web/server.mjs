@@ -25,6 +25,8 @@ const dist = fileURLToPath(new URL("./dist/", import.meta.url));
  */
 const PROXIED = [
   { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/api\/v1\/grid\/asset-placements$/, methods: ["GET"] },
+  { pattern: /^\/assets\/flux-grid\/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)$/, methods: ["GET"] },
   { pattern: /^\/health$/, methods: ["GET"] },
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
@@ -162,5 +164,11 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT || 4173);
-  createApp().listen(port, () => console.log(`Flux is running at http://localhost:${port}`));
+  // Loopback by default. `listen(port)` with no host binds the unspecified address
+  // (`::`, dual-stack), so this unauthenticated demo origin answered on the LAN while
+  // README.md and docs/runbooks/local-startup.md promised loopback-only endpoints.
+  // Binding an interface is now an explicit opt-in through HOST.
+  const host = process.env.HOST || "127.0.0.1";
+  const shown = host === "127.0.0.1" || host === "::1" ? "localhost" : host;
+  createApp().listen(port, host, () => console.log(`Flux is running at http://${shown}:${port}`));
 }

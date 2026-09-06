@@ -146,6 +146,11 @@ test("the truth-label legend renders the owner's copy, identically on both pages
   assert.ok(rendered.has("synthetic"));
 });
 
+test("the explainer legend includes every status its mounted teaching sections assert", () => {
+  const explainer = route("explainer");
+  assert.deepEqual(explainer.truthLabels, ["synthetic", "hypothetical", "unavailable"]);
+});
+
 test("each page is its own chunk: the entry carries neither, and no chunk carries both", async () => {
   const names = await builtScriptNames();
   assert.equal(names[0], "app.js", "the entry must still be served at assets/app.js");

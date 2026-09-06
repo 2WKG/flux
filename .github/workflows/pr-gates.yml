@@ -272,6 +272,23 @@ jobs:
           done
           echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables, docs/data/event-baseline/README.md for the event baseline schema) in this PR."
           exit 1
+      - name: Frozen submission files match the 2WKG-87 freeze manifest
+        run: |
+          set -euo pipefail
+          doc=docs/runbooks/2wkg-87-freeze-readiness-2026-09-06.md
+          if [ ! -f "$doc" ]; then echo "::error::$doc is missing; the freeze manifest has no source"; exit 1; fi
+          manifest=$(sed -n '/freeze-manifest:begin/,/freeze-manifest:end/p' "$doc" \
+            | grep -E '^[0-9a-f]{64}  [^ ]+$' || true)
+          if [ -z "$manifest" ]; then
+            echo "::error::no sha256 lines found between the freeze-manifest markers in $doc"
+            exit 1
+          fi
+          printf '%s\n' "$manifest"
+          if ! printf '%s\n' "$manifest" | sha256sum -c -; then
+            echo "::error::a frozen submission file changed but $doc still records its old sha256. Regenerate with 'sha256sum data/demo/bundle.json README.md web/server.mjs' and update the manifest in the same PR, or revert the change."
+            exit 1
+          fi
+          echo "frozen submission files match the recorded manifest"
 
   linear-key:
     name: gate/linear-key
