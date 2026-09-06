@@ -31,8 +31,10 @@ to be temporal.
 When no run qualifies, ``cascade_not_computed`` means there is no persisted
 ``cascade_runs`` row for the scenario; ``topology_cascade_unsupported`` means a
 persisted model is aggregate or otherwise non-topology; and
-``cascade_artifact_unavailable`` means a persisted row lacks available, validated
-Minnesota topology metadata.  Each is a read-only unavailable response, never a
+``cascade_artifact_unavailable`` means a persisted row lacks available,
+validated Minnesota topology metadata.  When a scenario holds both, the most
+recoverable reason wins: any topology artifact present makes the answer
+``cascade_artifact_unavailable``, never ``topology_cascade_unsupported``.  Each is a read-only unavailable response, never a
 fabricated zero or a request to compute a run.
 
 Failures use the shared failure envelope (``copilot.api``) with a named
@@ -142,8 +144,14 @@ _QUALIFIED_RUN_SQL: Final = """
 _RUN_EXISTS_SQL: Final = (
     "SELECT 1 FROM cascade_runs WHERE scenario_id = ? AND run_id = ? LIMIT 1"
 )
+# Aggregated to exactly ONE row on purpose: ``cascade_runs`` holds one row per
+# HOUR (a 72-hour run is 72 rows, multiplied again by matching manifests), and
+# this query exists only to pick a 3-value enum for an already-failing request.
+# The aggregates are computed in DuckDB so the route reads a single row.
 _RUN_ARTIFACT_STATUS_SQL: Final = """
-    SELECT m.model_mode, m.availability, r.validation_status
+    SELECT count(*) > 0 AS any_row,
+           bool_or(m.model_mode = 'topology') AS any_topology,
+           bool_or(m.model_mode IN ('aggregate', 'not_applicable')) AS any_unsupported
     FROM cascade_runs AS c
     LEFT JOIN mn_model_results AS r ON r.model_run_id = c.run_id
     LEFT JOIN mn_artifact_manifests AS m ON m.artifact_id = r.artifact_id
@@ -411,13 +419,25 @@ def _topology_labels(
 
 
 def _unqualified_cascade_reason(
-    rows: list[tuple[object, ...]],
+    status: tuple[object, ...] | None,
 ) -> str:
-    """Classify a persisted but unservable cascade without inferring a result."""
+    """Classify a persisted but unservable cascade without inferring a result.
 
-    if not rows:
+    ``status`` is the single aggregated row of :data:`_RUN_ARTIFACT_STATUS_SQL`.
+    Precedence is *most recoverable wins*, pinned in ``docs/specs/05-copilot.md``
+    §Routes: a scenario that holds any topology artifact is
+    ``cascade_artifact_unavailable`` even when it also holds an aggregate run,
+    because telling an operator "this model does not support topology cascade"
+    when a topology model demonstrably exists is a false statement about the
+    model rather than about the artifact.
+    """
+
+    if status is None or not status[0]:
         return "cascade_not_computed"
-    if any(model_mode in {"aggregate", "not_applicable"} for model_mode, _, _ in rows):
+    _any_row, any_topology, any_unsupported = status
+    if any_topology:
+        return "cascade_artifact_unavailable"
+    if any_unsupported:
         return "topology_cascade_unsupported"
     return "cascade_artifact_unavailable"
 
@@ -459,14 +479,14 @@ def cascade(
                 status_params = (
                     [scenario_id] if run_id is None else [scenario_id, run_id]
                 )
-                status_rows = con.execute(
+                status_row = con.execute(
                     _RUN_ARTIFACT_STATUS_SQL.format(
                         run_filter="TRUE" if run_id is None else "c.run_id = ?"
                     ),
                     status_params,
-                ).fetchall()
+                ).fetchone()
                 raise _unavailable(
-                    _unqualified_cascade_reason(status_rows),
+                    _unqualified_cascade_reason(status_row),
                     artifact=artifact,
                     **({} if run_id is None else {"run_id": run_id}),
                 )

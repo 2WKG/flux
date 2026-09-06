@@ -989,3 +989,113 @@ def test_missing_cascade_database_is_unavailable(tmp_path: Path) -> None:
         "artifact": "cascade_runs",
         "reason": "database_missing",
     }
+
+
+class _CountingResult:
+    """Records how many rows the route actually materialises from a query."""
+
+    def __init__(self, result, counts: list[int]) -> None:  # type: ignore[no-untyped-def]
+        self._result = result
+        self._counts = counts
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        rows = self._result.fetchall()
+        self._counts.append(len(rows))
+        return rows
+
+    def fetchone(self) -> tuple[object, ...] | None:
+        row = self._result.fetchone()
+        self._counts.append(0 if row is None else 1)
+        return row
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._result, name)
+
+
+class _CountingConnection:
+    """Wraps the real connection; counts rows read by the status classification."""
+
+    def __init__(self, con, counts: list[int]) -> None:  # type: ignore[no-untyped-def]
+        self._con = con
+        self._counts = counts
+
+    def execute(self, sql: str, *args: object, **kwargs: object) -> object:
+        result = self._con.execute(sql, *args, **kwargs)
+        # The status classification is the only query joining the mn_* tables
+        # from cascade_runs with a LEFT JOIN.
+        if "LEFT JOIN mn_model_results" in sql:
+            return _CountingResult(result, self._counts)
+        return result
+
+    def __getattr__(self, name: str) -> object:
+        return getattr(self._con, name)
+
+
+def test_cascade_status_classification_reads_one_row_for_a_seventy_two_hour_run(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``cascade_runs`` is one row per HOUR; the 3-value enum reads one row.
+
+    Without aggregation this query returns one row per persisted hour (72 here)
+    purely to pick a reason for an already-failing request.
+    """
+    database = tmp_path / "seventy-two-hours.duckdb"
+    run = _Run(
+        "mn_winter_2023_snow-s0-72h00072",
+        model_mode="aggregate",
+        hours=tuple(range(72)),
+    )
+    _cascade_database(database, (run,))
+    with duckdb.connect(str(database), read_only=True) as con:
+        assert (
+            con.execute(
+                "SELECT count(*) FROM cascade_runs WHERE scenario_id = ?", [SCENARIO]
+            ).fetchone()[0]
+            == 72
+        )
+
+    counts: list[int] = []
+    real_connect = duckdb.connect
+    monkeypatch.setattr(
+        duckdb,
+        "connect",
+        lambda *a, **k: _CountingConnection(real_connect(*a, **k), counts),
+    )
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "topology_cascade_unsupported",
+    }
+    assert counts == [1]
+
+
+def test_an_unavailable_topology_run_outranks_an_aggregate_run(tmp_path: Path) -> None:
+    """Most recoverable wins: a topology artifact present is never "unsupported".
+
+    The scenario holds an aggregate run AND a genuine topology run whose manifest
+    is merely unavailable.  Reporting ``topology_cascade_unsupported`` would tell
+    the operator the model cannot do topology cascade when it demonstrably can;
+    the precedence is pinned in ``docs/specs/05-copilot.md`` §Routes.
+    """
+    database = tmp_path / "mixed-cascade-states.duckdb"
+    _cascade_database(
+        database,
+        (
+            _Run("mn_winter_2023_snow-s0-a66re6a8", model_mode="aggregate"),
+            _Run(
+                "mn_winter_2023_snow-s0-70p0106y",
+                availability="unavailable",
+                with_model_result=True,
+            ),
+        ),
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "cascade_artifact_unavailable",
+    }
