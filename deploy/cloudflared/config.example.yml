@@ -1,0 +1,22 @@
+# Cloudflare Tunnel ingress for the Flux demo.
+#
+# Copy to %USERPROFILE%\.cloudflared\config.yml on the origin host and fill in
+# the credentials path printed by `cloudflared tunnel create flux-demo`.
+# Never commit the filled-in copy or the <UUID>.json credentials file.
+#
+# See docs/runbooks/static-origin-and-tunnel.md for the full sequence.
+
+tunnel: flux-demo
+credentials-file: C:\Users\<USER>\.cloudflared\<TUNNEL-UUID>.json
+
+ingress:
+  # The built static demo (web/server.mjs serving web/dist/).
+  - hostname: bouncepulse.com
+    service: http://127.0.0.1:4173
+
+  # The FastAPI copilot is deliberately NOT routed. Adding a rule here makes
+  # /ask and /health public; do not add one without verifying that service
+  # first. See the route-ownership table in the runbook.
+
+  # Required catch-all.
+  - service: http_status:404
