@@ -139,7 +139,8 @@ function identity(value: unknown, artifactId: string): value is MinnesotaAggrega
     && value.model_mode === "aggregate"
     && value.source_identity === "minnesota_aggregate_manifest_v1"
     && string(value.source_version)
-    && /^[a-f0-9]{64}$/.test(String(value.content_sha256));
+    && string(value.content_sha256)
+    && /^[a-f0-9]{64}$/.test(value.content_sha256);
 }
 
 /**
