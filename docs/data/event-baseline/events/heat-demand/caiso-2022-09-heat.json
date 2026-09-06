@@ -19,10 +19,9 @@
       "start_utc": "2022-09-11T00:00:00Z",
       "end_utc": "2022-09-13T00:00:00Z"
     },
-    "disposition": "candidate_only",
-    "selection_basis": "EIA reports early-September California extreme heat, record CAISO demand, and emergency actions intended to avoid rolling outages; EAGLE-I has 24 observed 15-minute Sacramento County values in the selected UTC window.",
+    "disposition": "accepted",
+    "selection_basis": "NCEI CAZ016 Excessive Heat report intersects the canonical Sacramento County window; exhaustive EAGLE-I annual scan has complete 24/24 county observations.",
     "exclusions": [
-      "County-grid HRRR weather receipt pending",
       "Avoidance actions are not observed controlled shedding",
       "BA load is context only"
     ],
@@ -116,7 +115,7 @@
       "scenario_id": "caiso-2022-09-heat-replay",
       "window_start_utc": "2022-09-07T00:00:00Z",
       "window_end_utc": "2022-09-07T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "accepted",
       "mode": "replay",
       "provenance_receipt_ids": [
         "eia-caiso-202209",
@@ -195,7 +194,7 @@
         "event_report": null,
         "notes": "Complete 24/24 native 15-minute observations."
       },
-      "matched_coverage_decision": "unavailable",
+      "matched_coverage_decision": "matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
