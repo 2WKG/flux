@@ -52,25 +52,6 @@
       "gaps": [
         "Not a county-grid weather extraction"
       ]
-    },
-    {
-      "receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000",
-      "provider": "ORNL EAGLE-I via Figshare",
-      "url": "https://ndownloader.figshare.com/files/42547891",
-      "release": "10.6084/m9.figshare.24237376.v4",
-      "retrieved_at_utc": "2026-09-06T07:11:01Z",
-      "license_or_access": "CC BY 4.0",
-      "raw_sha256": "a7297064d940fe7d2f2f206a297998c3a8a738632572ed8d98b0faa2bcb0ac3d",
-      "filtered_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775",
-      "bytes": 1245184,
-      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
-      "units": "customers_out: customers; run_start_time: UTC",
-      "timezone_conversion": "none; documentation states run_start_time is UTC",
-      "filters": "Oregon FIPS 41051; 2021-06-29T00:00:00Z to 2021-06-29T06:00:00Z",
-      "grid_index_mapping": "not applicable",
-      "gaps": [
-        "Customer denominator unavailable; no population substitution"
-      ]
     }
   ],
   "records": [
@@ -84,21 +65,11 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "climategov-pnw-2021",
-        "eaglei-2021-42547891-20210629t000000-20210629t060000"
+        "climategov-pnw-2021"
       ],
-      "source_evidence_status": "available",
-      "source_row_keys": [
-        "eaglei-2021-42547891-20210629t000000-20210629t060000:41051-2021-06-29T00:00:00Z"
-      ],
-      "source_slices": [
-        {
-          "receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000",
-          "county_fips": "41051",
-          "start_utc": "2021-06-29T00:00:00Z",
-          "end_utc": "2021-06-29T06:00:00Z"
-        }
-      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
       "weather": {
         "coverage": "uncovered",
         "source_receipt_ids": [
@@ -113,23 +84,21 @@
         "event_report": null
       },
       "outage": {
-        "coverage": "covered",
-        "source_receipt_ids": [
-          "eaglei-2021-42547891-20210629t000000-20210629t060000"
-        ],
-        "expected_samples": 24,
-        "observed_samples": 24,
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "24/24 observed 15-minute EAGLE-I values; observed range 723 to 11747 customers; no causal attribution.",
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
-        "event_report": null
+        "event_report": null,
+        "notes": "Superseded provisional EAGLE-I acquisition removed; fixed full-scan receipt pending. Absence is not zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
-        "observed_outage_customers": 11747,
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
           "value": null

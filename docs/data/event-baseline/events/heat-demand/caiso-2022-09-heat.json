@@ -54,25 +54,6 @@
         "No county-grid weather extraction",
         "No county outage label from BA demand"
       ]
-    },
-    {
-      "receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000",
-      "provider": "ORNL EAGLE-I via Figshare",
-      "url": "https://ndownloader.figshare.com/files/42547897",
-      "release": "10.6084/m9.figshare.24237376.v4",
-      "retrieved_at_utc": "2026-09-06T07:11:02Z",
-      "license_or_access": "CC BY 4.0",
-      "raw_sha256": "c8ad319fea141d9b6a94d5266883a4634f242acfb1e02fae5aea24d3d7680707",
-      "filtered_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30",
-      "bytes": 983040,
-      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
-      "units": "customers_out: customers; run_start_time: UTC",
-      "timezone_conversion": "none; documentation states run_start_time is UTC",
-      "filters": "California FIPS 06067; 2022-09-07T00:00:00Z to 2022-09-07T06:00:00Z",
-      "grid_index_mapping": "not applicable",
-      "gaps": [
-        "Customer denominator unavailable; no population substitution"
-      ]
     }
   ],
   "records": [
@@ -86,21 +67,11 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "eia-caiso-202209",
-        "eaglei-2022-42547897-20220907t000000-20220907t060000"
+        "eia-caiso-202209"
       ],
-      "source_evidence_status": "available",
-      "source_row_keys": [
-        "eaglei-2022-42547897-20220907t000000-20220907t060000:06067-2022-09-07T00:00:00Z"
-      ],
-      "source_slices": [
-        {
-          "receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000",
-          "county_fips": "06067",
-          "start_utc": "2022-09-07T00:00:00Z",
-          "end_utc": "2022-09-07T06:00:00Z"
-        }
-      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
       "weather": {
         "coverage": "uncovered",
         "source_receipt_ids": [
@@ -115,23 +86,21 @@
         "event_report": null
       },
       "outage": {
-        "coverage": "covered",
-        "source_receipt_ids": [
-          "eaglei-2022-42547897-20220907t000000-20220907t060000"
-        ],
-        "expected_samples": 24,
-        "observed_samples": 24,
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "24/24 observed 15-minute EAGLE-I values; observed range 147 to 647 customers; no causal attribution.",
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
-        "event_report": null
+        "event_report": null,
+        "notes": "Superseded provisional EAGLE-I acquisition removed; fixed full-scan receipt pending. Absence is not zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
-        "observed_outage_customers": 647,
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
           "value": null
