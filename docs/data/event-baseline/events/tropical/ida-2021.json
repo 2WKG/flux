@@ -54,7 +54,14 @@
       "grid_index_mapping": "County FIPS only; no physical-grid mapping",
       "gaps": [
         "EAGLE-I receipt and matched-coverage decision pending."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "ncei-ida-2021-details",
@@ -73,7 +80,14 @@
       "grid_index_mapping": "NCEI forecast zones LAZ059 and LAZ067 partially cover county FIPS 22057; no physical-grid mapping",
       "gaps": [
         "Forecast zones do not establish countywide weather conditions."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-ida-2021-22057-1218z",
@@ -107,7 +121,14 @@
         "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
         "filtered_artifact_uri": "approved-storage://event-baseline/ida-2021-22057-20210829120000_eaglei_2021_20210829T120000_20210829T180000.csv",
         "filtered_artifact_sha256": "5f771f79f8081cbdffcd375e1637d4f1e1d62d0df7e3a52b548fae3c91df32d3"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -209,7 +230,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
