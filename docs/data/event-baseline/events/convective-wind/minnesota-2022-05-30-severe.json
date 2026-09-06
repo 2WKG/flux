@@ -26,7 +26,8 @@
     "uncertainties": [
       "Archived summary must be supplemented by NCEI source IDs before acceptance.",
       "No matched county outage evidence yet."
-    ]
+    ],
+    "source_event_ids": []
   },
   "source_receipts": [
     {
@@ -66,7 +67,10 @@
         "notes": "No retained HRRR extraction receipt.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
       },
       "outage": {
         "coverage": "UncoveredLabel",
@@ -74,7 +78,10 @@
         "notes": "No EAGLE-I range result is retained; absence is not zero.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
       },
       "matched_coverage_decision": "unavailable",
       "label": {
