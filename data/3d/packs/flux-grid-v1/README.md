@@ -162,9 +162,16 @@ measurement: two builds on one machine give byte-identical GLBs and metadata but
 18/18 byte-different preview PNGs (identical pixels, differing embedded Blender
 render timestamps), so `package.SHA256SUMS` differs on every run; and the
 rebuild's 54 GLBs total 15,170,796 bytes against the 15,170,916 pinned below.
-Read those digests as one unrecorded machine's receipts. Combined with
-`archive.json`'s null `download_url` and its `publication_blocker`, there is
-today no way for a consumer to obtain an installable pack.
+Read those digests as one unrecorded machine's receipts. `archive.json`'s
+`download_url` is still null, so the 24.7 MB legacy *source* archive it describes
+cannot be downloaded. That is a blocker on that archive only, not on the pack: the
+runtime release `flux-grid-runtime-v1-20260906` is published (receipt:
+`releases/flux-grid-runtime-v1-20260906.json`, inventory:
+`releases/flux-grid-runtime-v1-20260906.inventory.json`, and `archive.json`'s
+`runtime_release`), and the same runtime files are committed under
+`web/public/assets/flux-grid/`, which `web/scripts/build.mjs` copies into `dist`
+so the origin serves them at `/assets/flux-grid/`. All 54 GLBs pinned by the
+release inventory are byte-identical to the committed copies.
 
 Measured one-of-each totals: 253,521 LOD0 triangles; 37,330 LOD1; 7,288 LOD2.
 All 54 GLBs total 15,170,916 bytes. The full distribution's browser report covers

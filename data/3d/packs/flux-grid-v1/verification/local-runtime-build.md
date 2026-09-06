@@ -66,8 +66,15 @@ package at `assets/battery_storage/battery_storage.glb`.
 
 The consequence is stated plainly rather than worked around: with
 `archive.json.download_url` still `null` (see its `publication_blocker`), and a
-rebuild that cannot satisfy the committed inventory, **no consumer can obtain an
-installable pack today**. What a rebuilder can verify is the pack their own
-build produced, against the audit that build produced — which is exactly the
-binding above. Verifying against someone else's committed inventory requires the
-archive to be published first.
+rebuild that cannot satisfy the committed inventory, **this pack's own legacy
+source archive still cannot be downloaded, and a rebuild cannot be checked
+against its committed digests**. That is not the same as having no installable
+pack: the runtime release `flux-grid-runtime-v1-20260906` is published and
+receipted under `releases/`, and the same runtime files are committed under
+`web/public/assets/flux-grid/` and served at `/assets/flux-grid/`. What a
+rebuilder can verify is the pack their own build produced, against the audit
+that build produced — which is exactly the binding above; the `node
+scripts/install_flux_grid_pack.mjs "$RUNTIME"` step accepts such a pack because
+the assembler emits `completion: complete_locally_generated` with its own
+reviewed manifest and inventory. Verifying against someone else's committed
+inventory still requires the archive to be published first.

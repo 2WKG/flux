@@ -176,7 +176,9 @@ class Assembly(unittest.TestCase):
         )
         self.assertEqual(manifest["totals"], {"archetypes": 18, "glb_files": 54})
         # The JavaScript inventory parser deliberately accepts only LF records.
-        self.assertNotIn(b"\r\n", (self.fixture.output / "package.SHA256SUMS").read_bytes())
+        self.assertNotIn(
+            b"\r\n", (self.fixture.output / "package.SHA256SUMS").read_bytes()
+        )
 
         consumer = self.dir / "consumer"
         (consumer / "web").mkdir(parents=True)
@@ -201,6 +203,46 @@ class Assembly(unittest.TestCase):
         installed = consumer / "web" / "public" / "assets" / "flux-grid"
         self.assertTrue((installed / "manifest.json").is_file())
         self.assertEqual(len(list(installed.rglob("*.glb"))), 54)
+
+    def test_a_model_corrupted_by_the_copy_itself_is_refused(self):
+        """The post-copy re-bind, which nothing else in this file reaches.
+
+        The pre-copy bind only proves the *build* matches the audit.  The
+        docstring, `README.md`, `verification/local-runtime-build.md` and the PR
+        body all additionally claim "the manifest can only ever describe bytes
+        that the audit actually measured" -- that is the second
+        `bind_audit(args.output, ...)`.  Deleting that call leaves every other
+        test in this file green, so this one drives the only path that can tell
+        the two apart: a copy step that silently damages the destination while
+        the build stays truthful.
+        """
+        real_copy_tree = assemble.copy_tree
+        damaged = self.fixture.output / "assets" / "hospital" / "hospital.glb"
+
+        def copy_tree_that_damages_one_model(source: Path, destination: Path) -> None:
+            real_copy_tree(source, destination)
+            damaged.write_bytes(b"corrupted in transit")
+
+        assemble.copy_tree = copy_tree_that_damages_one_model
+        self.addCleanup(setattr, assemble, "copy_tree", real_copy_tree)
+
+        with self.assertRaises(ValueError) as caught:
+            self.fixture.run()
+        self.assertIn("hospital.glb", str(caught.exception))
+        self.assertIn("do not match the audit", str(caught.exception))
+        # The build itself was never touched, so only the post-copy bind can
+        # have raised: the copied tree is what disagrees with the audit.
+        build_model = self.fixture.build / "assets" / "hospital" / "hospital.glb"
+        audited = next(
+            asset
+            for asset in self.fixture.audit["assets"]
+            if asset["archetype_id"] == "hospital"
+        )
+        self.assertEqual(sha(build_model), audited["lods"]["lod0"]["sha256"])
+        self.assertEqual(damaged.read_bytes(), b"corrupted in transit")
+        # It refused before the manifest or the pinned inventory were written.
+        self.assertFalse((self.fixture.output / "manifest.json").exists())
+        self.assertFalse((self.fixture.output / "package.SHA256SUMS").exists())
 
     def test_a_model_replaced_after_the_audit_is_refused_by_name(self):
         """The blocker: `--audit` must not be a detached token.
