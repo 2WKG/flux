@@ -31,6 +31,7 @@ import {
   ControlRoom,
   SyntheticTexasModelMap,
   createPrimaryDemoRuntime,
+  cascadePlaybackFromPayload,
   historicalForecastFromPayload,
   texasModelSceneFromPayload,
   type HistoricalCountForecast,
@@ -395,6 +396,7 @@ export function App() {
   const [weatherFrames, setWeatherFrames] = useState<ReturnType<typeof createPrimaryDemoRuntime>["scenarios"][number]["weather"]>([]);
   const [historicalForecast, setHistoricalForecast] = useState<HistoricalCountForecast>({ availability: "unavailable", reason: "The historical trajectory has not been requested." });
   const [modelPayload, setModelPayload] = useState<ModelPayload>({ status: "unavailable", reason: "The synthetic model geometry has not been requested." });
+  const [cascadePayload, setCascadePayload] = useState<Parameters<typeof cascadePlaybackFromPayload>[0] | null>(null);
   const [selectedModelElementId, setSelectedModelElementId] = useState<string | undefined>();
 
   const contextRevision = `${selected}:${attemptId}`;
@@ -449,6 +451,14 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
+    READ_CLIENT.get<Parameters<typeof cascadePlaybackFromPayload>[0]>("/cascade?scenario_id=uri_2021&run_id=uri_2021-s0-87d226a6", (value): value is Parameters<typeof cascadePlaybackFromPayload>[0] => Boolean(value && typeof value === "object"), () => false, { signal: controller.signal, retries: 0 })
+      .then((state) => setCascadePayload(state.kind === "ready" ? state.data : null))
+      .catch(() => setCascadePayload(null));
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
     // These are server-verified canonical model IDs, not physical layer IDs.
     READ_CLIENT.get<ModelPayload>("/demo/model?element_id=line%3A973&element_id=generator%3A1", isModelPayload, () => false, { signal: controller.signal, retries: 0 })
       .then((state) => setModelPayload(state.kind === "ready" ? state.data : { status: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The model geometry is unavailable." }))
@@ -482,13 +492,14 @@ export function App() {
 
   useEffect(() => {
     const controller = new AbortController();
-    READ_CLIENT.get<DemoForecastPayload>("/demo/forecast?county_fips=48453", isDemoForecastPayload, () => false, { signal: controller.signal, retries: 0 })
+    const county = controlRoomRegion === "minnesota" ? "27053" : "48201";
+    READ_CLIENT.get<DemoForecastPayload>(`/demo/forecast?county_fips=${county}`, isDemoForecastPayload, () => false, { signal: controller.signal, retries: 0 })
       .then((state) => setHistoricalForecast(state.kind === "ready"
         ? historicalForecastFromPayload(state.data)
         : { availability: "unavailable", reason: state.kind === "unavailable" || state.kind === "failed" || state.kind === "invalid" ? state.message : "The historical trajectory is unavailable." }))
       .catch(() => setHistoricalForecast({ availability: "unavailable", reason: "The historical trajectory could not be read." }));
     return () => controller.abort();
-  }, []);
+  }, [controlRoomRegion]);
 
   // One probe decides what the dock is allowed to claim about itself. A health
   // route that does not answer is a named failure state, never a quiet default.
@@ -641,6 +652,7 @@ export function App() {
       provenance: historicalForecast.provenance ?? [],
       limitations: historicalForecast.limitations,
     },
+    cascade: cascadePayload ? cascadePlaybackFromPayload(cascadePayload) : undefined,
     suggestedPrompts: [
       { id: "ask-evidence", prompt: "What evidence is available for this selected region?", availability: askAvailable ? "available" : "unavailable" },
       { id: "open-texas-model", prompt: "Open the synthetic Texas model before asking about a component failure.", availability: controlRoomRegion === "texas" ? "available" : "unavailable" },
