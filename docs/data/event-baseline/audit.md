@@ -38,7 +38,9 @@ The request artifact SHA-256 is
 The contract validator passed all 63 canonical bundles using the legacy
 receipt compatibility repair (`730f6fe`). The grouped manifests in
 [`splits/`](splits/) contain 8 train, 4 calibration, and 1 test accepted
-county-window rows. The split generator rejects accepted rows with incomplete coverage, an
+county-window replay rows. All 13 have denominator-unavailable labels; they
+are not a statistically representative sample and are not performance-ready.
+The split generator rejects accepted rows with incomplete coverage, an
 `UncoveredLabel`, absent source-row keys, parent-system overlap, selected-row
 reuse, or overlapping/adjacent context windows across splits. It never uses
 an annual raw-file hash or a reused primary document as a leakage key.
