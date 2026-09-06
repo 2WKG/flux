@@ -5,9 +5,7 @@
     "event_id": "near-miss-mn-2021-06-11-nobles-wind",
     "parent_system_id": "near-miss-mn-2021-06-11-nobles-wind",
     "primary_hazard": "thunderstorm_wind",
-    "secondary_hazards": [
-
-    ],
+    "secondary_hazards": [],
     "compound": false,
     "source_event_ids": [
       "966051",
@@ -29,7 +27,8 @@
     "selection_basis": "controls-preselection-v1 diagnostic cohort; NCEI documented event selected without outage screening",
     "uncertainties": [
       "Diagnostic candidate, not a causal or low-outage control.",
-      "Coverage evidence pending."
+      "Coverage evidence pending.",
+      "EAGLE-I outage coverage has a collection shortfall and is UncoveredLabel; this candidate is not accepted."
     ]
   },
   "source_receipts": [
@@ -72,23 +71,38 @@
       ]
     },
     {
-      "receipt_id": "ornl-eaglei-landing",
-      "provider": "ORNL",
-      "url": "https://doi.ccs.ornl.gov/dataset/ccec86f0-e144-5de8-aee0-fb26028b26e1",
-      "release": null,
-      "retrieved_at_utc": "2026-09-06T00:00:00Z",
-      "license_or_access": "Dataset landing record; actual availability/terms to be recorded from a source-feasibility receipt.",
-      "raw_sha256": null,
-      "filtered_sha256": null,
-      "bytes": null,
-      "etag": null,
-      "units": "county outage observations when available",
-      "timezone_conversion": "pending source-feasibility receipt",
-      "filters": "No EAGLE-I rows read during candidate selection.",
-      "grid_index_mapping": "county FIPS mapping pending catalog boundary-vintage receipt",
+      "receipt_id": "eaglei-2021-42547891-near-miss-mn-2021-06-11-nobles-wind-27105-20210611t120000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4; eaglei_outages_2021.csv",
+      "retrieved_at_utc": "2026-09-06T08:09:00.061580Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=Minnesota; county_fips=27105; window=UTC half-open [2021-06-11T12:00:00Z,2021-06-11T18:00:00Z).",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
       "gaps": [
-        "Coverage, annual release, access route, raw hash, and filtered hash are not yet evidenced."
-      ]
+        "Complete full-annual-source scan found 0 valid rows across 24 expected 15-minute intervals. Missing or invalid rows have unknown meaning and are UncoveredLabel, never zero outage. Customer denominator is unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/near-miss-mn-2021-06-11-nobles-wind-27105-20210611120000_eaglei_2021_20210611T120000_20210611T180000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      }
     }
   ],
   "records": [
@@ -102,15 +116,12 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "ncei-stormevents-index"
+        "ncei-stormevents-index",
+        "eaglei-2021-42547891-near-miss-mn-2021-06-11-nobles-wind-27105-20210611t120000"
       ],
       "source_evidence_status": "unavailable",
-      "source_row_keys": [
-
-      ],
-      "source_slices": [
-
-      ],
+      "source_row_keys": [],
+      "source_slices": [],
       "weather": {
         "coverage": "uncovered",
         "source_receipt_ids": [
@@ -120,26 +131,47 @@
         "observation_kind": "not_applicable",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": [
-
-        ],
+        "missing_timestamps": [],
         "event_report": null,
         "notes": "NCEI event ID catalogs diagnostic exposure; gridded weather coverage pending."
       },
       "outage": {
         "coverage": "UncoveredLabel",
         "source_receipt_ids": [
-          "ornl-eaglei-landing"
+          "eaglei-2021-42547891-near-miss-mn-2021-06-11-nobles-wind-27105-20210611t120000"
         ],
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "expected_samples": null,
-        "observed_samples": null,
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "expected_samples": 24,
+        "observed_samples": 0,
         "missing_timestamps": [
-
+          "2021-06-11T12:00:00Z",
+          "2021-06-11T12:15:00Z",
+          "2021-06-11T12:30:00Z",
+          "2021-06-11T12:45:00Z",
+          "2021-06-11T13:00:00Z",
+          "2021-06-11T13:15:00Z",
+          "2021-06-11T13:30:00Z",
+          "2021-06-11T13:45:00Z",
+          "2021-06-11T14:00:00Z",
+          "2021-06-11T14:15:00Z",
+          "2021-06-11T14:30:00Z",
+          "2021-06-11T14:45:00Z",
+          "2021-06-11T15:00:00Z",
+          "2021-06-11T15:15:00Z",
+          "2021-06-11T15:30:00Z",
+          "2021-06-11T15:45:00Z",
+          "2021-06-11T16:00:00Z",
+          "2021-06-11T16:15:00Z",
+          "2021-06-11T16:30:00Z",
+          "2021-06-11T16:45:00Z",
+          "2021-06-11T17:00:00Z",
+          "2021-06-11T17:15:00Z",
+          "2021-06-11T17:30:00Z",
+          "2021-06-11T17:45:00Z"
         ],
         "event_report": null,
-        "notes": "No label evidence used in diagnostic selection."
+        "notes": "Complete full-annual-source scan found 0 valid rows across 24 expected 15-minute intervals. Missing or invalid rows have unknown meaning and are UncoveredLabel, never zero outage. Customer denominator is unavailable; no population substitution."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
@@ -156,9 +188,7 @@
       "forecast": {
         "prediction_cutoff_utc": null,
         "forecast_evaluation": "not_forecast_scored",
-        "inputs": [
-
-        ]
+        "inputs": []
       }
     }
   ]

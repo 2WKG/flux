@@ -5,13 +5,9 @@
     "event_id": "calendar-control-mn-2021-summer-01",
     "parent_system_id": "calendar-control-mn-2021-summer-01",
     "primary_hazard": "ordinary_weather",
-    "secondary_hazards": [
-
-    ],
+    "secondary_hazards": [],
     "compound": false,
-    "source_event_ids": [
-
-    ],
+    "source_event_ids": [],
     "context_window": {
       "start_utc": "2021-08-06T18:00:00Z",
       "end_utc": "2021-08-07T12:00:00Z"
@@ -28,7 +24,7 @@
     "selection_basis": "controls-preselection-v1 frozen selection hash; no outcome lookup used",
     "uncertainties": [
       "Frame-limited Hennepin calendar candidate; not representative across regions.",
-      "Weather and outage acceptance evidence pending."
+      "EAGLE-I outage coverage has a collection shortfall and is UncoveredLabel; this candidate is not accepted."
     ]
   },
   "source_receipts": [
@@ -71,23 +67,38 @@
       ]
     },
     {
-      "receipt_id": "ornl-eaglei-landing",
-      "provider": "ORNL",
-      "url": "https://doi.ccs.ornl.gov/dataset/ccec86f0-e144-5de8-aee0-fb26028b26e1",
-      "release": null,
-      "retrieved_at_utc": "2026-09-06T00:00:00Z",
-      "license_or_access": "Dataset landing record; actual availability/terms to be recorded from a source-feasibility receipt.",
-      "raw_sha256": null,
-      "filtered_sha256": null,
-      "bytes": null,
-      "etag": null,
-      "units": "county outage observations when available",
-      "timezone_conversion": "pending source-feasibility receipt",
-      "filters": "No EAGLE-I rows read during candidate selection.",
-      "grid_index_mapping": "county FIPS mapping pending catalog boundary-vintage receipt",
+      "receipt_id": "eaglei-2021-42547891-calendar-control-mn-2021-summer-01-27053-20210807t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4; eaglei_outages_2021.csv",
+      "retrieved_at_utc": "2026-09-06T08:09:11.691093Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=Minnesota; county_fips=27053; window=UTC half-open [2021-08-07T00:00:00Z,2021-08-07T06:00:00Z).",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
       "gaps": [
-        "Coverage, annual release, access route, raw hash, and filtered hash are not yet evidenced."
-      ]
+        "Complete full-annual-source scan found 20 valid rows across 24 expected 15-minute intervals. Missing or invalid rows have unknown meaning and are UncoveredLabel, never zero outage. Customer denominator is unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/calendar-control-mn-2021-summer-01-27053-20210807000000_eaglei_2021_20210807T000000_20210807T060000.csv",
+        "filtered_artifact_sha256": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f"
+      }
     }
   ],
   "records": [
@@ -103,15 +114,11 @@
       "provenance_receipt_ids": [
         "ncei-stormevents-index",
         "nws-mpx-events-archive",
-        "ornl-eaglei-landing"
+        "eaglei-2021-42547891-calendar-control-mn-2021-summer-01-27053-20210807t000000"
       ],
       "source_evidence_status": "unavailable",
-      "source_row_keys": [
-
-      ],
-      "source_slices": [
-
-      ],
+      "source_row_keys": [],
+      "source_slices": [],
       "weather": {
         "coverage": "uncovered",
         "source_receipt_ids": [
@@ -122,26 +129,27 @@
         "observation_kind": "not_applicable",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": [
-
-        ],
+        "missing_timestamps": [],
         "event_report": null,
         "notes": "Selected without a weather outcome lookup; HRRR/source coverage receipt pending."
       },
       "outage": {
         "coverage": "UncoveredLabel",
         "source_receipt_ids": [
-          "ornl-eaglei-landing"
+          "eaglei-2021-42547891-calendar-control-mn-2021-summer-01-27053-20210807t000000"
         ],
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "expected_samples": null,
-        "observed_samples": null,
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "expected_samples": 24,
+        "observed_samples": 20,
         "missing_timestamps": [
-
+          "2021-08-07T01:30:00Z",
+          "2021-08-07T01:45:00Z",
+          "2021-08-07T02:00:00Z",
+          "2021-08-07T02:15:00Z"
         ],
         "event_report": null,
-        "notes": "No EAGLE-I row was read at selection; source availability assessment pending, so this is not zero outage."
+        "notes": "Complete full-annual-source scan found 20 valid rows across 24 expected 15-minute intervals. Missing or invalid rows have unknown meaning and are UncoveredLabel, never zero outage. Customer denominator is unavailable; no population substitution."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
@@ -158,9 +166,7 @@
       "forecast": {
         "prediction_cutoff_utc": null,
         "forecast_evaluation": "not_forecast_scored",
-        "inputs": [
-
-        ]
+        "inputs": []
       }
     }
   ]
