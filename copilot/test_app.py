@@ -7,6 +7,7 @@ from pathlib import Path
 import duckdb
 import pytest
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
 from copilot.api import API_VERSION
 from copilot.app import create_app
@@ -28,6 +29,38 @@ def test_settings_leave_the_model_unconfigured_when_copilot_model_is_unset(
     monkeypatch.delenv("COPILOT_MODEL", raising=False)
 
     assert Settings(_env_file=None).copilot_model is None
+
+
+@pytest.mark.parametrize(
+    ("configured_path", "expected_error"),
+    [
+        ("", "non-empty local file path"),
+        (".", "name a file, not a directory"),
+        ("motherduck://token=private-db-token", "non-empty local file path"),
+    ],
+)
+def test_settings_reject_invalid_database_locations_without_exposing_input(
+    monkeypatch: pytest.MonkeyPatch,
+    configured_path: str,
+    expected_error: str,
+) -> None:
+    monkeypatch.setenv("DUCKDB_PATH", configured_path)
+
+    with pytest.raises(ValidationError, match=expected_error) as error:
+        Settings(_env_file=None)
+
+    assert "private-db-token" not in str(error.value)
+
+
+def test_settings_accepts_a_missing_local_database_for_unavailable_health_state(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "not-built-yet.duckdb"
+
+    settings = Settings(duckdb_path=database)
+
+    assert settings.duckdb_path == database
+    assert not database.exists()
 
 
 def test_health_opens_a_fixture_database_without_claiming_model_availability(
