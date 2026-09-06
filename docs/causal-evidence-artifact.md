@@ -14,9 +14,14 @@
 | Outcome definition or its provenance absent | `estimable_study` / `unavailable` | `MISSING_OUTCOME_DEFINITION` | Return unavailable. |
 | Required population, time, treatment, outcome, or control coverage absent | `estimable_study` / `unavailable` | `MISSING_DATA_COVERAGE` | Return unavailable. |
 | Required diagnostic was not run or failed | `estimable_study` / `unavailable` | `MISSING_DIAGNOSTICS` | Return unavailable. |
+| A `citations[*]` or `estimate.evidence[*]` entry names a `source_id` that is not declared in `sources` | `estimable_study` / `unavailable` | `UNRESOLVED_CITATION` | Return unavailable; never fabricate a citation from `sources`. |
 | All prerequisites are present | `estimable_study` / `available` | `estimate` with estimand, method, effect, interval, confidence level, evidence citations, and caveats | Expose the qualified observational estimate and its caveats. |
 
 An artifact may carry multiple unavailable codes. `available` is invalid when any unavailable code is present; `unavailable` is invalid without at least one code. Validation is necessary, not proof that the underlying causal assumptions are true.
+
+The schema's list and string bounds (`maxItems: 50` on `sources`, `diagnostics`, `citations`, `estimate.evidence`, `assumptions`, `estimate.caveats`; `maxLength` on every text field — 256 on identifiers, names, `estimate.estimand` and `estimate.method`, 512 on `sources[*].name`, 1024 on definitions, descriptions, coverage, periods, `assumptions[*]` and `estimate.caveats[*]`, 2048 on locators and diagnostic evidence) mirror the pydantic bounds of the `causal_query` wire models in `copilot/tools/schemas.py`, so an artifact that satisfies the schema also fits the response. `CausalData.assumptions` is unbounded on the frozen wire model, so the reader enforces the `assumptions`/`caveats` bounds (50 items, 1024 characters each) and the `estimand` bound itself at the read boundary, and it refuses any artifact file larger than 2 MiB before reading it (`artifact_unavailable`). If the schema and the wire model ever drift, the reader still fails closed: any exception raised while mapping an artifact into the response becomes the `insufficient_evidence` unavailable envelope, never a raised error.
+
+Any string anywhere in the artifact containing `[UNVERIFIED` — including `assumptions`, `estimate.caveats`, `estimate.estimand`, `diagnostics[*].evidence`, `sources[*].name`/`coverage`, and every `question` definition or `target_population` text — is an unresolved claim (`CLAUDE.md`). The reader returns `insufficient_evidence` for such an artifact rather than presenting the tagged text as identifying evidence.
 
 ## Artifact-to-response mapping
 
@@ -24,10 +29,12 @@ An artifact may carry multiple unavailable codes. `available` is invalid when an
 
 | Artifact evidence | `causal_query` response |
 | --- | --- |
-| Estimate effect and method | `answer_numbers` / `method` |
-| Estimate interval | `interval` |
-| Assumptions and caveats | `assumptions` |
-| Evidence-related fields | `evidence_rows` |
-| Citations | `citations` |
+| `estimate.effect` and `estimate.method` | `answer_numbers` (`{"effect": ...}`) / `method` |
+| `estimate.interval` | `interval` (`[lower, upper]`) |
+| `assumptions` followed by `estimate.caveats` | `assumptions` (one list, artifact order preserved) |
+| `estimate.estimand`, `effect`, `interval`, `confidence_level`, `evidence` | `evidence_rows` — exactly one row `{estimand, effect, interval: [lower, upper], confidence_level, evidence: [{source_id, locator}]}`, so every number in `answer_numbers` appears in an evidence row |
+| `citations` | `citations` (copied, never derived from `sources`) |
+| `question`, `sources`, `sample`, `diagnostics` | the same-named typed fields |
+| registration `path` | `provenance[0].source_ref` as a repo-relative path or bare file name — never an absolute host path |
 
 The artifact remains the durable, validated source; the response is a transient presentation shape.
