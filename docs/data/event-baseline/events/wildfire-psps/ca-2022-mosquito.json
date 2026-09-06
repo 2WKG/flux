@@ -23,7 +23,7 @@
       "end_utc": "2022-10-22T17:18:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "CAL FIRE Mosquito record and bounded Placer EAGLE-I capture.",
+    "selection_basis": "CAL FIRE Mosquito record and complete annual-source Placer EAGLE-I capture.",
     "uncertainties": [
       "No eligible county-weather evidence collected.",
       "No utility-damage or causal assertion."
@@ -35,19 +35,18 @@
       "provider": "ORNL EAGLE-I via Figshare",
       "url": "https://ndownloader.figshare.com/files/42547897",
       "release": "10.6084/m9.figshare.24237376.v4",
-      "retrieved_at_utc": "2026-09-06T07:18:00Z",
+      "retrieved_at_utc": "2026-09-06T08:14:08.198503Z",
       "license_or_access": "CC BY 4.0",
-      "raw_sha256": "0ca129e2f3d4de4e2fcc704209b3bb60a80f788e907d9869a57176ee03189529",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
       "filtered_sha256": "8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a",
-      "bytes": 1048576,
+      "bytes": 1187596176,
       "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
       "units": "customers_out; UTC 15-minute timestamps",
       "timezone_conversion": "none; source documents UTC",
       "filters": "California, FIPS 06061, six-hour window",
       "grid_index_mapping": "none",
-      "gaps": [
-        "Customer denominator unavailable."
-      ]
+      "gaps": ["Customer denominator unavailable."],
+      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547897","source_file":"eaglei_outages_2022.csv","source_file_id":42547897,"source_file_bytes":1187596176,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2022.csv","raw_artifact_sha256":"ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json","source_sidecar_sha256":"23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08","filtered_artifact_uri":"data/raw/event-baseline/ca-2022-mosquito-06061-20220908000000_eaglei_2022_20220908T000000_20220908T060000.csv","filtered_artifact_sha256":"8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a"}
     }
   ],
   "records": [
@@ -67,12 +66,12 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-mosquito"],
+        "expected_samples": 24,
+        "observed_samples": 24,
         "missing_timestamps": [],
         "event_report": null,
         "notes": "CAL FIRE record supports candidate discovery only; no county-window weather coverage claimed."
@@ -86,7 +85,7 @@
         "observed_samples": null,
         "missing_timestamps": [],
         "event_report": null,
-        "notes": "Bounded range capture is provenance only pending a complete annual-source scan."
+        "notes": "Complete annual-source scan; denominator unavailable."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
