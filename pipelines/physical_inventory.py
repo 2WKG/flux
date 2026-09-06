@@ -14,6 +14,8 @@ from datetime import UTC, datetime
 from typing import Any
 
 import duckdb
+from pyproj import CRS
+from pyproj.exceptions import CRSError
 from shapely.geometry import shape
 
 CONTRACT_VERSION = "1.0.0"
@@ -85,6 +87,18 @@ def _geometry(value: Any, status: str, crs: Any, prefix: str) -> None:
     if not all(math.isfinite(value) for value in (west, south, east, north)) or crs == "EPSG:4326" and not (-180 <= west <= east <= 180 and -90 <= south <= north <= 90):
         raise PhysicalInventoryError(f"{prefix}.geometry has invalid EPSG:4326 coordinates")
 
+def _registered_crs(value: Any, prefix: str) -> None:
+    """Accept only a real, explicit EPSG or ESRI authority code."""
+    if not isinstance(value, str) or re.fullmatch(r"(?:EPSG|ESRI):\d+", value) is None:
+        raise PhysicalInventoryError(f"{prefix}.geometry_crs must be an explicit registered EPSG or ESRI CRS")
+    authority, code = value.split(":", 1)
+    try:
+        resolved = CRS.from_authority(authority, code).to_authority()
+    except CRSError as exc:
+        raise PhysicalInventoryError(f"{prefix}.geometry_crs is not a registered CRS") from exc
+    if resolved != (authority, code):
+        raise PhysicalInventoryError(f"{prefix}.geometry_crs must retain its declared authority")
+
 def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
     """Validate a complete immutable physical inventory artifact and return it."""
     required = {"artifact_id","contract_version","geography_id","artifact_version","inventory_mode","electrical_model_mode","created_at","content_sha256","sources","assets","terminals","connectivity_edges","coverage"}
@@ -113,7 +127,8 @@ def validate_artifact(artifact: dict[str, Any]) -> dict[str, Any]:
         asset_ids.add(row["asset_id"])
         if row["geometry_status"] not in {"source","derived","unavailable"}: raise PhysicalInventoryError(f"assets[{i}] invalid geometry_status")
         if row["geometry_status"] == "unavailable" and any(row[key] is not None for key in ("geometry_crs","geometry_precision_m","geometry_accuracy_basis","geometry_derivation_method")): raise PhysicalInventoryError(f"assets[{i}] unavailable geometry must not have CRS, precision, accuracy, or derivation values")
-        if row["geometry_status"] != "unavailable" and (not isinstance(row["geometry_crs"],str) or re.fullmatch(r"EPSG:\d+",row["geometry_crs"]) is None or row["geometry_precision_m"] is not None and (not isinstance(row["geometry_precision_m"],(int,float)) or isinstance(row["geometry_precision_m"],bool) or row["geometry_precision_m"] < 0) or not isinstance(row["geometry_accuracy_basis"],str) or not row["geometry_accuracy_basis"]): raise PhysicalInventoryError(f"assets[{i}] needs an EPSG CRS and accuracy basis; numeric precision may be null only when unknown")
+        if row["geometry_status"] != "unavailable" and (row["geometry_precision_m"] is not None and (not isinstance(row["geometry_precision_m"],(int,float)) or isinstance(row["geometry_precision_m"],bool) or row["geometry_precision_m"] < 0) or not isinstance(row["geometry_accuracy_basis"],str) or not row["geometry_accuracy_basis"]): raise PhysicalInventoryError(f"assets[{i}] needs an accuracy basis; numeric precision may be null only when unknown")
+        if row["geometry_status"] != "unavailable": _registered_crs(row["geometry_crs"], f"assets[{i}]")
         if row["geometry_status"] == "derived" and (not isinstance(row["geometry_derivation_method"],str) or not row["geometry_derivation_method"]): raise PhysicalInventoryError(f"assets[{i}] derived geometry needs a derivation method")
         if row["geometry_status"] == "source" and row["geometry_derivation_method"] is not None: raise PhysicalInventoryError(f"assets[{i}] source geometry must not claim a derivation method")
         _geometry(row["geometry"],row["geometry_status"],row["geometry_crs"],f"assets[{i}]")
