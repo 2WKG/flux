@@ -121,7 +121,9 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
   );
   // connect-src is what a tile/style/glyph request travels on; img-src is what a
   // raster tile would arrive as. Neither may name a host or a wildcard.
-  for (const directive of ["default-src", "connect-src", "img-src", "script-src", "font-src"]) {
+  // script-src is excluded here and pinned exactly below: it is the one
+  // directive that legitimately carries a non-origin token.
+  for (const directive of ["default-src", "connect-src", "img-src", "font-src"]) {
     assert.ok(directives[directive], `CSP has no ${directive}`);
     for (const value of directives[directive]) {
       assert.ok(
@@ -133,18 +135,43 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
   assert.ok(directives["connect-src"].includes("'self'"));
   assert.ok(!directives["connect-src"].includes("*"));
 
-  // script-src is pinned exactly, not merely drawn from the allowlist above.
-  // An allowlist alone accepts any further widening whose token happens to be
-  // on it -- 'unsafe-inline' on script-src would have stayed green, and so did
-  // the 'wasm-unsafe-eval' this shell briefly carried. Nothing in web/src loads
-  // or compiles WebAssembly (no draco, no .wasm import), and `server.mjs`'s
-  // served CONTENT_SECURITY_POLICY header never carried the token either, so
-  // the meta relaxation was inert in the deployed app: the browser enforces the
-  // intersection of the two policies. Widening this needs both policies changed
-  // and this assertion changed with a named consumer.
-  assert.deepEqual(directives["script-src"], ["'self'"], "script-src must stay exactly 'self'");
+  // script-src is pinned EXACTLY, not merely drawn from the allowlist above.
+  // An allowlist cannot fail for any token already on it, so
+  // `script-src 'self' 'unsafe-inline'` -- or a third token appended after
+  // 'wasm-unsafe-eval' -- would have stayed green. Any further widening of this
+  // directive now goes red and has to be argued for here.
+  //
+  // 'wasm-unsafe-eval' is required, and the consumer is named by the assertion
+  // below it: deck.gl's GLB path pulls @loaders.gl's draco and basis decoders,
+  // which compile WebAssembly at runtime. `server.mjs`'s served
+  // CONTENT_SECURITY_POLICY header must carry the same token, because a browser
+  // enforces the intersection of the header and this meta tag -- relaxing only
+  // one of the two is inert, which is how the first version of this change
+  // shipped a directive that never took effect.
+  assert.deepEqual(directives["script-src"], ["'self'", "'wasm-unsafe-eval'"],
+    "script-src must stay exactly 'self' plus the WebAssembly allowance the 3D asset decoders need");
   assert.deepEqual(directives["object-src"], ["'none'"]);
   assert.deepEqual(directives["base-uri"], ["'none'"]);
+
+  // The two policies must agree, or the weaker one silently wins.
+  const { CONTENT_SECURITY_POLICY } = await import("../server.mjs");
+  const served = Object.fromEntries(
+    CONTENT_SECURITY_POLICY.split(";").map((part) => part.trim().split(/\s+/)).filter((parts) => parts[0]).map(([name, ...values]) => [name, values]),
+  );
+  assert.deepEqual(served["script-src"], directives["script-src"],
+    "the served header and the shell's meta tag must name the same script-src, or the relaxation is inert");
+});
+
+test("the CSP's WebAssembly allowance is required by code the bundle actually ships", async () => {
+  // The justification for 'wasm-unsafe-eval', asserted rather than asserted-in-prose.
+  // If the WASM decoders ever leave the bundle this goes red, and the directive
+  // must be removed with it rather than lingering as an unexplained relaxation.
+  const files = (await readdir(new URL("../dist/assets/", import.meta.url))).filter((name) => name.endsWith(".js"));
+  const bundle = (await Promise.all(files.map((name) => readFile(new URL(`../dist/assets/${name}`, import.meta.url), "utf8")))).join("\n");
+  assert.match(bundle, /WebAssembly\.(?:instantiate|compile)/,
+    "no shipped chunk compiles WebAssembly, so script-src must not carry 'wasm-unsafe-eval'");
+  assert.match(bundle, /draco_decoder\.wasm|basis_transcoder\.wasm/,
+    "the named consumers of the WebAssembly allowance (loaders.gl draco/basis) are not in the bundle");
 });
 
 test("the overlay's initialized signal comes from deck's own load event, not from mount", async () => {

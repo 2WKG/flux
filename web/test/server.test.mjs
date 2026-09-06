@@ -61,14 +61,19 @@ test("API-shaped paths state that this static origin is unavailable", async () =
   }
 });
 
-test("every response carries a CSP that names no off-origin source", async () => {
+test("every response carries a CSP that names no off-origin source and permits only WebAssembly evaluation", async () => {
   const get = await origin();
   for (const path of ["/", "/assets/app.js", "/api/demo", "/anything"]) {
     const response = await get(path);
     assert.equal(response.csp, CONTENT_SECURITY_POLICY, `${path} served without the policy`);
   }
+  assert.match(CONTENT_SECURITY_POLICY, /script-src 'self' 'wasm-unsafe-eval'/);
+  assert.doesNotMatch(CONTENT_SECURITY_POLICY, /'unsafe-eval'/);
   for (const directive of CONTENT_SECURITY_POLICY.split("; ")) {
     const [name, ...values] = directive.split(" ");
+    // script-src is skipped here and pinned as a whole directive below: it is
+    // the one directive that legitimately carries a non-origin token.
+    if (name === "script-src") continue;
     for (const value of values) {
       assert.ok(
         ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
@@ -76,13 +81,12 @@ test("every response carries a CSP that names no off-origin source", async () =>
       );
     }
   }
-  // Pinned exactly rather than allowlisted: an allowlist cannot fail for any
-  // token already on it, so `script-src 'self' 'unsafe-inline'` -- or the
-  // 'wasm-unsafe-eval' the shell's meta tag briefly carried -- would pass it.
-  // Nothing in web/src compiles WebAssembly; widening this is a decision that
-  // must name its consumer and change this line.
-  assert.ok(CONTENT_SECURITY_POLICY.split("; ").includes("script-src 'self'"),
-    "the served policy must keep script-src exactly 'self'");
+  // Pinned as a whole directive, not by substring: `assert.match` above still
+  // passes if a third token is appended after 'wasm-unsafe-eval', and the
+  // allowlist loop cannot fail for any token already on it. This is the
+  // assertion that goes red on any further widening.
+  assert.ok(CONTENT_SECURITY_POLICY.split("; ").includes("script-src 'self' 'wasm-unsafe-eval'"),
+    "the served policy must keep script-src exactly 'self' plus the WebAssembly allowance");
 });
 
 /**
@@ -224,4 +228,21 @@ test("there is no second application entry to serve", async () => {
   const scripts = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.ok(!scripts.includes("dist-map"), "a second application dist is configured again");
   assert.ok(!scripts.includes("build:map"), "a second application build entry is configured again");
+});
+
+
+test("a partially streamed upstream timeout closes that response without taking down the proxy", async () => {
+  const api = await upstream((_req, res) => {
+    res.writeHead(200, { "content-type": "model/gltf-binary" });
+    res.write(Buffer.from([0x67, 0x6c, 0x54, 0x46]));
+    // Deliberately never end: the proxy timeout must contain the stream error.
+  });
+  const server = createApp({ apiOrigin: api, proxyTimeoutMs: 25 }).listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  servers.push(server);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${base}/assets/flux-grid/manifest.json`);
+  await assert.rejects(response.arrayBuffer(), /abort|terminated|fetch/i);
+  const health = await fetch(`${base}/health`);
+  assert.equal(health.status, 200, "the proxy remains alive after the truncated stream");
 });
