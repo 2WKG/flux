@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Generic wind turbine</title>
+  <desc id="desc">Neutral preview of an unsited wind-turbine archetype: a tapered tower, a nacelle, and a three-blade rotor drawn to the scene source, which fits inside the 20 metre footprint proxy. Rotor motion, if animated, is decorative and represents no generation, wind speed, capacity, owner, or Minnesota placement.</desc>
+  <rect width="512" height="512" fill="#eef2f5"/>
+  <path d="M250 440L258 240 266 440Z" fill="#87939c" stroke="#3c474e" stroke-width="8"/>
+  <path d="M258 237L258 179M258 237L208 266M258 237L308 266" stroke="#53616a" stroke-width="14" stroke-linecap="round"/>
+  <circle cx="258" cy="237" r="14" fill="#87939c" stroke="#3c474e" stroke-width="8"/>
+  <circle cx="258" cy="440" r="12" fill="#78858f"/>
+  <text x="256" y="486" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#3c474e">GENERIC UNSITED ARCHETYPE</text>
+</svg>

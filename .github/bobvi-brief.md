@@ -1,6 +1,6 @@
 # Flux PR review brief (bobvi criterion)
 
-You are reviewing ONE pull request in the Flux hackathon repo (GitHub Wyzard1004/flux, default branch `master`).
+You are reviewing ONE pull request in the Flux hackathon repo (GitHub 2WKG/flux, default branch `master`).
 Your checkout is already at the PR head. Do NOT commit, push, or write to Linear. Temporary edits for mutation probes must be restored with `git checkout -- .` before you finish. Your only output is the report below, posted as ONE pull-request comment (never an approval or a request-changes review) or written to the output path you were given.
 
 ## Authority (read first, in the worktree)
