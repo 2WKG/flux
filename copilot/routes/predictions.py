@@ -455,11 +455,22 @@ def cascade(
     settings: Settings = request.app.state.settings
     con = _connect(settings, artifact=artifact)
     try:
+        # The Texas reader has no Minnesota-manifest dependency, but it still
+        # needs the shared persisted-run table. Check that minimal contract
+        # before issuing its source-qualified query so missing tables preserve
+        # the normal named-unavailable envelope.
+        if _missing_tables(con, ("cascade_runs",)):
+            raise _unavailable("missing", artifact="cascade_runs")
         # The current canonical DB also contains a separately qualified Texas
         # synthetic run.  It predates the Minnesota-manifest schema below, so
         # it must be read from its own persisted provenance rather than forced
         # through a Minnesota artifact join.
-        texas = _read_qualified_texas_synthetic(con, scenario_id, run_id)
+        try:
+            texas = _read_qualified_texas_synthetic(con, scenario_id, run_id)
+        except duckdb.BinderException as exc:
+            raise _unavailable("schema_mismatch", artifact=artifact) from exc
+        except duckdb.Error as exc:
+            raise _unavailable("query_failed", artifact=artifact) from exc
         if texas is not None:
             response.headers[ARTIFACT_HEADER] = "synthetic-cascade"
             return texas
@@ -561,7 +572,7 @@ def _read_qualified_texas_synthetic(
         "source_version, fixture_batch_id FROM cascade_runs WHERE scenario_id = ?"
         + clause
         + " AND source_name = 'twin.cascade' "
-        "AND source_ref = 'ACTIVSg2000 synthetic topology' "
+        "AND source_ref LIKE 'ACTIVSg2000 synthetic topology%' "
         "AND fixture_batch_id = 'synthetic-cascade' ORDER BY hour, run_id",
         params,
     ).fetchall()
