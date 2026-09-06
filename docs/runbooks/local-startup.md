@@ -322,6 +322,23 @@ copilot/test_ask.py` passed 14 tests for the registered inventory and local SSE
 contract. This verification does not provide the separate 2WKG-418 fixture
 preparation path or any live HTTPS/tunnel/provider evidence.
 
+## Current OpenAPI route inventory, regenerated on 2026-09-06 at `e5e2f12`
+
+Not part of the historical transcript below. Regenerated from the app object itself, so it is the
+eleven routes `copilot/app.py` mounts today (D-3):
+
+```
+$ uv run python -c "from copilot.app import app; print(sorted(app.openapi()['paths']))"
+['/ask', '/cascade', '/compare', '/elements/critical', '/health', '/layers/{layer_name}',
+ '/lines/top', '/predictions', '/scenarios', '/scenarios/{scenario_id}', '/site-score']
+$ uv run python -c "from copilot.app import app; print(len(app.openapi()['paths']))"
+11
+```
+
+The six-path dump inside the historical block below predates `/ask`, `/cascade`,
+`/elements/critical`, `/lines/top`, and `/predictions`; it is kept verbatim as a dated receipt and
+is superseded by the list above.
+
 ## Historical verification on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
 
 Read this section as a dated record, not as current behaviour: every `/api/demo`
@@ -331,7 +348,9 @@ master today — that path now returns the SPA shell.
 macOS (Darwin 25.6.0), Node v26.0.0, npm 11.12.1, uv 0.11.16, `uv run python`
 3.12.13, no `python` on `PATH` (`python3` is 3.9.6). The following original
 startup commands were run in this order; outputs are verbatim. They predate the
-current `/predictions`, `/cascade`, and `/ask` route inventory.
+current `/predictions`, `/cascade`, and `/ask` route inventory: the six-path OpenAPI dump and the
+`GET /ask ; POST /ask → 404 ; 404` line inside the block are historical, and the current inventory
+is the eleven paths regenerated in the dated section below.
 
 ```
 $ uv sync --frozen --extra dev                                  rc=0
@@ -369,9 +388,7 @@ unavailable {'artifact': 'database', 'reason': 'missing'}
 $ /scenarios/nope ; /layers/buses ; /layers/lines ; /layers/bogus ; /layers ; GET /ask ; POST /ask   (http codes)
 503 ; 503 ; 503 ; 404 ; 404 ; 404 ; 404
 $ curl -s http://localhost:8000/openapi.json | ... print(sorted(d['paths']))
-['/ask', '/cascade', '/compare', '/elements/critical', '/health', '/layers/{layer_name}', '/lines/top', '/predictions', '/scenarios', '/scenarios/{scenario_id}', '/site-score']
-  # re-generated 2026-09-06 from copilot.app.app.openapi() at 056072b; the six-path list
-  # recorded here previously predated /ask, /cascade, /elements/critical, /lines/top, /predictions.
+['/compare', '/health', '/layers/{layer_name}', '/scenarios', '/scenarios/{scenario_id}', '/site-score']
 $ curl -s -X POST http://localhost:8000/site-score -H "content-type: application/json" -d '{"site_id":"s1","unit_mw":300,"scenario_id":"baseline"}'
 {"status":"unavailable",...,"details":{"artifact":"database","reason":"missing"}}   503
 $ curl -s -X POST http://localhost:8000/site-score -H "content-type: application/json" -d '{}'

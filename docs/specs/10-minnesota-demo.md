@@ -130,6 +130,8 @@ the HTTP response. On the wire the failure contract is
 [`../api/envelopes.md`](../api/envelopes.md) / `copilot/api/envelope.py`, whose `FailureEnvelope`
 is `extra="forbid"` and therefore carries no `availability`, `next_step`, top-level `code`,
 `provenance`, or `limitations` field at all; the named cause travels in `error.details.reason`.
+No tool on `master` emits the re-scoped payload shape either — it is the intended shape, tracked
+as follow-up **FU-3** in the section linked above, not current behaviour.
 
 The Copilot is required in the primary demo flow. Its provider/model comes from validated
 runtime configuration; planning must not invent a model identifier or make a paid API call.

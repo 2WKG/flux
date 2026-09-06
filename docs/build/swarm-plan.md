@@ -16,8 +16,8 @@ related:
 > and that spec's numbered execution list. **Linear is the authoritative tracker** —
 > `.github/workflows/pr-gates.yml` `gate/linear-key` is what actually enforces a key on every PR,
 > and no prose graph here is enforced anywhere. Treat the units below as **historical**: they
-> record how the build was divided, not what is currently assigned. Do not add new Linear keys to
-> prose; add them in Linear. (One open question rides on this — see OQ-2 in
+> record how the build was divided, not what is currently assigned. (One open question rides on
+> this — see OQ-2 in
 > [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md).)
 
 The amended `docs/specs/00-overview.md` is the current authority for the
