@@ -127,7 +127,7 @@ test("the unified sheet is one physical file; the four component sheets are gone
       if (entry.isDirectory()) {
         if (!["node_modules", "dist"].includes(entry.name)) await walk(file);
       } else if (path.extname(entry.name) === ".css") {
-        found.push(path.relative(webRoot, file));
+        found.push(path.relative(webRoot, file).split(path.sep).join("/"));
       }
     }
   };

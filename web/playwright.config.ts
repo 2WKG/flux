@@ -4,6 +4,8 @@ import { existsSync } from "node:fs";
 const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
   ?? (existsSync(systemChrome) ? systemChrome : undefined);
+const port = Number(process.env.PLAYWRIGHT_PORT ?? 4173);
+const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
   testDir: "./e2e",
@@ -13,7 +15,7 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL,
     browserName: "chromium",
     launchOptions: executablePath ? { executablePath } : undefined,
     trace: "on-first-retry",
@@ -21,7 +23,8 @@ export default defineConfig({
   },
   webServer: {
     command: "npm run build && node server.mjs",
-    url: "http://127.0.0.1:4173",
+    env: { PORT: String(port) },
+    url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
   },
