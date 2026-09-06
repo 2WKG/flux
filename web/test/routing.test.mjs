@@ -106,7 +106,9 @@ test("each page is its own chunk: the entry carries neither, and no chunk carrie
   const fixture = JSON.parse(await readFile(new URL("../../data/demo/bundle.json", import.meta.url), "utf8"));
   // One marker per page, each unique to that page's module graph.
   const scenarioMarker = fixture.fixtureHash;
-  const explainerMarker = "The teaching simulation is not part of this build.";
+  // 2WKG-482 replaces the old placeholder with the actual five-bus cascade.
+  // Keep the split-chunk assertion tied to content users can now reach.
+  const explainerMarker = "Follow a five-bus cascade, one equation at a time.";
 
   const chunks = new Map();
   for (const name of names) chunks.set(name, await readFile(new URL(name, assets), "utf8"));
