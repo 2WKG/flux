@@ -31,7 +31,7 @@
     "exclusions": [],
     "uncertainties": [
       "NCEI CZ_TYPE=Z record is zone rather than county evidence.",
-      "The initial EAGLE-I range acquisition is unqualified because its time-based search is unsafe for non-globally-time-ordered annual files; exhaustive annual scan is pending.",
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
       "No native customer denominator is available."
     ]
   },
@@ -75,24 +75,26 @@
       ]
     },
     {
-      "receipt_id": "eaglei_2019_42547885_20190410t180000_20190411t000000",
+      "receipt_id": "eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000",
       "provider": "ORNL EAGLE-I via Figshare",
       "url": "https://ndownloader.figshare.com/files/42547885",
-      "release": "10.6084/m9.figshare.24237376.v4; figshare:24237376:42547885",
-      "retrieved_at_utc": "2026-09-06T07:17:56.038882Z",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:01:01.530120Z",
       "license_or_access": "CC BY 4.0 https://creativecommons.org/licenses/by/4.0/",
-      "raw_sha256": "c34f355e9c93b7865307882994050abb730951428bd829bc853956acf3e9a653",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
       "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
-      "bytes": 1245184,
+      "bytes": 1102778792,
       "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
       "units": "customers_out in customers; run_start_time UTC.",
       "timezone_conversion": "none; EAGLE-I documents UTC.",
-      "filters": "state=Minnesota; FIPS=27063; [2019-04-10T18:00:00Z,2019-04-11T00:00:00Z).",
+      "filters": "Minnesota; FIPS 27063; UTC half-open [2019-04-10T18:00:00Z,2019-04-11T00:00:00Z); exhaustive annual stream.",
       "grid_index_mapping": "County FIPS 27063; no grid index.",
       "gaps": [
-        "Initial ETag-pinned range result is acquisition_unqualified: a time-based binary search cannot prove absence in a non-globally-time-ordered annual file.",
+        "Qualified exhaustive annual scan found 0 of 24 expected 15-minute observations; this is UncoveredLabel, never zero.",
+        "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
         "No total_customers field; no population proxy."
-      ]
+      ],
+      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547885","source_file":"eaglei_outages_2019.csv","source_file_id":42547885,"source_file_bytes":1102778792,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2019.csv","raw_artifact_sha256":"4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json","source_sidecar_sha256":"74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51","filtered_artifact_uri":"data/raw/event-baseline/mn-2019-04-10-ice-27063-20190410180000_eaglei_2019_20190410T180000_20190411T000000.csv","filtered_artifact_sha256":"667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"}
     }
   ],
   "records": [
@@ -108,7 +110,7 @@
       "provenance_receipt_ids": [
         "ncei_stormevents_2019_c20260323",
         "nws_fsd_20190410_ice",
-        "eaglei_2019_42547885_20190410t180000_20190411t000000"
+        "eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
@@ -138,20 +140,20 @@
         "notes": "NCEI report; no fabricated weather sample count."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000"],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": ["2019-04-10T18:00:00Z","2019-04-10T18:15:00Z","2019-04-10T18:30:00Z","2019-04-10T18:45:00Z","2019-04-10T19:00:00Z","2019-04-10T19:15:00Z","2019-04-10T19:30:00Z","2019-04-10T19:45:00Z","2019-04-10T20:00:00Z","2019-04-10T20:15:00Z","2019-04-10T20:30:00Z","2019-04-10T20:45:00Z","2019-04-10T21:00:00Z","2019-04-10T21:15:00Z","2019-04-10T21:30:00Z","2019-04-10T21:45:00Z","2019-04-10T22:00:00Z","2019-04-10T22:15:00Z","2019-04-10T22:30:00Z","2019-04-10T22:45:00Z","2019-04-10T23:00:00Z","2019-04-10T23:15:00Z","2019-04-10T23:30:00Z","2019-04-10T23:45:00Z"],
         "event_report": null,
-        "notes": "Initial range receipt is acquisition_unqualified; exhaustive annual scan is pending, so absence and coverage are not asserted."
+        "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
+        "status": "UncoveredLabel",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
