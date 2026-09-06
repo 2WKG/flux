@@ -42,21 +42,27 @@ if ((Test-Path $cfDir) -and (Get-ChildItem $cfDir -Filter '*.json' -ErrorAction 
 # template maps only the API's explicit read paths to the API port.
 try {
   $r = Invoke-WebRequest "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 5
-  Write-Host "ok   origin: http://127.0.0.1:$Port/ returned $($r.StatusCode)" -ForegroundColor Green
+  if ($r.StatusCode -eq 200) {
+    Write-Host "ok   origin: http://127.0.0.1:$Port/ returned $($r.StatusCode)" -ForegroundColor Green
+  } else {
+    $fail += "The static origin returned HTTP $($r.StatusCode) on http://127.0.0.1:$Port/. Start it: ./deploy/serve.ps1"
+  }
 } catch {
   $fail += "The static origin is not answering on http://127.0.0.1:$Port/. Start it: ./deploy/serve.ps1"
 }
 
 try {
   $r = Invoke-WebRequest "http://127.0.0.1:$ApiPort/health" -UseBasicParsing -TimeoutSec 5
-  Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned $($r.StatusCode)" -ForegroundColor Green
+  $status = $r.StatusCode
 } catch {
   $status = $_.Exception.Response.StatusCode.value__
-  if ($status -eq 503) {
-    Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned documented unavailable 503" -ForegroundColor Green
-  } else {
-    $fail += "The API health endpoint is not answering on http://127.0.0.1:$ApiPort/health. Start it: uv run uvicorn copilot.app:app --port $ApiPort"
-  }
+}
+if ($status -eq 200) {
+  Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned $status" -ForegroundColor Green
+} elseif ($status -eq 503) {
+  Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned documented unavailable 503" -ForegroundColor Green
+} else {
+  $fail += "The API health endpoint is not answering on http://127.0.0.1:$ApiPort/health. Start it: uv run uvicorn copilot.app:app --port $ApiPort"
 }
 
 if ($fail.Count -gt 0) {
