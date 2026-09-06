@@ -87,10 +87,14 @@ test('tracked publication manifest states the unpublished truth and stays contra
   assert.throws(()=>validateRuntimeManifest(unpinned,inventory,catalog),/resource is not pinned/);
 });
 
-test('planned runtime release receipt names immutable external bytes without publishing them',async()=>{
+test('published runtime release receipt names the immutable external bytes it attached',async()=>{
   const release=JSON.parse(await readFile(new URL('../../data/3d/packs/flux-grid-v1/releases/flux-grid-runtime-v1-20260906.json',import.meta.url),'utf8'));
   assert.equal(release.release_tag,'flux-grid-runtime-v1-20260906');
-  assert.equal(release.publication_status,'planned_external_attachment_not_yet_published');
+  // #338 attached the archive to the GitHub release and moved the receipt to the
+  // published state; the tag now carries flux-grid-runtime-v1-20260906T103700Z.zip
+  // at 5321737 bytes, whose sha256 is the archive_sha256 pinned below.
+  assert.equal(release.publication_status,'published_external_attachment_verified');
+  assert.equal(release.download_url,'https://github.com/2WKG/flux/releases/download/flux-grid-runtime-v1-20260906/flux-grid-runtime-v1-20260906T103700Z.zip');
   assert.equal(release.asset_filename,'flux-grid-runtime-v1-20260906T103700Z.zip');
   assert.equal(release.archive_sha256,'44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78');
   assert.equal(release.runtime_manifest_sha256,'068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b');

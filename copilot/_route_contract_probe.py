@@ -35,7 +35,9 @@ def _instrument(app: FastAPI) -> FastAPI:
     async def _record(request: Request, call_next: Any) -> Any:
         response = await call_next(request)
         route = request.scope.get("route")
-        template = getattr(route, "path", request.url.path)
+        template = getattr(
+            route, "path_format", getattr(route, "path", request.url.path)
+        )
         _CALLS.append((request.method.upper(), template, response.status_code))
         return response
 

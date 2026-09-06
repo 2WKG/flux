@@ -41,7 +41,11 @@ from typing import Any
 
 import requests
 
-from pipelines.physical_inventory import artifact_sha256, validate_artifact
+from pipelines.physical_inventory import (
+    PhysicalInventoryError,
+    artifact_sha256,
+    validate_artifact,
+)
 
 GEOGRAPHY_ID = "us-tx-distribution"
 ARTIFACT_VERSION = "1.0.0"
@@ -238,8 +242,34 @@ def fetch_service_area_layer(
     return source, capture
 
 
-def build_artifact(sources: list[dict[str, Any]], created_at: str) -> dict[str, Any]:
-    """Return the validated Texas distribution physical-inventory artifact.
+VALIDATOR_NAME = "pipelines.physical_inventory.validate_artifact"
+
+
+def validate_against_contract(
+    artifact: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, Any]]:
+    """Run the shared contract validator and return what it actually did.
+
+    Both outcomes are reachable and both are recorded.  The receipt's
+    ``verification.result`` is read off this record rather than written as a
+    literal, so a receipt can say ``failed`` and a run that never reached the
+    validator cannot say ``passed``.
+    """
+    try:
+        validated = validate_artifact(artifact)
+    except PhysicalInventoryError as error:
+        return None, {
+            "artifact_validated_by": VALIDATOR_NAME,
+            "result": "failed",
+            "detail": str(error),
+        }
+    return validated, {"artifact_validated_by": VALIDATOR_NAME, "result": "passed"}
+
+
+def build_artifact(
+    sources: list[dict[str, Any]], created_at: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return the validated artifact and the validation record it earned.
 
     ``assets`` is empty on purpose.  The retrieved sources carry owner
     service-area boundaries, and a boundary is not a physical distribution
@@ -280,7 +310,13 @@ def build_artifact(sources: list[dict[str, Any]], created_at: str) -> dict[str, 
         ],
     }
     artifact["content_sha256"] = artifact_sha256(artifact)
-    return validate_artifact(artifact)
+    validated, verification = validate_against_contract(artifact)
+    if validated is None:
+        raise TexasDistributionError(
+            "the Texas distribution artifact failed the shared physical-inventory "
+            f"contract and was not published: {verification['detail']}"
+        )
+    return validated, verification
 
 
 def build_receipt(
@@ -289,6 +325,7 @@ def build_receipt(
     output: Path,
     output_bytes: int,
     output_sha256: str,
+    verification: dict[str, Any],
 ) -> dict[str, Any]:
     """Return the checked-in source receipt for one real acquisition run."""
     return {
@@ -318,6 +355,7 @@ def build_receipt(
             {
                 "source_id": capture["source_id"],
                 "layer_url": capture["layer_url"],
+                "retrieved_at": capture["retrieved_at"],
                 "declared_count": capture["declared_count"],
                 "returned_features": capture["returned_features"],
                 "features_reconciled_to_declared_count": (
@@ -332,7 +370,7 @@ def build_receipt(
         ],
         "verification": {
             "artifact_content_sha256": artifact["content_sha256"],
-            "artifact_validated_by": "pipelines.physical_inventory.validate_artifact",
+            **verification,
             "observed_assets": len(artifact["assets"]),
             "terminals_created": len(artifact["terminals"]),
             "connectivity_edges_created": len(artifact["connectivity_edges"]),
@@ -340,7 +378,6 @@ def build_receipt(
             "unavailable_coverage_rows": sum(
                 1 for row in artifact["coverage"] if row["status"] == "unavailable"
             ),
-            "result": "passed",
         },
         "coverage": artifact["coverage"],
         "uncertainty": (
@@ -377,7 +414,9 @@ def main() -> int:
                 capture["raw"]
             )
 
-    artifact = build_artifact(sources, datetime.now(UTC).isoformat(timespec="seconds"))
+    artifact, verification = build_artifact(
+        sources, datetime.now(UTC).isoformat(timespec="seconds")
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(artifact, indent=2) + "\n"
     args.output.write_text(payload, encoding="utf-8", newline="\n")
@@ -389,6 +428,7 @@ def main() -> int:
             args.output,
             len(payload.encode()),
             hashlib.sha256(payload.encode()).hexdigest(),
+            verification,
         )
         args.receipt.parent.mkdir(parents=True, exist_ok=True)
         args.receipt.write_text(

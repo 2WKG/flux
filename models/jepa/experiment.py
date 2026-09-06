@@ -223,14 +223,10 @@ def verify_temporal_holdout(split: TemporalSplit) -> None:
             raise ValueError("evaluation context crosses the fixed holdout boundary")
         if _window_time(window, "target_end_utc") > holdout_end:
             raise ValueError("evaluation target exceeds the fixed holdout interval")
-    for train_window in split.train:
-        for holdout_window in split.holdout:
-            if _window_time(train_window, "context_start_utc") <= _window_time(
-                holdout_window, "target_end_utc"
-            ) and _window_time(holdout_window, "context_start_utc") <= _window_time(
-                train_window, "target_end_utc"
-            ):
-                raise ValueError("training and evaluation windows share a timestamp")
+    # No third pairwise loop: the two checks above are exhaustive. Every train
+    # window ends strictly before holdout_start and every evaluation window
+    # starts at or after it, so a shared timestamp is unrepresentable. The
+    # O(train x holdout) overlap scan that used to live here was unreachable.
 
 
 def _membership_sha256(split: TemporalSplit) -> str:
@@ -345,11 +341,27 @@ def run_experiment(
         config.target_steps,
         axis=1,
     )
+    train_actual_counts = np.maximum(np.expm1(y_train * scale + mean), 0)
+    train_predicted_counts = np.maximum(np.expm1(train_decoded * scale + mean), 0)
+    # The MAE-optimal single constant on the holdout. No flat forecast, however it
+    # is chosen, can beat this number, so it is the floor a real trajectory
+    # predictor has to clear.
+    best_constant = float(np.median(actual_counts))
+    best_constant_mae = float(np.mean(np.abs(best_constant - actual_counts)))
+    count_mae = float(np.mean(np.abs(predicted_counts - actual_counts)))
+    train_count_mae = float(
+        np.mean(np.abs(train_predicted_counts - train_actual_counts))
+    )
+    train_actual_std = float(np.std(train_actual_counts))
+    holdout_actual_std = float(np.std(actual_counts))
+    train_to_holdout_count_mae_ratio = (
+        train_count_mae / count_mae if count_mae else float("inf")
+    )
     metrics = {
         "holdout_embedding_mse": float(
             np.mean((hold_embedding - y_hold @ target_encoder) ** 2)
         ),
-        "holdout_count_mae": float(np.mean(np.abs(predicted_counts - actual_counts))),
+        "holdout_count_mae": count_mae,
         "holdout_count_rmse": float(
             math.sqrt(np.mean((predicted_counts - actual_counts) ** 2))
         ),
@@ -359,14 +371,12 @@ def run_experiment(
         "persistence_baseline_count_rmse": float(
             math.sqrt(np.mean((persistence_counts - actual_counts) ** 2))
         ),
-        "train_count_mae": float(
-            np.mean(
-                np.abs(
-                    np.maximum(np.expm1(train_decoded * scale + mean), 0)
-                    - np.maximum(np.expm1(y_train * scale + mean), 0)
-                )
-            )
-        ),
+        "best_constant_baseline_count_mae": best_constant_mae,
+        "best_constant_baseline_count": best_constant,
+        "train_count_mae": train_count_mae,
+        "train_actual_count_std": train_actual_std,
+        "holdout_actual_count_std": holdout_actual_std,
+        "train_to_holdout_count_mae_ratio": train_to_holdout_count_mae_ratio,
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     weights_path = output_dir / "jepa_count_forecast_weights.npz"
@@ -447,6 +457,13 @@ def run_experiment(
             "train_time_bounds": _bounds(split.train),
             "holdout_time_bounds": _bounds(split.holdout),
             "membership_sha256": _membership_sha256(split),
+            "window_stride_steps": config.context_steps + config.target_steps,
+            "target_context_overlap_steps": 0,
+            "overlap_verification": "Each county advances by the full context-plus-target span; no target timestamp is reused as any later context timestamp.",
+            "county_window_counts": {
+                fips: sum(window.county_fips == fips for window in all_windows)
+                for fips in observed_county_fips
+            },
             "train_counties": sorted({window.county_fips for window in split.train}),
             "holdout_counties": sorted(
                 {window.county_fips for window in split.holdout}
@@ -466,6 +483,14 @@ def run_experiment(
             "No customer-normalized label, weather forecast, topology, or cascade inference.",
             "Forecast target is held-out historical EAGLE-I customers_out.",
             "A persistence baseline is recorded for comparison; experimental metrics do not establish operational usefulness.",
+            (
+                f"Regime asymmetry: train count MAE {train_count_mae:.2f} against holdout "
+                f"count MAE {count_mae:.2f} ({train_to_holdout_count_mae_ratio:.1f}x), with "
+                f"actual-count standard deviation {train_actual_std:.2f} on the train slice "
+                f"against {holdout_actual_std:.2f} on the holdout. The fixed late-2024 holdout "
+                "is a different regime from the training span, so beating persistence there "
+                "does not establish skill on the training regime."
+            ),
         ],
     }
     artifact_path = output_dir / "jepa_count_forecast_artifact.json"

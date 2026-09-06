@@ -15,9 +15,13 @@ DuckDB file:
 scripts/dev/launch_demo.sh --live --duckdb /absolute/path/to/grid.duckdb
 ```
 
-The helper uses loopback ports only and does not create data, contact a model
-provider, configure a tunnel, or publish an external service. Full start, stop,
-and limitation details are in [`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
+Both servers bind `127.0.0.1` by default, so the demo is reachable only from this
+machine; `--bind ADDR` is the explicit opt-in to publish it on an interface. The
+helper does not create data, contact a model provider, configure a tunnel, or
+publish an external service. `--status` reports the recorded processes and
+`--stop` stops them and verifies their ports are released before it reports
+success. Full start, stop, and limitation details are in
+[`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
 The Minnesota-specific aggregate/source boundary, static/API separation, and
 external-delivery limitation are recorded in
 [`docs/runbooks/minnesota-demo-handoff.md`](docs/runbooks/minnesota-demo-handoff.md).
@@ -40,4 +44,21 @@ npm --prefix web run build
 The synthetic fixture's cross-scenario validation report is documented in
 [`docs/data/synthetic-cross-scenario-validation.md`](docs/data/synthetic-cross-scenario-validation.md).
 
-The current fixture is not a Texas-grid model, outage forecast, interconnection study, or licensing assessment.
+## Demo source and current limits
+
+The desk's checked-in artifact is
+[`data/demo/bundle.json`](data/demo/bundle.json), generated from
+[`data/demo/synthetic-scenario-input-v1.json`](data/demo/synthetic-scenario-input-v1.json).
+It is source-attributed in the UI as `flux_checked_in_synthetic_fixture`, version
+`1`, and its fixture hash is shown in **Data, units & limits**. The file is a
+synthetic five-bus offline preview: it is not Minnesota, Texas, ERCOT, MISO, or
+an actual interconnection model; it is not a grid-flow result, outage forecast,
+historical reconstruction, or licensing assessment.
+
+The static desk needs no API or external data service at runtime. A public
+BouncePulse rehearsal is not implied by a successful local start; the current
+tunnel and external-route state is recorded in
+[`docs/runbooks/static-origin-and-tunnel.md`](docs/runbooks/static-origin-and-tunnel.md).
+The dated freeze-readiness handoff, including its remaining external and backup
+recording blockers, is
+[`docs/runbooks/2wkg-87-freeze-readiness-2026-09-06.md`](docs/runbooks/2wkg-87-freeze-readiness-2026-09-06.md).

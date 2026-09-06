@@ -12,7 +12,7 @@
 import { ChatDock, type ChatDockProps, type ChatError, type ChatStatus } from "../chat/ChatDock";
 import { RunTrace } from "../ask/run-state/RunTrace";
 import type { RunIdentity, RunState, ToolResultEvent } from "../ask/run-state/types";
-import "./main-assistant.css";
+import { sceneActionFromResult, type ReceivedSceneAction } from "../interactive/AgentSimulationAdapter";
 
 export interface MainAssistantProps {
   /**
@@ -28,7 +28,7 @@ export interface MainAssistantProps {
 
 export type SceneActionAvailability =
   | { readonly availability: "unavailable"; readonly reason: "absent_from_received_ask_event_data" }
-  | { readonly availability: "available"; readonly result: ToolResultEvent };
+  | { readonly availability: "available"; readonly action: ReceivedSceneAction; readonly result: ToolResultEvent };
 
 const NO_SCENE_ACTION: SceneActionAvailability = {
   availability: "unavailable",
@@ -36,13 +36,22 @@ const NO_SCENE_ACTION: SceneActionAvailability = {
 };
 
 /**
- * The v1 `/ask` contract carries generic tool results only.  It has no action,
- * geometry, attribution, or reversal field.  Do not infer a scene change from
- * a tool name, answer prose, or an arbitrary nested result object.  A future
- * version can pass a result through here only after it adds an explicit scene
- * action envelope to the shared SSE contract.
+ * A scene change is never inferred from a tool name, answer prose, or an arbitrary
+ * nested result object.  The only thing read here is the explicit additive
+ * `tool_result.result.scene_action` envelope now declared in
+ * `docs/research/sse-event-schema.md` § "`scene_action` (additive)", and it is read
+ * through the ONE reader (`sceneActionFromResult`) that applies the shared kind
+ * vocabulary and identity rule.  A run whose results carry no admissible, available
+ * action stays unavailable, which is every v1 run that predates the envelope.
  */
-export function sceneActionAvailability(_run: RunState): SceneActionAvailability {
+export function sceneActionAvailability(run: RunState): SceneActionAvailability {
+  for (const event of run.trace) {
+    if (event.type !== "tool_result") continue;
+    const action = sceneActionFromResult(event);
+    if (action !== null && action.status === "available") {
+      return { availability: "available", action, result: event };
+    }
+  }
   return NO_SCENE_ACTION;
 }
 
@@ -118,7 +127,7 @@ export function MainAssistant({ chat, run, onCancelRun }: MainAssistantProps) {
         {sceneAction.availability === "unavailable" ? (
           <p>No scene action is available because the received /ask event data has no explicit action envelope.</p>
         ) : (
-          <p>Scene action supplied by tool result {sceneAction.result.call_id}.</p>
+          <p>{sceneAction.action.kind} action supplied by tool result {sceneAction.result.call_id}.</p>
         )}
       </section>
       <ChatDock

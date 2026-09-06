@@ -37,12 +37,24 @@ context and target start/end timestamps. Any requested county that produced no
 contiguous window is listed by name in `scope.unavailable_county_fips` with a
 reason, never silently dropped.
 
-There is no consumer of this artifact yet; nothing in the repository reads it.
-Wiring one — and the validation it would need (kind, status, forecast arrays,
-county scope, weights digest, and showing `limitations` unchanged) — is a
-2WKG-474 follow-up, not something this PR ships or tests.
+`web/src/explainer/jepa/recordedEvaluation.ts` reads a vendored copy of an
+artifact from this module and fails closed in `assertRecordedEvaluation` unless
+`metrics` carries `holdout_count_mae`, `holdout_count_rmse`,
+`persistence_baseline_count_mae`, `persistence_baseline_count_rmse`,
+`holdout_embedding_mse`, `train_count_mae` and
+`train_to_holdout_count_mae_ratio`. That copy is a *chronological-split* run
+recorded before this fixed-interval policy; it is not regenerated here, and the
+explainer keeps naming the split it actually came from. Any artifact this module
+emits must keep every one of those metrics.
 
-There is no checked-in result for this policy. Metrics and artifacts must be
+`metrics` records three baselines beside the model: persistence, the
+MAE-optimal constant (`best_constant_baseline_count_mae`, which no flat forecast
+can beat), and the train-versus-holdout error and spread
+(`train_to_holdout_count_mae_ratio`, `train_actual_count_std`,
+`holdout_actual_count_std`). The last entry in `limitations` states the
+train/holdout regime gap with those numbers.
+
+There is no checked-in result for this fixed-interval policy. Metrics and artifacts must be
 generated together from the verified pinned source; an older artifact or its
 weights cannot support this temporal-holdout claim. `metrics` records the JEPA
 and persistence values for the fresh holdout only. It does not claim storm,

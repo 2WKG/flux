@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import type { AskResult, ResultActionHandler, ResultCitation } from "./types";
-import { isSupportedResultAction, traceableNumberLiterals } from "./types";
+import { REVERSIBLE_ACTION_KINDS, isSupportedResultAction, traceableNumberLiterals } from "./types";
 
 export interface ResultCardsProps {
   results: readonly AskResult[];
@@ -126,11 +126,14 @@ function Status({ result }: { result: AskResult }) {
 
 export function ResultCard({ result, onAction, onUndoAction, titleId }: { result: AskResult; onAction?: ResultActionHandler; onUndoAction?: ResultActionHandler; titleId: string }) {
   const [applied, setApplied] = useState(false);
-  const action = result.status.availability === "request_failed" || result.status.availability === "unavailable"
+  const supported = result.status.availability === "request_failed" || result.status.availability === "unavailable"
     ? undefined
     : isSupportedResultAction(result.action) ? result.action : undefined;
+  // Recognised by the shared vocabulary is not the same as offerable here: only a kind in
+  // REVERSIBLE_ACTION_KINDS can be undone against the caller's own scene state.
+  const action = supported !== undefined && REVERSIBLE_ACTION_KINDS.includes(supported.kind) ? supported : undefined;
   const actionUnavailable = result.action?.geometry === "unavailable";
-  const actionRejected = result.action !== undefined && !actionUnavailable && !isSupportedResultAction(result.action);
+  const actionRejected = result.action !== undefined && !actionUnavailable && action === undefined;
   return <article className="ask-result" aria-labelledby={titleId}>
     <header>
       <p className="ask-result__eyebrow">{result.scope ?? "Ask result"}{result.scenarioId ? ` · ${result.scenarioId}` : ""}</p>
