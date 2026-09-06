@@ -7,6 +7,7 @@ import { createRunState } from "./ask/run-state/reducer";
 import { ChatDock, type SceneContext } from "./chat/ChatDock";
 import { Inspector } from "./inspector/Inspector";
 import { MapLibreDeckFoundation } from "./renderer/MapLibreDeckFoundation";
+import type { SceneView } from "./renderer/scene-view";
 import { AppShell } from "./shell/AppShell";
 import "./styles.css";
 
@@ -35,9 +36,14 @@ const ORDER: Id[] = ["baseline", "a", "b"];
 const BUSES: Record<string, Bus> = Object.fromEntries(data.network.buses.map((bus) => [bus.id, bus]));
 const BASELINE_LOADS = data.scenarios.baseline.metrics.lineLoadings;
 const WORST_SHED = Math.max(...ORDER.map((id) => data.scenarios[id].metrics.shedMw));
-const UNAVAILABLE_MODEL_SCENE = {
-  kind: "rejected" as const,
-  reason: "aggregate_only_no_geometry" as const,
+/**
+ * The static demo ships no geographic artifact at all, so its state is the
+ * shared `unavailable` token -- not `aggregate_only_no_geometry`, which names
+ * accepted aggregate coverage that exists but carries no geometry.
+ */
+const UNAVAILABLE_MODEL_SCENE: SceneView = {
+  status: "unavailable",
+  points: [],
   detail: "No accepted geographic feature artifact is available in the bundled static demo.",
 };
 
@@ -340,16 +346,16 @@ function App() {
       title="Where does 300 MW cut the most unmet demand?"
       source={{
         status: "synthetic",
-        label: "Synthetic five-bus fixture · OpenFreeMap basemap context · no API required",
+        label: "Synthetic five-bus fixture · offline basemap · no API required",
         detail: "Checked-in synthetic artifact; no live API or agent connection. Not a Minnesota or Texas topology, facility map, or interconnection result.",
       }}
       viewport={
         <>
         <section className="model-scene">
           <div className="model-scene__head">
-            <div><p className="eyebrow">GEOGRAPHIC MODEL SCENE</p><p className="hint">Basemap context only. Feature geometry and 3D assets are unavailable.</p></div>
+            <div><p className="eyebrow">GEOGRAPHIC MODEL SCENE</p><p className="hint">Offline geometry-free basemap. No tiles are fetched; feature geometry and 3D assets are unavailable.</p></div>
           </div>
-          <MapLibreDeckFoundation adaptation={UNAVAILABLE_MODEL_SCENE} />
+          <MapLibreDeckFoundation view={UNAVAILABLE_MODEL_SCENE} />
         </section>
         <article className="map">
           <div className="map-head">
