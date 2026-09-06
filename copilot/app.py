@@ -19,6 +19,11 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
+from copilot.dispatcher import (
+    ToolCallingProvider,
+    ToolDispatcher,
+    interactive_tool_handlers,
+)
 from copilot.interactive_routes import (
     create_interactive_router,
     create_interactive_service,
@@ -41,13 +46,16 @@ def create_app(
     settings: Settings | None = None,
     *,
     ask_backend: AskBackend | None = None,
+    tool_provider: ToolCallingProvider | None = None,
+    tool_dispatcher: ToolDispatcher | None = None,
 ) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings if settings is not None else load_settings()
-    # Provider and tool orchestration stay deployment-injected.  The default is
+    # Provider and tool orchestration stay deployment-injected. The default is
     # deliberately unavailable rather than an implicit provider/network call.
     app.state.ask_backend = ask_backend
+    app.state.tool_provider = tool_provider
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
@@ -72,6 +80,13 @@ def create_app(
             )
         return await http_exception_handler(request, exc)
 
+    app.state.interactive_service = create_interactive_service(
+        duckdb_path=app.state.settings.duckdb_path
+    )
+    app.state.tool_dispatcher = tool_dispatcher or ToolDispatcher(
+        interactive_tool_handlers(app.state.interactive_service)
+    )
+
     app.include_router(health_router)
     app.include_router(layers_router)
     app.include_router(physical_layers_router)
@@ -83,9 +98,6 @@ def create_app(
     app.include_router(ask_router)
     app.include_router(minnesota_smr_router)
     app.include_router(mn_comparisons_router)
-    app.state.interactive_service = create_interactive_service(
-        duckdb_path=app.state.settings.duckdb_path
-    )
     app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 

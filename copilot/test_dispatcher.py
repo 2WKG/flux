@@ -1,17 +1,29 @@
 from __future__ import annotations
 
 import asyncio
+import json
+from pathlib import Path
 
 import pytest
+from fastapi.testclient import TestClient
 
-from copilot.dispatcher import AssistantText, ToolCall, ToolDispatcher
-from copilot.tools.schemas import TOOL_REGISTRY
+from copilot.app import create_app
+from copilot.config import Settings
+from copilot.dispatcher import (
+    AssistantText,
+    ToolCall,
+    ToolDispatcher,
+    interactive_tool_handlers,
+)
+from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output
 
 
 def _handlers(calls: list[tuple[str, object]]):
     async def handler(payload, context):
         calls.append((payload.__class__.__name__, context["scenario_id"]))
-        return {"status": "available", "value": 1}
+        return unavailable_output(
+            "unsupported_request", "test implementation unavailable"
+        ).model_dump(mode="json")
 
     return {definition.name: handler for definition in TOOL_REGISTRY}
 
@@ -43,3 +55,85 @@ def test_dispatcher_fails_closed_on_invalid_provider_arguments() -> None:
 
     with pytest.raises(ValueError, match="invalid arguments"):
         asyncio.run(ToolDispatcher(_handlers([])).run(BadProvider(), question="x", history=(), context={}))
+
+
+class _InteractiveService:
+    async def scenario_edit(self, payload):
+        assert payload.base_scenario_id == "interactive"
+        return {
+            "model_fidelity": "dc_screening",
+            "network_provenance": "synthetic_activsg2000",
+            "limitations": ["Synthetic topology only."],
+            "data": {"edit_hash": "f" * 16},
+        }
+
+
+class _AskProvider:
+    def __init__(self) -> None:
+        self.actions = [
+            ToolCall(
+                "scene-edit-1",
+                "scenario_edit",
+                {
+                    "base_scenario_id": "interactive",
+                    "ops": [{"op": "outage", "element_id": "line:7"}],
+                    "hour": 0,
+                    "seed": 0,
+                },
+            ),
+            AssistantText("The requested synthetic edit is available."),
+        ]
+
+    async def next_action(self, **kwargs):
+        assert len(kwargs["tools"]) == 13
+        return self.actions.pop(0)
+
+
+def _events(response) -> list[tuple[str, dict[str, object]]]:
+    assert response.headers["content-type"].startswith("text/event-stream")
+    events = []
+    for block in response.text.replace("\r\n", "\n").strip().split("\n\n"):
+        fields = dict(
+            line.split(": ", 1) for line in block.splitlines() if ": " in line
+        )
+        if "event" in fields:
+            events.append((fields["event"], json.loads(fields["data"])))
+    return events
+
+
+def test_ask_uses_provider_selected_pydantic_handler_and_nests_scene_action() -> None:
+    provider = _AskProvider()
+    dispatcher = ToolDispatcher(interactive_tool_handlers(_InteractiveService()))
+    client = TestClient(
+        create_app(
+            Settings(duckdb_path=Path("/tmp/grid.duckdb")),
+            tool_provider=provider,
+            tool_dispatcher=dispatcher,
+        )
+    )
+    events = _events(
+        client.post(
+            "/ask",
+            json={
+                "attempt_id": "dispatcher_scene_action_1",
+                "question": "Make this outage edit.",
+                "history": [],
+            },
+        )
+    )
+    assert [name for name, _ in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "text",
+        "done",
+    ]
+    result = events[2][1]["result"]
+    assert result["scene_action"] == {
+        "action_id": "scenario_edit:scene-edit-1",
+        "kind": "scenario_edit",
+        "tool_call_id": "scene-edit-1",
+        "edit_hash": "f" * 16,
+        "reversible": True,
+        "status": "available",
+    }

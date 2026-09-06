@@ -42,6 +42,55 @@
       "title": "ArtifactRef",
       "type": "object"
     },
+    "BalanceInput": {
+      "additionalProperties": false,
+      "properties": {
+        "edit_hash": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 16,
+              "pattern": "^[a-f0-9]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edit Hash"
+        },
+        "hour": {
+          "const": 0,
+          "default": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "scope": {
+          "default": "base",
+          "enum": [
+            "base",
+            "edit"
+          ],
+          "title": "Scope",
+          "type": "string"
+        },
+        "seed": {
+          "const": 0,
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "title": "BalanceInput",
+      "type": "object"
+    },
     "CascadeData": {
       "additionalProperties": false,
       "properties": {
@@ -810,6 +859,146 @@
       "title": "CriticalLoadLoss",
       "type": "object"
     },
+    "InteractiveCascadeInput": {
+      "additionalProperties": false,
+      "properties": {
+        "edit_hash": {
+          "anyOf": [
+            {
+              "maxLength": 64,
+              "minLength": 16,
+              "pattern": "^[a-f0-9]+$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Edit Hash"
+        },
+        "element_ids": {
+          "items": {
+            "maxLength": 160,
+            "minLength": 1,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Element Ids",
+          "type": "array"
+        },
+        "hour": {
+          "const": 0,
+          "default": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "seed": {
+          "const": 0,
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "element_ids"
+      ],
+      "title": "InteractiveCascadeInput",
+      "type": "object"
+    },
+    "InteractiveData": {
+      "additionalProperties": false,
+      "description": "A validated envelope from the non-persisting interactive service.",
+      "properties": {
+        "data": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Data",
+          "type": "object"
+        },
+        "limitations": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Limitations",
+          "type": "array"
+        },
+        "model_fidelity": {
+          "const": "dc_screening",
+          "title": "Model Fidelity",
+          "type": "string"
+        },
+        "network_provenance": {
+          "const": "synthetic_activsg2000",
+          "title": "Network Provenance",
+          "type": "string"
+        },
+        "provenance": {
+          "items": {
+            "$ref": "#/$defs/ArtifactRef"
+          },
+          "maxItems": 50,
+          "title": "Provenance",
+          "type": "array"
+        },
+        "status": {
+          "const": "available",
+          "title": "Status",
+          "type": "string"
+        },
+        "unavailable": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Unavailable"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "status",
+        "model_fidelity",
+        "network_provenance",
+        "limitations",
+        "data"
+      ],
+      "title": "InteractiveData",
+      "type": "object"
+    },
+    "InteractiveEditOperation": {
+      "additionalProperties": false,
+      "properties": {
+        "element_id": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Element Id",
+          "type": "string"
+        },
+        "op": {
+          "const": "outage",
+          "title": "Op",
+          "type": "string"
+        }
+      },
+      "required": [
+        "op",
+        "element_id"
+      ],
+      "title": "InteractiveEditOperation",
+      "type": "object"
+    },
     "Intervention": {
       "additionalProperties": false,
       "properties": {
@@ -1247,6 +1436,39 @@
       "title": "PredictOutageInput",
       "type": "object"
     },
+    "RedundancyInput": {
+      "additionalProperties": false,
+      "properties": {
+        "bus_id": {
+          "minimum": 0,
+          "title": "Bus Id",
+          "type": "integer"
+        },
+        "hour": {
+          "const": 0,
+          "default": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "scenario_id": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Scenario Id",
+          "type": "string"
+        },
+        "seed": {
+          "const": 0,
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "bus_id"
+      ],
+      "title": "RedundancyInput",
+      "type": "object"
+    },
     "RetrievalHit": {
       "additionalProperties": false,
       "properties": {
@@ -1382,6 +1604,43 @@
         "hour"
       ],
       "title": "RunCascadeInput",
+      "type": "object"
+    },
+    "ScenarioEditInput": {
+      "additionalProperties": false,
+      "properties": {
+        "base_scenario_id": {
+          "const": "interactive",
+          "default": "interactive",
+          "title": "Base Scenario Id",
+          "type": "string"
+        },
+        "hour": {
+          "const": 0,
+          "default": 0,
+          "title": "Hour",
+          "type": "integer"
+        },
+        "ops": {
+          "items": {
+            "$ref": "#/$defs/InteractiveEditOperation"
+          },
+          "maxItems": 64,
+          "minItems": 1,
+          "title": "Ops",
+          "type": "array"
+        },
+        "seed": {
+          "const": 0,
+          "default": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "ops"
+      ],
+      "title": "ScenarioEditInput",
       "type": "object"
     },
     "ScenarioId": {
@@ -1920,6 +2179,22 @@
   "description": "Generated from copilot/tools/schemas.py by uv run --extra dev python scripts/ci/export_tool_contracts.py",
   "title": "Flux Copilot tool contracts",
   "tools": {
+    "balance": {
+      "description": "Read synthetic balance accounting for the static interactive baseline or an edit.",
+      "input": "#/$defs/BalanceInput",
+      "output": [
+        "#/$defs/InteractiveData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "cascade": {
+      "description": "Run a bounded synthetic cascade on the static interactive baseline.",
+      "input": "#/$defs/InteractiveCascadeInput",
+      "output": [
+        "#/$defs/InteractiveData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
     "causal_query": {
       "description": "Read a validated causal artifact or explicit unavailable result.",
       "input": "#/$defs/CausalQueryInput",
@@ -1952,11 +2227,27 @@
         "#/$defs/UnavailableOutput"
       ]
     },
+    "redundancy": {
+      "description": "Read bounded synthetic topology redundancy for a canonical bus.",
+      "input": "#/$defs/RedundancyInput",
+      "output": [
+        "#/$defs/InteractiveData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
     "run_cascade": {
       "description": "Read or run the bounded cascade contract.",
       "input": "#/$defs/RunCascadeInput",
       "output": [
         "#/$defs/CascadeData",
+        "#/$defs/UnavailableOutput"
+      ]
+    },
+    "scenario_edit": {
+      "description": "Create one immutable synthetic outage edit on the static interactive baseline.",
+      "input": "#/$defs/ScenarioEditInput",
+      "output": [
+        "#/$defs/InteractiveData",
         "#/$defs/UnavailableOutput"
       ]
     },

@@ -21,7 +21,7 @@ from copilot.tools.schemas import (
 from scripts.ci.export_tool_contracts import build_schema_document, render_ts
 
 
-def test_registry_has_exactly_the_nine_shared_contract_tools() -> None:
+def test_registry_has_the_nine_shared_and_four_interactive_contract_tools() -> None:
     assert [tool.name for tool in TOOL_REGISTRY] == [
         "predict_outage",
         "run_cascade",
@@ -32,6 +32,10 @@ def test_registry_has_exactly_the_nine_shared_contract_tools() -> None:
         "compare_interventions",
         "top_critical_elements",
         "causal_query",
+        "scenario_edit",
+        "cascade",
+        "balance",
+        "redundancy",
     ]
 
 
@@ -505,15 +509,40 @@ def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
             "assumptions",
         },
         "top_critical_elements": {"region", "n", "scenario_ids", "elements", "partial"},
-        "causal_query": {
+            "causal_query": {
             "answer_numbers",
             "method",
             "assumptions",
             "interval",
-            "evidence_rows",
-        },
-    }
+                "evidence_rows",
+            },
+            "scenario_edit": {
+                "model_fidelity",
+                "network_provenance",
+                "limitations",
+                "data",
+            },
+            "cascade": {
+                "model_fidelity",
+                "network_provenance",
+                "limitations",
+                "data",
+            },
+            "balance": {
+                "model_fidelity",
+                "network_provenance",
+                "limitations",
+                "data",
+            },
+            "redundancy": {
+                "model_fidelity",
+                "network_provenance",
+                "limitations",
+                "data",
+            },
+        }
     for definition in TOOL_REGISTRY:
         fields = definition.output_model[0].model_fields
         assert expected[definition.name] <= set(fields)
-        assert "data" not in fields
+        if definition.name not in {"scenario_edit", "cascade", "balance", "redundancy"}:
+            assert "data" not in fields
