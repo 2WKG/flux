@@ -3,6 +3,11 @@ import { useEffect, useMemo, useRef } from "react";
 import type { Layer, LayersList, PickingInfo } from "@deck.gl/core";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
+import {
+  AssetPackError,
+  assertAssetResponse,
+  type AssetPackLoadState,
+} from "./asset-pack";
 
 export type FluxAssetSourceMode = "physical_inventory" | "synthetic_texas_act";
 export type StatusLabel =
@@ -63,7 +68,7 @@ export interface FluxAssetLayerProps {
   readonly zoom: number;
   readonly onLayersChange: (layers: LayersList) => void;
   readonly onStateChange?: (
-    state: "ready" | "unavailable" | "request_failed",
+    state: AssetPackLoadState,
     detail: string,
   ) => void;
   readonly onSelect?: (placement: Placement) => void;
@@ -118,6 +123,15 @@ export function fluxPlacementsFor(
     };
   });
 }
+function resourceIsValid(value: unknown, model = false): value is Resource | File {
+  const resource = value as Record<string, unknown> | null;
+  return !!resource &&
+    typeof resource.path === "string" && resource.path.length > 0 &&
+    !resource.path.startsWith("/") && !resource.path.split("/").includes("..") &&
+    typeof resource.sha256 === "string" && /^[a-f0-9]{64}$/.test(resource.sha256) &&
+    typeof resource.bytes === "number" && Number.isInteger(resource.bytes) && resource.bytes > 0 &&
+    (!model || (typeof resource.triangles === "number" && Number.isInteger(resource.triangles) && resource.triangles > 0));
+}
 function isManifest(value: unknown): value is Manifest {
   const r = value as Record<string, unknown> | null;
   return (
@@ -126,13 +140,20 @@ function isManifest(value: unknown): value is Manifest {
     r.contract_id === "flux:3d-asset-archetypes:v1" &&
     Array.isArray(r.assets) &&
     r.assets.length === 18 &&
-    typeof r.symbols === "object"
+    r.assets.every((asset) => {
+      const record = asset as Record<string, unknown> | null;
+      const lods = record?.lods as Record<string, unknown> | undefined;
+      return typeof record?.archetype_id === "string" &&
+        ["lod0", "lod1", "lod2"].every((lod) => resourceIsValid(lods?.[lod], true));
+    }) &&
+    !!r.symbols &&
+    resourceIsValid((r.symbols as Record<string, unknown>).atlas) &&
+    resourceIsValid((r.symbols as Record<string, unknown>).mapping)
   );
 }
-async function bytes(base: string, file: Resource): Promise<ArrayBuffer> {
+async function bytes(base: string, file: Resource, kind: "model" | "image" | "mapping"): Promise<ArrayBuffer> {
   const r = await fetch(base + "/" + file.path);
-  if (!r.ok)
-    throw new Error("3D asset request failed (" + r.status + "): " + file.path);
+  assertAssetResponse(r, kind, file.path);
   const b = await r.arrayBuffer();
   const hash = Array.from(
     new Uint8Array(await crypto.subtle.digest("SHA-256", b)),
@@ -142,7 +163,8 @@ async function bytes(base: string, file: Resource): Promise<ArrayBuffer> {
     throw new Error("3D asset checksum mismatch: " + file.path);
   return b;
 }
-function currentLod(zoom: number): "symbol" | "lod0" | "lod1" | "lod2" {
+/** LOD bands from the reviewed pack manifest; input is the live MapLibre zoom. */
+export function assetLodForZoom(zoom: number): "symbol" | "lod0" | "lod1" | "lod2" {
   return zoom < 12
     ? "symbol"
     : zoom < 15
@@ -172,7 +194,7 @@ class Cache {
         // Preflight the immutable bytes before handing their same-origin URL to
         // deck.gl. Blob URLs are blocked by Flux's deliberate `connect-src
         // 'self'` policy, while a direct static URL remains CSP-safe.
-        bytes("/assets/flux-grid", file).then(
+        bytes("/assets/flux-grid", file, "model").then(
           () => "/assets/flux-grid/" + file.path,
         ),
       );
@@ -181,8 +203,8 @@ class Cache {
   icons(manifest: Manifest) {
     if (!this.iconPromise)
       this.iconPromise = Promise.all([
-        bytes("/assets/flux-grid", manifest.symbols.atlas),
-        bytes("/assets/flux-grid", manifest.symbols.mapping),
+        bytes("/assets/flux-grid", manifest.symbols.atlas, "image"),
+        bytes("/assets/flux-grid", manifest.symbols.mapping, "mapping"),
       ]).then(([, mapping]) => {
         return {
           atlas: "/assets/flux-grid/" + manifest.symbols.atlas.path,
@@ -259,7 +281,7 @@ async function makeLayers(
     pickable: true,
     onClick: click,
   });
-  const lod = currentLod(zoom);
+  const lod = assetLodForZoom(zoom);
   if (lod === "symbol") return [...badges, labels];
   const assets = new Map(
     manifest.assets.map((asset) => [asset.archetype_id, asset]),
@@ -313,13 +335,10 @@ export function FluxAssetLayer({
     void (async () => {
       try {
         const r = await fetch(manifestUrl, { cache: "no-store" });
-        const payload: unknown = r.ok ? await r.json() : null;
+        assertAssetResponse(r, "manifest", manifestUrl);
+        const payload: unknown = await r.json();
         if (!isManifest(payload))
-          throw new Error(
-            r.ok
-              ? "3D asset manifest is missing the Flux v1 contract."
-              : "3D asset manifest request failed (" + r.status + ").",
-          );
+          throw new AssetPackError("request_failed", "3D asset manifest is missing the Flux v1 contract.");
         const layers = await makeLayers(
           cache.current!,
           payload,
@@ -341,7 +360,7 @@ export function FluxAssetLayer({
         if (active) {
           onLayersChange([]);
           onStateChange?.(
-            "request_failed",
+            error instanceof AssetPackError ? error.state : "request_failed",
             error instanceof Error ? error.message : String(error),
           );
         }

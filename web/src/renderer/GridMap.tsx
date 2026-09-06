@@ -5,6 +5,7 @@ import type { SpatialItem } from "../data/grid-inventory";
 import { FluxAssetLayer, type FluxAssetPlacementInput } from "./FluxAssetLayer";
 import { positionsOf, type ScenePath } from "./grid-scene";
 import { MapLibreDeckFoundation } from "./MapLibreDeckFoundation";
+import { assetPackNotice, type AssetPackLoadState } from "./asset-pack";
 import type { SceneView } from "./scene-view";
 
 const ARCHETYPE_FOR_SOURCE_TYPE: Readonly<Record<string, string>> = {
@@ -39,13 +40,38 @@ export function GridMap({ view, paths, fitBounds, assetItems = [], onAssetSelect
   readonly onAssetSelect?: (item: SpatialItem) => void;
 }) {
   const [assetLayers, setAssetLayers] = useState<LayersList>([]);
+  // Do not guess a LOD from a fixture default. MapLibre reports the camera's
+  // real zoom after bounds fitting and on every user move.
+  const [zoom, setZoom] = useState<number | null>(null);
+  const [assetState, setAssetState] = useState<{ readonly state: AssetPackLoadState; readonly detail: string } | null>(null);
   const placements = useMemo(() => assetPlacementsForItems(assetItems), [assetItems]);
   const selectAsset = useCallback((placement: { readonly id: string }) => {
     const item = assetItems.find((candidate) => candidate.asset_id === placement.id);
     if (item !== undefined) onAssetSelect?.(item);
   }, [assetItems, onAssetSelect]);
+  const notice = assetState === null
+    ? { heading: "3D asset renderer", detail: "Waiting for the map camera before selecting a model LOD.", action: null }
+    : assetPackNotice(assetState.state, assetState.detail);
   return <>
-    <FluxAssetLayer mode="physical_inventory" placements={placements} zoom={12} onLayersChange={setAssetLayers} onSelect={selectAsset} />
-    <MapLibreDeckFoundation view={view} paths={paths} fitBounds={fitBounds} additionalLayers={assetLayers} />
+    {zoom === null ? null : <FluxAssetLayer
+      mode="physical_inventory"
+      placements={placements}
+      zoom={zoom}
+      onLayersChange={setAssetLayers}
+      onStateChange={(state, detail) => setAssetState({ state, detail })}
+      onSelect={selectAsset}
+    />}
+    <MapLibreDeckFoundation
+      view={view}
+      paths={paths}
+      fitBounds={fitBounds}
+      additionalLayers={assetLayers}
+      onZoomChange={setZoom}
+    />
+    <section className={`grid-map-note grid-asset-pack is-${assetState?.state ?? "loading"}`} role={assetState?.state === "install_required" ? "alert" : "status"} data-asset-pack-state={assetState?.state ?? "loading"}>
+      <strong>{notice.heading}</strong>
+      <span>{notice.detail}</span>
+      {notice.action ? <span>{notice.action}</span> : null}
+    </section>
   </>;
 }

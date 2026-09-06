@@ -27,6 +27,8 @@ export interface MapLibreDeckFoundationProps {
   readonly fitBounds?: readonly [readonly [number, number], readonly [number, number]] | null;
   /** Separately validated layers; callers own their identity and placement. */
   readonly additionalLayers?: LayersList;
+  /** Actual MapLibre camera zoom; drives CAD LOD selection in the caller. */
+  readonly onZoomChange?: (zoom: number) => void;
 }
 
 /**
@@ -34,7 +36,7 @@ export interface MapLibreDeckFoundationProps {
  * positions. It has no synthetic-XY conversion, feature fallback, model fetch,
  * or asset placement, and its default basemap issues no network request.
  */
-export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE, paths = [], fitBounds = null, additionalLayers = [] }: MapLibreDeckFoundationProps) {
+export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE, paths = [], fitBounds = null, additionalLayers = [], onZoomChange }: MapLibreDeckFoundationProps) {
   const [basemapError, setBasemapError] = useState<string | null>(null);
   const [overlayState, setOverlayState] = useState<OverlayState>("initializing");
   const [overlayError, setOverlayError] = useState<string | null>(null);
@@ -85,6 +87,8 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
         ? { bounds: fitBounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 48, maxZoom: 11 } }
         : { longitude: -94.2, latitude: 46.2, zoom: 5.6 }}
       mapStyle={basemapStyle}
+      onLoad={(event) => onZoomChange?.(event.target.getZoom())}
+      onMove={(event) => onZoomChange?.(event.viewState.zoom)}
       onError={(event) => setBasemapError(event.error.message)}
     >
       <DeckOverlay layers={layers} onInitialized={markOverlayReady} onFailed={markOverlayFailed} />
