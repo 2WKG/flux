@@ -1,0 +1,12 @@
+{
+  "artifact": "conus-states-2024-5m.geojson",
+  "source_url": "https://www2.census.gov/geo/tiger/GENZ2024/shp/cb_2024_us_state_5m.zip",
+  "source_sha256": "c9db0e395c11a1f94a8017fde4f4c7cbee1dca6eb37ba8f1ccaab927df70885f",
+  "derived_sha256": "d2e23717e68d9671b17ae7416750b388de15a67bd5e6460b09db6c5a85b0b344",
+  "publisher": "U.S. Census Bureau",
+  "dataset": "TIGER/Line Cartographic Boundary Files, 2024, States (1:5,000,000)",
+  "crs": "EPSG:4269 (NAD83)",
+  "display_transform": "MapLibre consumes geographic coordinates; no client coordinate transform is performed.",
+  "included": "CONUS states and District of Columbia; Alaska, Hawaii, territories excluded.",
+  "license": "U.S. Government work; public domain."
+}
