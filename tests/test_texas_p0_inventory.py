@@ -20,7 +20,7 @@ SPEC.loader.exec_module(inventory_module)
 
 ACTIVSG_INDEX = 0
 TIGER_INDEX = 1
-HRRR_INDEX = 9
+HRRR_INDEX = 5
 EAGLEI_INDEX = 6
 
 
@@ -41,8 +41,8 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
     assert report["summary"] == {
         "excluded": 1,
         "ingested": 0,
-        "unavailable": 1,
-        "validated": 9,
+        "unavailable": 0,
+        "validated": 10,
     }
     assert "synthetic" in report["synthetic_geometry_caveat"].lower()
     assert "not the real ercot" in report["synthetic_geometry_caveat"].lower()
@@ -182,14 +182,14 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         (
             _timestamp_on_unavailable,
             HRRR_INDEX,
-            "unavailable",
-            "unavailable record must have a null ingestion_timestamp",
+            "excluded",
+            "excluded record must have a null ingestion_timestamp",
         ),
         (
             _receipt_on_unavailable,
             HRRR_INDEX,
-            "unavailable",
-            "unavailable record must not claim a checked_in_receipt",
+            "excluded",
+            "excluded record must not claim a checked_in_receipt",
         ),
         (
             _timestamp_on_unavailable,
@@ -201,14 +201,14 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         (
             _duplicate_id,
             HRRR_INDEX,
-            "unavailable",
+            "excluded",
             "duplicate record id: activsg2000-current",
         ),
         (
             _http_url,
             HRRR_INDEX,
-            "unavailable",
-            "records[9].source_url must be an https URL",
+            "excluded",
+            "records[5].source_url must be an https URL",
         ),
         (
             _weaken_caveat,
@@ -228,7 +228,6 @@ def test_validator_rejects_evidence_claims_the_inventory_cannot_back(
     errors = inventory_module.validate_inventory(inventory)
 
     assert any(expected_error in error for error in errors), errors
-    assert inventory["records"][5]["id"] == "ercot-public-load"
 
 
 def test_receipt_cross_check_flags_hash_and_timestamp_drift(tmp_path: Path) -> None:

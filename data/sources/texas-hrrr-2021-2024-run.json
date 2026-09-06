@@ -1,1 +1,38 @@
-{"retrieved_at":"2026-09-06T05:52:00Z","provider":"NOAA HRRR archive","source_url":"https://noaa-hrrr-bdp-pds.s3.amazonaws.com","license_access":"U.S. government public data","validation":{"loader":"pipelines.hrrr.load_hrrr_window","workers":4,"uri_2021":{"hours":240,"weather_rows":60960,"source_runs":240,"elapsed_seconds":371.98405366599764},"beryl_2024":{"hours":96,"weather_rows":24384,"source_runs_total":336,"elapsed_seconds":132.56148308400589},"total_weather_rows":85344,"expected_counties_per_hour":254,"result":"passed"},"execution":{"wall_seconds":506.91,"max_rss_bytes":1357889536,"swaps":0,"durable_ignored_db":"data/raw/hrrr/runs/20260906T054451Z/grid.duckdb","db_sha256":"38453f9a1666f10e6b63af34d524ded71fc9416e14294a8c99e5a387f463a76f"},"uncertainty":"Raw field subsets, per-hour receipts, cache, and database remain ignored; the receipt records reproducible aggregate evidence only."}
+{
+  "retrieved_at": "2026-09-06T05:52:00Z",
+  "provider": "NOAA HRRR archive",
+  "source_url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com",
+  "license_access": "U.S. government public data",
+  "validation": {
+    "loader": "pipelines.hrrr.load_hrrr_window",
+    "workers": 4,
+    "uri_2021": {
+      "hours": 240,
+      "weather_rows": 60960,
+      "source_runs": 240,
+      "elapsed_seconds": 371.98405366599764
+    },
+    "beryl_2024": {
+      "hours": 96,
+      "weather_rows": 24384,
+      "source_runs_total": 336,
+      "elapsed_seconds": 132.56148308400589
+    },
+    "total_weather_rows": 85344,
+    "expected_counties_per_hour": 254,
+    "result": "passed"
+  },
+  "execution": {
+    "wall_seconds": 506.91,
+    "max_rss_bytes": 1357889536,
+    "swaps": 0,
+    "durable_ignored_db": "data/raw/hrrr/runs/20260906T054451Z/grid.duckdb",
+    "db_sha256": "38453f9a1666f10e6b63af34d524ded71fc9416e14294a8c99e5a387f463a76f"
+  },
+  "uncertainty": "Raw field subsets, per-hour receipts, cache, and database remain ignored; the receipt records reproducible aggregate evidence only.",
+  "files": {
+    "grid.duckdb": {
+      "sha256": "38453f9a1666f10e6b63af34d524ded71fc9416e14294a8c99e5a387f463a76f"
+    }
+  }
+}
