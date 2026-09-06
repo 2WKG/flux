@@ -47,7 +47,7 @@ These two are genuinely product/owner calls. Both options are stated. **OQ-1 is 
 `STATUS_COPY`'s copy — never `unavailable`, and never a bare rendered sentence. The cause travels
 with the token as the named code `stream_ended_without_terminal`.
 
-**Shipped in** PR [#249](https://github.com/2WKG/flux/pull/249) (2WKG-405):
+**Shipped in** PR [#248](https://github.com/2WKG/flux/pull/248) (2WKG-405):
 
 - `web/src/failure-states/types.ts` — `STREAM_ENDED_WITHOUT_TERMINAL`, the code's single owner.
 - `web/src/ask/run-state/reducer.ts` — the `stream_closed` action. On EOF, abort, or network loss
