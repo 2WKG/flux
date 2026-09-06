@@ -1,1 +1,199 @@
-{"schema_version":"event-baseline/v1","hazard":"snow-blizzard","event":{"event_id":"mn-2018-04-14-blizzard","parent_system_id":"upper_midwest_2018-04-13_cyclone","primary_hazard":"blizzard","secondary_hazards":["heavy_snow","strong_wind"],"compound":true,"source_event_ids":["NCEI:StormEvents:740148","NCEI:StormEvents:740083"],"context_window":{"start_utc":"2018-04-13T00:00:00Z","end_utc":"2018-04-17T00:00:00Z"},"event_window":{"start_utc":"2018-04-14T16:00:00Z","end_utc":"2018-04-15T01:00:00Z"},"recovery_window":{"start_utc":"2018-04-15T01:00:00Z","end_utc":"2018-04-17T00:00:00Z"},"disposition":"accepted","selection_basis":"NCEI Storm Events records a Hennepin-zone blizzard during the historic April cyclone; the definitive exhaustive EAGLE-I annual scan has a complete 24/24 Hennepin county window.","exclusions":[],"uncertainties":["Weather evidence is a county-named forecast-zone report (MNZ060), not a station time series.","Customer denominator is unavailable, so no outage rate or five-percent label is asserted."]},"source_receipts":[{"receipt_id":"ncei-stormevents-2018","provider":"NOAA NCEI","url":"https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz","release":"c20260323","retrieved_at_utc":"2026-09-06T07:19:43Z","license_or_access":"Public NOAA access; license not independently verified in this collection pass.","raw_sha256":"19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4","filtered_sha256":null,"bytes":9585982,"etag":null,"units":"Storm Events local standard-time event interval and hazard classification.","timezone_conversion":"CZ_TIMEZONE=CST-6: EVENT_ID 740148 maps 14-APR-18 10:00–19:00 to [2018-04-14T16:00:00Z,2018-04-15T01:00:00Z).","filters":"STATE=MINNESOTA; EPISODE_ID=123370; EVENT_ID in (740148,740083); CZ_NAME=HENNEPIN.","grid_index_mapping":"No grid index; forecast zone MNZ060 retained.","gaps":["Raw annual file is in approved ignored storage."]},{"receipt_id":"eaglei-2018-42547879-20180414t180000-20180415t000000","provider":"ORNL EAGLE-I via Figshare","url":"https://ndownloader.figshare.com/files/42547879","release":"10.6084/m9.figshare.24237376.v4","retrieved_at_utc":"2026-09-06T07:40:04.260005Z","license_or_access":"CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)","raw_sha256":"85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70","filtered_sha256":"895127461af17322d73cde2a99d8fecfca37187275134548064ef11760c7cbaf","bytes":999210542,"etag":"\"726543e4a392e220108b035ba4c52e43\"","units":"customers_out in customers; run_start_time UTC.","timezone_conversion":"none; EAGLE-I documentation states UTC.","filters":"Minnesota; FIPS 27053; UTC half-open [2018-04-14T18:00:00Z,2018-04-15T00:00:00Z); exhaustive annual stream.","grid_index_mapping":"No gridded index used.","gaps":["Full annual source is in approved ignored storage.","Figshare MD5 and ETag match the exhaustive-stream annual source sidecar.","No customer denominator; no population substitution."]}],"records":[{"record_id":"mn-2018-04-14-blizzard-27053-20180414t1800z","county_fips":"27053","boundary_vintage":"Census TIGER/Line 2024","scenario_id":"mn-2018-04-14-blizzard-replay","window_start_utc":"2018-04-14T18:00:00Z","window_end_utc":"2018-04-15T00:00:00Z","disposition":"accepted","mode":"replay","provenance_receipt_ids":["ncei-stormevents-2018","eaglei-2018-42547879-20180414t180000-20180415t000000"],"source_evidence_status":"available","source_row_keys":["eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:45:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:45:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:45:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:45:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:45:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:00:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:15:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:30:00Z","eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:45:00Z"],"source_slices":[{"receipt_id":"eaglei-2018-42547879-20180414t180000-20180415t000000","county_fips":"27053","start_utc":"2018-04-14T18:00:00Z","end_utc":"2018-04-15T00:00:00Z"}],"weather":{"coverage":"covered","evidence_kind":"authoritative_event_report","observation_kind":"observed","source_receipt_ids":["ncei-stormevents-2018"],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":{"source_event_ids":["NCEI:StormEvents:740148"],"source_window":{"start_utc":"2018-04-14T16:00:00Z","end_utc":"2018-04-15T01:00:00Z"},"spatial_scope":"zone","scope_identifier":"MNZ060 (Hennepin)","limitations":"Zone report establishes observed blizzard conditions but is not a county time series."},"notes":"NCEI EVENT_ID 740148 intersects the canonical county window."},"outage":{"coverage":"covered","evidence_kind":"time_series_or_grid","observation_kind":"observed","source_receipt_ids":["eaglei-2018-42547879-20180414t180000-20180415t000000"],"expected_samples":24,"observed_samples":24,"missing_timestamps":[],"event_report":null,"notes":"Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 36–89."},"matched_coverage_decision":"matched","label":{"rule_version":"county_outage_5pct_v1","status":"unavailable","observed_outage_customers":89,"customer_denominator":{"status":"unavailable","value":null},"outage_rate":null,"positive":null},"forecast":{"prediction_cutoff_utc":null,"forecast_evaluation":"not_forecast_scored","inputs":[]}}]}
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "snow-blizzard",
+  "event": {
+    "event_id": "mn-2018-04-14-blizzard",
+    "parent_system_id": "upper_midwest_2018-04-13_cyclone",
+    "primary_hazard": "blizzard",
+    "secondary_hazards": [
+      "heavy_snow",
+      "strong_wind"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "NCEI:StormEvents:740148",
+      "NCEI:StormEvents:740083"
+    ],
+    "context_window": {
+      "start_utc": "2018-04-13T00:00:00Z",
+      "end_utc": "2018-04-17T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2018-04-14T16:00:00Z",
+      "end_utc": "2018-04-15T01:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2018-04-15T01:00:00Z",
+      "end_utc": "2018-04-17T00:00:00Z"
+    },
+    "disposition": "accepted",
+    "selection_basis": "NCEI Storm Events records a Hennepin-zone blizzard during the historic April cyclone; the definitive exhaustive EAGLE-I annual scan has a complete 24/24 Hennepin county window.",
+    "exclusions": [],
+    "uncertainties": [
+      "Weather evidence is a county-named forecast-zone report (MNZ060), not a station time series.",
+      "Customer denominator is unavailable, so no outage rate or five-percent label is asserted."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei-stormevents-2018",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz",
+      "release": "c20260323",
+      "retrieved_at_utc": "2026-09-06T07:19:43Z",
+      "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
+      "raw_sha256": "19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4",
+      "filtered_sha256": null,
+      "bytes": 9585982,
+      "etag": null,
+      "units": "Storm Events local standard-time event interval and hazard classification.",
+      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 740148 maps 14-APR-18 10:00\u201319:00 to [2018-04-14T16:00:00Z,2018-04-15T01:00:00Z).",
+      "filters": "STATE=MINNESOTA; EPISODE_ID=123370; EVENT_ID in (740148,740083); CZ_NAME=HENNEPIN.",
+      "grid_index_mapping": "No grid index; forecast zone MNZ060 retained.",
+      "gaps": [
+        "Raw annual file is in approved ignored storage."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2018-42547879-20180414t180000-20180415t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547879",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:40:04.260005Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "filtered_sha256": "895127461af17322d73cde2a99d8fecfca37187275134548064ef11760c7cbaf",
+      "bytes": 999210542,
+      "etag": "\"726543e4a392e220108b035ba4c52e43\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC.",
+      "filters": "Minnesota; FIPS 27053; UTC half-open [2018-04-14T18:00:00Z,2018-04-15T00:00:00Z); exhaustive annual stream.",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Full annual source is in approved ignored storage.",
+        "Figshare MD5 and ETag match the exhaustive-stream annual source sidecar.",
+        "No customer denominator; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547879",
+        "source_file": "eaglei_outages_2018.csv",
+        "source_file_id": 42547879,
+        "source_file_bytes": 999210542,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+        "raw_artifact_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+        "source_sidecar_sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2018-04-14-blizzard-27053-20180414180000_eaglei_2018_20180414T180000_20180415T000000.csv",
+        "filtered_artifact_sha256": "895127461af17322d73cde2a99d8fecfca37187275134548064ef11760c7cbaf"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2018-04-14-blizzard-27053-20180414t1800z",
+      "county_fips": "27053",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2018-04-14-blizzard-replay",
+      "window_start_utc": "2018-04-14T18:00:00Z",
+      "window_end_utc": "2018-04-15T00:00:00Z",
+      "disposition": "accepted",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-stormevents-2018",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T18:45:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T19:45:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T20:45:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T21:45:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T22:45:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:00:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:15:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:30:00Z",
+        "eaglei-2018-42547879-20180414t180000-20180415t000000:27053:2018-04-14T23:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2018-42547879-20180414t180000-20180415t000000",
+          "county_fips": "27053",
+          "start_utc": "2018-04-14T18:00:00Z",
+          "end_utc": "2018-04-15T00:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei-stormevents-2018"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "NCEI:StormEvents:740148"
+          ],
+          "source_window": {
+            "start_utc": "2018-04-14T16:00:00Z",
+            "end_utc": "2018-04-15T01:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "MNZ060 (Hennepin)",
+          "limitations": "Zone report establishes observed blizzard conditions but is not a county time series."
+        },
+        "notes": "NCEI EVENT_ID 740148 intersects the canonical county window."
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2018-42547879-20180414t180000-20180415t000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 36\u201389."
+      },
+      "matched_coverage_decision": "matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": 89,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
