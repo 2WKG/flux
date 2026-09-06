@@ -1,0 +1,25 @@
+{
+  "source_id": "eia860_2025er",
+  "authority": "U.S. Energy Information Administration",
+  "source_ref": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
+  "source_version": "2025 Early Release",
+  "retrieved_at": "2026-09-06T12:00:00Z",
+  "license_or_terms": "Public EIA data; see EIA terms of use.",
+  "content_sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+  "source_scope": "Form EIA-860 reporting plants and generator records. The EIA early-release notice says these files are not fully edited, may exclude records pending validation, and are inappropriate for aggregation.",
+  "coordinate_scope": "Schedule 2 reports plant latitude and longitude. Schedule 3.1 generator and 3.4 storage records attach to plant IDs but do not provide unit coordinates, terminals, network edges, or facility polygons.",
+  "verified_counts": {
+    "TX": {
+      "plant_rows": 1514,
+      "generator_rows": 3393,
+      "storage_rows": 460,
+      "invalid_or_out_of_range_plant_coordinates": 1
+    },
+    "MN": {
+      "plant_rows": 850,
+      "generator_rows": 1555,
+      "storage_rows": 11,
+      "invalid_or_out_of_range_plant_coordinates": 0
+    }
+  }
+}
