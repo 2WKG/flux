@@ -6,12 +6,15 @@
  * whether that entity is currently in the visible set, and the truth label
  * and provenance that travelled with it at pick time.
  *
- * Per `docs/specs/00-overview.md`'s browser/server boundary and
- * `docs/design/minnesota-gate-0-approval.md`'s frozen truth-label vocabulary,
- * this module never invents a label: a pick payload with no valid
- * artifact-level truth label (`source_backed` | `synthetic` | `unavailable`,
- * matching `../scene/minnesota-adapter.ts`'s `TruthLabel`) is rejected, not
- * defaulted, and never reaches the store as a selection.
+ * Per `docs/specs/00-overview.md`'s browser/server boundary, this module
+ * never invents a label: a pick payload with no valid status token is
+ * rejected, not defaulted, and never reaches the store as a selection. The
+ * vocabulary is `../labels.ts`'s `AssetStatus` -- the six UI-status tokens
+ * `docs/design/minnesota-demo-narrative-ia.md` and
+ * `docs/design/minnesota-gate-0-approval.md` freeze (`source_supported`,
+ * `source_screened`, `hypothetical`, `synthetic`, `unavailable`,
+ * `request_failed`; deliberately no `illustrative`). That module is written
+ * once so this one imports it rather than restating the list a third time.
  *
  * Stability rule (explicit, tested): selecting an entity and then navigating
  * or zooming must never silently clear the selection. When the picked
@@ -21,19 +24,14 @@
  * selection.
  */
 
-import type { TruthLabel } from "../scene/minnesota-adapter.js";
+import { isAssetStatus, type AssetStatus } from "../labels.js";
 
-export type { TruthLabel };
+export type { AssetStatus };
 
 /** The three pickable entity kinds. Never a browser-generated pseudo-kind. */
 export type EntityKind = "line" | "node" | "facility";
 
 const VALID_KINDS: ReadonlySet<string> = new Set<EntityKind>(["line", "node", "facility"]);
-const VALID_TRUTH_LABELS: ReadonlySet<string> = new Set<TruthLabel>([
-  "source_backed",
-  "synthetic",
-  "unavailable",
-]);
 
 /** Provenance that travels with a pick, not fetched separately afterward. */
 export interface EntityProvenance {
@@ -52,7 +50,7 @@ export interface PickedEntity {
   /** The server's own id. This module never generates or rewrites an id. */
   readonly id: string;
   readonly name: string | null;
-  readonly truthLabel: TruthLabel;
+  readonly truthLabel: AssetStatus;
   readonly provenance: EntityProvenance;
 }
 
@@ -135,7 +133,7 @@ export function toPickedEntity(raw: unknown): PickedEntity | PickRejection {
   if (typeof id !== "string" || id.length === 0) {
     return reject("missing_id", `Picked ${kind} carries no server id.`);
   }
-  if (typeof truthLabel !== "string" || !VALID_TRUTH_LABELS.has(truthLabel)) {
+  if (!isAssetStatus(truthLabel)) {
     return reject(
       "missing_truth_label",
       `Picked ${kind} "${id}" carries no valid truth label; the browser may not invent one.`,
@@ -147,7 +145,7 @@ export function toPickedEntity(raw: unknown): PickedEntity | PickRejection {
     kind: kind as EntityKind,
     id,
     name: typeof name === "string" ? name : null,
-    truthLabel: truthLabel as TruthLabel,
+    truthLabel,
     provenance: {
       layer: typeof provenanceRecord.layer === "string" ? provenanceRecord.layer : "unknown",
       sourceNames: stringsOf(provenanceRecord.sourceNames ?? provenanceRecord.source_names),

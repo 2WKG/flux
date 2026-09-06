@@ -10,13 +10,13 @@ const outputDirectory = mkdtempSync(join(tmpdir(), "flux-selection-"));
 process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true }));
 // Run tsc's entrypoint through this Node binary rather than ./node_modules/.bin/tsc:
 // that shim is POSIX-only, so spawning it fails with ENOENT on a Windows checkout.
-// selection.ts imports ../scene/minnesota-adapter.ts, so it is compiled alongside it.
+// selection.ts imports ../labels.ts, so it is compiled alongside it.
 execFileSync(
   process.execPath,
   [
     "./node_modules/typescript/bin/tsc",
     "src/selection/selection.ts",
-    "src/scene/minnesota-adapter.ts",
+    "src/labels.ts",
     "--target",
     "ES2022",
     "--module",
@@ -41,7 +41,7 @@ function node(overrides = {}) {
     kind: "node",
     id: "mn-node-1",
     name: "Hennepin Substation",
-    truthLabel: "source_backed",
+    truthLabel: "source_supported",
     provenance: { layer: "buses", sourceNames: ["mn_accepted"], fixtureBatchIds: ["batch-1"] },
     ...overrides,
   };
@@ -53,7 +53,7 @@ test("selecting a picked entity produces a visible selection keyed by the server
   assert.equal(state.kind, "selected");
   assert.equal(state.entity.id, "mn-node-1");
   assert.equal(state.presence, "visible");
-  assert.equal(state.entity.truthLabel, "source_backed");
+  assert.equal(state.entity.truthLabel, "source_supported");
 });
 
 test("selection survives navigation: reconciling against a visible set that still contains the id changes nothing", () => {

@@ -10,14 +10,14 @@ const outputDirectory = mkdtempSync(join(tmpdir(), "flux-inspector-"));
 process.on("exit", () => rmSync(outputDirectory, { recursive: true, force: true }));
 // Run tsc's entrypoint through this Node binary rather than ./node_modules/.bin/tsc:
 // that shim is POSIX-only, so spawning it fails with ENOENT on a Windows checkout.
-// inspector.ts imports ./selection.ts, which imports ../scene/minnesota-adapter.ts.
+// inspector.ts imports ./selection.ts, which imports ../labels.ts.
 execFileSync(
   process.execPath,
   [
     "./node_modules/typescript/bin/tsc",
     "src/selection/inspector.ts",
     "src/selection/selection.ts",
-    "src/scene/minnesota-adapter.ts",
+    "src/labels.ts",
     "--target",
     "ES2022",
     "--module",
@@ -41,7 +41,7 @@ function node(overrides = {}) {
     kind: "node",
     id: "mn-node-1",
     name: "Hennepin Substation",
-    truthLabel: "source_backed",
+    truthLabel: "source_supported",
     provenance: { layer: "buses", sourceNames: ["mn_accepted"], fixtureBatchIds: ["batch-1"] },
     ...overrides,
   };
@@ -67,7 +67,7 @@ test("a selection with source detail renders ready, carrying the pick's label an
 
   assert.equal(viewModel.kind, "ready");
   assert.equal(viewModel.presence, "visible");
-  assert.equal(viewModel.entity.truthLabel, "source_backed");
+  assert.equal(viewModel.entity.truthLabel, "source_supported");
   assert.deepEqual(viewModel.detail.fields, [{ label: "Voltage class", value: "115 kV" }]);
   assert.ok(hasRenderableDetail(viewModel));
 });
@@ -94,7 +94,7 @@ test("an entity that leaves the visible set still renders ready with not_in_view
   const viewModel = buildInspectorViewModel(outOfView, detailFor);
   assert.equal(viewModel.kind, "ready");
   assert.equal(viewModel.presence, "not_in_view");
-  assert.equal(viewModel.entity.truthLabel, "source_backed", "label survives navigation unchanged");
+  assert.equal(viewModel.entity.truthLabel, "source_supported", "label survives navigation unchanged");
 });
 
 test("detail lookup receives the exact picked entity, never a re-derived id", () => {

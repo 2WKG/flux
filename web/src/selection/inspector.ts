@@ -8,7 +8,7 @@
  * never a quiet empty success.
  */
 
-import type { EntityPresence, PickedEntity, SelectionState, TruthLabel } from "./selection.js";
+import type { AssetStatus, EntityPresence, PickedEntity, SelectionState } from "./selection.js";
 
 export interface InspectorField {
   readonly label: string;
@@ -24,7 +24,7 @@ export interface InspectorField {
  */
 export interface EntityDetail {
   readonly fields: readonly InspectorField[];
-  readonly truthLabel: TruthLabel;
+  readonly truthLabel: AssetStatus;
   readonly provenance: {
     readonly sourceNames: readonly string[];
     readonly fixtureBatchIds: readonly string[];
