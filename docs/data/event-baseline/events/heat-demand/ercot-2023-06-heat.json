@@ -54,6 +54,26 @@
         "No EAGLE-I slice receipt yet",
         "No county outage label from BA demand"
       ]
+    },
+    {
+      "receipt_id": "eaglei-2023-44574907-20230719t000000-20230719t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/44574907",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:17:35Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "2212a8c0df83ea2013372d7f8d0d023db34ae233c6784451eb301e446a641d47",
+      "filtered_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170",
+      "bytes": 1376256,
+      "etag": "\"de1e6b64163602b3d09531ff4f90d670-2\"",
+      "units": "sum: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "Texas FIPS 48201; 2023-07-19T00:00:00Z to 2023-07-19T06:00:00Z",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "22 of 24 expected 15-minute observations; missing rows are UncoveredLabel",
+        "Customer denominator unavailable; no population substitution"
+      ]
     }
   ],
   "records": [
@@ -67,11 +87,21 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "eia-ercot-202307"
+        "eia-ercot-202307",
+        "eaglei-2023-44574907-20230719t000000-20230719t060000"
       ],
-      "source_evidence_status": "unavailable",
-      "source_row_keys": [],
-      "source_slices": [],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2023-44574907-20230719t000000-20230719t060000:48201-2023-07-19T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2023-44574907-20230719t000000-20230719t060000",
+          "county_fips": "48201",
+          "start_utc": "2023-07-19T00:00:00Z",
+          "end_utc": "2023-07-19T06:00:00Z"
+        }
+      ],
       "weather": {
         "coverage": "uncovered",
         "source_receipt_ids": [
@@ -87,13 +117,18 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
-        "notes": "No fixed EAGLE-I acquisition receipt yet; absence is not zero.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
+        "source_receipt_ids": [
+          "eaglei-2023-44574907-20230719t000000-20230719t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 22,
+        "missing_timestamps": [
+          "2023-07-19T03:15:00Z",
+          "2023-07-19T03:30:00Z"
+        ],
+        "notes": "Fixed acquisition: 22/24 observed 15-minute values; missing rows cannot be treated as zero.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
         "event_report": null
       },
       "matched_coverage_decision": "unavailable",
