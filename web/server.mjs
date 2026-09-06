@@ -3,7 +3,7 @@
 // It still hosts **no API of its own**: 2WKG-300 settled that, and the Copilot
 // API remains a separate FastAPI service (docs/specs/05-copilot.md). What it now
 // does, and only when `FLUX_API_ORIGIN` is set, is forward a fixed allowlist of
-// that service's read paths from this same origin. That is a deployment seam,
+// that service's public paths from this same origin. That is a deployment seam,
 // not an API: with the variable unset — which is the default, and the state of a
 // fresh clone — every one of those paths falls through to the SPA shell exactly
 // as before, and the page renders its named unavailable states.
@@ -19,9 +19,9 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
 
 /**
- * The read paths that may be forwarded, and the methods each accepts. Nothing
- * else is proxied — a path not in this table is served the SPA shell, so a new
- * upstream route cannot be reached by accident.
+ * The public paths that may be forwarded, and the methods each accepts. Nothing
+ * else is proxied — a path not in this table is served by the static origin, so
+ * a new upstream route cannot be reached by accident.
  */
 const PROXIED = [
   { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
@@ -29,15 +29,38 @@ const PROXIED = [
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
   { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+  { pattern: /^\/site-score$/, methods: ["POST"] },
+  // Persisted cascade reads and interactive simulation writes intentionally
+  // share this one path, with their distinct methods pinned here. `POST /cascade`
+  // is the interactive simulation route PR #331 registers upstream; the entry
+  // below is this origin's half of that seam and reaches nothing until #331 lands.
+  { pattern: /^\/cascade$/, methods: ["GET", "POST"] },
+  { pattern: /^\/scenario\/edit$/, methods: ["POST"] },
+  { pattern: /^\/balance$/, methods: ["GET"] },
+  { pattern: /^\/redundancy$/, methods: ["GET"] },
+  { pattern: /^\/siting\/search$/, methods: ["POST"] },
+  { pattern: /^\/minnesota\/smr\/validate$/, methods: ["POST"] },
+  { pattern: /^\/mn\/comparisons$/, methods: ["POST"] },
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
 
 /** Upstream deadline. An upstream that never answers must not hold a socket open. */
 export const PROXY_TIMEOUT_MS = 30_000;
 
-function proxied(pathname, method) {
-  return PROXIED.some((entry) => entry.pattern.test(pathname) && entry.methods.includes(method));
+/**
+ * Path first, method second. A path on the table is *always* answered by this
+ * seam: a method the table does not carry is refused by name (405) rather than
+ * falling through to the static origin, which would answer an API-shaped path
+ * with an Express HTML 404 or — for a `GET` on a `POST`-only path — an HTTP 200
+ * `index.html`. Both are the malformed-response defect this suite already kills
+ * for `GET /health`.
+ */
+function allowlisted(pathname) {
+  return PROXIED.find((entry) => entry.pattern.test(pathname));
 }
+
+/** The largest request body this origin will forward. Beyond it, a named refusal. */
+export const MAX_FORWARDED_BODY_BYTES = 1024 * 1024;
 
 /**
  * The offline demo's policy, sent as a header as well as the `index.html` meta tag.
@@ -79,8 +102,118 @@ export function unavailableEnvelope({ message, reason, requestId }) {
   };
 }
 
+/**
+ * The same envelope for a refusal this origin makes on its own account -- a
+ * method the allowlist does not carry, a cross-origin forward, a body over the
+ * cap. These are the caller's fault and never retryable, so they take the
+ * `error`/`invalid_input` half of the shared vocabulary
+ * (`copilot/api/envelope.py`, `web/src/data/validation.ts`) rather than
+ * `unavailable`. Same shape, same media type: still never an HTML page and
+ * never a 200.
+ */
+export function refusedEnvelope({ message, reason, requestId }) {
+  return {
+    status: "error",
+    data: null,
+    error: {
+      code: "invalid_input",
+      message,
+      retryable: false,
+      retry_after_s: null,
+      details: { reason },
+    },
+    meta: { api_version: "v1", request_id: requestId, generated_at: new Date().toISOString() },
+  };
+}
+
 /** The named reason an allowlisted path carries when this deployment has no upstream at all. */
 export const NO_API_ORIGIN_REASON = "no_api_origin_configured";
+
+/** The named reasons this origin refuses a forward on its own account. */
+export const METHOD_NOT_ALLOWED_REASON = "method_not_allowed";
+export const CROSS_ORIGIN_REASON = "cross_origin_forward_refused";
+export const BODY_TOO_LARGE_REASON = "request_body_too_large";
+
+function refuse(res, status, { message, reason, requestId }) {
+  res.status(status).setHeader("content-type", "application/json");
+  res.end(JSON.stringify(refusedEnvelope({ message, reason, requestId })));
+}
+
+/**
+ * The forward's own guards, applied before any byte leaves this process.
+ *
+ * `Origin` is the one thing a browser attaches that this seam can check: the
+ * upstream's own `CORSMiddleware` never sees the real caller, because only the
+ * path and query cross. Without this, any page on the internet could drive the
+ * writes on this table as CORS-simple requests. A present `Origin` that is not
+ * this server's own is refused; an absent one (a same-origin `GET`, curl, a
+ * health check) is not, because there is nothing to check.
+ *
+ * Returns `null` when the forward may proceed, or `{ status, message, reason }`.
+ */
+function forwardRefusal(req, entry) {
+  if (!entry.methods.includes(req.method)) {
+    return {
+      status: 405,
+      reason: METHOD_NOT_ALLOWED_REASON,
+      message: `This origin forwards ${entry.methods.join(", ")} on this path; ${req.method} is not on its allowlist.`,
+    };
+  }
+  const origin = req.headers.origin;
+  if (origin !== undefined && origin !== `${req.protocol}://${req.headers.host}`) {
+    return {
+      status: 403,
+      reason: CROSS_ORIGIN_REASON,
+      message: "This origin forwards same-origin requests only; the request named a different origin.",
+    };
+  }
+  return null;
+}
+
+/**
+ * Read the request body, refusing past the cap. The body is buffered rather
+ * than piped so the cap is enforced on the bytes themselves and not on a
+ * `content-length` a caller controls. Only the *request* is buffered: the
+ * upstream's response is still streamed, so an SSE answer is unaffected.
+ */
+function readCappedBody(req) {
+  const tooLarge = () => {
+    const error = new Error(`request body exceeds ${MAX_FORWARDED_BODY_BYTES} bytes`);
+    error.code = "FLUX_BODY_TOO_LARGE";
+    return error;
+  };
+  const declared = Number(req.headers["content-length"]);
+  if (Number.isFinite(declared) && declared > MAX_FORWARDED_BODY_BYTES) {
+    // Refused before a byte is read. The rest of the upload is still drained so
+    // the socket closes cleanly and the caller reads the refusal rather than a
+    // reset connection.
+    req.resume();
+    return Promise.reject(tooLarge());
+  }
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    let refused = false;
+    req.on("data", (chunk) => {
+      if (refused) return;
+      size += chunk.length;
+      if (size > MAX_FORWARDED_BODY_BYTES) {
+        // A `content-length` the caller controls is not the cap; the bytes are.
+        refused = true;
+        chunks.length = 0;
+        reject(tooLarge());
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => {
+      if (!refused) resolve(Buffer.concat(chunks));
+    });
+    req.on("error", (error) => {
+      if (!refused) reject(error);
+    });
+  });
+}
 
 export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN } = {}) {
   const app = express();
@@ -92,20 +225,24 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
     const upstream = new URL(apiOrigin);
     app.use((req, res, next) => {
       const url = new URL(req.originalUrl, upstream);
-      if (!proxied(url.pathname, req.method)) return next();
+      const entry = allowlisted(url.pathname);
+      if (!entry) return next();
+      const refusal = forwardRefusal(req, entry);
+      if (refusal) {
+        return refuse(res, refusal.status, { ...refusal, requestId: `proxy-${refusal.reason}` });
+      }
       // Only the path and query cross; the upstream origin is this process's,
       // never the client's, so a caller cannot redirect the forward.
       const target = new URL(url.pathname + url.search, upstream);
       const headers = { accept: req.headers.accept ?? "application/json" };
       if (req.headers["content-type"]) headers["content-type"] = req.headers["content-type"];
-      const body = req.method === "POST" ? req : undefined;
-      fetch(target, {
+      const readBody = req.method === "POST" ? readCappedBody(req) : Promise.resolve(undefined);
+      readBody.then((body) => fetch(target, {
         method: req.method,
         headers,
         body,
-        duplex: body ? "half" : undefined,
         signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
-      }).then((response) => {
+      })).then((response) => {
         res.status(response.status);
         const type = response.headers.get("content-type");
         if (type) res.setHeader("content-type", type);
@@ -116,6 +253,15 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
         // before the browser sees its first frame.
         Readable.fromWeb(response.body).pipe(res);
       }).catch((error) => {
+        if (error && error.code === "FLUX_BODY_TOO_LARGE") {
+          req.resume();
+          res.setHeader("connection", "close");
+          return refuse(res, 413, {
+            message: `This origin forwards request bodies up to ${MAX_FORWARDED_BODY_BYTES} bytes; this one is larger.`,
+            reason: BODY_TOO_LARGE_REASON,
+            requestId: `proxy-${BODY_TOO_LARGE_REASON}`,
+          });
+        }
         // The upstream's absence is reported in the shape the browser's own
         // validator reads, so it becomes a named unavailable state rather than
         // an HTML error page parsed as a malformed response.
@@ -135,7 +281,12 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
     // "this deployment has no API". The allowlist is registered either way and
     // refuses by name, so the offline case fails honestly and retryably.
     app.use((req, res, next) => {
-      if (!proxied(new URL(req.originalUrl, "http://placeholder.invalid").pathname, req.method)) return next();
+      const entry = allowlisted(new URL(req.originalUrl, "http://placeholder.invalid").pathname);
+      if (!entry) return next();
+      const refusal = forwardRefusal(req, entry);
+      if (refusal) {
+        return refuse(res, refusal.status, { ...refusal, requestId: `proxy-${refusal.reason}` });
+      }
       res.status(503).setHeader("content-type", "application/json");
       res.end(JSON.stringify(unavailableEnvelope({
         message: "This origin serves the App only; no Copilot API origin is configured for this deployment, so this read has no upstream to serve it.",
