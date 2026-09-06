@@ -30,6 +30,13 @@ pack keeps **no copy of the catalog**; `validation/validate_pack.py` reads the
 single frozen `data/3d/asset-archetypes-v1.json` in place, so a pack that drifts
 from the contract fails instead of passing against its own fork.
 
+`releases/flux-grid-runtime-v1-20260906.json` is a separate planned-release
+receipt for the externally generated runtime archive. It records the intended
+tag, exact filename, manifest and archive SHA-256 values, source-contract
+identity, audit scope, provenance and CC0-1.0 license statement. It does not
+publish, attach, or make the archive available. The historical `archive.json`,
+`manifest.json`, and their binary pins remain unchanged.
+
 No geography, server response, accepted placement or application scene is added.
 
 ## Binary download and build-copy

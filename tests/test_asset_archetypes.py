@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import copy
+import hashlib
 import inspect
 import json
 import re
@@ -19,6 +20,7 @@ from scripts.validate_asset_archetypes import (
     build_report,
     find_model_files,
     validate_catalog,
+    validate_published_runtime,
 )
 
 
@@ -31,13 +33,7 @@ def _repo_root() -> Path:
 
 
 def _tracked_model_files() -> list[str]:
-    """Model binaries git actually tracks — the honest reading of "committed".
-
-    find_model_files() answers "is one present?", which is what the report
-    needs. "Is one committed?" is a question about the index, and only git can
-    answer it: data/3d and web/public binaries are ignored, so a locally
-    produced model is present but not committed.
-    """
+    """Model binaries git actually tracks — the honest packaging boundary."""
     root = _repo_root()
     if not (root / ".git").exists():
         pytest.skip("not a git checkout; the committed-binary boundary is unmeasurable")
@@ -49,6 +45,15 @@ def _tracked_model_files() -> list[str]:
         check=True,
     )
     return sorted(line for line in result.stdout.splitlines() if line)
+
+
+def _expected_runtime_model_files(catalog: dict) -> list[str]:
+    """Derive the complete checked-in Flux grid pack from catalog identities."""
+    return sorted(
+        f"web/public/assets/flux-grid/{archetype_id}/{archetype_id}{lod_suffix}.glb"
+        for archetype_id in (entry["id"] for entry in catalog["archetypes"])
+        for lod_suffix in ("", ".lod1", ".lod2")
+    )
 
 
 def test_committed_catalog_conforms_and_covers_every_asset_work_item():
@@ -63,14 +68,114 @@ def test_committed_catalog_conforms_and_covers_every_asset_work_item():
     minnesota = [entry["minnesota_issue"] for entry in catalog["archetypes"]]
     assert len(set(texas)) == len(set(minnesota)) == EXPECTED_ARCHETYPES
     assert set(texas).isdisjoint(minnesota)
-    # No binary is COMMITTED; the contract governs shape, not hosting. That is a
-    # statement about the index, so it is measured against the index: data/3d
-    # and web/public binaries are git-ignored, so a model the asset pipeline
-    # writes locally must not turn this red while CI stays green. The
-    # working-tree walk still feeds the report, and the report stays derived.
-    assert _tracked_model_files() == []
+    # Runtime binaries are permitted only as the verified published pack. The
+    # source catalog itself still never authorizes a GLB in data/ or elsewhere
+    # in the web tree; the release receipt and immutable per-file inventory do.
+    assert validate_published_runtime(_repo_root(), catalog) == []
+    assert _tracked_model_files() == sorted(
+        path for path in find_model_files() if path.endswith(".glb")
+    )
     assert report["modelFiles"] == find_model_files()
     assert report["modelFilesPresent"] == bool(report["modelFiles"])
+
+
+def _write_verified_runtime_fixture(
+    root: Path, catalog: dict, monkeypatch: pytest.MonkeyPatch
+) -> list[tuple[str, bytes]]:
+    """Make a complete tiny runtime tree with the same receipt boundary as production."""
+    catalog_path = root / "data/3d/asset-archetypes-v1.json"
+    catalog_path.parent.mkdir(parents=True, exist_ok=True)
+    catalog_path.write_text(json.dumps(catalog, sort_keys=True), encoding="utf-8")
+    files: list[tuple[str, bytes]] = []
+    for archetype in catalog["archetypes"]:
+        asset_id = archetype["id"]
+        for suffix in (".glb", ".lod1.glb", ".lod2.glb"):
+            relative = f"{asset_id}/{asset_id}{suffix}"
+            contents = f"glTF:{relative}".encode()
+            target = root / "web/public/assets/flux-grid" / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(contents)
+            files.append((relative, contents))
+    receipt = {
+        **validator.PUBLISHED_RUNTIME_RELEASE,
+        "publication_status": "published_external_attachment_verified",
+        "source_contract": {
+            "file": "data/3d/asset-archetypes-v1.json",
+            "sha256": hashlib.sha256(catalog_path.read_bytes()).hexdigest(),
+        },
+    }
+    receipt_path = root / validator.PUBLISHED_RELEASE_RECEIPT
+    receipt_path.parent.mkdir(parents=True, exist_ok=True)
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    manifest = root / "web/public/assets/flux-grid/manifest.json"
+    manifest.write_text('{"fixture": true}', encoding="utf-8")
+    monkeypatch.setitem(
+        validator.PUBLISHED_RUNTIME_RELEASE,
+        "runtime_manifest_sha256",
+        hashlib.sha256(manifest.read_bytes()).hexdigest(),
+    )
+    receipt["runtime_manifest_sha256"] = validator.PUBLISHED_RUNTIME_RELEASE[
+        "runtime_manifest_sha256"
+    ]
+    receipt_path.write_text(json.dumps(receipt), encoding="utf-8")
+    inventory = {
+        "schema_version": 1,
+        "release_tag": validator.PUBLISHED_RUNTIME_RELEASE["release_tag"],
+        "archive_sha256": validator.PUBLISHED_RUNTIME_RELEASE["archive_sha256"],
+        "runtime_manifest_sha256": validator.PUBLISHED_RUNTIME_RELEASE[
+            "runtime_manifest_sha256"
+        ],
+        "files": [
+            {
+                "path": relative,
+                "sha256": hashlib.sha256(contents).hexdigest(),
+                "bytes": len(contents),
+            }
+            for relative, contents in files
+        ],
+    }
+    inventory_path = root / validator.PUBLISHED_RUNTIME_INVENTORY
+    inventory_path.write_text(json.dumps(inventory), encoding="utf-8")
+    return files
+
+
+def test_published_runtime_is_the_only_pinned_model_binary_location(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    catalog = _catalog()
+    files = _write_verified_runtime_fixture(tmp_path, catalog, monkeypatch)
+
+    assert validate_published_runtime(tmp_path, catalog) == []
+
+    # A changed runtime binary has no authority merely because it shares the
+    # approved path; its digest and byte count must still be release-pinned.
+    runtime = tmp_path / "web/public/assets/flux-grid" / files[0][0]
+    runtime.write_bytes(b"tampered")
+    assert any(
+        "digest does not match inventory" in error
+        for error in validate_published_runtime(tmp_path, catalog)
+    )
+
+    # A source-side or arbitrary web binary is never covered by the published
+    # runtime inventory, even when the intended release is otherwise valid.
+    runtime.write_bytes(files[0][1])
+    stray = tmp_path / "data/3d/unverified.glb"
+    stray.parent.mkdir(parents=True, exist_ok=True)
+    stray.write_bytes(b"glTF")
+    assert any(
+        "outside published runtime location" in error
+        for error in validate_published_runtime(tmp_path, catalog)
+    )
+
+    # An added binary under the otherwise authorized runtime root is still not
+    # allowed: the inventory is an exact 54-file set, not a directory permit.
+    stray.unlink()
+    extra = tmp_path / "web/public/assets/flux-grid/hospital/extra.glb"
+    extra.write_bytes(b"glTF")
+    assert any(
+        "outside published runtime location" in error
+        for error in validate_published_runtime(tmp_path, catalog)
+    )
 
 
 def test_import_invariants_are_pinned_not_merely_described():
