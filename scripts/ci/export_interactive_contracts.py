@@ -26,10 +26,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-import pandapower as pp  # noqa: E402
+import pandapower as pp
 
-from siting.redundancy import score_redundancy  # noqa: E402
-from twin.balance import balance_report  # noqa: E402
+from siting.redundancy import score_redundancy
+from twin.balance import balance_report
 
 OUT_PATH = REPO_ROOT / "web" / "src" / "contracts" / "interactive-payloads.json"
 REGENERATE = "uv run --extra dev python scripts/ci/export_interactive_contracts.py"

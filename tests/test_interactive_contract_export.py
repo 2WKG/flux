@@ -18,7 +18,9 @@ SCRIPT = REPO_ROOT / "scripts" / "ci" / "export_interactive_contracts.py"
 
 
 def _module():
-    spec = importlib.util.spec_from_file_location("export_interactive_contracts", SCRIPT)
+    spec = importlib.util.spec_from_file_location(
+        "export_interactive_contracts", SCRIPT
+    )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
