@@ -34,14 +34,10 @@ from copilot._artifact_fixtures import (
     cascade_database,
     file_sha256,
     prediction_database,
+    registered_routes,
 )
 from copilot.app import create_app
 from copilot.config import Settings
-
-# The registered surface is owned by ``copilot/test_api_route_inventory.py``,
-# which pins this frozenset against the live OpenAPI document.  Importing it
-# keeps one inventory rather than a second hand-kept copy here.
-from copilot.test_api_route_inventory import REGISTERED_MINNESOTA_SURFACE
 
 Request = Callable[[TestClient], object]
 
@@ -156,7 +152,7 @@ def test_startup_and_every_registered_route_leave_the_working_tree_unchanged(
 
     app = create_app(Settings(_env_file=None, duckdb_path=database))
     assert _tree(tmp_path) == before, "startup wrote to the working tree"
-    assert set(READ_REQUESTS) == set(REGISTERED_MINNESOTA_SURFACE)
+    assert set(READ_REQUESTS) == registered_routes()
 
     client = TestClient(app)
     for route, (request, expected_status) in READ_REQUESTS.items():
