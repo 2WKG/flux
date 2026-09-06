@@ -23,10 +23,15 @@ def test_tx_lines_are_real_http_pages_with_release_bound_cursor() -> None:
     assert first.status_code == 200
     body = first.json()
     assert body["artifact_id"] == "tx:physical-inventory:1.1.0"
-    assert body["release_sha256"] == "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496"
+    assert (
+        body["release_sha256"]
+        == "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496"
+    )
     assert body["inventory_mode"] == "physical_observed"
     assert body["page"]["total"] == 7042
-    assert [item["asset_id"] for item in body["items"]] == sorted(item["asset_id"] for item in body["items"])
+    assert [item["asset_id"] for item in body["items"]] == sorted(
+        item["asset_id"] for item in body["items"]
+    )
     assert all(item["display_crs"] == "EPSG:4326" for item in body["items"])
     assert all(item["native_crs"] == "EPSG:4326" for item in body["items"])
     assert all(item["provenance"]["source_version"] for item in body["items"])
@@ -74,7 +79,11 @@ def test_unavailable_geometry_is_honest_and_never_viewport_co_located() -> None:
         "/api/v1/grid/layers/generation?state=tx&version=1.1.0&limit=100"
     )
     assert all_generation.status_code == 200
-    unavailable = next(item for item in all_generation.json()["items"] if item["availability"] == "unavailable")
+    unavailable = next(
+        item
+        for item in all_generation.json()["items"]
+        if item["availability"] == "unavailable"
+    )
     assert unavailable["display_geometry"] is None
     assert unavailable["native_geometry"] is None
     assert unavailable["native_crs"] is None
