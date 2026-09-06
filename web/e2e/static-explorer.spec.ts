@@ -147,7 +147,7 @@ test("the explainer deep-links and navigation retain URL state without a documen
   await expect(page.getByRole("heading", { name: "How the math works, and how much of it is real." })).toBeVisible();
   await expect(page).toHaveTitle("Flux | How the math works");
   await expect(page.getByRole("link", { name: "How the math works" })).toHaveAttribute("aria-current", "page");
-  await expect(page.locator("main")).toHaveAttribute("data-source-status", "synthetic");
+  await expect(page.locator("main")).toHaveAttribute("data-source-status", "unavailable");
   expect(await page.evaluate(() => window.sessionStorage.getItem("flux-document-loads"))).toBe("1");
 
   await page.getByRole("link", { name: "Scenario explorer" }).click();
