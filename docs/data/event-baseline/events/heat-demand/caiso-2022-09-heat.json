@@ -74,6 +74,38 @@
       "gaps": [
         "Zone CAZ016 is not a county boundary; no stored zone-to-county intersection artifact"
       ]
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:06:07Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30",
+      "bytes": 1187596176,
+      "etag": null,
+      "units": "customers_out in customers; run_start_time UTC",
+      "timezone_conversion": "none; source UTC",
+      "filters": "exhaustive annual stream; FIPS 06067 canonical window",
+      "grid_index_mapping": "County FIPS only; no grid index",
+      "gaps": [],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/caiso-2022-09-heat-06067-20220907000000_eaglei_2022_20220907T000000_20220907T060000.csv",
+        "filtered_artifact_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30"
+      }
     }
   ],
   "records": [
@@ -88,11 +120,44 @@
       "mode": "replay",
       "provenance_receipt_ids": [
         "eia-caiso-202209",
-        "ncei-stormevents-2022-details"
+        "ncei-stormevents-2022-details",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000"
       ],
-      "source_evidence_status": "unavailable",
-      "source_row_keys": [],
-      "source_slices": [],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T00:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T00:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T00:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T00:45:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T01:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T01:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T01:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T01:45:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T02:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T02:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T02:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T02:45:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T03:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T03:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T03:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T03:45:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T04:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T04:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T04:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T04:45:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T05:00:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T05:15:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T05:30:00Z",
+        "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000:06067:2022-09-07T05:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000",
+          "county_fips": "06067",
+          "start_utc": "2022-09-07T00:00:00Z",
+          "end_utc": "2022-09-07T06:00:00Z"
+        }
+      ],
       "weather": {
         "coverage": "covered",
         "evidence_kind": "authoritative_event_report",
@@ -118,15 +183,17 @@
         "notes": "NCEI Excessive Heat zone report intersects the canonical UTC window; it supplies observed weather event evidence only."
       },
       "outage": {
-        "coverage": "UncoveredLabel",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
         "missing_timestamps": [],
         "event_report": null,
-        "notes": "Superseded provisional EAGLE-I acquisition removed; fixed full-scan receipt pending. Absence is not zero."
+        "notes": "Complete 24/24 native 15-minute observations."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
