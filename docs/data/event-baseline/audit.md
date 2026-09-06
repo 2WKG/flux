@@ -45,5 +45,10 @@ The split generator rejects accepted rows with incomplete coverage, an
 reuse, or overlapping/adjacent context windows across splits. It never uses
 an annual raw-file hash or a reused primary document as a leakage key.
 
+The final composed dependency check used acquisition PR 249 at `29fc4e0`,
+contract PR 250 at `730f6fe`, and this audit at `0a53ab0`, in that order. Its
+joint collector, contract, and split suite passed 84 tests; Ruff and the diff
+check also passed. Merge those dependencies before this audit PR.
+
 The grouped manifests are for historical replay only. They do not establish a
 forecast cutoff, forecast score, training result, or model performance claim.
