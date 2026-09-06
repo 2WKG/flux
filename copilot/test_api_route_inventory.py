@@ -18,8 +18,6 @@ LEGACY_DOCUMENTED_BUT_ABSENT = frozenset(
     {
         ("POST", "/predict"),
         ("POST", "/cascade"),
-        ("GET", "/lines/top"),
-        ("GET", "/elements/critical"),
     }
 )
 
