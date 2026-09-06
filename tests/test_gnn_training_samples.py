@@ -12,7 +12,7 @@ from gnn.contracts import PlannedSample, SampleLabels, TrainingSample
 from gnn.generate import GenerationConfig, generate_training_samples
 from gnn.hours import hourly_demand_profile, select_hours
 from gnn.normalization import normalize_feature_value
-from gnn.sampler import SamplerConfig, build_plan
+from gnn.sampler import SamplerConfig, _coalesce_contingency_families, build_plan
 from twin.build import build_network
 
 
@@ -132,6 +132,28 @@ def test_sampler_and_split_keep_contingency_families_together(tmp_path: Path) ->
     assert (
         split["holdout_axes"]["contingency_family"]["temporal_holdout"] == "not_claimed"
     )
+
+
+def test_overlapping_n2_secondary_cannot_leak_into_another_family() -> None:
+    plans = _coalesce_contingency_families(
+        [
+            PlannedSample(0, "n1", 0, ("line:1",), "line:1", "contingency:line:1"),
+            PlannedSample(
+                1,
+                "n2",
+                0,
+                ("line:1", "line:2"),
+                "line:1",
+                "contingency:line:1",
+            ),
+            PlannedSample(2, "n1", 1, ("line:2",), "line:2", "contingency:line:2"),
+        ]
+    )
+
+    assert len({plan.group_key for plan in plans}) == 1
+    split = split_by_contingency(plans, seed=490, held_out_fraction=0.5)
+    assert set(split["train_sample_ids"]) in ({0, 1, 2}, set())
+    assert set(split["held_out_sample_ids"]) in ({0, 1, 2}, set())
 
 
 def test_generation_is_resumable_and_binds_the_graph_export(tmp_path: Path) -> None:

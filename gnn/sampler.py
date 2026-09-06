@@ -13,7 +13,7 @@ import json
 import math
 import random
 from collections.abc import Iterable
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any
 
 import pandapower as pp
@@ -229,7 +229,47 @@ def build_plan(
                     )
                 )
                 next_index += 1
-    return plans
+    return _coalesce_contingency_families(plans)
+
+
+def _coalesce_contingency_families(
+    plans: list[PlannedSample],
+) -> list[PlannedSample]:
+    """Make every overlapping contingency family indivisible for splitting."""
+    parent: dict[str, str] = {}
+
+    def find(value: str) -> str:
+        parent.setdefault(value, value)
+        while parent[value] != value:
+            parent[value] = parent[parent[value]]
+            value = parent[value]
+        return value
+
+    def join(first: str, second: str) -> None:
+        first_root, second_root = find(first), find(second)
+        if first_root != second_root:
+            parent[max(first_root, second_root)] = min(first_root, second_root)
+
+    for plan in plans:
+        if plan.element_ids:
+            for element_id in plan.element_ids[1:]:
+                join(plan.element_ids[0], element_id)
+            find(plan.element_ids[0])
+    members: dict[str, list[str]] = {}
+    for element_id in parent:
+        members.setdefault(find(element_id), []).append(element_id)
+    family_by_element = {
+        element_id: "contingency_family:"
+        + hashlib.sha256(canonical_json(sorted(component)).encode()).hexdigest()[:16]
+        for component in members.values()
+        for element_id in component
+    }
+    return [
+        plan
+        if not plan.element_ids
+        else replace(plan, group_key=family_by_element[plan.element_ids[0]])
+        for plan in plans
+    ]
 
 
 def _weighted_order(flows: list[BranchFlow], seed: int) -> list[BranchFlow]:
