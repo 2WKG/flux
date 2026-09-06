@@ -206,6 +206,7 @@ def run_bounded(
         states={"Minnesota"},
         fips={"27137"},
         cache_dir=cache_dir,
+        allow_full_download=False,
         max_bytes=max_bytes,
         session=source,
     )
@@ -267,7 +268,7 @@ def test_a_source_that_ignores_range_is_refused_not_downloaded_whole(
         run_bounded(source, tmp_path, monkeypatch)
 
 
-def test_full_download_is_opt_in_and_named_in_the_receipt(
+def test_default_acquisition_streams_the_complete_source_and_names_it_in_the_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: bytes
 ) -> None:
     source = FakeSource(body)
@@ -295,13 +296,63 @@ def test_full_download_is_opt_in_and_named_in_the_receipt(
         states={"Minnesota"},
         fips={"27137"},
         cache_dir=tmp_path,
-        allow_full_download=True,
         session=source,
     )
 
     assert streamed == [len(body)]
     assert result["capture_method"] == "exhaustive_annual_stream"
     assert result["receipt"]["bytes"] == len(body)
+
+
+def test_default_exhaustive_acquisition_handles_fips_major_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default must not binary-search a locally sorted, globally reset CSV."""
+    lines = [HEADER]
+    for fips, county, state in (
+        ("06001", "Alameda", "California"),
+        ("27137", "St Louis", "Minnesota"),
+    ):
+        for index in range(100):
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            lines.append(f"{fips},{county},{state},{index},{stamp},123\n")
+    body = "".join(lines).encode()
+    source = FakeSource(body)
+    streamed: list[int] = []
+
+    class StreamResponse:
+        status_code = 200
+        headers: ClassVar[dict[str, str]] = {"ETag": SOURCE_ETAG}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, chunk_size: int):
+            streamed.append(len(body))
+            yield body
+
+    monkeypatch.setattr(eaglei.requests, "get", lambda *a, **k: StreamResponse())
+    start = BASE + timedelta(minutes=15 * 50)
+    result = eaglei.acquire(
+        event_id="fips-major-default",
+        year=2024,
+        start=start,
+        end=start + timedelta(hours=1),
+        states={"Minnesota"},
+        fips={"27137"},
+        cache_dir=tmp_path,
+        session=source,
+    )
+
+    assert streamed == [len(body)]
+    assert result["capture_method"] == "exhaustive_annual_stream"
+    assert result["eaglei"]["filtered_rows"] == 4
+    assert (
+        result["eaglei"]["coverage_by_county"]["27137"]["coverage_state"]
+        == "complete_15_min_observation"
+    )
 
 
 def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -313,6 +364,7 @@ def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
     assert result["receipt"]["receipt_id"].islower()
     assert isinstance(result["receipt"]["gaps"], list)
     assert result["verification"]["full_annual_file_streamed"] is False
+    assert result["receipt"]["acquisition"] is None
 
 
 def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -343,6 +395,7 @@ def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
     assert result["receipt"]["license_or_access"].startswith("CC BY 4.0")
     assert result["capture_method"] == "exhaustive_annual_stream"
     assert set(result["verification"])  # #199/#216 convention is carried alongside
+    assert result["receipt"]["acquisition"]["acquisition_complete"] is True
 
 
 def test_the_receipt_object_carries_no_fields_the_schema_forbids(
@@ -351,7 +404,9 @@ def test_the_receipt_object_carries_no_fields_the_schema_forbids(
     """`additionalProperties: false` is the reason #199's fields are siblings."""
     result = run_bounded(FakeSource(body), tmp_path, monkeypatch)
 
-    assert set(result["receipt"]) == set(receipt_schema()["required"])
-    assert "capture_method" in result["receipt"]  # required since #232 merged
+    schema = receipt_schema()
+    assert set(result["receipt"]) <= set(schema["properties"])
+    assert set(schema["required"]).issubset(result["receipt"])
+    assert result["receipt"]["capture_method"]
     assert result["capture_method"]
     assert result["verification"]

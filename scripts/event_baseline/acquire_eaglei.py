@@ -8,14 +8,16 @@ conversion.
 
 Two acquisition modes exist and the receipt names which one ran:
 
-``bounded`` (default)
+``bounded`` (``--bounded-http-range``)
     Binary-searches the time-ordered annual file over HTTP ranges and never
     transfers more than ``--max-bytes``. Every range response must be a 206
-    whose ``Content-Range`` matches the request.
+    whose ``Content-Range`` matches the request. It is exploratory only: a
+    FIPS-major annual layout does not provide the global sort proof its binary
+    search would require.
 
-``exhaustive`` (``--allow-full-download``, or a pre-populated cache)
+``exhaustive`` (default, or a pre-populated cache)
     Streams or reuses the complete annual file. This is the only mode that may
-    establish source-wide coverage, and it is opt-in because it is unbounded.
+    establish source-wide coverage.
 
 It writes only the requested, complete CSV records and a JSON receipt; raw
 source bytes stay in the caller-selected cache directory, outside Git.
@@ -590,6 +592,27 @@ def acquire_exhaustive(
         ),
         "absence_rule": ABSENCE_RULE,
     }
+    capture_method = "exhaustive_annual_stream"
+    contract_verification = {
+        "sha256_computed_from_response_body": True,
+        "row_count_checked": True,
+        "notes": "Complete annual bytes were rehashed against the trusted manifest before filtering.",
+    }
+    acquisition = {
+        "acquisition_complete": True,
+        "acquisition_method": capture_method,
+        "source_system_id": detail["source_system_id"],
+        "source_file": file["name"],
+        "source_file_id": file["id"],
+        "source_file_bytes": int(file["size"]),
+        "integrity_basis": metadata["integrity_basis"],
+        "raw_artifact_uri": str(raw_path),
+        "raw_artifact_sha256": raw_hash,
+        "source_sidecar_uri": str(meta_path),
+        "source_sidecar_sha256": hashlib.sha256(meta_path.read_bytes()).hexdigest(),
+        "filtered_artifact_uri": str(selected_path),
+        "filtered_artifact_sha256": filtered_hash,
+    }
     payload = {
         "receipt": {
             "receipt_id": _receipt_id(file["id"], year, start, end, event_id),
@@ -611,28 +634,27 @@ def acquire_exhaustive(
                 "none; EAGLE-I rows are keyed by county FIPS, not a model grid index"
             ),
             "gaps": _gap_entries(coverage),
-            "capture_method": (
-                "HTTP GET of the full annual object, ETag-pinned stream, checked "
-                "against the Figshare-published size and md5"
-            ),
-            "verification": {
-                "sha256_computed_from_response_body": True,
-                "row_count_checked": True,
-                "notes": (
-                    "exhaustive_annual_stream; "
-                    f"streamed_this_run={streamed}; "
-                    "cached bytes rehashed against the annual manifest; "
-                    f"manifest ETag matched the requested ETag={expected_etag is not None}"
-                ),
+            "acquisition": acquisition,
+            "capture_method": capture_method,
+            "verification": contract_verification,
+            "files": {
+                "annual_source": {
+                    "url": source_url,
+                    "bytes": metadata["raw_bytes"],
+                    "sha256": raw_hash,
+                },
+                "filtered_selection": {
+                    "url": str(selected_path),
+                    "bytes": selected_path.stat().st_size,
+                    "sha256": filtered_hash,
+                },
             },
-            "files": {},
             "uncertainty": (
-                "Establishes the complete EAGLE-I annual source and the exact "
-                "county-window rows filtered from it. It carries no customer "
-                "denominator, so no outage rate or five-percent label follows from it."
+                "Complete annual source was filtered for the requested half-open "
+                "window; missing source rows remain UncoveredLabel rather than zero."
             ),
         },
-        "capture_method": "exhaustive_annual_stream",
+        "capture_method": capture_method,
         "verification": {
             "streamed_this_run": streamed,
             "streamed_bytes_matched_source_size": streamed or None,
@@ -803,11 +825,11 @@ def acquire(
     states: set[str],
     fips: set[str],
     cache_dir: Path,
-    allow_full_download: bool = False,
+    allow_full_download: bool = True,
     max_bytes: int = DEFAULT_MAX_BOUNDED_BYTES,
     session: requests.Session | None = None,
 ) -> dict[str, Any]:
-    """Acquire a slice. Bounded by default; the full annual stream is opt-in."""
+    """Acquire a slice from a verified complete annual source by default."""
     if start >= end:
         raise ValueError("start must precede end")
     session = session if session is not None else requests.Session()
@@ -1036,26 +1058,30 @@ def acquire(
                     "was read, so this receipt cannot establish source-wide coverage"
                 )
             ],
-            "capture_method": (
-                "bounded HTTP range binary search over the annual object; the full "
-                "object was never transferred"
-            ),
+            "acquisition": None,
+            "capture_method": "bounded_http_range_binary_search",
             "verification": {
                 "sha256_computed_from_response_body": True,
                 "content_range_matched_request": True,
                 "row_count_checked": True,
-                "notes": (
-                    "bounded_http_range_binary_search; ETag pinned across every range; "
-                    f"range_probe_count={len(start_probes) + len(end_probes)}; "
-                    f"bytes_transferred_over_the_wire={budget.spent} of {budget.limit}; "
-                    "the full annual file was not streamed"
-                ),
+                "notes": "Every response was ETag-pinned and range-validated; this is exploratory only.",
             },
-            "files": {},
+            "files": {
+                "bounded_raw_range": {
+                    "url": source_url,
+                    "bytes": raw_receipt.bytes_received,
+                    "sha256": raw_receipt.sha256,
+                    "range": raw_receipt.content_range,
+                },
+                "filtered_selection": {
+                    "url": str(csv_path),
+                    "bytes": csv_path.stat().st_size,
+                    "sha256": filtered_hash,
+                },
+            },
             "uncertainty": (
-                "Bounded acquisition: only the bracketed byte range was read, so this "
-                "receipt cannot establish source-wide coverage or prove absence, and it "
-                "carries no customer denominator."
+                "A bounded byte-range probe cannot establish event coverage or "
+                "source absence, especially for FIPS-major annual layouts."
             ),
         },
         "capture_method": "bounded_http_range_binary_search",
@@ -1106,15 +1132,15 @@ def main() -> None:
     )
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument(
-        "--allow-full-download",
+        "--bounded-http-range",
         action="store_true",
-        help="stream the whole multi-gigabyte annual CSV instead of bounded ranges",
+        help="exploratory bounded range read; never establishes source coverage",
     )
     parser.add_argument(
         "--max-bytes",
         type=int,
         default=DEFAULT_MAX_BOUNDED_BYTES,
-        help="byte ceiling for a bounded acquisition (ignored with --allow-full-download)",
+        help="byte ceiling for --bounded-http-range (ignored by exhaustive default)",
     )
     args = parser.parse_args()
     if args.requests_json:
@@ -1140,7 +1166,7 @@ def main() -> None:
         states={state.strip() for state in args.states.split(",") if state.strip()},
         fips={code.strip().zfill(5) for code in args.fips.split(",") if code.strip()},
         cache_dir=args.cache_dir,
-        allow_full_download=args.allow_full_download,
+        allow_full_download=not args.bounded_http_range,
         max_bytes=args.max_bytes,
     )
     print(json.dumps(receipt, indent=2, sort_keys=True))
