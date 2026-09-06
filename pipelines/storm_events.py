@@ -8,6 +8,7 @@ import pandas as pd
 
 from pipelines.common import fips5, utc_naive
 from pipelines.db import log_artifact, replace_frame
+from pipelines.state_scope import scope
 
 # Storm Events timestamps use local *standard* time year-round.  The Texas-only
 # loader maps NOAA's POSIX-style labels to fixed-offset IANA zones (whose signs
@@ -29,32 +30,38 @@ def _cz_timezone(value: object) -> str:
         raise ValueError(f"unsupported Storm Events CZ_TIMEZONE {label!r}") from error
 
 
-def _zone_crosswalk(path: str | Path) -> dict[str, list[str]]:
+def _zone_crosswalk(path: str | Path, states=None) -> dict[str, list[str]]:
     raw = pd.read_csv(path, sep="|", header=None, dtype="string")
     # NWS correlation layout: state|zone|cwa|name|state_zone|county|fips|timezone|…
-    texas = raw[raw[0].eq("TX")]
+    selected = raw[raw[0].isin(scope(states).usps)]
     mapping: dict[str, list[str]] = {}
-    for zone, fips in zip(texas[1], texas[6], strict=True):
+    for zone, fips in zip(selected[1], selected[6], strict=True):
         normalized = fips5(fips)
         if normalized:
             mapping.setdefault(str(zone).zfill(3), []).append(normalized)
     return mapping
 
 
-def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> int:
+def _scope_events(raw: pd.DataFrame, states=None) -> pd.DataFrame:
+    """Select only full state-name rows requested by the caller's scope."""
+    return raw[raw["STATE"].str.upper().isin(tuple(name.upper() for name in scope(states).names))].copy()
+
+
+def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int, states=None) -> int:
     path = Path(detail_gzip)
     raw = pd.read_csv(path, compression="gzip", low_memory=False)
-    texas = raw[raw["STATE"].eq("TEXAS")].copy()
+    selected_scope = scope(states)
+    selected = _scope_events(raw, selected_scope)
     required = {
         "EVENT_ID", "BEGIN_DATE_TIME", "END_DATE_TIME", "EVENT_TYPE", "CZ_TYPE", "CZ_FIPS",
         "STATE_FIPS", "CZ_TIMEZONE",
     }
-    if missing := required - set(texas.columns):
+    if missing := required - set(selected.columns):
         raise ValueError(f"Storm Events file missing {sorted(missing)}")
-    zones = _zone_crosswalk(zone_crosswalk)
+    zones = _zone_crosswalk(zone_crosswalk, selected_scope)
     records: list[dict[str, object]] = []
     unmatched_zones: dict[str, int] = {}
-    for row in texas.itertuples(index=False):
+    for row in selected.itertuples(index=False):
         event = row._asdict()
         source_tz = _cz_timezone(event["CZ_TIMEZONE"])
         if event["CZ_TYPE"] == "C":
@@ -117,7 +124,7 @@ def load_storm_events(con, detail_gzip: str, zone_crosswalk: str, year: int) -> 
         for zone, count in unmatched_zones.items():
             con.execute("INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
                         ["noaa_storm_events", f"{year}:zone:{zone}",
-                         f"{count} Texas zone-type Storm Events had no county crosswalk mapping"])
+                         f"{count} scoped zone-type Storm Events had no county crosswalk mapping"])
         con.execute("COMMIT")
     except Exception:
         con.execute("ROLLBACK")

@@ -24,6 +24,7 @@ from pipelines.eia930 import load_eia930
 from pipelines.joins import join_bus_county, join_critical_loads_to_bus
 from pipelines.nri import load_nri
 from pipelines.storm_events import load_storm_events
+from pipelines.state_scope import scope
 
 P0_RAW_INPUTS_CATALOG = Path(__file__).resolve().parents[1] / "datasets" / "catalog.json"
 
@@ -39,6 +40,11 @@ class IncompleteP0BuildError(RuntimeError):
 def _required(root: Path, *parts: str) -> Path | None:
     path = root.joinpath(*parts)
     return path if path.exists() else None
+
+
+def _dod_filename(states=None) -> str:
+    """Name the scoped DoD extract without pinning the Texas fixture."""
+    return f"{scope(states).slug}.geojson"
 
 
 def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
@@ -75,8 +81,9 @@ def _verified_activsg_retrieval(aux: Path, case: Path) -> datetime | None:
     return parsed if parsed.tzinfo is not None else None
 
 
-def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, parquet_dir: str) -> dict[str, int]:
+def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, parquet_dir: str, states=None) -> dict[str, int]:
     raw = Path(raw_dir)
+    selected_scope = scope(states)
     if missing := _missing_p0_inputs(raw, eaglei_source_tz):
         formatted = "\n  - ".join(missing)
         raise IncompleteP0BuildError(
@@ -100,8 +107,8 @@ def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, pa
         plants = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_plants.parquet")
         generators = _required(raw, "pudl", "v2026.2.0", "out_eia__yearly_generators.parquet")
         assert plants and generators
-        counts["eia_plants"] = load_eia860_plants(con, str(plants), str(generators))
-        counts["site_candidates"] = seed_site_candidates(con)
+        counts["eia_plants"] = load_eia860_plants(con, str(plants), str(generators), states=selected_scope)
+        counts["site_candidates"] = seed_site_candidates(con, selected_scope)
         eia_files = [
             _required(raw, "eia930", "2021_h1", "EIA930_BALANCE_2021_Jan_Jun.csv"),
             _required(raw, "eia930", "2024_h2", "EIA930_BALANCE_2024_Jul_Dec.csv"),
@@ -114,7 +121,7 @@ def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, pa
                                 (2024, "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz")):
             details = _required(raw, "storm_events", str(year), file_name)
             assert details
-            counts[f"storm_events_{year}"] = load_storm_events(con, str(details), str(crosswalk), year)
+            counts[f"storm_events_{year}"] = load_storm_events(con, str(details), str(crosswalk), year, selected_scope)
         mcc = _required(raw, "eaglei", "support", "MCC.csv")
         coverage = _required(raw, "eaglei", "support", "coverage_history.csv")
         assert mcc and coverage
@@ -124,7 +131,7 @@ def _build_mutating(raw_dir: str, db_path: str, eaglei_source_tz: str | None, pa
             outage = _required(raw, "eaglei", str(year), f"eaglei_outages_{year}.csv")
             assert outage and eaglei_source_tz
             counts[f"eaglei_{year}"] = load_eaglei(con, str(outage), year, eaglei_source_tz)
-        dod = _required(raw, "ntad_military_bases", "fy2024", "texas.geojson")
+        dod = _required(raw, "ntad_military_bases", "fy2024", _dod_filename(selected_scope))
         assert dod
         counts["critical_loads_dod"] = load_dod(con, str(dod))
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
@@ -207,7 +214,7 @@ def _promote(stage_db: Path, live_db: Path, stage_parquet: Path, live_parquet: P
         if old_parquet.exists(): shutil.rmtree(old_parquet)
 
 
-def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None) -> dict[str, int]:
+def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eaglei_source_tz: str | None = None, states=None) -> dict[str, int]:
     raw, live_db = Path(raw_dir), Path(db_path)
     if missing := _missing_p0_inputs(raw, eaglei_source_tz):
         formatted = "\n  - ".join(missing)
@@ -220,7 +227,7 @@ def build(raw_dir: str = "data/raw", db_path: str = "data/duck/grid.duckdb", eag
         _copy_database(live_db, stage_db)
         if live_parquet.exists(): shutil.copytree(live_parquet, stage_parquet)
         else: stage_parquet.mkdir()
-        counts = _build_mutating(str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
+        counts = _build_mutating(str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet), states)
         checks = run_checks(str(stage_db))
         if not all(check.passed for check in checks):
             raise RuntimeError("staged P0 quality checks failed: " + "; ".join(check.name for check in checks if not check.passed))
@@ -239,8 +246,9 @@ def main() -> int:
     parser.add_argument("--raw-dir", default="data/raw")
     parser.add_argument("--db", default="data/duck/grid.duckdb")
     parser.add_argument("--eaglei-source-tz", choices=("UTC", "America/Chicago"))
+    parser.add_argument("--states", action="append", help="USPS names/codes or comma-separated state scope")
     args = parser.parse_args()
-    counts = build(args.raw_dir, args.db, args.eaglei_source_tz)
+    counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.states)
     for name, rows in sorted(counts.items()):
         print(f"{name}: {rows}")
     return 0
