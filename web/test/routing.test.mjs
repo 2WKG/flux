@@ -60,9 +60,8 @@ test("each page has its own path, and an unmatched path falls back to the explor
   // A deep link with a trailing slash is the same page, not a miss.
   assert.equal(site.routeForPath("/explainer/").id, "explainer");
   assert.equal(site.routeForPath("/minnesota/").id, "minnesota");
-  // The static origin answers every path with the shell, so an unknown path is
-  // the explorer rather than a blank screen.
-  assert.equal(site.routeForPath("/api/demo").id, "main");
+  // Page paths outside the route table are the explorer rather than a blank screen.
+  // `web/server.mjs` intercepts API-shaped requests before they reach this matcher.
   assert.equal(site.routeForPath("/nothing-here").id, "main");
 });
 

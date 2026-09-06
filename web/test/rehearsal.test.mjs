@@ -68,9 +68,9 @@ test("the rehearsal static origin serves the demo but never substitutes an API o
   assert.ok(served.join("\n").includes(fixture.fixtureHash), "the served bundle must identify its checked-in fixture");
 
   const staleDemoRoute = await response(base, "/api/demo");
-  assert.equal(staleDemoRoute.status, 200);
+  assert.equal(staleDemoRoute.status, 503);
   assert.doesNotMatch(staleDemoRoute.type, /json/);
-  assert.equal(staleDemoRoute.body, root.body);
+  assert.match(staleDemoRoute.body, /does not serve API routes/i);
 
   const ask = await response(base, "/ask", { method: "POST", body: "{}" });
   assert.equal(ask.status, 404);

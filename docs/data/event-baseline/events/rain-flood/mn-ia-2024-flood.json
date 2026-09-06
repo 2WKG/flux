@@ -1,0 +1,196 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "rain-flood",
+  "event": {
+    "event_id": "mn-ia-2024-flood",
+    "parent_system_id": "mn-ia-2024-flood",
+    "primary_hazard": "heavy_rain",
+    "secondary_hazards": [
+      "river_flood"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "usgs:ofr20261066"
+    ],
+    "context_window": {
+      "start_utc": "2024-06-10T00:00:00Z",
+      "end_utc": "2024-07-07T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2024-06-20T00:00:00Z",
+      "end_utc": "2024-06-23T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2024-06-23T00:00:00Z",
+      "end_utc": "2024-07-07T00:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "USGS OFR 2026-1066 documents a June 20\u201322 multiday heavy-rain and flood episode in northwestern Iowa. Minnesota and Iowa are retained under one regional parent system, never as independent events.",
+    "exclusions": [
+      "The definitive exhaustive annual EAGLE-I scan found no rows for the predeclared Plymouth County, Iowa six-hour window."
+    ],
+    "uncertainties": [
+      "The missing rows are an UncoveredLabel, never a zero-outage result."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "usgs-mn-ia-2024-flood",
+      "provider": "U.S. Geological Survey",
+      "url": "https://pubs.usgs.gov/publication/ofr20261066/full",
+      "release": "Open-File Report 2026-1066, Floods of June 2024 in Northwestern Iowa",
+      "retrieved_at_utc": "2026-09-06T07:19:09Z",
+      "license_or_access": "USGS public-domain source",
+      "raw_sha256": "8f49d053c6f6bfd88484a914e8063c419d6b5ff54fb36b930e2e01eb2048d024",
+      "filtered_sha256": null,
+      "bytes": 249045,
+      "etag": null,
+      "units": "rainfall and streamflow narrative",
+      "timezone_conversion": "Source dates retained as documented; catalog windows are UTC.",
+      "filters": "Candidate discovery: multiday rainfall June 20\u201322, 2024; no county-row extraction.",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping.",
+      "gaps": [
+        "Durable raw source: data/raw/event-baseline/rain-flood/mn-ia-2024-usgs-ofr20261066.html.",
+        "The report is regional hydrologic evidence, not a county weather time series or outage label."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-2024-53581661-20240620t000000-20240620t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/53581661",
+      "release": "10.6084/m9.figshare.24237376.v4; eaglei_outages_2024.csv",
+      "retrieved_at_utc": "2026-09-06T08:12:11Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "filtered_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa",
+      "bytes": 1444846424,
+      "etag": "\"2498b3dd20136a26a66b6e80856b0ca8-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=Iowa; county_fips=19149; window=UTC half-open [2024-06-20T00:00:00Z, 2024-06-20T06:00:00Z).",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "gaps": [
+        "Acquisition complete: 0 valid rows across all 24 expected 15-minute intervals.",
+        "Missing rows have unknown meaning and are UncoveredLabel; they are not explicit zeros.",
+        "No native denominator rows exist because there are no selected observations."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:53581661",
+        "source_file": "eaglei_outages_2024.csv",
+        "source_file_id": 53581661,
+        "source_file_bytes": 1444846424,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+        "raw_artifact_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+        "source_sidecar_sha256": "5028a35040bd6fcc42ace3e920267ffbb7985d02b4816eb93ab7398942d01024",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-ia-2024-flood-19149-20240620000000_eaglei_2024_20240620T000000_20240620T060000.csv",
+        "filtered_artifact_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-ia-2024-flood-19149-2024-06-20t00z",
+      "county_fips": "19149",
+      "boundary_vintage": "Census 2024 county-equivalent FIPS",
+      "scenario_id": "mn-ia-2024-flood-replay",
+      "window_start_utc": "2024-06-20T00:00:00Z",
+      "window_end_utc": "2024-06-20T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "usgs-mn-ia-2024-flood",
+        "eaglei-2024-53581661-20240620t000000-20240620t060000"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [
+          "usgs-mn-ia-2024-flood"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "No county- or zone-scoped authoritative report interval has been retained for this canonical window."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2024-53581661-20240620t000000-20240620t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2024-06-20T00:00:00Z",
+          "2024-06-20T00:15:00Z",
+          "2024-06-20T00:30:00Z",
+          "2024-06-20T00:45:00Z",
+          "2024-06-20T01:00:00Z",
+          "2024-06-20T01:15:00Z",
+          "2024-06-20T01:30:00Z",
+          "2024-06-20T01:45:00Z",
+          "2024-06-20T02:00:00Z",
+          "2024-06-20T02:15:00Z",
+          "2024-06-20T02:30:00Z",
+          "2024-06-20T02:45:00Z",
+          "2024-06-20T03:00:00Z",
+          "2024-06-20T03:15:00Z",
+          "2024-06-20T03:30:00Z",
+          "2024-06-20T03:45:00Z",
+          "2024-06-20T04:00:00Z",
+          "2024-06-20T04:15:00Z",
+          "2024-06-20T04:30:00Z",
+          "2024-06-20T04:45:00Z",
+          "2024-06-20T05:00:00Z",
+          "2024-06-20T05:15:00Z",
+          "2024-06-20T05:30:00Z",
+          "2024-06-20T05:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "Complete annual scan found no rows. This is UncoveredLabel, never zero outage."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
