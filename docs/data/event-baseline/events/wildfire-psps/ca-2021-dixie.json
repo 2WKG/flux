@@ -1,0 +1,134 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire",
+  "event": {
+    "event_id": "ca-2021-dixie",
+    "parent_system_id": "ca-2021-dixie",
+    "primary_hazard": "wildfire",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "CALFIRE:/incidents/2021/7/13/dixie-fire/"
+    ],
+    "context_window": {
+      "start_utc": "2021-07-13T00:00:00Z",
+      "end_utc": "2021-10-25T14:45:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-07-14T00:00:00Z",
+      "end_utc": "2021-07-14T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-07-14T06:00:00Z",
+      "end_utc": "2021-10-25T14:45:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "CAL FIRE Dixie event record and attempted Plumas EAGLE-I capture.",
+    "uncertainties": [
+      "A bounded EAGLE-I range capture is not a complete annual-source scan and cannot establish missing coverage.",
+      "No causal or damage claim."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "calfire-dixie",
+      "provider": "CAL FIRE",
+      "url": "https://www.fire.ca.gov/incidents/2021/7/13/dixie-fire/",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "public incident record",
+      "raw_sha256": "e19b3e3c7cf7f6c45b55dce56248ad03ee1371d633276ee5b77beb50d7db8a3f",
+      "filtered_sha256": null,
+      "bytes": 81504,
+      "etag": null,
+      "units": "incident dates; PDT converted to UTC",
+      "timezone_conversion": "PDT to UTC (+7 hours)",
+      "filters": "Plumas County FIPS 06063",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Candidate discovery only."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-dixie",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:18:00Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "724d941f359e14419a79a5baa117e723075401d7f8c3739dc186d5019e098dd3",
+      "filtered_sha256": "ada6bb1e57eb4c916ef4eb5499bce23972acf3edc51cb7594225f84fc0a1bdb2",
+      "bytes": 1114112,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out; UTC 15-minute timestamps",
+      "timezone_conversion": "none; source documents UTC",
+      "filters": "California, FIPS 06063, six-hour window",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Bounded range capture retained as provenance only; full annual-source scan is required for a coverage conclusion."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2021-dixie-06063-20210714t0000",
+      "county_fips": "06063",
+      "boundary_vintage": "2020 Census",
+      "scenario_id": "ca-2021-dixie-replay",
+      "window_start_utc": "2021-07-14T00:00:00Z",
+      "window_end_utc": "2021-07-14T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "calfire-dixie",
+        "eaglei-dixie"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [
+          "calfire-dixie"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "No eligible county-window weather evidence captured."
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [
+          "eaglei-dixie"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Bounded range result is nonconclusive pending a full annual-source scan."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
