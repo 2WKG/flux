@@ -1,0 +1,41 @@
+{
+  "archetype_id": "substation_transformer_yard",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Substation and transformer yard",
+  "category": "network",
+  "source_scene": "substation_transformer_yard.scene.json",
+  "export": {
+    "container": "glb",
+    "specification": "glTF 2.0",
+    "model_file": "substation_transformer_yard.glb",
+    "preview_file": "substation_transformer_yard.preview.png",
+    "preview_source": "substation_transformer_yard.preview.svg",
+    "preview_pixels": 512,
+    "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
+  },
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {"length": 120, "width": 90},
+  "connectors": [
+    {"name": "CONN_HV_IN_0", "role": "HV_IN", "position_m": [-30, 0, 50]},
+    {"name": "CONN_HV_OUT_0", "role": "HV_OUT", "position_m": [30, 0, -50]},
+    {"name": "CONN_MV_FEED_0", "role": "MV_FEED", "position_m": [40, 0, 18]}
+  ],
+  "material_slots": [{
+    "name": "MAT_STATUS",
+    "default": "neutral",
+    "runtime_tinted": true,
+    "allowed_labels": ["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]
+  }],
+  "triangles": {"lod0": 34000, "lod1": 13000, "lod2": 3800},
+  "author": "Flux team",
+  "license": "MIT",
+  "source_of_shape": "Original generic Flux procedural substation yard; it depicts no real facility, equipment ownership, bay configuration, capacity, or network topology.",
+  "limit": "Equipment count and layout are generic. They assert no bay configuration, capacity, ownership, or Minnesota placement identity."
+}

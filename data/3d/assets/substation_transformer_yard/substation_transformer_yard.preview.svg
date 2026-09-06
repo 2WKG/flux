@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Generic substation and transformer yard</title>
+  <desc id="desc">Neutral preview of a generic, unsited substation archetype with two transformers and high-voltage connections.</desc>
+  <rect width="512" height="512" fill="#eef2f5"/>
+  <rect x="76" y="70" width="360" height="372" rx="8" fill="#c8d0d5" stroke="#61707b" stroke-width="8"/>
+  <g fill="none" stroke="#53616a" stroke-width="12" stroke-linecap="round"><path d="M126 148H386"/><path d="M126 364H386"/><path d="M174 148V225M338 148V225M174 287V364M338 287V364"/></g>
+  <g fill="#87939c" stroke="#3c474e" stroke-width="8"><rect x="136" y="218" width="106" height="72" rx="12"/><rect x="270" y="218" width="106" height="72" rx="12"/><rect x="310" y="106" width="72" height="40" rx="5"/></g>
+  <g fill="#78858f"><circle cx="94" cy="148" r="12"/><circle cx="418" cy="364" r="12"/><circle cx="418" cy="234" r="12"/></g>
+  <text x="256" y="478" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#3c474e">GENERIC UNSITED ARCHETYPE</text>
+</svg>
