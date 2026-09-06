@@ -22,11 +22,12 @@
       "start_utc": "2019-02-01T00:00:00Z",
       "end_utc": "2019-02-03T00:00:00Z"
     },
-    "disposition": "accepted",
-    "selection_basis": "NCEI event 800140 documents extreme cold for the Hennepin NWS zone and the retained EAGLE-I slice has a complete 24/24 Hennepin timestamp set.",
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI event 800140 and a complete EAGLE-I Hennepin slice make this a candidate, but the zone report cannot establish county weather coverage.",
     "exclusions": [],
     "uncertainties": [
-      "Customer denominator unavailable; no outage rate or five-percent label asserted."
+      "Customer denominator unavailable; no outage rate or five-percent label asserted.",
+      "NCEI event 800140 is retained as zone-level candidate context only; its report is not a county time series and cannot establish county weather coverage."
     ]
   },
   "source_receipts": [
@@ -155,7 +156,7 @@
       "scenario_id": "mn-2019-01-27-arctic-replay",
       "window_start_utc": "2019-01-30T12:00:00Z",
       "window_end_utc": "2019-01-30T18:00:00Z",
-      "disposition": "accepted",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
         "ncei_stormevents_2019",
@@ -197,28 +198,15 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei_stormevents_2019"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "800140"
-          ],
-          "source_window": {
-            "start_utc": "2019-01-29T20:00:00Z",
-            "end_utc": "2019-01-31T12:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "CZ_FIPS:060",
-          "limitations": "NWS zone report; it is not a county time series."
-        },
-        "notes": "The source interval intersects the canonical county window."
+        "event_report": null,
+        "notes": "NCEI event 800140 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
       },
       "outage": {
         "coverage": "covered",
@@ -233,7 +221,7 @@
         "event_report": null,
         "notes": "Complete exact 15-minute timestamp set; explicit source values range from 1 to 928 customers out."
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
