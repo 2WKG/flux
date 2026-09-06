@@ -21,19 +21,32 @@ import { expect, test, type Page } from "@playwright/test";
  *     `no_api_origin_configured`, so killing the API turns this suite red
  *     instead of leaving it quietly green.
  *
- * KNOWN RED, and deliberately not silenced. Every case below asserts that the
- * page reported no CSP violation, and on master each one fails with
- * `script-src wasm-eval`: `web/server.mjs`'s policy is `script-src 'self'`,
- * which forbids WebAssembly compilation, while the glTF path bundles
- * meshoptimizer's decoder -- it probes for SIMD with `WebAssembly.validate` and
- * then calls `WebAssembly.instantiate` on a bundled buffer, and Chromium
- * refuses both. The single directive that would permit it is
- * `'wasm-unsafe-eval'` (WebAssembly compilation only: no `eval`, no
- * `new Function`, no off-origin source). Adding it is a security decision for
- * the owner of that policy, so it is NOT taken here and the affected cases stay
- * red rather than be weakened, skipped, or marked expected-failure. Measured:
- * with the directive added locally all 12 e2e cases pass; without it 7 fail
- * here and 5 pass. Nothing in this suite fails for any other reason.
+ * KNOWN RED, and deliberately not silenced -- two causes, neither this file's
+ * to decide:
+ *
+ *  a. CSP vs WebAssembly. Every case below asserts the page reported no CSP
+ *     violation. At master `eac05eb` all nine failed with
+ *     `script-src wasm-eval`: `web/server.mjs`'s policy is `script-src 'self'`,
+ *     which forbids WebAssembly compilation, while the glTF path bundles
+ *     meshoptimizer's decoder -- it probes for SIMD with `WebAssembly.validate`
+ *     then calls `WebAssembly.instantiate` on a bundled buffer, and Chromium
+ *     refuses both. The one directive that would permit it is
+ *     `'wasm-unsafe-eval'` (WebAssembly compilation only: no `eval`, no
+ *     `new Function`, no off-origin source). Adding it is a security decision
+ *     for the owner of that policy, so it is NOT taken here. Measured at
+ *     `eac05eb` with the API booted: with the directive added locally all 12
+ *     cases pass; without it 7 fail on this assertion and 5 pass.
+ *  b. The page moved. At master `5325957` (#358, 2WKG-486) `/` renders the
+ *     ACTIVSg2000 Texas topology, not the Minnesota five-bus synthetic
+ *     explorer, so most locators below find nothing and no map mounts on `/`
+ *     at all -- which is also why (a) no longer fires there. Which surface owns
+ *     `/`, and where this proof should now point, is a product decision, not a
+ *     test fix. The cases are left failing rather than weakened, skipped, or
+ *     marked expected-failure.
+ *
+ * The one case here that survives (b) is the chat dock, and it passes: it is
+ * the case that pins the API's own refusal, so it is live proof that the stack
+ * below really boots `copilot.app`.
  */
 
 /**
