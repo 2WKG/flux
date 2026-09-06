@@ -1,14 +1,14 @@
 # 06 — Frontend (`web/`)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** The UI may select a state only when its declared artifacts and validation contract are present. Texas references below describe the repository's topology adapter, which requires its source artifacts and build. [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
 Status: draft, weekend build. Owner: web lane. Depends on spec 05 (copilot API) for every byte of data; the map never reads DuckDB directly.
 
 ## Purpose
 
-The one screen the judges see. A deck.gl + MapLibre map of the Texas twin with a scenario/hour timeline, a layer stack (line loading, county outage risk, storm polygon, cascade playback, site pins with score cards, critical-load panel, line-upgrade ranking), a national scale view, and the "Ask" box wired to `POST /ask`. It must carry all six demo steps without a page reload and hold 60 fps on the 2000-bus Texas model.
+The one screen the judges see. For a selected state with validated topology, a deck.gl + MapLibre map can show a scenario/hour timeline, line loading, county outage risk, storm polygon, cascade playback, site pins, critical loads, line-upgrade ranking, and the "Ask" box wired to `POST /ask`. The repository's 2000-bus Texas adapter requires its source artifacts and build. The checked-in five-bus preview is geographic-neutral and cannot be relabelled as a state result.
 
-Texas-first: the app boots on Texas (`uri_2021`, hour 0). The national view is one toggle that swaps in an H3 hex layer from the 82k model; it is a scale slide, not an interactive product this weekend.
+State-aware: the app must show only the selected state's available artifacts and limitations. State-context ingestion does not make topology layers available. Texas (`uri_2021`, hour 0) remains the planned topology-backed path; another state needs a validated network and model contract before the same views can be enabled.
 
 ## Inputs
 

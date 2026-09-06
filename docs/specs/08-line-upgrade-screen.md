@@ -1,9 +1,8 @@
 # 08 — Line Upgrade Screen ("which existing wires to upgrade")
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Line results are available only for a selected state with a validated topology and declared inputs. Texas references below describe the current ACTIVSg2000 / ERCOT case. [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
-Status: draft · Scope: ONE screen inside the twin; Texas/ERCOT first, PJM as the clean
-congestion-attribution reference · Owner: lines team
+Status: draft · Scope: ONE screen inside a validated state topology; Texas/ERCOT is the current case, with PJM as the clean congestion-attribution reference · Owner: lines team
 
 ## Purpose
 

@@ -1,7 +1,7 @@
 [project]
 name = "flux"
 version = "0.0.1"
-description = "National grid digital twin: outage prediction, cascade simulation, nuclear siting (hackathon)"
+description = "State-configurable grid resilience analysis: outage context, validated topology analysis, and siting (hackathon)"
 requires-python = ">=3.12,<3.13"
 dependencies = [
   # storage / data
