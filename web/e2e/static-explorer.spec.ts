@@ -49,6 +49,8 @@ test("Texas model navigation uses only canonical synthetic geometry and carries 
   await expect(page.getByLabel("Navigable synthetic Texas model")).toBeVisible({ timeout: 20_000 });
   await expect(page.getByLabel("Navigable synthetic Texas model").locator("canvas.maplibregl-canvas")).toBeVisible();
 
+  await stage.getByLabel("Component search").fill("line:973");
+  await expect(stage.getByText(/Showing 1 matching canonical model IDs/i)).toBeVisible();
   const component = stage.getByLabel("Selected model component");
   await component.selectOption("line:973");
   await stage.getByRole("button", { name: /Open component-failure request/i }).click();
@@ -56,6 +58,11 @@ test("Texas model navigation uses only canonical synthetic geometry and carries 
   await expect(dock).toBeVisible();
   await expect(dock.getByLabel("Question for Flux Copilot")).toHaveValue(/line:973/);
   await expect(dock.getByLabel("Scene context")).toContainText(/Texas|uri_2021|line:973/i);
+  await expect(dock.getByRole("button", { name: "Send" })).toBeEnabled();
+  await dock.getByRole("button", { name: "Send" }).click();
+  await expect(dock.getByText("Answer complete", { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByLabel("Flux control room").getByText(/Live synthetic Texas cascade/i)).toBeVisible();
+  await expect(stage.getByLabel("Live synthetic cascade events")).toBeVisible();
   await expectNoPageErrors(page);
   await expectSameOriginOnly(page);
 });

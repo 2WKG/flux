@@ -28,6 +28,7 @@ export const NO_TERMINAL_EVENT_MESSAGE =
   "The stream closed without a terminal done or error event, so the answer is not complete and no result is shown.";
 export const INTERRUPTED_STREAM_MESSAGE =
   "The stream was interrupted before a terminal done or error event, so the answer is partial and no result is shown.";
+const V1_EVENT_TYPES = new Set(["lifecycle", "text", "tool_call", "tool_result", "citation", "done", "error"]);
 
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -40,8 +41,10 @@ function record(value: unknown): value is Record<string, unknown> {
  * raise it as `malformed` rather than skip it.
  */
 export function decodeFrame(frame: string): RunEvent | null | undefined {
-  const data = frame
-    .split(/\r?\n/)
+  const lines = frame.split(/\r?\n/);
+  const eventName = lines.find((line) => line.startsWith("event:"))?.slice(6).trim();
+  const frameId = lines.find((line) => line.startsWith("id:"))?.slice(3).trim();
+  const data = lines
     .filter((line) => line.startsWith("data:"))
     .map((line) => line.slice(5).trimStart())
     .join("\n");
@@ -52,9 +55,14 @@ export function decodeFrame(frame: string): RunEvent | null | undefined {
   } catch {
     return undefined;
   }
-  if (!record(parsed) || typeof parsed.type !== "string" || typeof parsed.id !== "string"
-    || typeof parsed.seq !== "number" || typeof parsed.v !== "number") return undefined;
-  return parsed as unknown as RunEvent;
+  if (!record(parsed) || typeof parsed.seq !== "number" || typeof parsed.v !== "number") return undefined;
+  // The v1 wire format carries the discriminant in the SSE `event:` line.
+  // Accept a redundant JSON `type` only when it agrees; a disagreement is a
+  // malformed frame, never an opportunity to pick the more convenient value.
+  if (!eventName || !V1_EVENT_TYPES.has(eventName) || !frameId || frameId !== String(parsed.seq)
+    || (typeof parsed.type === "string" && parsed.type !== eventName)
+    || (typeof parsed.id === "string" && parsed.id !== frameId)) return undefined;
+  return { ...parsed, id: frameId, type: eventName } as unknown as RunEvent;
 }
 
 /** Split a decoded chunk buffer into complete frames plus the unterminated tail. */

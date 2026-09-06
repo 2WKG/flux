@@ -129,7 +129,10 @@ function liveCascadeFromRun(state: RunState, context: SceneContext, region: Regi
     || context.region !== "texas" || context.view_mode !== "texas_model"
     || context.scenario_id !== "uri_2021" || context.hour === null) return null;
   for (const trace of Object.values(state.tools)) {
-    if (trace.tool !== "synthetic_cascade" || trace.result?.ok !== true) continue;
+    // The bridge's current interactive dispatcher names this `cascade`; the
+    // direct demo bridge uses `synthetic_cascade`. The explicit scene action
+    // below, rather than either display name, is the authority for linkage.
+    if ((trace.tool !== "synthetic_cascade" && trace.tool !== "cascade") || trace.result?.ok !== true) continue;
     const result = asRecord(trace.result.result);
     const action = asRecord(result?.scene_action);
     if (!action || action.kind !== "synthetic_cascade_current" || action.persisted !== false
@@ -632,6 +635,7 @@ export function App() {
   const activeCascade = liveCascade ?? persistedCascade;
   const modelElementsById = useMemo(() => new Map((modelPayload.data?.elements ?? [])
     .flatMap((element) => element.element_id ? [[element.element_id, element] as const] : [])), [modelPayload]);
+  const protectedModelElementIds = useMemo(() => (modelPayload.data?.elements ?? []).flatMap((element) => element.element_id && element.role === "grid_forming_slack" ? [element.element_id] : []), [modelPayload]);
   const selectedModelIsSlack = modelElementsById.get(selectedModelElementId ?? "")?.role === "grid_forming_slack";
   const selectModelElement = useCallback((elementId: string) => {
     setSelectedModelElementId(elementId || undefined);
@@ -774,13 +778,15 @@ export function App() {
     onRequestFailure: () => {
       if (!selectedModelElementId || selectedModelIsSlack) return;
       updateSceneContext({ ...EMPTY_SCENE_CONTEXT, region: "texas", county_fips: forecastCountyFips, view_mode: "texas_model", scenario_id: "uri_2021", hour: 0, selected_element_id: selectedModelElementId });
-      prefillChat(`Run a synthetic component-failure scenario for ${selectedModelElementId} in Uri 2021 at hour 0.\n\nVisible context: Texas synthetic (ACTIVSg2000) model; historical county ${historicalForecast.countyFips ?? "unavailable"}; selected model element ${selectedModelElementId}.`);
+      prefillChat(`Simulate the synthetic cascade after ${selectedModelElementId} fails in Uri 2021 at hour 0.\n\nVisible context: Texas synthetic (ACTIVSg2000) model; historical county ${historicalForecast.countyFips ?? "unavailable"}; selected model element ${selectedModelElementId}.`);
       setSceneMode("texas_model");
       if (!chatOpen) toggleChat("toggle");
     },
   });
   const texasModelScene: TexasModelScene = texasModelSceneBase.availability !== "unavailable" ? {
     ...texasModelSceneBase,
+    protectedElementIds: protectedModelElementIds,
+    liveCascade: liveCascade ? { runId: liveCascade.runId, events: liveCascade.events } : undefined,
     visual: <SyntheticModelScene elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} highlightedElementIds={activeCascade?.events.flatMap((event) => event.elementId ? [event.elementId] : []) ?? []} onSelectElement={selectModelElement} fallback={<SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={selectModelElement} />} />,
   } : texasModelSceneBase;
 

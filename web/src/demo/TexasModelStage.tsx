@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { DemoAvailability, ProvenanceNote } from "./ControlRoom";
 
 export interface ModelCascadeEvent {
@@ -39,10 +39,17 @@ export interface TexasModelScene {
   readonly elementIds: readonly string[];
   /** IDs the server explicitly could not resolve in its canonical model mapping. */
   readonly unresolvedElementIds?: readonly string[];
+  /** Server-declared protected model identities, such as grid-forming slack. */
+  readonly protectedElementIds?: readonly string[];
   /** An independently declared synthetic model renderer, keyed to `elementIds`. */
   readonly visual?: ReactNode;
   readonly action?: ComponentFailureAction;
   readonly cascade?: QualifiedModelCascade;
+  /** A verified ephemeral tool result. It is intentionally distinct from persisted playback. */
+  readonly liveCascade?: {
+    readonly runId?: string;
+    readonly events: readonly { readonly elementId?: string; readonly stageLabel: string; readonly summary: string }[];
+  };
   readonly limitations?: readonly string[];
 }
 
@@ -62,9 +69,18 @@ export function resolveSceneEvents(scene: TexasModelScene): { readonly resolved:
 }
 
 export function TexasModelStage({ scene }: { scene: TexasModelScene }) {
+  const [componentQuery, setComponentQuery] = useState("");
   const resolution = resolveSceneEvents(scene);
   const events = resolution.resolved;
+  const liveEvents = scene.liveCascade?.events ?? [];
   const action = scene.action;
+  const protectedIds = new Set(scene.protectedElementIds ?? []);
+  const matchingElementIds = useMemo(() => {
+    const query = componentQuery.trim().toLocaleLowerCase();
+    const matches = scene.elementIds.filter((id) => !query || id.toLocaleLowerCase().includes(query));
+    const selected = action?.selectedElementId;
+    return [...(selected && !matches.includes(selected) ? [selected] : []), ...matches].slice(0, 80);
+  }, [action?.selectedElementId, componentQuery, scene.elementIds]);
   return <section className="texas-model-stage" aria-label="Texas grid model scene" data-model-synthetic={String(scene.synthetic)}>
     <header><p className="control-room__eyebrow">Texas grid model</p><h3>{scene.topologyLabel}</h3><p>{scene.solver ?? "Solver unavailable"}</p></header>
     {scene.availability !== "unavailable" ? <>
@@ -72,16 +88,24 @@ export function TexasModelStage({ scene }: { scene: TexasModelScene }) {
       {scene.unresolvedElementIds?.length ? <p className="control-room__unavailable" role="status">Not located in the synthetic model: {scene.unresolvedElementIds.join(", ")}</p> : null}
       {scene.visual ? <div className="texas-model-stage__visual" aria-label="Synthetic Texas model visual">{scene.visual}</div> : <p className="control-room__unavailable" role="status">Model visual unavailable: no independent synthetic-coordinate renderer has been supplied.</p>}
       {action ? <div className="texas-model-stage__action">
+        <label>Component search
+          <input type="search" aria-label="Component search" value={componentQuery} onChange={(event) => setComponentQuery(event.target.value)} placeholder="Canonical ID or type, e.g. line:973" />
+        </label>
         <label>Selected model component
           <select value={action.selectedElementId ?? ""} onChange={(event) => action.onSelectElement?.(event.target.value)} disabled={!action.onSelectElement}>
             <option value="">Choose a model ID</option>
-            {scene.elementIds.map((id) => <option key={id} value={id}>{id}</option>)}
+            {matchingElementIds.map((id) => <option key={id} value={id} disabled={protectedIds.has(id)}>{id}{protectedIds.has(id) ? " · protected" : ""}</option>)}
           </select>
         </label>
+        <p>{matchingElementIds.length === 80 ? "Showing the first 80 matching canonical model IDs." : `Showing ${matchingElementIds.length} matching canonical model IDs.`}</p>
         <button type="button" onClick={action.onRequestFailure} disabled={action.availability !== "available" || !action.selectedElementId || !action.onRequestFailure}>Open component-failure request</button>
         <p>{action.message}</p>
       </div> : null}
-      {events.length > 0 && scene.cascade ? <div className="texas-model-stage__events" aria-label="Qualified cascade events">
+      {liveEvents.length > 0 ? <div className="texas-model-stage__events" aria-label="Live synthetic cascade events">
+        <p><strong>Verified live current-run:</strong> {scene.liveCascade?.runId ?? "run ID unavailable"}</p>
+        <p>This ephemeral synthetic result drives the matching canonical model IDs above; it is not persisted playback.</p>
+        <ol>{liveEvents.map((event, index) => <li key={`${event.elementId ?? "element"}-${index}`}>{event.stageLabel}: {event.summary}</li>)}</ol>
+      </div> : events.length > 0 && scene.cascade ? <div className="texas-model-stage__events" aria-label="Qualified cascade events">
         <p><strong>Qualified persisted run:</strong> {scene.cascade.runId}</p>
         {scene.cascade.lostLoadMw !== undefined ? <p>Lost load: {scene.cascade.lostLoadMw} MW</p> : null}
         {scene.cascade.countyFips?.length ? <p>Dark county FIPS: {scene.cascade.countyFips.join(", ")}</p> : null}
