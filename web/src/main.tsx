@@ -25,6 +25,7 @@ import { resultsFromRun } from "./data/ask-result";
 import { loadGridLayer, GRID_LAYERS, type GridState } from "./data/grid-client";
 import type { SpatialItem, SpatialPage } from "./data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "./renderer/GridInventoryPanel";
+import { SyntheticModelScene } from "./renderer/SyntheticModelScene";
 import {
   HistoricalForecastPanel,
   PrimaryDemo,
@@ -674,10 +675,10 @@ export function App() {
   });
   const texasModelScene: TexasModelScene = texasModelSceneBase.availability !== "unavailable" ? {
     ...texasModelSceneBase,
-    visual: <SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={(elementId) => {
+    visual: <SyntheticModelScene elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} highlightedElementIds={cascadePayload ? cascadePlaybackFromPayload(cascadePayload).events.map((event) => event.summary.split(" ")[0]) : []} onSelectElement={(elementId) => {
       setSelectedModelElementId(elementId);
       setSceneContext((context) => ({ ...context, scenario_id: "uri_2021", hour: 0, selected_element_id: elementId }));
-    }} />,
+    }} fallback={<SyntheticTexasModelMap elements={modelPayload.data?.elements ?? []} selectedElementId={selectedModelElementId} onSelect={(elementId) => setSelectedModelElementId(elementId)} />} />,
   } : texasModelSceneBase;
 
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
