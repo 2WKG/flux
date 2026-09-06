@@ -32,6 +32,11 @@ const PROXIED = [
   { pattern: /^\/demo\/brief$/, methods: ["GET"] },
   { pattern: /^\/demo\/forecast$/, methods: ["GET"] },
   { pattern: /^\/demo\/model$/, methods: ["GET"] },
+  { pattern: /^\/interactive\/balance$/, methods: ["GET"] },
+  { pattern: /^\/interactive\/redundancy$/, methods: ["GET"] },
+  { pattern: /^\/interactive\/scenario\/edit$/, methods: ["POST"] },
+  { pattern: /^\/interactive\/cascade$/, methods: ["POST"] },
+  { pattern: /^\/interactive\/siting\/search$/, methods: ["POST"] },
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
 
