@@ -47,6 +47,23 @@ RECORDED_DELTAS = (
 )
 RECORDED_ANSWER = "".join(RECORDED_DELTAS)
 
+# Written out here on purpose.  Parametrising over `SYSTEM_PROMPT.split()` would
+# be an assertion that cannot fail: deleting a rule from `grounding.py` would
+# just delete the case that should have caught it.  These are the rules spec 05
+# and the repo's CLAUDE.md require to reach the model, pinned as literals.
+REQUIRED_PROMPT_RULES = (
+    "You narrate and plan. You never compute. Every number in your answer must",
+    "appear verbatim in the tool evidence you were given.",
+    "Never derive a new quantity from the evidence: no sums, differences,",
+    "ratios, or percentages. Report the numbers separately instead.",
+    "Every regulatory, legal, or physical claim must be supported by a supplied",
+    "citation. Without one, say the claim is unverified.",
+    "Say when topology is synthetic if the evidence labels it so.",
+    "If a tool result is unavailable, say the answer is unavailable and why.",
+    "Never substitute a plausible default for a missing value.",
+    "Answer in at most six sentences of plain prose.",
+)
+
 _PROVIDER_ENV = (
     "COPILOT_PROVIDER",
     "COPILOT_MODEL",
@@ -217,7 +234,7 @@ def test_the_claude_adapter_turns_a_recorded_http_stream_into_text_deltas(
     assert seen["timeout_s"] == REQUEST_TIMEOUT_SECONDS
 
 
-@pytest.mark.parametrize("rule", SYSTEM_PROMPT.split("\n"))
+@pytest.mark.parametrize("rule", REQUIRED_PROMPT_RULES)
 def test_every_shared_grounding_rule_reaches_gemini_on_the_wire(
     monkeypatch: pytest.MonkeyPatch, rule: str
 ) -> None:
@@ -232,7 +249,7 @@ def test_every_shared_grounding_rule_reaches_gemini_on_the_wire(
     assert "Topology is synthetic." in json.dumps(seen["body"]["contents"])
 
 
-@pytest.mark.parametrize("rule", SYSTEM_PROMPT.split("\n"))
+@pytest.mark.parametrize("rule", REQUIRED_PROMPT_RULES)
 def test_every_shared_grounding_rule_reaches_claude_on_the_wire(
     monkeypatch: pytest.MonkeyPatch, rule: str
 ) -> None:
