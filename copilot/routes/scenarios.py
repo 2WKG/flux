@@ -25,11 +25,11 @@ from pydantic import BaseModel, ConfigDict
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 router = APIRouter(tags=["scenarios"])
 
 SCENARIO_KINDS: Final = ("historical", "forecast", "synthetic")
-SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"
 _FIXTURE_PREFIX: Final = "fixture:"
 _ACTIVSG_MARKER: Final = "activsg"
 # Tables the row shape depends on: has_cascade / has_predictions are read

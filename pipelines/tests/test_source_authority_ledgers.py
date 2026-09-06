@@ -36,3 +36,32 @@ def test_every_expected_ledger_is_discovered():
 def test_ledger_satisfies_the_shared_schema(path: Path):
     ledger = json.loads(path.read_text(encoding="utf-8"))
     assert validate_ledger(ledger, ROOT) == []
+
+
+def test_no_class_carries_two_different_statuses_for_the_same_state():
+    """Two ledgers may own the same class; they may not disagree about it.
+
+    ``distribution_feeder`` is recorded as ``unavailable`` in both
+    ``texas-source-authority-ledger-v1.json`` and
+    ``texas-distribution-source-authority-ledger-v1.json``. They agree today,
+    and nothing noticed if a future edit to one silently contradicted the
+    other.
+    """
+    seen: dict[tuple[str, str], dict[str, str]] = {}
+    shared = 0
+    for path in LEDGERS:
+        ledger = json.loads(path.read_text(encoding="utf-8"))
+        state = ledger["state"]
+        for entry in ledger["physical_class_coverage"]:
+            key = (state, entry["class_id"])
+            if key in seen:
+                shared += 1
+                assert entry["status"] == seen[key]["status"], (
+                    f"{key} is {entry['status']!r} in {path.name} but "
+                    f"{seen[key]['status']!r} in {seen[key]['ledger']}"
+                )
+            else:
+                seen[key] = {"status": entry["status"], "ledger": path.name}
+    # Without a shared class this test would pass vacuously.
+    assert shared >= 1, "no class_id is shared between ledgers for one state"
+    assert ("TX", "distribution_feeder") in seen

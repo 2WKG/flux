@@ -59,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{INVENTORY} is stale; rerun without --check", file=sys.stderr)
             return 1
         return 0
-    INVENTORY.write_text(text, encoding="utf-8")
+    INVENTORY.write_text(text, encoding="utf-8", newline="\n")
     print(f"wrote {len(text.splitlines())} entries to {INVENTORY}")
     return 0
 
