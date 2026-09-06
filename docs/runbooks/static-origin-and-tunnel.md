@@ -97,6 +97,10 @@ It should return the same built HTML as the local root, not HTTP `530`.
 
 ## Deployment command (recorded, not yet run)
 
+The checked-in scaffolding for these steps is [`deploy/`](../../deploy/README.md):
+`deploy/serve.ps1` (build plus static origin), `deploy/tunnel.ps1` (preflight
+plus connector), and `deploy/cloudflared/config.example.yml` (ingress template).
+
 Because no tunnel exists to reuse, one must be created from this host. These are
 the commands the owner runs on `WYZWORKSTATION`. **None of them has been run
 yet** — `cloudflared tunnel login` opens a browser for Cloudflare account
@@ -109,8 +113,10 @@ cloudflared tunnel create flux-demo        # writes credentials to $env:USERPROF
 cloudflared tunnel route dns flux-demo bouncepulse.com
 ```
 
-Then write `%USERPROFILE%\.cloudflared\config.yml`, which is the authoritative
-hostname-to-origin mapping:
+Then copy `deploy/cloudflared/config.example.yml` to
+`%USERPROFILE%\.cloudflared\config.yml`, which is the authoritative
+hostname-to-origin mapping, and fill in the credentials path that
+`tunnel create` printed:
 
 ```yaml
 tunnel: flux-demo
@@ -121,11 +127,17 @@ ingress:
   - service: http_status:404
 ```
 
-Start the static origin first (see the section above), then the connector:
+After that one-time setup, every deploy is two shells from the repository root:
 
 ```powershell
-cloudflared tunnel run flux-demo           # foreground, for the demo window
+./deploy/serve.ps1        # shell 1: build + static origin on 127.0.0.1:4173
+./deploy/tunnel.ps1       # shell 2: preflight + cloudflared tunnel run flux-demo
 ```
+
+`tunnel.ps1` refuses to start unless `cloudflared`, the credentials, the
+`config.yml`, and a responding local origin are all present; `-CheckOnly` runs
+that preflight alone. It starts an existing tunnel and never creates one, logs
+in, or changes DNS.
 
 Run it in the foreground for the demo and stop it with Ctrl+C. Installing it as
 a Windows service (`cloudflared service install`) is optional and needs an
