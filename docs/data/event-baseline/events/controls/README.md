@@ -20,19 +20,19 @@ denominator is unavailable, never inferred from population.
 The candidate frame, matching variables, exclusions, seed, IDs, and explicitly
 unweighted choice are in [preselection-plan.yaml](preselection-plan.yaml). The
 machine-readable row shape and preselection state are in
-[controls-candidate-manifest.json](controls-candidate-manifest.json). Selections
+[metadata/controls-candidate-manifest.json](metadata/controls-candidate-manifest.json). Selections
 stay `pending_catalog_and_coverage` until the shared event contract and source
 coverage receipt establish the county/window frame. This prevents claims of
 accepted controls before matched weather and outage coverage are evidenced.
 
-The separate [diagnostic-near-miss-candidates.json](diagnostic-near-miss-candidates.json)
+The separate [metadata/diagnostic-near-miss-candidates.json](metadata/diagnostic-near-miss-candidates.json)
 contains five NCEI-documented Minnesota convective-weather candidates. It records
 event and episode IDs, county FIPS, UTC conversion, the exact source-file hash,
 and selection order, but deliberately has no outage result. Those rows are
 diagnostic candidates only. They require their own weather/outage coverage
 decision before an event-baseline bundle may present them as accepted.
 
-[eaglei-capture-audit.json](eaglei-capture-audit.json) links the frozen plan to
+[metadata/eaglei-capture-audit.json](metadata/eaglei-capture-audit.json) links the frozen plan to
 the bounded, ignored-cache EAGLE-I receipts produced afterward. It distinguishes
 complete observations, partial observations, `UncoveredLabel`, and an extractor
 error. None of those post-selection outcomes changes membership or makes a
