@@ -36,6 +36,7 @@ def test_settings_leave_the_model_unconfigured_when_copilot_model_is_unset(
     [
         ("", "non-empty local file path"),
         (".", "name a file, not a directory"),
+        (":memory:", "non-empty local file path"),
         ("motherduck://token=private-db-token", "non-empty local file path"),
     ],
 )
