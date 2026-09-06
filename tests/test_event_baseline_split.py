@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import importlib.util
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -223,3 +224,188 @@ def test_audit_rejects_forced_cross_split_source_row() -> None:
     duplicate["record_id"] = "another-record"
     with pytest.raises(splitter.AuditError, match="selected source row"):
         splitter.audit([manifest[0], duplicate])
+
+
+# --- the audit's teeth -------------------------------------------------------
+#
+# Every check in `audit()` above is a collision detector, so on a corpus of
+# singleton groups none of them can fire.  These exercise the two grouping
+# unions the docs advertise by name, the positive re-derivation that catches a
+# moved row, and the degeneracy refusal that stops a vacuous "pass".
+
+
+def _accepted_record(candidate: dict) -> dict:
+    """A record that the acceptance guards let through, for guard-level tests."""
+    candidate["event"]["disposition"] = "accepted"
+    candidate["record"].update(
+        {
+            "disposition": "accepted",
+            "weather": {
+                "coverage": "covered",
+                "evidence_kind": "time_series_or_grid",
+                "expected_samples": 24,
+                "observed_samples": 24,
+                "missing_timestamps": [],
+            },
+            "outage": {
+                "coverage": "covered",
+                "evidence_kind": "time_series_or_grid",
+                "expected_samples": 24,
+                "observed_samples": 24,
+                "missing_timestamps": [],
+            },
+            "matched_coverage_decision": "matched",
+            "source_evidence_status": "available",
+        }
+    )
+    return candidate
+
+
+def test_rows_sharing_a_parent_system_land_in_one_split() -> None:
+    """Guards the `by_parent` union in `components()` directly.
+
+    The windows are disjoint and the source rows differ, so `parent_system_id`
+    is the only thing that can hold these two rows together.
+    """
+    left = row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")
+    right = row(
+        "wind-b",
+        "storm-a",
+        "eaglei:27053:2024-06-01T00:00:00Z",
+        start="2024-06-01T00:00:00Z",
+    )
+    right["event"]["context_window"] = {
+        "start_utc": "2024-06-01T00:00:00Z",
+        "end_utc": "2024-06-03T00:00:00Z",
+    }
+    right["record"]["window_end_utc"] = "2024-06-01T06:00:00Z"
+
+    manifest = splitter.manifest_rows([left, right])
+
+    assert {item["split"] for item in manifest} == {splitter.split_for("storm-a")}
+    assert {item["group_key"] for item in manifest} == {"storm-a"}
+    assert len(manifest) == 2
+
+
+def test_rows_with_overlapping_context_windows_land_in_one_split() -> None:
+    """Guards the context-window overlap union in `components()` directly.
+
+    Different parents, different source rows: only the overlapping context
+    windows can group these.
+    """
+    left = row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")
+    right = row("wind-b", "storm-b", "eaglei:27053:2021-01-02T12:00:00Z")
+    right["event"]["context_window"] = {
+        "start_utc": "2021-01-02T00:00:00Z",
+        "end_utc": "2021-01-05T00:00:00Z",
+    }
+    right["record"]["window_start_utc"] = "2021-01-02T12:00:00Z"
+    right["record"]["window_end_utc"] = "2021-01-02T18:00:00Z"
+
+    manifest = splitter.manifest_rows([left, right])
+
+    assert {item["group_key"] for item in manifest} == {"storm-a|storm-b"}
+    assert len({item["split"] for item in manifest}) == 1
+
+
+def test_acceptance_refuses_a_record_without_source_row_evidence() -> None:
+    """`accepts()` must make this refusal itself, not lean on the validator.
+
+    `accepts()` is called on already-validated bundles, so this drives the guard
+    with a bundle dict directly; deleting the guard makes this test green.
+    """
+    candidate = _accepted_record(
+        row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")
+    )
+    candidate["record"]["source_evidence_status"] = "unavailable"
+
+    with pytest.raises(splitter.AuditError, match="lacks source-row evidence"):
+        splitter.accepts(
+            {"event": candidate["event"], "records": [candidate["record"]]}
+        )
+
+
+def test_moving_a_single_row_between_splits_fails_the_audit() -> None:
+    """The singleton case the shipped manifests were in: no collision, still caught."""
+    manifest = splitter.manifest_rows(
+        [row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")]
+    )
+    moved = copy.deepcopy(manifest)
+    moved[0]["split"] = "test" if moved[0]["split"] != "test" else "train"
+
+    with pytest.raises(
+        splitter.AuditError, match="is not the .* its group key hashes to"
+    ):
+        splitter.audit(moved)
+
+
+def test_moving_a_whole_group_between_splits_fails_the_audit() -> None:
+    rows = [
+        row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z"),
+        row("wind-b", "storm-a", "eaglei:27053:2021-01-01T06:00:00Z"),
+    ]
+    manifest = splitter.manifest_rows(rows)
+    assert len({item["group_key"] for item in manifest}) == 1
+    moved = copy.deepcopy(manifest)
+    other = "test" if moved[0]["split"] != "test" else "train"
+    for item in moved:
+        item["split"] = other
+
+    with pytest.raises(
+        splitter.AuditError, match="is not the .* its group key hashes to"
+    ):
+        splitter.audit(moved)
+
+
+def test_a_degenerate_corpus_is_never_reported_as_a_passing_audit() -> None:
+    manifest = splitter.manifest_rows(
+        [row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")]
+    )
+
+    report = splitter.audit(manifest)
+
+    assert report["status"] == "insufficient_corpus"
+    reasons = " ".join(report["insufficient_corpus_reasons"])
+    assert "declared minimum" in reasons
+    assert "singleton" in reasons
+    assert "split is empty" in reasons
+
+
+def test_a_corpus_with_real_groups_and_enough_rows_passes() -> None:
+    """The other side of the refusal: a non-degenerate corpus still reports pass.
+
+    Without this the `insufficient_corpus` branch could be satisfied by never
+    passing at all.
+    """
+    base = datetime(2021, 1, 1, tzinfo=UTC)
+    rows = []
+    for index in range(60):
+        parent = f"storm-{index // 2}"
+        day = base + timedelta(days=index * 3)
+        stamp = day.strftime("%Y-%m-%dT%H:%M:%SZ")
+        candidate = row(f"wind-{index}", parent, f"eaglei:27053:{index}", start=stamp)
+        candidate["event"]["context_window"] = {
+            "start_utc": stamp,
+            "end_utc": (day + timedelta(hours=12)).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
+        candidate["record"]["window_end_utc"] = (day + timedelta(hours=6)).strftime(
+            "%Y-%m-%dT%H:%M:%SZ"
+        )
+        rows.append(candidate)
+    manifest = splitter.manifest_rows(rows)
+
+    report = splitter.audit(manifest)
+
+    assert report["insufficient_corpus_reasons"] == []
+    assert report["status"] == "pass"
+    assert max(report["group_size_histogram"]) > 1
+
+
+def test_load_bundles_finds_a_deeply_nested_bundle(tmp_path: Path) -> None:
+    """`glob("*/*.json")` used to make a bundle one level deeper invisible."""
+    nested = tmp_path / "hazard" / "sub"
+    nested.mkdir(parents=True)
+    (nested / "bogus.json").write_text('{"event": {}}')
+
+    with pytest.raises(splitter.AuditError, match="contract validation failed"):
+        splitter.load_bundles(tmp_path)

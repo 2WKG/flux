@@ -14,6 +14,7 @@ import hashlib
 import importlib.util
 import json
 import re
+import subprocess
 from collections import Counter, defaultdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -282,6 +283,60 @@ def require_accepted_rows(rows: list[dict[str, Any]]) -> None:
         )
 
 
+# A split frozen from a handful of rows, or from rows that share no grouping
+# key at all, cannot demonstrate that the grouping works: every leakage check
+# below is a collision detector, and a degenerate corpus has no collisions to
+# detect.  Declare the floor here so the audit refuses instead of reporting a
+# vacuous "pass".
+MINIMUM_ACCEPTED_ROWS = 12
+MINIMUM_NON_SINGLETON_GROUPS = 1
+
+
+def degeneracy_reasons(manifest: list[dict[str, str]]) -> list[str]:
+    """Why this corpus cannot support an auditable held-out split, if it cannot."""
+    reasons: list[str] = []
+    if len(manifest) < MINIMUM_ACCEPTED_ROWS:
+        reasons.append(
+            f"accepted county-window rows {len(manifest)} < the declared minimum "
+            f"{MINIMUM_ACCEPTED_ROWS}"
+        )
+    group_sizes = Counter(row["group_key"] for row in manifest)
+    non_singleton = sum(1 for size in group_sizes.values() if size > 1)
+    if non_singleton < MINIMUM_NON_SINGLETON_GROUPS:
+        reasons.append(
+            f"every one of the {len(group_sizes)} groups is a singleton, so no "
+            "leakage check in this audit can fire"
+        )
+    for split in ("train", "calibration", "test"):
+        if not any(row["split"] == split for row in manifest):
+            reasons.append(f"the {split} split is empty")
+    return reasons
+
+
+def regrouping_failures(manifest: list[dict[str, str]]) -> list[str]:
+    """Positively re-derive each row's split from its group key.
+
+    The collision checks below can only see rows that collide.  This one fails
+    on any single row whose recorded split is not the split its own group key
+    hashes to, so moving one row between manifests is caught even when every
+    group is a singleton.
+    """
+    failures: list[str] = []
+    for row in manifest:
+        expected = split_for(row["group_key"])
+        if row["split"] != expected:
+            failures.append(
+                f"{row['record_id']}: recorded split {row['split']} is not the "
+                f"{expected} its group key hashes to"
+            )
+        if row["parent_system_id"] not in row["group_key"].split("|"):
+            failures.append(
+                f"{row['record_id']}: parent_system_id {row['parent_system_id']} "
+                f"is not part of its group key {row['group_key']}"
+            )
+    return failures
+
+
 def audit(manifest: list[dict[str, str]]) -> dict[str, Any]:
     canonical: dict[tuple[str, str, str], str] = {}
     parents: dict[str, str] = {}
@@ -318,10 +373,23 @@ def audit(manifest: list[dict[str, str]]) -> dict[str, Any]:
             prior = source_rows.setdefault(source_key, split)
             if prior != split:
                 failures.append(f"selected source row crosses splits: {source_key}")
+    failures.extend(regrouping_failures(manifest))
     if failures:
         raise AuditError("; ".join(sorted(set(failures))))
+    reasons = degeneracy_reasons(manifest)
     return {
-        "status": "pass",
+        "status": "insufficient_corpus" if reasons else "pass",
+        "insufficient_corpus_reasons": reasons,
+        "declared_minimums": {
+            "accepted_rows": MINIMUM_ACCEPTED_ROWS,
+            "non_singleton_groups": MINIMUM_NON_SINGLETON_GROUPS,
+            "non_empty_splits": ["train", "calibration", "test"],
+        },
+        "group_size_histogram": dict(
+            sorted(
+                Counter(Counter(row["group_key"] for row in manifest).values()).items()
+            )
+        ),
         "rows": len(manifest),
         "splits": dict(Counter(row["split"] for row in manifest)),
         "coverage": {
@@ -373,11 +441,48 @@ def load_bundles(events_dir: Path) -> list[dict[str, Any]]:
     validator = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(validator)
     bundles: list[dict[str, Any]] = []
-    for path in sorted(events_dir.glob("*/*.json")):
-        bundles.append(validator.load_and_validate(path))
+    inputs: list[dict[str, str]] = []
+    # rglob, not glob("*/*.json"): a bundle nested one level deeper must not be
+    # silently invisible to the assembler.
+    for path in sorted(events_dir.rglob("*.json")):
+        try:
+            bundles.append(validator.load_and_validate(path))
+        except Exception as exc:  # the validator's own error type is private
+            raise AuditError(f"{path}: contract validation failed: {exc}") from exc
+        inputs.append(
+            {
+                "path": path.as_posix(),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            }
+        )
     if not bundles:
         raise AuditError(f"{events_dir}: no event bundles")
-    return bundles
+    return bundles, inputs
+
+
+def head_commit() -> str:
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True, stderr=subprocess.DEVNULL
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unavailable"
+
+
+def generation_receipt(
+    events_dir: Path, inputs: list[dict[str, str]]
+) -> dict[str, Any]:
+    """Trace the manifests back to the generator and the exact input bundles."""
+    generator = Path(__file__)
+    return {
+        "capture_method": "generated",
+        "generator_path": "scripts/data/event_baseline_split.py",
+        "generator_sha256": hashlib.sha256(generator.read_bytes()).hexdigest(),
+        "generator_commit": head_commit(),
+        "input_events_dir": events_dir.as_posix(),
+        "input_bundle_count": len(inputs),
+        "input_bundles": inputs,
+    }
 
 
 FIELDS = [
@@ -407,11 +512,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--controls-plan", type=Path)
     args = parser.parse_args(argv)
     try:
-        bundles = load_bundles(args.events_dir)
+        bundles, inputs = load_bundles(args.events_dir)
         rows = [row for bundle in bundles for row in accepts(bundle)]
         require_accepted_rows(rows)
         manifest = manifest_rows(rows)
         report = audit(manifest)
+        report["receipt"] = generation_receipt(args.events_dir, inputs)
         report["controls"] = control_summary(
             bundles,
             args.controls_plan
@@ -432,6 +538,12 @@ def main(argv: list[str] | None = None) -> int:
         hashlib.sha256(payload.encode()).hexdigest() + "  audit.json\n"
     )
     print(f"WROTE {args.output_dir} ({report['rows']} accepted county-window rows)")
+    if report["status"] != "pass":
+        # Written, but refused: the manifests exist so the state is inspectable,
+        # and the exit status says they are not a defensible held-out split.
+        for reason in report["insufficient_corpus_reasons"]:
+            print(f"REFUSED insufficient_corpus: {reason}")
+        return 1
     return 0
 
 
