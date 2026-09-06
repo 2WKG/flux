@@ -216,8 +216,9 @@ def test_same_type_tie_is_total_and_input_order_independent():
 
 
 def test_same_type_and_cost_tie_prefers_the_higher_uplift():
-    # Both round to 10.000 MW/M$ at equal cost; the larger uplift wins.
-    low = _dlr(10.0000, cost=1_000_000)
+    # Both round to 10.000 MW/M$ at equal cost; the larger uplift wins (and
+    # the canonical-form fallback would order these the other way).
+    low = _dlr(10.0001, cost=1_000_000)
     high = _dlr(10.0004, cost=1_000_000)
 
     assert _score(1, (low, high)).best == high
