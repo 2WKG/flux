@@ -38,9 +38,6 @@ TRANSFORM_VERSION: Final = "1.0.0"
 
 IDENTITY_COLUMNS: Final = ("county_fips", "scenario_id", "window_start")
 
-FRAME_DIGEST_VERSION: Final = "feature-frame-v1"
-"""Prefix of the canonical frame encoding; bump when the encoding changes."""
-
 
 class TransformError(ValueError):
     """A feature artifact cannot safely be fitted or transformed."""
@@ -113,6 +110,10 @@ class TransformedFeatureFrame:
             "source_input_sha256": self.artifact.source_input_sha256,
             "feature_set_version": self.artifact.feature_set_version,
         }
+
+
+FRAME_DIGEST_VERSION: Final = "feature-frame-v1"
+"""Prefix of the canonical frame encoding; bump when the encoding changes."""
 
 
 def feature_frame_sha256(frame: pd.DataFrame) -> str:
