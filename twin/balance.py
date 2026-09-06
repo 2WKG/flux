@@ -15,7 +15,6 @@ from twin.cascade import island_primitives
 from twin.contracts import GridEdit, SimulationInputError
 from twin.edits import apply_edits, edit_hash
 
-
 Scope = Literal["state", "ba", "county", "island"]
 _SCOPES = frozenset(("state", "ba", "county", "island"))
 _FIRM_FUELS = frozenset(
@@ -86,7 +85,9 @@ def balance_report(
     }
 
 
-def _scope_buses(net: Any, scope: str, scope_id: str | int | Sequence[int] | None) -> tuple[set[int], str | int | list[int] | None]:
+def _scope_buses(
+    net: Any, scope: str, scope_id: str | int | Sequence[int] | None
+) -> tuple[set[int], str | int | list[int] | None]:
     active = {int(bus) for bus in net.bus.index[net.bus.in_service]}
     if not active:
         raise SimulationInputError("network has no in-service buses")
@@ -97,7 +98,13 @@ def _scope_buses(net: Any, scope: str, scope_id: str | int | Sequence[int] | Non
         return active, None
     if scope_id is None:
         raise SimulationInputError(f"balance scope {scope!r} requires scope_id")
-    fields = _STATE_FIELDS if scope == "state" else _BA_FIELDS if scope == "ba" else ("county_fips",)
+    fields = (
+        _STATE_FIELDS
+        if scope == "state"
+        else _BA_FIELDS
+        if scope == "ba"
+        else ("county_fips",)
+    )
     selected = {
         bus
         for bus in active
@@ -113,17 +120,27 @@ def _scope_buses(net: Any, scope: str, scope_id: str | int | Sequence[int] | Non
             }
         )
         if not known:
-            raise SimulationInputError(f"network has no declared {scope} identity for balance accounting")
+            raise SimulationInputError(
+                f"network has no declared {scope} identity for balance accounting"
+            )
         raise SimulationInputError(f"unknown {scope} scope_id {scope_id!r}")
     return selected, scope_id
 
 
-def _island_scope(net: Any, active: set[int], scope_id: str | int | Sequence[int] | None) -> tuple[set[int], int | list[int]]:
+def _island_scope(
+    net: Any, active: set[int], scope_id: str | int | Sequence[int] | None
+) -> tuple[set[int], int | list[int]]:
     if scope_id is None:
         raise SimulationInputError("balance scope 'island' requires a source bus ID")
-    requested = [int(scope_id)] if isinstance(scope_id, (str, int)) else [int(item) for item in scope_id]
+    requested = (
+        [int(scope_id)]
+        if isinstance(scope_id, (str, int))
+        else [int(item) for item in scope_id]
+    )
     if not requested:
-        raise SimulationInputError("balance island scope_id must contain at least one source bus ID")
+        raise SimulationInputError(
+            "balance island scope_id must contain at least one source bus ID"
+        )
     # The cascade owns component decomposition.  Reuse it so an island balance
     # never drifts from the cascade's in-service connectivity definition.
     components = island_primitives(net)
@@ -132,25 +149,35 @@ def _island_scope(net: Any, active: set[int], scope_id: str | int | Sequence[int
         raise SimulationInputError(f"unknown or out-of-service bus_id {requested[0]!r}")
     source_bus_ids = {int(bus) for bus in matching["bus_ids"]}
     if not set(requested).issubset(source_bus_ids):
-        raise SimulationInputError("island scope_id spans more than one in-service island")
+        raise SimulationInputError(
+            "island scope_id spans more than one in-service island"
+        )
     if set(requested) != source_bus_ids and len(requested) != 1:
-        raise SimulationInputError("island scope_id must name one source bus or every bus in the island")
+        raise SimulationInputError(
+            "island scope_id must name one source bus or every bus in the island"
+        )
     source_to_internal = _source_to_internal(net)
     component = {source_to_internal[bus] for bus in source_bus_ids}
     if not component.issubset(active):
         raise SimulationInputError("island includes a bus that is not in service")
-    resolved: int | list[int] = requested[0] if len(requested) == 1 else sorted(requested)
+    resolved: int | list[int] = (
+        requested[0] if len(requested) == 1 else sorted(requested)
+    )
     return component, resolved
 
 
 def _bus_metadata(net: Any) -> dict[int, dict[str, Any]]:
     metadata = net.get("flux_bus_metadata")
     if not isinstance(metadata, dict):
-        raise SimulationInputError("network lacks Flux bus metadata for balance accounting")
+        raise SimulationInputError(
+            "network lacks Flux bus metadata for balance accounting"
+        )
     active = {int(bus) for bus in net.bus.index[net.bus.in_service]}
     missing = sorted(active - {int(key) for key in metadata})
     if missing:
-        raise SimulationInputError("network is missing Flux metadata for in-service buses")
+        raise SimulationInputError(
+            "network is missing Flux metadata for in-service buses"
+        )
     return {int(key): dict(value) for key, value in metadata.items()}
 
 
@@ -176,7 +203,9 @@ def _load_draw(net: Any, buses: set[int]) -> float:
     return float(frame.loc[frame.in_service & frame.bus.isin(buses), "p_mw"].sum())
 
 
-def _generation_totals(net: Any, buses: set[int]) -> tuple[float, float, dict[str, float]]:
+def _generation_totals(
+    net: Any, buses: set[int]
+) -> tuple[float, float, dict[str, float]]:
     capacity = dispatch = 0.0
     resources = {"wind": 0.0, "solar": 0.0, "firm": 0.0, "unclassified": 0.0}
     for table in ("gen", "sgen", "ext_grid"):
