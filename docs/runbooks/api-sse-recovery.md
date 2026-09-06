@@ -68,10 +68,11 @@ npm --prefix web run test:rehearsal
 ```
 
 It starts the checked-in static origin on an ephemeral loopback port, verifies
-the shell and bundled application, cross-checks the fixture's values, lineage,
-units, and limitations, and asserts that the origin neither returns a demo API
-payload nor impersonates an SSE endpoint. It does not test the public tunnel
-or a deployed API.
+the shell and served bundle, checks each scenario balance, and asserts that the
+origin neither returns a demo API payload nor impersonates an SSE endpoint.
+Use `npm --prefix web run test:static-demo` for the built bundle's no-request
+and fixture-embedding contract. Neither command tests the public tunnel or a
+deployed API.
 
 ## Local recovery order
 
