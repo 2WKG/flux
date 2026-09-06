@@ -64,3 +64,4 @@ try {
 } catch (error) {
   if (!(error && typeof error === "object" && "code" in error && error.code === "ENOENT")) throw error;
 }
+await cp(path.join(webRoot, "public", "assets", "boundaries"), path.join(dist, "assets", "boundaries"), { recursive: true });
