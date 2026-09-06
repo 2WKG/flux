@@ -230,7 +230,7 @@ export function CascadeSection() {
     >
       <div>
         <p className="eyebrow">
-          {STATUS_COPY.synthetic.toUpperCase()} {TOY_CASCADE_TRACE.networkLabel.toUpperCase()} /
+          {STATUS_COPY.synthetic.toUpperCase()} · {TOY_CASCADE_TRACE.networkLabel.toUpperCase()} ·
           LOW-COMPLEXITY DC CASCADE
         </p>
         <h2>{CASCADE_HEADLINE}</h2>

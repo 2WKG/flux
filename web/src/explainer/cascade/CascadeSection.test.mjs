@@ -17,7 +17,7 @@ import { pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-const webRoot = path.dirname(new URL("../../package.json", import.meta.url).pathname);
+const webRoot = path.dirname(new URL("../../../package.json", import.meta.url).pathname);
 const pagePath = path.join(webRoot, "src/pages/ExplainerPage.tsx");
 const sectionPath = path.join(webRoot, "src/explainer/cascade/CascadeSection.tsx");
 
@@ -120,7 +120,7 @@ test("the synthetic disclosures are on the page, not only in the source", async 
   assert.match(markup, /No dynamics, stability, or restoration timeline\./);
   assert.match(markup, /Islands balance through proportional load shedding or generation curtailment\./);
   assert.match(markup, /synthetic five-bus teaching network/i);
-  assert.match(markup, /not the main page’s fixture or the server’s ACTIVSg2000 topology/);
+  assert.match(markup, /not the scenario explorer’s fixture or the server’s ACTIVSg2000 topology/);
   const trace = JSON.parse(
     await readFile(new URL("../../../../data/explainer/toy-cascade-trace.json", import.meta.url), "utf8"),
   );
