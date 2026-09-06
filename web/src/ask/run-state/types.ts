@@ -3,6 +3,10 @@
  * parser supplies `id` from the SSE frame; it is deliberately kept separate
  * from the opaque request attempt id.
  */
+import { STREAM_ENDED_WITHOUT_TERMINAL } from "../../failure-states/types";
+
+export { STREAM_ENDED_WITHOUT_TERMINAL };
+
 export type SourceStatus =
   | "source_supported"
   | "source_screened"
@@ -107,7 +111,8 @@ export interface TraceIssue {
     | "unknown_call"
     | "unsupported_version"
     | "invalid_error_code"
-    | "limit_exceeded";
+    | "limit_exceeded"
+    | "stream_ended_without_terminal";
   message: string;
   event?: Pick<RunEvent, "id" | "seq" | "type">;
 }
@@ -129,11 +134,28 @@ export interface RunState {
   trace: readonly RunEvent[];
   tools: Readonly<Record<string, ToolTrace>>;
   terminal?: DoneEvent | ErrorEvent;
+  /**
+   * The named cause when the run failed without a server-supplied terminal
+   * event. Today the only such cause is `STREAM_ENDED_WITHOUT_TERMINAL` (OQ-1).
+   * It is carried alongside `phase`, never in place of it, so a consumer that
+   * only reads the phase still sees `failed` -> `request_failed`.
+   */
+  failureCode?: typeof STREAM_ENDED_WITHOUT_TERMINAL;
   issues: readonly TraceIssue[];
 }
+
+/** How the transport ended. Re-stated here so the action is self-describing. */
+export type StreamCloseReason = "eof" | "abort" | "network";
 
 export type RunAction =
   | { type: "event"; identity: RunIdentity; event: RunEvent }
   | { type: "cancel_requested"; identity: RunIdentity }
   | { type: "source_status"; identity: RunIdentity; sourceStatus: SourceStatus }
-  | { type: "malformed"; identity: RunIdentity; message: string };
+  | { type: "malformed"; identity: RunIdentity; message: string }
+  /**
+   * The transport ended. Dispatched by the SSE client on EOF, abort, or network
+   * loss -- always, not only when it suspects a problem: whether the close was
+   * legitimate is the reducer's judgement, because only the reducer knows
+   * whether a terminal event already arrived.
+   */
+  | { type: "stream_closed"; identity: RunIdentity; reason?: StreamCloseReason };

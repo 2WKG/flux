@@ -131,9 +131,21 @@ replace an answer, tool value, citation, or success state.
 ## Completion, heartbeats, and reconnect
 
 Every attempt emits exactly one terminal event: one `done` or one `error`,
-never both. No application event may follow it. If cancellation or connection
-loss prevents delivery of a terminal event, the client marks the attempt
-incomplete, not completed. Servers should stop work promptly on disconnect.
+never both. No application event may follow it. Servers should stop work
+promptly on disconnect.
+
+**Normative — a terminal-less stream is `request_failed`.** If the stream closes
+(EOF, abort, or connection loss) with neither a terminal `done` nor a terminal
+`error`, the server has broken this contract, and the client marks the attempt
+**failed**, not completed and not merely incomplete. The client emits the frozen
+UI token `request_failed` — never `unavailable`, which is reserved for a cause
+the server itself declared — carrying the named code
+`stream_ended_without_terminal` so the surface shows which failure it is rather
+than a bare sentence. The client never fabricates the terminal event it did not
+receive: any text already delivered is retained as incomplete. Decided as OQ-1
+in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)
+on 2026-09-06. Implemented by `web/src/ask/run-state/reducer.ts`
+(`stream_closed`) and `web/src/failure-states/adapters.ts` (`fromStreamClose`).
 
 While active and otherwise silent for 15 seconds, a server should send a
 comment heartbeat:

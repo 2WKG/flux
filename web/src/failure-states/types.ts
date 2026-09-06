@@ -58,6 +58,21 @@ export function failureStatusFor(kind: FailureKind): FailureStatus | null {
   return FAILURE_STATUS_BY_KIND[kind];
 }
 
+/**
+ * The named cause of the one failure the *client* is entitled to declare on its
+ * own: the transport ended (EOF, abort, or network loss) while the run had
+ * neither a terminal `done` nor a terminal `error`.
+ *
+ * `docs/research/sse-event-schema.md` requires exactly one terminal event per
+ * attempt -- never both and never neither -- so a stream that closes silently
+ * has broken the server's own contract. Per OQ-1
+ * (`docs/specs/spec-code-reconciliation.md`) that case is normative
+ * `request_failed`, never `unavailable` and never a bare rendered sentence: the
+ * dependency was reachable, the request is what failed. The code travels with
+ * the frozen token so the surface says *which* failure it is.
+ */
+export const STREAM_ENDED_WITHOUT_TERMINAL = "stream_ended_without_terminal";
+
 export interface FailureStateInput {
   kind: FailureKind;
   /** Safe, source-supplied explanation. Omit to use the canonical local copy. */
