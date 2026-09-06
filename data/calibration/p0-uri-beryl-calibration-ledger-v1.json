@@ -11,7 +11,7 @@
     "valueClass": "modeled",
     "role": "context_only_not_calibration_evidence",
     "receipt": "data/sources/activsg2000.json",
-    "receiptSha256": "f7b8d294386f87c4aad632981e763401eaa15a24958825b2911fcfedc00235ff",
+    "receiptSha256": "da8335a0b2c73792574207a8999293c932a1885f7dd71c7c394c71b2d75920ed",
     "citation": "A.B. Birchfield et al., Grid Structural Characteristics as Validation Criteria for Synthetic Networks, IEEE Transactions on Power Systems, 2017, doi:10.1109/TPWRS.2016.2616385",
     "mappingLimit": "ACTIVSg2000 is a synthetic Texas test case. It is not ERCOT topology and supplies no SCADA, nodal telemetry, ratings, restricted data, or real-world asset mapping."
   },
