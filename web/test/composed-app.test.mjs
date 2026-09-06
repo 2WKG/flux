@@ -61,6 +61,8 @@ test("every landed panel is mounted in the one App", () => {
     "physical inventory panel": /aria-label="Source-backed physical inventory"/,
     "inventory coverage disclosure": /aria-label="Coverage and geometry availability"/,
     "inventory map slot": /class="grid-map"/,
+    "cascade playback panel": /aria-label="Cascade playback"/,
+    "cascade playback controls": /<legend>Elements to take offline<\/legend>/,
   };
   const missing = Object.entries(mounted).filter(([, pattern]) => !pattern.test(markup)).map(([name]) => name);
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);
