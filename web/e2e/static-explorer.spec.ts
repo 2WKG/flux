@@ -166,6 +166,33 @@ test("every layer is disclosed unavailable with the producer reason, never hidde
   await expectSameOriginOnly(page);
 });
 
+test("the explainer deep-links and navigation retain URL state without a document reload", async ({ page }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("flux-document-loads", String(Number(window.sessionStorage.getItem("flux-document-loads") ?? 0) + 1));
+  });
+
+  await page.goto("/explainer?scenario=uri_2021&h=3#method");
+  await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page).toHaveTitle("Flux | How the math works");
+  await expect(page.getByRole("link", { name: "How the math works" })).toHaveAttribute("aria-current", "page");
+  await expect(page.locator("main")).toHaveAttribute("data-source-status", "unavailable");
+  expect(await page.evaluate(() => window.sessionStorage.getItem("flux-document-loads"))).toBe("1");
+
+  await page.getByRole("link", { name: "Scenario explorer" }).click();
+  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
+  await expect(page).toHaveURL(/\/?scenario=uri_2021&h=3#method$/);
+  await expect(page).toHaveTitle("Flux | Resilience desk");
+  await expect(page.getByRole("link", { name: "Scenario explorer" })).toHaveAttribute("aria-current", "page");
+  expect(await page.evaluate(() => window.sessionStorage.getItem("flux-document-loads"))).toBe("1");
+
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page).toHaveTitle("Flux | How the math works");
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
+  await expectSameOriginOnly(page);
+});
+
 test("keyboard selection works and the disclosure names the artifact it read", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Candidate B/i }).first().focus();

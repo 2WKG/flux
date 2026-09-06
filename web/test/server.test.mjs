@@ -40,14 +40,24 @@ test("the origin serves the built SPA shell", async () => {
   assert.match(shell.body, /\/assets\/app\.js/);
 });
 
-test("no demo API is served: every unknown path falls back to the shell", async () => {
+test("the origin serves the SPA shell for the explainer deep link", async () => {
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/api/demo", "/api/demo?scenario=a", "/api/demo/", "/api/anything"]) {
+  for (const path of ["/explainer", "/explainer/"]) {
     const response = await get(path);
-    assert.doesNotMatch(response.type, /json/, `${path} answered with JSON`);
-    assert.equal(response.body, shell.body, `${path} must fall back to the SPA shell`);
-    assert.throws(() => JSON.parse(response.body), `${path} returned parseable JSON`);
+    assert.equal(response.status, 200, `${path} did not resolve`);
+    assert.match(response.type, /^text\/html/, `${path} did not return the app shell`);
+    assert.equal(response.body, shell.body, `${path} did not return the SPA shell`);
+  }
+});
+
+test("API-shaped paths state that this static origin is unavailable", async () => {
+  const get = await origin();
+  for (const path of ["/api", "/api/demo", "/api/demo?scenario=a", "/api/demo/", "/api/anything"]) {
+    const response = await get(path);
+    assert.equal(response.status, 503, `${path} did not report unavailable`);
+    assert.match(response.type, /^text\/plain/, `${path} did not return an explicit text response`);
+    assert.match(response.body, /does not serve API routes/i, `${path} did not explain the unavailable API`);
   }
 });
 
@@ -119,12 +129,23 @@ test("with no API origin configured, every allowlisted path refuses by name", as
   }
 });
 
-test("with no API origin configured, a path outside the allowlist is still the shell", async () => {
-  // The control: the refusal above is registered for the allowlist, not for
-  // everything. A blanket 503 would pass the test above and break the SPA.
+test("with no API origin configured, a path outside the allowlist is not given the envelope", async () => {
+  // The control: the named-envelope refusal above is registered for the
+  // allowlist, not for everything. A blanket 503 envelope would pass the test
+  // above while claiming that every SPA route is a broken API.
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/api/v1/grid/releases", "/admin", "/api/demo", "/health/../admin"]) {
+  // An API-shaped path outside the table gets master's own plain-text 503
+  // (`app.get("/api/{*path}", unavailableApi)`), which is a refusal too -- but
+  // not this deployment's named envelope, because it names no read route.
+  for (const path of ["/api/v1/grid/releases", "/api/demo"]) {
+    const response = await get(path);
+    assert.equal(response.status, 503, `${path} must refuse`);
+    assert.match(response.type, /text\/plain/, `${path} must not be given the envelope`);
+    assert.doesNotMatch(response.body, /no_api_origin_configured/);
+  }
+  // Everything that is not API-shaped is still the SPA's own client route.
+  for (const path of ["/admin", "/health/../admin", "/explainer"]) {
     const response = await get(path);
     assert.equal(response.body, shell.body, `${path} must still fall back to the shell`);
   }
@@ -147,9 +168,17 @@ test("a configured API origin forwards only the allowlisted read paths", async (
   assert.equal(forwarded.status, 200);
   assert.deepEqual(await forwarded.json(), { ok: true, url: "/api/v1/grid/layers/line?state=mn&limit=100" });
 
-  // Not on the table: a path outside it, and a method outside it.
+  // Not on the table: a path outside it, and a method outside it. Neither may
+  // reach the upstream -- which the `seen` assertion at the end proves. What
+  // they get instead depends only on shape: an API-shaped path gets the static
+  // origin's own plain-text 503, anything else gets the SPA shell.
   const shell = await (await fetch(`${base}/`)).text();
-  for (const path of ["/api/v1/grid/releases", "/site-score", "/api/demo"]) {
+  for (const path of ["/api/v1/grid/releases", "/api/demo"]) {
+    const response = await fetch(`${base}${path}`);
+    assert.equal(response.status, 503, `${path} must not be forwarded`);
+    assert.notEqual(await response.text(), shell, `${path} must not be forwarded`);
+  }
+  for (const path of ["/site-score"]) {
     const response = await fetch(`${base}${path}`);
     assert.equal(await response.text(), shell, `${path} must not be forwarded`);
   }

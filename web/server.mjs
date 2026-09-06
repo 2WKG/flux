@@ -145,6 +145,15 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
     });
   }
   app.use(express.static(dist));
+  // The static demo has no API implementation. Keep an API-shaped request out
+  // of the client-side router so a caller receives an explicit unavailable
+  // response rather than a successful HTML page that resembles an endpoint.
+  const unavailableApi = (_req, res) => res
+    .status(503)
+    .type("text/plain")
+    .send("The static Flux demo does not serve API routes.");
+  app.get("/api", unavailableApi);
+  app.get("/api/{*path}", unavailableApi);
   // `root` + relative name, not an interpolated absolute path: under Express 5 on Windows
   // `res.sendFile("<abs>/index.html")` raises NotFoundError, which 404s every SPA client route.
   app.get("/{*path}", (_req, res) => res.sendFile("index.html", { root: dist }));
