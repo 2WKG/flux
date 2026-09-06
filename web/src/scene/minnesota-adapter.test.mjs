@@ -234,6 +234,15 @@ test("a binding the server did not place, or labelled outside the accepted set, 
   assert.equal(preview.reason, "not_server_bound");
   assert.equal(allowsTopologyRendering(preview), false);
 
+  // render_mode is load-bearing on its own: a payload that claims an accepted
+  // label but was not placed by the server is still refused, and its detail
+  // names render_mode rather than the label.
+  const notPlaced = adaptBoundPlacements(
+    boundPayload({ placements: [binding({ render_mode: "catalog_preview" })] }),
+  );
+  assert.equal(notPlaced.reason, "not_server_bound");
+  assert.match(notPlaced.detail, /render_mode/);
+
   // hypothetical/synthetic/unavailable are MAT_STATUS labels but never position
   // geometry (ACCEPTED_REGULATORY_LABELS in minnesota_asset_binding.py).
   for (const label of ["hypothetical", "synthetic", "unavailable", "request_failed"]) {
