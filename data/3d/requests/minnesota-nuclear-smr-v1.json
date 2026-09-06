@@ -1,0 +1,10 @@
+{
+  "note": "Minnesota is the work-item label only. This request carries no Minnesota placement, coordinate, or topology; delivery filenames come from the catalog's deliverables.required.",
+  "model": {
+    "archetype_id": "nuclear_smr_module",
+    "contract_id": "flux:3d-asset-archetypes:v1",
+    "footprint_m": {"length": 120, "width": 100},
+    "connectors": ["HV_OUT"],
+    "lod_triangles": {"lod0": 32000, "lod1": 12000, "lod2": 3400}
+  }
+}
