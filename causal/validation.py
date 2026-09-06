@@ -28,9 +28,7 @@ INSUFFICIENCY_CODES = (
     MISSING_DIAGNOSTICS,
 )
 
-SUPPORTED_ESTIMATION_METHODS = frozenset(
-    {"backdoor.econml.dml.LinearDML", "twfe_only"}
-)
+SUPPORTED_ESTIMATION_METHODS = frozenset({"backdoor.econml.dml.LinearDML", "twfe_only"})
 
 
 @dataclass(frozen=True)
@@ -131,7 +129,10 @@ def validate_artifact(artifact: Mapping[str, Any]) -> ValidationResult:
             )
         )
 
-    if _mapping(artifact.get("availability")).get("status") != "available" and not diagnostics:
+    if (
+        _mapping(artifact.get("availability")).get("status") != "available"
+        and not diagnostics
+    ):
         diagnostics.append(
             PrerequisiteDiagnostic(
                 MISSING_IDENTIFICATION,
@@ -164,7 +165,9 @@ def _labeled_variable(variable: Mapping[str, Any]) -> bool:
 
 def _identification_is_explicit(artifact: Mapping[str, Any]) -> bool:
     assumptions = artifact.get("assumptions")
-    return isinstance(assumptions, list) and any(_nonempty(item) for item in assumptions)
+    return isinstance(assumptions, list) and any(
+        _nonempty(item) for item in assumptions
+    )
 
 
 def _has_covered_data(
@@ -177,7 +180,9 @@ def _has_covered_data(
     sample = _mapping(artifact.get("sample"))
     sources = artifact.get("sources")
     covariates = artifact.get("covariates")
-    source_records = [_mapping(item) for item in sources] if isinstance(sources, list) else []
+    source_records = (
+        [_mapping(item) for item in sources] if isinstance(sources, list) else []
+    )
     source_ids = {
         source.get("source_id")
         for source in source_records
@@ -190,9 +195,13 @@ def _has_covered_data(
     sample_complete = (
         _nonempty(sample.get("unit"))
         and _nonempty(sample.get("period"))
-        and all(isinstance(sample.get(field), int) and sample[field] >= 0 for field in ("n_total", "n_treated", "n_control"))
+        and all(
+            isinstance(sample.get(field), int) and sample[field] >= 0
+            for field in ("n_total", "n_treated", "n_control")
+        )
         and sample.get("n_total", 0) > 0
-        and sample.get("n_treated", 0) + sample.get("n_control", 0) <= sample.get("n_total", 0)
+        and sample.get("n_treated", 0) + sample.get("n_control", 0)
+        <= sample.get("n_total", 0)
     )
     source_complete = bool(source_ids) and all(
         _nonempty(source.get(field))
@@ -206,23 +215,34 @@ def _has_covered_data(
         and outcome.get("source_id") in source_ids
     )
     covariates_complete = isinstance(covariates, list) and all(
-        _labeled_variable(_mapping(item)) and _mapping(item).get("source_id") in source_ids
+        _labeled_variable(_mapping(item))
+        and _mapping(item).get("source_id") in source_ids
         for item in covariates
     )
-    return population_complete and sample_complete and source_complete and variables_have_sources and covariates_complete
+    return (
+        population_complete
+        and sample_complete
+        and source_complete
+        and variables_have_sources
+        and covariates_complete
+    )
 
 
 def _diagnostics_pass(artifact: Mapping[str, Any]) -> bool:
     diagnostics = artifact.get("diagnostics")
-    return isinstance(diagnostics, list) and bool(diagnostics) and all(
-        _mapping(item).get("status") == "pass" and _nonempty(_mapping(item).get("name"))
-        and _nonempty(_mapping(item).get("evidence"))
-        for item in diagnostics
+    return (
+        isinstance(diagnostics, list)
+        and bool(diagnostics)
+        and all(
+            _mapping(item).get("status") == "pass"
+            and _nonempty(_mapping(item).get("name"))
+            and _nonempty(_mapping(item).get("evidence"))
+            for item in diagnostics
+        )
     )
 
 
 def _explicit_method(estimate: Mapping[str, Any]) -> bool:
-    return (
-        estimate.get("method") in SUPPORTED_ESTIMATION_METHODS
-        and _nonempty(estimate.get("estimand"))
+    return estimate.get("method") in SUPPORTED_ESTIMATION_METHODS and _nonempty(
+        estimate.get("estimand")
     )
