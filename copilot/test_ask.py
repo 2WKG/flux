@@ -158,6 +158,7 @@ class _ScoreBackend:
             SiteScoreRequest(site_id="1", unit_mw=300, scenario_id="mn_fixture"),
         )
         provenance = result["provenance"]
+        score_provenance = provenance["site_score"]
         narration = GroundedNarration(
             status="available",
             text="Accepted score evidence is available.",
@@ -167,9 +168,9 @@ class _ScoreBackend:
             provenance=(
                 ArtifactRef(
                     artifact_id="mn:fixture:ask-score",
-                    artifact_version=str(provenance["source_version"]),
+                    artifact_version=str(score_provenance["source_version"]),
                     source_kind="fixture",
-                    source_ref=str(provenance["source_ref"]),
+                    source_ref=str(score_provenance["source_ref"]),
                 ),
             ),
             citations=(),
@@ -257,13 +258,13 @@ def _database(path: Path) -> None:
             "CREATE TABLE site_candidates (site_id BIGINT,name TEXT,kind TEXT,county_fips TEXT,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
         )
         con.execute(
-            "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE)"
+            "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE,model_mode TEXT,limitations_json JSON,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
         )
         con.execute(
-            "INSERT INTO site_candidates VALUES (1, 'fixture site', 'coal_retired', '27001', 'fixture', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
+            "INSERT INTO site_candidates VALUES (1, 'fixture site', 'coal_retired', '27001', 'fixture:site', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
         )
         con.execute(
-            "INSERT INTO site_scores VALUES (1, 'mn_fixture', 300, 10, '[]', 2, 3, 4, 5)"
+            "INSERT INTO site_scores VALUES (1, 'mn_fixture', 300, 10, '[]', 2, 3, 4, 5, 'topology', '[\"fixture limitation\"]', 'fixture:site-score', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
         )
     finally:
         con.close()
@@ -536,7 +537,10 @@ def test_actual_site_score_api_read_is_fixture_labeled_and_non_mutating(
 
     assert response.status_code == 200
     assert response.json()["safety_score"] == 10.0
-    assert response.json()["provenance"]["source_name"] == "fixture"
+    assert (
+        response.json()["provenance"]["site_score"]["source_name"]
+        == "fixture:site-score"
+    )
     assert database.read_bytes() == before
 
 
