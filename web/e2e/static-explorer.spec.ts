@@ -28,6 +28,17 @@ test("static explorer supports scenario selection, inspection, and honest offlin
   await expect(geography).toHaveValue("Review-only synthetic context");
   await chat.getByRole("button", { name: "Done editing" }).click();
   await expect(chat.getByRole("button", { name: "Edit" })).toBeVisible();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
+
+  await chat.getByRole("button", { name: "Collapse" }).click();
+  await chat.getByRole("button", { name: "Expand" }).click();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expect(chat.getByText(/revision .*:a:c2/i).first()).toBeVisible();
+
+  await page.getByRole("button", { name: /Candidate B/i }).first().click();
+  await expect(chat.getByText("Review-only synthetic context", { exact: true })).toBeVisible();
+  await expect(chat.getByText(/revision .*:b:c3/i).first()).toBeVisible();
 
   expect(requests.some((url) => /\/(ask|api)(?:\/|$|\?)/.test(new URL(url).pathname))).toBeFalsy();
 });
