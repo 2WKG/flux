@@ -1,8 +1,13 @@
 from datetime import UTC, datetime
 
-from models.outage.contracts import FeatureStatus, Partition, SplitAssignment, SplitManifest, WindowKey
+from models.outage.contracts import (
+    FeatureStatus,
+    Partition,
+    SplitAssignment,
+    SplitManifest,
+    WindowKey,
+)
 from models.outage.features import RawFeature, assemble_features, fit_standardizers
-
 
 H = "a" * 64
 TRAIN_KEY = WindowKey(county_fips="48453", scenario_id="summer-peak", window_start=datetime(2024, 7, 1, tzinfo=UTC))
