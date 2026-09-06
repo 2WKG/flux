@@ -183,6 +183,10 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .relief li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #17334a; font-size: .78rem; color: #b9d2e4 }
 .relief em { font-style: normal; font-weight: 800; color: var(--relief); font-variant-numeric: tabular-nums }
 
+/* The scenario edit composer mounted by src/interactive/ScenarioEditContainer.tsx. */
+.scenario-edits { margin-top: 16px; padding: 25px; display: grid; gap: 16px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.scenario-edits h2 { font-size: 1.25rem; margin: .2rem 0 }
+.scenario-edits button { padding: 8px 14px; border-radius: 8px }
 /* The interactive twin inspectors mounted by src/interactive/InteractivePanels.tsx. */
 .interactive-panels { margin-top: 16px; padding: 25px; display: grid; gap: 24px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
 .interactive-panels h2 { font-size: 1.25rem; margin: .2rem 0 }
@@ -421,6 +425,14 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .method-entry { border: 1px solid #234962; background: var(--panel); border-radius: 12px; padding: 16px }
 .method-entry h2 { font-size: 1.05rem; margin: 0 0 8px; letter-spacing: -.02em }
 .method-entry p { color: var(--muted); line-height: 1.65; font-size: .85rem; margin: 0 }
+
+/* Main-page assistant. Kept here so the shipped application has one stylesheet. */
+.flux-main-assistant { display: grid; gap: .8rem }
+.flux-main-assistant__header p { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase }
+.flux-main-assistant__header h2, .flux-main-assistant__grounding, .flux-main-assistant__scene-action { margin: 0 }
+.flux-main-assistant__grounding, .flux-main-assistant__scene-action { border: 1px solid var(--line-strong); border-radius: .4rem; padding: .7rem .8rem }
+.flux-main-assistant__grounding { color: var(--muted) }
+.flux-main-assistant__scene-action { background: var(--panel-raised) }
 
 @media (max-width: 1180px) {
   main { padding: 18px 22px 32px }

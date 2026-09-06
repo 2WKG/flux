@@ -92,6 +92,18 @@ class RouteContract:
 _NO_NOT_FOUND: Final = Unreachable("the route raises no NotFoundError")
 
 READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
+    ("GET", "/explainer/toy-cascade"): RouteContract(
+        success=Cell(
+            "copilot/test_explainer_route.py::test_the_route_serves_the_persisted_server_solved_trace",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_explainer_route.py::test_a_missing_artifact_is_unavailable_not_an_empty_success",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
     ("GET", "/health"): RouteContract(
         success=Cell(
             "copilot/test_app.py::test_health_opens_a_fixture_database_without_claiming_model_availability",
