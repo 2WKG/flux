@@ -361,6 +361,7 @@ export function App() {
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
+  const [modelAttempt, setModelAttempt] = useState(0);
   const [texasModel, setTexasModel] = useState<TexasModelPayload>({ status: "unavailable", reason: "Loading the synthetic Texas model." });
 
   const contextRevision = `${selected}:${attemptId}`;
@@ -470,7 +471,7 @@ export function App() {
       })
       .catch(() => { if (!controller.signal.aborted) setTexasModel({ status: "unavailable", reason: "The model topology could not be read." }); });
     return () => controller.abort();
-  }, []);
+  }, [modelAttempt]);
 
   const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
   // No producer supplies an evidence disclosure yet, so every layer that would
@@ -557,7 +558,7 @@ export function App() {
 
       <CompareRail selected={selected} onSelect={select} />
 
-      <section className="workspace" aria-label="Viewport-first scenario workspace">
+      <section className={`workspace${texasModel.status === "available" || texasModel.status === "partial" ? " model-workspace" : ""}`} aria-label="Viewport-first scenario workspace">
         <article className="map scene-viewport">
           <div className="map-head">
             <div>
@@ -572,7 +573,11 @@ export function App() {
 
           {texasModel.status === "available" || texasModel.status === "partial"
             ? <TexasTopologyMap payload={texasModel} />
-            : <Network selected={selected} view={view} onSelect={select} hover={hover} setHover={setHover} />}
+            : <section className="texas-model-unavailable" role="status">
+                <strong>Texas model topology unavailable</strong>
+                <span>{texasModel.reason ?? "The model route has not supplied a resolved topology."}</span>
+                <button type="button" onClick={() => setModelAttempt((value) => value + 1)}>Retry model request</button>
+              </section>}
 
           <div className="legend">
             {view === "load"
