@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap');
-
 :root {
   --ink: #edf5ff;
   --muted: #9eb5c8;
@@ -11,7 +9,7 @@
   --mid: #ffcc66;
   --high: #ff7d68;
   --relief: #54dbb5;
-  font-family: Manrope, system-ui;
+  font-family: system-ui, sans-serif;
   background: #071221;
   color: var(--ink);
 }
@@ -21,7 +19,7 @@ body { margin: 0; background: radial-gradient(circle at 75% -20%, #173c5c 0, #07
 main { max-width: 1440px; margin: auto; padding: 24px 38px 60px }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px }
-code { font-family: 'DM Mono'; color: #8be2ff; overflow-wrap: anywhere }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #8be2ff; overflow-wrap: anywhere }
 
 nav { height: 52px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line) }
 .brand { display: flex; gap: 12px; align-items: center }
@@ -35,7 +33,7 @@ nav { height: 52px; display: flex; align-items: center; justify-content: space-b
 header { max-width: 860px; padding: 54px 0 26px }
 h1 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); line-height: 1.03; letter-spacing: -.055em; margin: 9px 0 20px }
 header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
-.eyebrow { color: var(--accent); font: 700 .7rem 'DM Mono', monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
+.eyebrow { color: var(--accent); font: 700 .7rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
 
 /* Comparison rail — every option visible at once, so the judge never has to remember a number. */
 .rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px }
@@ -46,9 +44,9 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .card:hover { transform: translateY(-2px); border-color: #3d6b8d }
 .card.selected { border-color: var(--accent); background: #0e2438; box-shadow: 0 0 0 1px var(--accent), 0 18px 40px -28px var(--accent) }
 .card-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap }
-.card-head .key { font: 700 .68rem 'DM Mono', monospace; color: var(--accent); letter-spacing: .08em }
+.card-head .key { font: 700 .68rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); letter-spacing: .08em }
 .card-head .name { font-weight: 700 }
-.badge { font: 700 .6rem 'DM Mono', monospace; letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
+.badge { font: 700 .6rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
 .card-figure { display: flex; align-items: baseline; gap: 7px }
 .card-figure strong { font-size: 2.5rem; letter-spacing: -.05em; line-height: 1 }
 .card-figure small { color: var(--dim); font-size: .78rem }
@@ -81,7 +79,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .corridor .hit { stroke: transparent; stroke-width: 26; stroke-linecap: round }
 .corridor .wire { stroke-linecap: round; transition: stroke .45s ease, stroke-width .45s cubic-bezier(.22, 1, .36, 1) }
 .corridor .reading rect { fill: #0a1c2c; stroke: #27506e }
-.corridor .reading text { fill: #cfe4f4; font: 700 11px 'DM Mono', monospace; text-anchor: middle; dominant-baseline: middle }
+.corridor .reading text { fill: #cfe4f4; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-anchor: middle; dominant-baseline: middle }
 .corridor.active .wire { filter: brightness(1.25) }
 .corridor.active .reading rect { stroke: var(--accent) }
 .corridor:focus { outline: none }
@@ -104,7 +102,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .pin .halo { fill: none; stroke: var(--mid); stroke-width: 2; opacity: .85; animation: pulse 2.4s ease-out infinite }
 .pin.chosen .disc { fill: var(--mid) }
 .pin text { fill: #061525; font-weight: 800; font-size: 14px; text-anchor: middle }
-.pin .tag { fill: #9fc4dd; font: 700 10px 'DM Mono', monospace }
+.pin .tag { fill: #9fc4dd; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace }
 @keyframes pulse { 0% { r: 21; opacity: .9 } 70% { r: 31; opacity: 0 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .pin .halo { animation: none } * { transition-duration: .01ms !important } }
 
@@ -119,7 +117,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .tip-row em.relief { color: var(--relief) }
 .tip-row em.tone-low { color: var(--low) } .tip-row em.tone-mid { color: var(--mid) } .tip-row em.tone-high { color: var(--high) }
 
-.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem 'DM Mono', monospace; color: #8ba8be; flex-wrap: wrap }
+.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem ui-monospace, SFMono-Regular, Menlo, monospace; color: #8ba8be; flex-wrap: wrap }
 .legend i { width: 16px; height: 4px; border-radius: 3px; margin-left: 9px }
 .legend i:first-child { margin-left: 0 }
 .legend .tone-low { background: var(--low) } .legend .tone-mid { background: var(--mid) } .legend .tone-high { background: var(--high) }
@@ -150,7 +148,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .overlay { position: fixed; inset: 0; background: #020911cc; display: grid; place-items: center; padding: 20px; z-index: 9 }
 .modal { position: relative; width: min(570px, 100%); background: #10273a; border: 1px solid #4c7795; border-radius: 12px; padding: 30px; max-height: 86vh; overflow: auto }
 .modal button { position: absolute; right: 16px; top: 10px; font-size: 2rem; line-height: 1 }
-.modal dt { color: var(--accent); font: 700 .7rem 'DM Mono'; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
+.modal dt { color: var(--accent); font: 700 .7rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
 .modal dd { color: #c5dbea; line-height: 1.6; margin: 8px 0 0 }
 .modal li { color: #c5dbea; line-height: 1.6; margin: 8px 0 }
 
