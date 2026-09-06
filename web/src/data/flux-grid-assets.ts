@@ -39,7 +39,10 @@ export async function loadFluxGridPlacements(
   if (![west, south, east, north].every(Number.isFinite) || west >= east || south >= north) {
     throw new Error("Asset placement request requires finite southwest/northeast bounds.");
   }
-  const query = new URLSearchParams({ state: "tx", version: "1.1.0", bbox: `${west},${south},${east},${north}`, limit: "200" });
+  // The source-backed placement API caps a page at 100. The renderer requests
+  // one valid viewport page and lets zoom select LOD; it must not turn that
+  // contract limit into a silent empty 3D layer.
+  const query = new URLSearchParams({ state: "tx", version: "1.1.0", bbox: `${west},${south},${east},${north}`, limit: "100" });
   const response = await fetch(`/api/v1/grid/asset-placements?${query}`, { signal, headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`Asset placement request failed (${response.status}).`);
   const body: unknown = await response.json();
