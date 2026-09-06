@@ -13,8 +13,6 @@ from datetime import UTC, datetime
 import duckdb
 
 from .contracts import (
-    Driver,
-    HeuristicPredictionProvenance,
     LightGBMPredictionProvenance,
     PredictionProvenance,
     PredictionRecord,

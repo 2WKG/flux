@@ -7,12 +7,12 @@ from datetime import UTC, datetime
 
 import duckdb
 import pytest
+from pydantic import ValidationError
 
 from models.outage.contracts import (
     Driver,
     EvaluationRef,
     HeuristicPrediction,
-    LightGBMPredictionProvenance,
     ModelArtifact,
     PredictionRecord,
     TrainedModelPrediction,
@@ -31,8 +31,6 @@ from models.outage.persistence import (
     persist_predictions,
     query_evaluation,
     query_predictions,
-    PREDICTION_PROVENANCE_DDL,
-    EVALUATION_ARTIFACTS_DDL,
 )
 
 H = "a" * 64
@@ -193,10 +191,8 @@ def test_unavailable_prediction_is_not_persisted():
 
 def test_trained_model_without_artifact_is_rejected_by_contract_before_persistence():
     """An incomplete trained-model claim is rejected at the contract level."""
-    with pytest.raises(Exception):
-        TrainedModelPrediction(
-            p_out=0.4, customers_at_risk=100, driver=Driver.ICE
-        )
+    with pytest.raises(ValidationError):
+        TrainedModelPrediction(p_out=0.4, customers_at_risk=100, driver=Driver.ICE)
 
 
 def test_mixed_predictions_persist_only_available_rows():
@@ -212,9 +208,7 @@ def test_mixed_predictions_persist_only_available_rows():
     assert con.execute("SELECT count(*) FROM outage_predictions").fetchone() == (2,)
     kinds = {
         r[0]
-        for r in con.execute(
-            "SELECT model_kind FROM prediction_provenance"
-        ).fetchall()
+        for r in con.execute("SELECT model_kind FROM prediction_provenance").fetchall()
     }
     assert kinds == {"lightgbm", "heuristic"}
 
