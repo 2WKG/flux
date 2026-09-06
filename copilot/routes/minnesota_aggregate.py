@@ -18,6 +18,20 @@ from fastapi import APIRouter, Request
 
 from copilot.api import UnavailableError
 from copilot.config import Settings
+from pipelines.fixtures.builder import artifact_id_for
+from pipelines.minnesota_aggregate_runtime import (
+    FORMULA,
+    METRIC_NAME,
+    METRIC_UNIT,
+    MODEL_NAME,
+    MODEL_VERSION,
+    AggregateRuntimeError,
+    aggregate_identity,
+    expected_aggregate_provenance,
+    expected_aggregate_score_components,
+    load_aggregate_inputs,
+)
+from pipelines.minnesota_schema import SCHEMA_VERSION
 
 router = APIRouter(tags=["minnesota"])
 
@@ -42,7 +56,8 @@ _SELECTED_MANIFEST_SQL: Final = """
 """
 _ARTIFACT_SQL: Final = """
     SELECT m.artifact_id, m.availability, m.model_mode, m.limitations_json,
-           r.input_manifest_sha256, r.metric_name, r.metric_value, r.metric_unit, r.formula,
+           r.model_name, r.model_version, r.model_run_id, r.input_manifest_sha256,
+           r.validation_status, r.metric_name, r.metric_value, r.metric_unit, r.formula,
            r.base_mva, r.solver_version, r.converter_version,
            s.metric, s.score_value, s.score_unit, s.score_components_json
     FROM mn_artifact_manifests AS m
@@ -209,38 +224,23 @@ def _stress_metric(
 
 
 def _identity(
-    value: object, *, artifact_id: str, input_manifest_sha256: object
+    value: object,
+    *,
+    artifact_id: str,
+    input_manifest_sha256: object,
+    expected_identity: dict[str, str],
 ) -> dict[str, str]:
     identity = _json_object(value, label="identity_json")
-    expected = {
-        "artifact_kind": "model_result",
-        "geography_id": "mn",
-        "model_mode": "aggregate",
-        "source_identity": SOURCE_IDENTITY,
-    }
-    if any(
-        identity.get(key) != expected_value for key, expected_value in expected.items()
-    ):
+    expected_artifact_id = artifact_id_for(expected_identity)
+    if artifact_id != expected_artifact_id or identity != expected_identity:
         raise _PersistedInvalid(
             "identity_json does not name the accepted aggregate result"
         )
-    source_version = _string(
-        identity.get("source_version"), label="identity_json.source_version"
-    )
-    content_sha256 = _string(
-        identity.get("content_sha256"), label="identity_json.content_sha256"
-    )
-    if len(content_sha256) != 64 or any(
-        char not in "0123456789abcdef" for char in content_sha256
-    ):
-        raise _PersistedInvalid("identity_json.content_sha256 is invalid")
-    if input_manifest_sha256 != content_sha256:
+    if input_manifest_sha256 != expected_identity["content_sha256"]:
         raise _PersistedInvalid("input_manifest_sha256 does not match identity_json")
     return {
         "artifact_id": artifact_id,
-        **expected,
-        "source_version": source_version,
-        "content_sha256": content_sha256,
+        **expected_identity,
     }
 
 
@@ -288,16 +288,36 @@ def _provenance(rows: list[tuple[object, ...]]) -> list[dict[str, Any]]:
     return result
 
 
+def _expected_provenance(inputs: Any) -> list[dict[str, Any]]:
+    return [
+        {
+            **row,
+            "retrieved_at": row["retrieved_at"]
+            .replace(tzinfo=UTC)
+            .isoformat()
+            .replace("+00:00", "Z"),
+        }
+        for row in expected_aggregate_provenance(inputs)
+    ]
+
+
 def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
     """Read one persisted aggregate result for bounded HTTP/tool context use."""
 
+    try:
+        inputs = load_aggregate_inputs()
+    except AggregateRuntimeError as exc:
+        raise _unavailable("invalid_persisted_artifact") from exc
+    expected_identity = aggregate_identity(inputs.manifest_sha256)
     con = _connect(settings)
     try:
         missing = _missing_tables(con)
         if missing:
             raise _unavailable("missing", artifact=missing[0])
         try:
-            selected = con.execute(_SELECTED_MANIFEST_SQL, [SOURCE_IDENTITY]).fetchall()
+            selected = con.execute(
+                _SELECTED_MANIFEST_SQL, [expected_identity["source_identity"]]
+            ).fetchall()
             if not selected:
                 raise _unavailable("missing_identity")
             if len(selected) != 1:
@@ -320,7 +340,11 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             availability,
             model_mode,
             persisted_limitations,
+            model_name,
+            model_version,
+            model_run_id,
             input_manifest_sha256,
+            validation_status,
             metric_name,
             metric_value,
             metric_unit,
@@ -333,7 +357,7 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             score_unit,
             components_json,
         ) = row
-        if artifact_id != persisted_artifact_id:
+        if artifact_id != persisted_artifact_id or contract_version != SCHEMA_VERSION:
             raise _PersistedInvalid("selected artifact identity changed")
         if availability != "available" or model_mode != "aggregate":
             raise _PersistedInvalid("selected manifest is not available aggregate mode")
@@ -349,8 +373,11 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             identity_json,
             artifact_id=_string(artifact_id, label="artifact_id"),
             input_manifest_sha256=input_manifest_sha256,
+            expected_identity=expected_identity,
         )
         components = _json_object(components_json, label="score_components_json")
+        if components != expected_aggregate_score_components(inputs):
+            raise _PersistedInvalid("score components do not match accepted evidence")
         manifest = _aggregate_manifest(components.get("aggregate_manifest"))
         stress_metric = _stress_metric(
             metric_name=metric_name,
@@ -360,12 +387,26 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             context=components.get("stress_context"),
         )
         if (
+            model_name != MODEL_NAME
+            or model_version != MODEL_VERSION
+            or model_run_id != f"aggregate-runtime-v1:{inputs.manifest_sha256[:16]}"
+            or validation_status != "validated"
+            or stress_metric["metric_name"] != METRIC_NAME
+            or stress_metric["metric_value"] != inputs.peak_demand_mw
+            or stress_metric["unit"] != METRIC_UNIT
+            or stress_metric["formula"] != FORMULA
+        ):
+            raise _PersistedInvalid("model result does not match accepted evidence")
+        if (
             score_metric != stress_metric["metric_name"]
             or _finite_number(score_value, label="score_value")
             != stress_metric["metric_value"]
             or score_unit != stress_metric["unit"]
         ):
             raise _PersistedInvalid("score result does not match the model metric")
+        provenance = _provenance(provenance_rows)
+        if provenance != _expected_provenance(inputs):
+            raise _PersistedInvalid("provenance does not match accepted evidence")
         return {
             "artifact_id": _string(artifact_id, label="artifact_id"),
             "artifact_contract_version": _string(
@@ -376,7 +417,7 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             "availability": "available",
             "aggregate_manifest": manifest,
             "stress_metric": stress_metric,
-            "provenance": _provenance(provenance_rows),
+            "provenance": provenance,
             "limitations": _string_list(limitations_json, label="limitations_json"),
             "prohibited_claims": _string_list(
                 components.get("prohibited_claims"), label="prohibited_claims"
