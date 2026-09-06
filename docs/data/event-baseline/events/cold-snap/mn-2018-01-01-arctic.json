@@ -7,7 +7,9 @@
     "primary_hazard": "extreme_cold",
     "secondary_hazards": [],
     "compound": false,
-    "source_event_ids": ["726380"],
+    "source_event_ids": [
+      "726380"
+    ],
     "context_window": {
       "start_utc": "2017-12-29T00:00:00Z",
       "end_utc": "2018-01-09T00:00:00Z"
@@ -62,7 +64,24 @@
       "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC.",
       "filters": "Full annual 2018 traversal; Minnesota FIPS 27013; UTC [2018-01-01T12:00:00Z,2018-01-01T18:00:00Z).",
       "grid_index_mapping": "No gridded index used.",
-      "gaps": ["Acquisition complete; no source rows exist for the 24 expected timestamps."]
+      "gaps": [
+        "Acquisition complete; no source rows exist for the 24 expected timestamps."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547879",
+        "source_file": "eaglei_outages_2018.csv",
+        "source_file_id": 42547879,
+        "source_file_bytes": 999210542,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+        "raw_artifact_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+        "source_sidecar_sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      }
     }
   ],
   "records": [
@@ -86,13 +105,20 @@
         "coverage": "covered",
         "evidence_kind": "authoritative_event_report",
         "observation_kind": "observed",
-        "source_receipt_ids": ["ncei_stormevents_2018"],
+        "source_receipt_ids": [
+          "ncei_stormevents_2018"
+        ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
         "event_report": {
-          "source_event_ids": ["726380"],
-          "source_window": {"start_utc": "2018-01-01T06:00:00Z", "end_utc": "2018-01-01T14:00:00Z"},
+          "source_event_ids": [
+            "726380"
+          ],
+          "source_window": {
+            "start_utc": "2018-01-01T06:00:00Z",
+            "end_utc": "2018-01-01T14:00:00Z"
+          },
           "spatial_scope": "zone",
           "scope_identifier": "CZ_FIPS:083",
           "limitations": "NCEI weather-zone report; not a county time series."
@@ -103,7 +129,9 @@
         "coverage": "UncoveredLabel",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-2018-42547879-20180101t120000-20180101t180000"],
+        "source_receipt_ids": [
+          "eaglei-2018-42547879-20180101t120000-20180101t180000"
+        ],
         "expected_samples": 24,
         "observed_samples": 0,
         "missing_timestamps": [
