@@ -1,4 +1,5 @@
 """Compose disjoint source artifacts into one truthful state inventory release."""
+
 from __future__ import annotations
 
 import gzip
@@ -28,7 +29,9 @@ def canonical_state_id(geography_id: str) -> str:
     return geography_id
 
 
-def assemble_artifacts(artifacts: list[dict[str, Any]], *, release_version: str) -> dict[str, Any]:
+def assemble_artifacts(
+    artifacts: list[dict[str, Any]], *, release_version: str
+) -> dict[str, Any]:
     """Return one release, retaining exact input-content digests as lineage.
 
     No counts are aggregated: coverage is a disjoint class/scope ledger, so a
@@ -41,7 +44,10 @@ def assemble_artifacts(artifacts: list[dict[str, Any]], *, release_version: str)
     states = {canonical_state_id(artifact["geography_id"]) for artifact in artifacts}
     if len(states) != 1:
         raise AssemblyError(f"inputs do not resolve to one state: {sorted(states)!r}")
-    modes = {(artifact["inventory_mode"], artifact["electrical_model_mode"]) for artifact in artifacts}
+    modes = {
+        (artifact["inventory_mode"], artifact["electrical_model_mode"])
+        for artifact in artifacts
+    }
     if len(modes) != 1:
         raise AssemblyError("inputs must share inventory and electrical model modes")
     if not isinstance(release_version, str) or not release_version:
@@ -59,10 +65,18 @@ def assemble_artifacts(artifacts: list[dict[str, Any]], *, release_version: str)
         "electrical_model_mode": artifacts[0]["electrical_model_mode"],
         "created_at": max(artifact["created_at"] for artifact in artifacts),
         "content_sha256": "0" * 64,
-        "input_artifact_sha256s": sorted(artifact["content_sha256"] for artifact in artifacts),
-        "sources": [], "assets": [], "terminals": [], "connectivity_edges": [], "coverage": [],
+        "input_artifact_sha256s": sorted(
+            artifact["content_sha256"] for artifact in artifacts
+        ),
+        "sources": [],
+        "assets": [],
+        "terminals": [],
+        "connectivity_edges": [],
+        "coverage": [],
     }
-    if len(result["input_artifact_sha256s"]) != len(set(result["input_artifact_sha256s"])):
+    if len(result["input_artifact_sha256s"]) != len(
+        set(result["input_artifact_sha256s"])
+    ):
         raise AssemblyError("input artifact content digests must be distinct")
     for artifact in sorted(artifacts, key=lambda item: item["content_sha256"]):
         for source in artifact["sources"]:
@@ -70,11 +84,19 @@ def assemble_artifacts(artifacts: list[dict[str, Any]], *, release_version: str)
             if previous is None:
                 source_by_id[source["source_id"]] = source
             elif previous != source:
-                raise AssemblyError(f"source_id {source['source_id']!r} has conflicting source content")
-        for name, key_name in (("assets", "asset_id"), ("terminals", "terminal_id"), ("connectivity_edges", "edge_id")):
+                raise AssemblyError(
+                    f"source_id {source['source_id']!r} has conflicting source content"
+                )
+        for name, key_name in (
+            ("assets", "asset_id"),
+            ("terminals", "terminal_id"),
+            ("connectivity_edges", "edge_id"),
+        ):
             for item in artifact[name]:
                 if item[key_name] in collections[name]:
-                    raise AssemblyError(f"duplicate {name[:-1]} identity {item[key_name]!r}")
+                    raise AssemblyError(
+                        f"duplicate {name[:-1]} identity {item[key_name]!r}"
+                    )
                 collections[name].add(item[key_name])
                 result[name].append(item)
         for row in artifact["coverage"]:
@@ -86,7 +108,11 @@ def assemble_artifacts(artifacts: list[dict[str, Any]], *, release_version: str)
             elif previous != row:
                 raise AssemblyError(f"conflicting coverage class/scope {key!r}")
     result["sources"] = [source_by_id[key] for key in sorted(source_by_id)]
-    for name, key_name in (("assets", "asset_id"), ("terminals", "terminal_id"), ("connectivity_edges", "edge_id")):
+    for name, key_name in (
+        ("assets", "asset_id"),
+        ("terminals", "terminal_id"),
+        ("connectivity_edges", "edge_id"),
+    ):
         result[name].sort(key=lambda item: item[key_name])
     result["coverage"].sort(key=lambda item: (item["asset_class"], item["scope_id"]))
     result["content_sha256"] = artifact_sha256(result)
@@ -103,5 +129,8 @@ def write_assembly(artifact: dict[str, Any], path: Path) -> Path:
     """Write canonical JSON; callers choose a tracked receipt or ignored bulk path."""
     validate_artifact(artifact)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(artifact, sort_keys=True, separators=(",", ":")) + "\n", encoding="utf-8")
+    path.write_text(
+        json.dumps(artifact, sort_keys=True, separators=(",", ":")) + "\n",
+        encoding="utf-8",
+    )
     return path
