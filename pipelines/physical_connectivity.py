@@ -3,9 +3,11 @@
 This adapter deliberately has no geometry-to-topology operation.  A caller may
 provide line geometry as display context, but an edge is publishable here only
 when its source supplies two stable terminal identifiers and each endpoint is
-present in the same source release.  This keeps a future state parser useful
-without treating a line endpoint, a crossing, or a nearby facility as an
-electrical connection.
+present in the same source release. Its output has the terminal and edge row
+shapes consumed by ``pipelines.physical_inventory``; it owns no tables or
+alternate artifact schema. This keeps a future state parser useful without
+treating a line endpoint, a crossing, or a nearby facility as an electrical
+connection.
 """
 
 from __future__ import annotations
@@ -21,6 +23,8 @@ class ConnectivityEvidenceError(ValueError):
 @dataclass(frozen=True)
 class NativeTerminal:
     terminal_id: str
+    asset_id: str
+    source_id: str
     source_record_id: str
 
 
@@ -29,8 +33,8 @@ class ConnectivityEdge:
     edge_id: str
     from_terminal_id: str
     to_terminal_id: str
+    source_id: str
     source_record_id: str
-    circuit_id: str | None = None
 
 
 def _required_text(record: Mapping[str, object], field: str) -> str:
@@ -43,18 +47,26 @@ def _required_text(record: Mapping[str, object], field: str) -> str:
 
 
 def normalize_native_connectivity(
-    terminals: Iterable[Mapping[str, object]], edges: Iterable[Mapping[str, object]]
+    *,
+    source_id: str,
+    terminals: Iterable[Mapping[str, object]],
+    edges: Iterable[Mapping[str, object]],
 ) -> tuple[tuple[NativeTerminal, ...], tuple[ConnectivityEdge, ...]]:
     """Validate one authoritative release's terminal and circuit references.
 
     Input names are intentionally canonical rather than guessed from geometry
-    sources.  State-specific acquisition/parsers must map their documented
-    native fields before calling this function.
+    sources. State-specific acquisition/parsers must map their documented native
+    fields before calling this function. ``source_id`` must be the matching
+    source entry in the canonical physical-inventory artifact.
     """
+    if not isinstance(source_id, str) or not source_id.strip():
+        raise ConnectivityEvidenceError("source_id is required for a native release")
     normalized_terminals: dict[str, NativeTerminal] = {}
     for raw in terminals:
         terminal = NativeTerminal(
             terminal_id=_required_text(raw, "terminal_id"),
+            asset_id=_required_text(raw, "asset_id"),
+            source_id=source_id,
             source_record_id=_required_text(raw, "source_record_id"),
         )
         prior = normalized_terminals.get(terminal.terminal_id)
@@ -70,12 +82,8 @@ def normalize_native_connectivity(
             edge_id=_required_text(raw, "edge_id"),
             from_terminal_id=_required_text(raw, "from_terminal_id"),
             to_terminal_id=_required_text(raw, "to_terminal_id"),
+            source_id=source_id,
             source_record_id=_required_text(raw, "source_record_id"),
-            circuit_id=(
-                raw["circuit_id"].strip()
-                if isinstance(raw.get("circuit_id"), str) and raw["circuit_id"].strip()
-                else None
-            ),
         )
         if edge.from_terminal_id == edge.to_terminal_id:
             raise ConnectivityEvidenceError(
@@ -153,14 +161,16 @@ def normalized_receipt(
     edges: Iterable[Mapping[str, object]],
 ) -> dict[str, object]:
     """Return a receipt with source-native terminals/edges after validation."""
+    source_id = "source-native-release"
     normalized_terminals, normalized_edges = normalize_native_connectivity(
-        terminals, edges
+        source_id=source_id, terminals=terminals, edges=edges
     )
     return {
         "format": "flux-physical-connectivity-readiness-v1",
         "state": state,
         "status": "ready_for_contract_integration",
         "source": {
+            "source_id": source_id,
             "name": source_name,
             "url": source_url,
             "version": source_version,

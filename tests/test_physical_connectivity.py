@@ -9,8 +9,16 @@ from pipelines.physical_connectivity import (
 
 def _terminals():
     return [
-        {"terminal_id": "SUB-A:BUS-1", "source_record_id": "terminal-1"},
-        {"terminal_id": "SUB-B:BUS-2", "source_record_id": "terminal-2"},
+        {
+            "terminal_id": "SUB-A:BUS-1",
+            "asset_id": "substation-a",
+            "source_record_id": "terminal-1",
+        },
+        {
+            "terminal_id": "SUB-B:BUS-2",
+            "asset_id": "substation-b",
+            "source_record_id": "terminal-2",
+        },
     ]
 
 
@@ -28,20 +36,20 @@ def test_authoritative_native_terminal_references_are_normalized_deterministical
                 "from_terminal_id": "SUB-A:BUS-1",
                 "to_terminal_id": "SUB-B:BUS-2",
                 "source_record_id": "line-record-7",
-                "circuit_id": "1",
             }
         ],
     )
 
     assert receipt["status"] == "ready_for_contract_integration"
     assert receipt["accepted_terminal_count"] == 2
+    assert receipt["terminals"][0]["asset_id"] == "substation-a"
     assert receipt["edges"] == [
         {
             "edge_id": "line-7",
             "from_terminal_id": "SUB-A:BUS-1",
             "to_terminal_id": "SUB-B:BUS-2",
+            "source_id": "source-native-release",
             "source_record_id": "line-record-7",
-            "circuit_id": "1",
         }
     ]
 

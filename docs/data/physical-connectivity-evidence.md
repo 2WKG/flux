@@ -7,12 +7,15 @@ real network.  The companion machine-readable record is
 
 ## Acceptance rule
 
-`pipelines.physical_connectivity` publishes an electrical edge only when a
+`pipelines.physical_connectivity` normalizes an electrical edge only when a
 single source release supplies stable `terminal_id`, `from_terminal_id`, and
 `to_terminal_id` values, with both referenced terminals present in that same
 release.  Duplicate identifiers with different source records, repeated
-endpoints, and references to missing terminals fail validation.  The adapter
-has no geometry-to-topology operation.
+endpoints, and references to missing terminals fail validation. The adapter
+has no geometry-to-topology operation. Its terminal and edge rows use the
+canonical `physical_inventory` shapes (`terminal_id`, `asset_id`, `source_id`,
+`source_record_id`; and `edge_id`, endpoint IDs, `source_id`,
+`source_record_id`) rather than a second persistence schema.
 
 Line endpoints, crossings, proximity, plant coordinates, imagery, and street
 geometry are display context only.  They cannot create a terminal, an edge, a
@@ -44,8 +47,8 @@ separate source decision verifies its terms, version, fields, and mode.
 
 ## Integration boundary
 
-The receipt and validator are intentionally schema-independent.  They await
-2WKG-441's additive physical-inventory contract; a future state parser must
-pass its authoritative terminal records through the validator before contract
-publication.  A denied, restricted, stale, or geometry-only source closes only
-that acquisition attempt.  It never certifies an asset class as complete.
+The receipt does not publish a physical artifact. A future state parser must
+pass its authoritative terminal records through the validator, then include its
+canonical rows in the 2WKG-441 physical-inventory artifact. A denied,
+restricted, stale, or geometry-only source closes only that acquisition attempt.
+It never certifies an asset class as complete.
