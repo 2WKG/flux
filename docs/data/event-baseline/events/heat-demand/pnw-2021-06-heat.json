@@ -52,7 +52,14 @@
       "grid_index_mapping": "not applicable; county-grid receipt pending",
       "gaps": [
         "Not a county-grid weather extraction"
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000",
@@ -84,7 +91,14 @@
         "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
         "filtered_artifact_uri": "data/raw/event-baseline/pnw-2021-06-heat-41051-20210629000000_eaglei_2021_20210629T000000_20210629T060000.csv",
         "filtered_artifact_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "ncei-stormevents-2021-961302",
@@ -103,7 +117,14 @@
       "grid_index_mapping": "Historical OR006 NWS zone-to-Multnomah FIPS 41051 crosswalk from bp30mr21.dbx; archived capture https://web.archive.org/web/20210322064256id_/https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx (Memento-Datetime 2021-03-22T06:42:56Z), SHA256 847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595, 323923 bytes; original URL https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx.",
       "gaps": [
         "Zone report is not a sampled county weather time series; county mapping uses the archived historical crosswalk, whose current primary version differs."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -203,7 +224,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
