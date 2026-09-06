@@ -194,11 +194,12 @@ async def _in_thread(
     except ValueError as exc:
         raise InvalidInputError("Interactive simulation inputs are invalid.") from exc
     except Exception as exc:
-        if type(exc).__name__ in {"SimulationInputError", "SearchUnavailable"}:
+        if type(exc).__name__ == "SimulationInputError":
             raise InvalidInputError(
                 "Interactive simulation inputs are invalid."
             ) from exc
         if type(exc).__name__ in {
+            "SearchUnavailable",
             "SimulationUnavailableError",
             "SimulationSolveError",
             "ImportError",
