@@ -26,6 +26,7 @@ import { resultsFromRun } from "./data/ask-result";
 import { loadGridLayer, GRID_LAYERS, type GridState } from "./data/grid-client";
 import type { SpatialItem, SpatialPage } from "./data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "./renderer/GridInventoryPanel";
+import { ControlRoom, type ControlRoomProps, type RegionId } from "./demo";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
@@ -352,6 +353,7 @@ export function App() {
   const [gridSelected, setGridSelected] = useState<SpatialItem | null>(null);
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
+  const [controlRoomRegion, setControlRoomRegion] = useState<RegionId>("texas");
 
   const contextRevision = `${selected}:${attemptId}`;
 
@@ -459,6 +461,68 @@ export function App() {
     [layerSnapshots],
   );
   const layerLegends = useMemo(() => layerSnapshots.map(legendForLayer), [layerSnapshots]);
+  const controlRoomProps: ControlRoomProps = {
+    regions: [
+      {
+        id: "texas",
+        label: "Texas",
+        summary: "Published physical inventory is available; the electrical topology is not yet a browser-delivered artifact.",
+        topology: {
+          label: "Physical inventory · topology unavailable",
+          mode: "unavailable",
+          availability: "partial",
+          provenance: [{ label: "Published Texas inventory", detail: "source-backed geometry; not an electrical network" }],
+          limitations: ["Cascade playback remains unavailable until a qualified cascade artifact is delivered."],
+        },
+      },
+      {
+        id: "minnesota",
+        label: "Minnesota",
+        summary: "Published physical inventory is available; no Minnesota topology is asserted by this screen.",
+        topology: {
+          label: "Physical inventory · topology withheld",
+          mode: "unavailable",
+          availability: "partial",
+          provenance: [{ label: "Published Minnesota inventory", detail: "source-backed geometry; no inferred topology" }],
+          limitations: ["A topology view needs an accepted model artifact before it can be displayed."],
+        },
+      },
+    ],
+    selectedRegionId: controlRoomRegion,
+    scenarios: [{
+      id: "experimental-count-forecast",
+      label: "2024 historical count-forecast context",
+      description: "The experimental EAGLE-I count-trajectory artifact is not connected to this browser bundle yet.",
+      availability: "unavailable",
+      weather: [{
+        id: "artifact-pending",
+        timeLabel: "Historical artifact",
+        condition: "Forecast not connected",
+        symbol: "unknown",
+        detail: "No weather condition is inferred from an outage-count trajectory.",
+        availability: "unavailable",
+      }],
+      model: {
+        availability: "unavailable",
+        label: "Experimental count-trajectory model",
+        provenance: [{ label: "Pending delivered experimental artifact" }],
+        limitations: ["This is not an outage probability, live forecast, weather forecast, or cascade result."],
+      },
+    }],
+    cascade: {
+      availability: "unavailable",
+      title: "Cascade playback",
+      unavailableMessage: "No qualified cascade event is available for this selected context.",
+      events: [],
+    },
+    suggestedPrompts: [{
+      id: "ask-evidence",
+      prompt: "What evidence is available for this selected region?",
+      availability: askAvailable ? "available" : "unavailable",
+    }],
+    onRegionChange: setControlRoomRegion,
+    onPromptSelect: () => { if (!chatOpen) toggleChat("toggle"); },
+  };
 
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
     const identity: RunIdentity = { attemptId, contextRevision };
@@ -628,6 +692,8 @@ export function App() {
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
       />
+
+      <ControlRoom {...controlRoomProps} />
 
       <section className="pipeline">
         <div>
