@@ -1,7 +1,10 @@
 """Tests for the bounded, read-only causal artifact query."""
 
 import json
+from copy import deepcopy
 from pathlib import Path
+
+import pytest
 
 from copilot.tools.causal_query import (
     CausalArtifactReader,
@@ -134,3 +137,85 @@ def test_public_tool_returns_unavailable_until_deployment_registers_artifacts() 
 
     assert result.status == "unavailable"
     assert result.unavailable.code == "unsupported_request"
+
+
+@pytest.mark.parametrize(
+    ("unavailable_code", "mutate"),
+    [
+        (
+            "MISSING_IDENTIFICATION",
+            lambda artifact: artifact.update(
+                availability={
+                    "status": "unavailable",
+                    "unavailable_codes": ["MISSING_IDENTIFICATION"],
+                }
+            ),
+        ),
+        (
+            "MISSING_TREATMENT_DEFINITION",
+            lambda artifact: (
+                artifact.pop("question"),
+                artifact.update(
+                    availability={
+                        "status": "unavailable",
+                        "unavailable_codes": ["MISSING_TREATMENT_DEFINITION"],
+                    }
+                ),
+            ),
+        ),
+        (
+            "MISSING_OUTCOME_DEFINITION",
+            lambda artifact: (
+                artifact.pop("question"),
+                artifact.update(
+                    availability={
+                        "status": "unavailable",
+                        "unavailable_codes": ["MISSING_OUTCOME_DEFINITION"],
+                    }
+                ),
+            ),
+        ),
+        (
+            "MISSING_DATA_COVERAGE",
+            lambda artifact: (
+                artifact["sample"].pop("n_treated"),
+                artifact["sample"].pop("n_control"),
+                artifact.update(
+                    availability={
+                        "status": "unavailable",
+                        "unavailable_codes": ["MISSING_DATA_COVERAGE"],
+                    }
+                ),
+            ),
+        ),
+        (
+            "MISSING_DIAGNOSTICS",
+            lambda artifact: (
+                artifact["diagnostics"].__setitem__(
+                    0,
+                    {"name": "balance", "status": "not_run", "evidence": "recorded"},
+                ),
+                artifact.update(
+                    availability={
+                        "status": "unavailable",
+                        "unavailable_codes": ["MISSING_DIAGNOSTICS"],
+                    }
+                ),
+            ),
+        ),
+    ],
+)
+def test_each_insufficiency_code_returns_unavailable_without_an_effect(
+    tmp_path: Path, unavailable_code: str, mutate
+) -> None:
+    path = tmp_path / "effect.json"
+    artifact = deepcopy(_artifact())
+    artifact.pop("estimate")
+    mutate(artifact)
+    path.write_text(json.dumps(artifact), encoding="utf-8")
+
+    result = _reader(path).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "insufficient_evidence"
+    assert unavailable_code in result.unavailable.reason
