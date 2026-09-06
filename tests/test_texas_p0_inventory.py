@@ -20,7 +20,7 @@ SPEC.loader.exec_module(inventory_module)
 
 ACTIVSG_INDEX = 0
 TIGER_INDEX = 1
-EIA930_INDEX = 4
+HRRR_INDEX = 9
 EAGLEI_INDEX = 6
 
 
@@ -41,8 +41,8 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
     assert report["summary"] == {
         "excluded": 1,
         "ingested": 0,
-        "unavailable": 6,
-        "validated": 4,
+        "unavailable": 2,
+        "validated": 8,
     }
     assert "synthetic" in report["synthetic_geometry_caveat"].lower()
     assert "not the real ercot" in report["synthetic_geometry_caveat"].lower()
@@ -143,13 +143,13 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # A receipt-less source cannot claim evidence just by changing one word.
         (
             _flip_status,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "ingested",
             "ingested record needs a checked_in_receipt path",
         ),
         (
             _flip_status,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "ingested",
             "ingested record needs an ingestion_timestamp",
         ),
@@ -161,7 +161,7 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         ),
         (
             _flip_status,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "validated",
             "validated record needs an immutable artifact identifier",
         ),
@@ -181,13 +181,13 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # Unevidenced statuses must not carry evidence fields.
         (
             _timestamp_on_unavailable,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "unavailable",
             "unavailable record must have a null ingestion_timestamp",
         ),
         (
             _receipt_on_unavailable,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "unavailable",
             "unavailable record must not claim a checked_in_receipt",
         ),
@@ -200,15 +200,15 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
         # Structural rules.
         (
             _duplicate_id,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "unavailable",
             "duplicate record id: activsg2000-current",
         ),
         (
             _http_url,
-            EIA930_INDEX,
+            HRRR_INDEX,
             "unavailable",
-            "records[4].source_url must be an https URL",
+            "records[9].source_url must be an https URL",
         ),
         (
             _weaken_caveat,
