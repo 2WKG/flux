@@ -10,13 +10,16 @@ tunnel: flux-demo
 credentials-file: C:\Users\<USER>\.cloudflared\<TUNNEL-UUID>.json
 
 ingress:
+  # The read-only FastAPI path surface. Cloudflared evaluates ingress in order,
+  # so this must precede the static fallback. It routes by path, not method;
+  # FastAPI rejects unsupported methods on these paths.
+  - hostname: bouncepulse.com
+    path: ^/(health|layers(?:/.*)?|api/v1/grid/layers(?:/.*)?|lines/top|elements/critical|scenarios(?:/.*)?|predictions|cascade)$
+    service: http://127.0.0.1:8000
+
   # The built static demo (web/server.mjs serving web/dist/).
   - hostname: bouncepulse.com
     service: http://127.0.0.1:4173
-
-  # The FastAPI copilot is deliberately NOT routed. Adding a rule here makes
-  # /ask and /health public; do not add one without verifying that service
-  # first. See the route-ownership table in the runbook.
 
   # Required catch-all.
   - service: http_status:404

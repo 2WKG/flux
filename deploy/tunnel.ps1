@@ -9,6 +9,7 @@
 param(
   [string]$Tunnel = 'flux-demo',
   [int]$Port = 4173,
+  [int]$ApiPort = 8000,
   [switch]$CheckOnly
 )
 
@@ -37,12 +38,25 @@ if ((Test-Path $cfDir) -and (Get-ChildItem $cfDir -Filter '*.json' -ErrorAction 
   $fail += "No tunnel credentials in $cfDir. Run: cloudflared tunnel login; cloudflared tunnel create $Tunnel"
 }
 
-# 3. The local origin must already be serving, or the tunnel publishes a 502.
+# 3. Both local origins must answer before the tunnel publishes them. The
+# template maps only the API's explicit read paths to the API port.
 try {
   $r = Invoke-WebRequest "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 5
   Write-Host "ok   origin: http://127.0.0.1:$Port/ returned $($r.StatusCode)" -ForegroundColor Green
 } catch {
   $fail += "The static origin is not answering on http://127.0.0.1:$Port/. Start it: ./deploy/serve.ps1"
+}
+
+try {
+  $r = Invoke-WebRequest "http://127.0.0.1:$ApiPort/health" -UseBasicParsing -TimeoutSec 5
+  Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned $($r.StatusCode)" -ForegroundColor Green
+} catch {
+  $status = $_.Exception.Response.StatusCode.value__
+  if ($status -eq 503) {
+    Write-Host "ok   API health: http://127.0.0.1:$ApiPort/health returned documented unavailable 503" -ForegroundColor Green
+  } else {
+    $fail += "The API health endpoint is not answering on http://127.0.0.1:$ApiPort/health. Start it: uv run uvicorn copilot.app:app --port $ApiPort"
+  }
 }
 
 if ($fail.Count -gt 0) {
