@@ -140,10 +140,20 @@ def scenario_identity(
     unit_mw: float | None = None,
     site_bus: int | None = None,
     net: Any | None = None,
+    overload_limit_pct: float = 100.0,
+    max_stages: int = 12,
+    case_path: str | Path | None = None,
 ) -> dict[str, Any]:
     """Return one canonical immutable identity for a synthetic scenario edit."""
     if not scenario_id or hour < 0:
         raise SimulationInputError("scenario_id and non-negative hour are required")
+    resolved_case = Path(case_path) if case_path is not None else None
+    if resolved_case is None and net is not None and net.get("flux_case_path"):
+        resolved_case = Path(str(net["flux_case_path"]))
+    case_sha256 = None
+    if resolved_case is not None and resolved_case.is_file():
+        with resolved_case.open("rb") as case_file:
+            case_sha256 = hashlib.file_digest(case_file, "sha256").hexdigest()
     canonical = {
         "scenario_id": str(scenario_id),
         "hour": int(hour),
@@ -155,6 +165,9 @@ def scenario_identity(
         ),
         "unit_mw": None if unit_mw is None else float(unit_mw),
         "site_bus": site_bus,
+        "overload_limit_pct": float(overload_limit_pct),
+        "max_stages": int(max_stages),
+        "case_sha256": case_sha256,
     }
     encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"))
     return {**canonical, "scenario_hash": hashlib.sha256(encoded.encode()).hexdigest()[:16]}

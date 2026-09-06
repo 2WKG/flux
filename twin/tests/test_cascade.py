@@ -95,6 +95,7 @@ def test_identity_and_immutable_edit_are_deterministic() -> None:
     first = scenario_identity(["line:1", "load:1"], "storm", 1, net=net)
     second = scenario_identity(["load:1", "1", "line:1"], "storm", 1, net=net)
     assert first == second
+    assert scenario_identity(["line:1", "load:1"], "storm", 1, net=net, max_stages=13) != first
     edited = immutable_scenario_net(net, ["line:1"])
     assert net.line.at[0, "in_service"]
     assert not edited.line.at[0, "in_service"]
