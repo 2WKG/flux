@@ -126,6 +126,9 @@ def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
         result.append(
             {
                 "node_id": int(bus_id),
+                # Every record carries the label so a single file copied out of
+                # the dataset directory still says what topology it describes.
+                "topology_label": TOPOLOGY_LABEL,
                 "features": numeric,
                 "fuel_capacity_mw": fuel_capacity,
                 "categorical_features": {
@@ -155,6 +158,7 @@ def _edges(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
         result.append(
             {
                 "edge_id": int(line_id),
+                "topology_label": TOPOLOGY_LABEL,
                 "source": int(from_bus),
                 "target": int(to_bus),
                 # Pandapower imports these voltage-transition branches as net.impedance.

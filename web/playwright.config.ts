@@ -4,8 +4,7 @@ import { existsSync } from "node:fs";
 const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
   ?? (existsSync(systemChrome) ? systemChrome : undefined);
-
-const port = process.env.FLUX_E2E_PORT ?? "4173";
+const port = Number(process.env.FLUX_E2E_PORT ?? 4173);
 const baseURL = `http://127.0.0.1:${port}`;
 
 export default defineConfig({
@@ -27,9 +26,9 @@ export default defineConfig({
     // real FastAPI app behind the origin's read forward. `scripts/e2e-stack.mjs`
     // boots both and tears both down. The budget covers a cold `uv sync` plus
     // the ~25 s first `import copilot.app`.
-    command: "npm run build && node scripts/e2e-stack.mjs",
+    command: "node scripts/build.mjs && node scripts/e2e-stack.mjs",
+    env: { PORT: String(port) },
     url: baseURL,
-    env: { PORT: port },
     reuseExistingServer: false,
     timeout: 600_000,
   },

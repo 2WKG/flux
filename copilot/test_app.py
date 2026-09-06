@@ -454,12 +454,18 @@ def test_ask_run_metadata_names_the_provider_without_exposing_it_to_the_browser(
     """The provider is observable to an operator, never to the page."""
     database = tmp_path / "fixture.duckdb"
     _fixture_database(database)
+    # `ask_backend=None` is this test's subject, not an omission: the headers
+    # must name the *configured* provider even when no backend answers.  It is
+    # also what keeps this test offline now that `create_app` builds a real
+    # backend from a credential -- the built planner would otherwise issue a
+    # live SDK request from a unit test.
     app = create_app(
         Settings(
             duckdb_path=database,
             copilot_provider="claude",
             anthropic_api_key="configured-but-unchecked",
-        )
+        ),
+        ask_backend=None,
     )
 
     response = TestClient(app).post(

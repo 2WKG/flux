@@ -116,9 +116,24 @@ Rules that hold for both:
   selection is fully determined by `COPILOT_PROVIDER` and its credential, so
   `copilot/app.py:create_app` calls `providers.build_narration_provider` once at
   startup and stores it on `app.state.narration_provider`. Construction opens no
-  connection. Tool orchestration stays deployment-injected (`ask_backend`); a
-  backend that carries its own `provider` outranks the configured one, and
-  `/ask` uses exactly one resolved provider for both the stream and its headers.
+  connection. **Tool orchestration is now built the same way (2WKG-230).**
+  `create_app` calls `copilot.agent.build_ask_backend(settings, provider)` and
+  stores the result on `app.state.ask_backend`; it is `None` exactly when the
+  deployment cannot ground an answer -- no configured provider, or a provider
+  that cannot plan a tool call -- and `/ask` then emits the same documented
+  unavailable terminal rather than guessing. A deployment or a test may still
+  inject its own backend (including `None`) through the same `_UNSET` sentinel
+  `narration_provider` uses. A backend that carries its own `provider` outranks
+  the configured one, and `/ask` uses exactly one resolved provider for both
+  the stream and its headers.
+- **The planner and the narrator are the same model.** `providers/selection.py`
+  owns the planning turn (`ToolSelector`, `ToolSelection`,
+  `SELECTION_SYSTEM_PROMPT`) exactly as `providers/grounding.py` owns the
+  narration turn, and both adapters implement `select_tool` over the same
+  frozen `TOOL_SCHEMAS` rendering `tools_for()` already produced. `tool_choice`
+  is `auto`, never forced: forcing a call would make "no tool fits"
+  unrepresentable and require the model to invent an argument to satisfy the
+  force. A turn that calls no tool is reported as the named refusal below.
 - **Run metadata names the provider that answered.** The
   `X-Flux-Copilot-Provider` / `X-Flux-Copilot-Model` headers are read from that
   resolved provider, never from `Settings`, and are **omitted** when no provider
