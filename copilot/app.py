@@ -39,6 +39,7 @@ from copilot.routes.ask import router as ask_router
 from copilot.routes.assets import placements_router
 from copilot.routes.assets import router as assets_router
 from copilot.routes.comparisons import router as comparisons_router
+from copilot.routes.explainer import router as explainer_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
@@ -138,6 +139,7 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(explainer_router)
     app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 

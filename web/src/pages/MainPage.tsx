@@ -9,9 +9,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import fixture from "../../../data/demo/bundle.json";
 import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "../source-truth";
-import { ChatDock, type ChatError, type ChatMessage, type ChatStatus } from "../chat/ChatDock";
-import { EMPTY_SCENE_CONTEXT, type SceneContext } from "../chat/ask-contract";
-import { RunTrace } from "../ask/run-state/RunTrace";
+import { type ChatMessage } from "../chat/ChatDock";
+import { EMPTY_SCENE_CONTEXT, type AskRequestBody, type SceneContext } from "../chat/ask-contract";
+import { MainAssistant, type RequestOverlay } from "../main-assistant/MainAssistant";
 import { AgentSimulationAdapter } from "../interactive/AgentSimulationAdapter";
 import { createRunState } from "../ask/run-state/reducer";
 import type { RunEvent, RunIdentity, RunState } from "../ask/run-state/types";
@@ -34,6 +34,9 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { ScenarioEditContainer } from "../interactive/ScenarioEditContainer";
+import { InteractivePanels } from "../interactive/InteractivePanels";
+import { TexasNodesPanel } from "../texas-nodes/TexasNodesPanel";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
@@ -76,6 +79,23 @@ const SOURCE_TRUTH = deriveSourceTruth(data.execution.provenance);
  * a stream returns.
  */
 const OFFLINE_DOCK_LABEL = "Not available in this offline build";
+
+// The default workspace is the backend-served Texas topology, so its modal
+// must not inherit the retired five-bus lesson's fixture provenance.
+const TEXAS_TOPOLOGY_DISCLOSURE = {
+  artifact: "tx:synthetic-topology:activsg2000-current-v1",
+  source: "ACTIVSg2000 current MATPOWER case",
+  reference: "data/artifacts/synthetic_topology/tx/activsg2000-current-v1.json.manifest.json",
+  scope: "Synthetic Texas topology from the model API. It is not ERCOT topology or a physical-grid claim.",
+  assumptions: [
+    "Topology and coordinates are read from /demo/model; no numerical solve is implied.",
+    "The current AUX mapping supplies synthetic display coordinates only.",
+  ],
+  limitations: [
+    "Synthetic ACTIVSg2000 topology; not a physical asset, interconnection result, or observed electrical state.",
+    "Physical 3D placements are separately source-labelled observed-inventory visuals.",
+  ],
+} as const;
 
 /** `ASK_LIMITS.attemptIdPattern` is `^[A-Za-z0-9_-]{16,128}$`; this satisfies it. */
 function newAttemptId(): string {
@@ -339,8 +359,10 @@ export function App() {
   const [sceneContext, setSceneContext] = useState<SceneContext>(EMPTY_SCENE_CONTEXT);
   const [initialAttemptId] = useState<string>(() => newAttemptId());
   const [attemptId, setAttemptId] = useState<string>(initialAttemptId);
-  const [chatStatus, setChatStatus] = useState<ChatStatus>("idle");
-  const [chatError, setChatError] = useState<ChatError | undefined>(undefined);
+  // What the page knows that the stream has not said yet. Everything the stream
+  // *did* say is read from `runState` by `MainAssistant`; this carries only the
+  // window before a run exists, so there is no second status authority.
+  const [request, setRequest] = useState<RequestOverlay>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // The trace is mounted from the first paint with an idle run: "no run yet" is a
   // real state of the run surface, and a trace that only appears once a stream
@@ -348,10 +370,10 @@ export function App() {
   const [runState, setRunState] = useState<RunState>(() =>
     createRunState({ attemptId: initialAttemptId, contextRevision: `baseline:${initialAttemptId}` }, SOURCE_TRUTH.status));
   const [askResults, setAskResults] = useState<readonly AskResult[]>([]);
-  // The raw arrival-ordered contract events. `RunTrace` renders the reduced run
-  // (phase, cancellation, tool payloads); the simulation adapter renders the
-  // contract determination the reducer does not make -- which published tool was
-  // named, and which ArtifactRef the result is attributed to.
+  // The raw arrival-ordered contract events. `MainAssistant` renders the reduced
+  // run state (phase, cancellation, tool payloads); the simulation adapter
+  // renders the contract determination the reducer does not make -- which
+  // published tool was named, and which ArtifactRef the result is attributed to.
   const [askEvents, setAskEvents] = useState<readonly RunEvent[]>([]);
   const [askAvailable, setAskAvailable] = useState(false);
 
@@ -487,10 +509,9 @@ export function App() {
   const layerFilterResult = useMemo(() => applyFilters(layerSnapshots, layerFilter), [layerSnapshots, layerFilter]);
   const hiddenUncertainty = uncertainSuppressions(layerFilterResult);
 
-  const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
+  const sendAsk = useCallback((body: AskRequestBody) => {
     const identity: RunIdentity = { attemptId, contextRevision };
-    setChatStatus("streaming");
-    setChatError(undefined);
+    setRequest({ pending: true });
     setMessages((current) => [...current, { id: `${identity.attemptId}-${current.length}`, role: "user", content: body.question }]);
     const initial = createRunState(identity, SOURCE_TRUTH.status);
     setRunState(initial);
@@ -503,23 +524,27 @@ export function App() {
         setRunState(state);
         setAskResults(resultsFromRun(state));
         if (connection) {
-          setChatStatus("error");
-          setChatError({ code: "unavailable", message: connection.kind === "unavailable" || connection.kind === "failed" || connection.kind === "invalid" ? connection.message : "The stream did not open." });
+          // The connection never produced a stream, so the reducer saw nothing
+          // and has nothing to report. This is the one case the page may speak
+          // for, and it says so as a connection error rather than inventing a
+          // terminal SSE event the server never sent.
+          setRequest({ connectionError: { code: "unavailable", message: connection.kind === "unavailable" || connection.kind === "failed" || connection.kind === "invalid" ? connection.message : "The stream did not open." } });
           setApiFailure(fromClientState(connection));
           return;
         }
-        const terminal = state.terminal;
-        if (terminal?.type === "done") {
-          setChatStatus("done");
+        // The run reached a terminal state (or `ask-stream` dispatched
+        // `stream_closed` and the reducer made it `request_failed`, OQ-1).
+        // `MainAssistant` derives the visible status from that state; the page
+        // no longer maps phases to a second status of its own.
+        setRequest({});
+        if (state.terminal?.type === "done") {
           setMessages((current) => state.text ? [...current, { id: `${identity.attemptId}-answer`, role: "assistant", content: state.text }] : current);
-          return;
         }
-        setChatStatus("error");
-        setChatError(terminal?.type === "error"
-          ? { code: terminal.error.code, message: terminal.error.message, retryable: terminal.error.retryable }
-          : { code: "protocol_error", message: state.issues[state.issues.length - 1]?.message ?? "The stream ended without a terminal event." });
       })
-      .catch(() => setChatStatus("error"));
+      // `runAsk` rejects only for a caller-directed abort; the run itself is
+      // already `failed` via `stream_closed`, so the overlay just stops
+      // claiming a request is in flight.
+      .catch(() => setRequest({}));
   }, [attemptId, contextRevision]);
 
   return (
@@ -602,6 +627,11 @@ export function App() {
 
       </section>
 
+      <InteractivePanels scenarioId={selected} busId="load" />
+      <TexasNodesPanel scenarioId={data.execution.assumptionSetId} hour={0} />
+
+      <ScenarioEditContainer baseScenarioId={data.execution.assumptionSetId} />
+
       <section className="pipeline">
         <div>
           <p className="eyebrow">MODEL CONTRACT</p>
@@ -617,20 +647,21 @@ export function App() {
         onToggle={() => toggleChat("toggle")}
         collapsedLabel={askAvailable ? "Copilot endpoint reachable" : OFFLINE_DOCK_LABEL}
       >
-        <ChatDock
-          contextRevision={contextRevision}
-          context={sceneContext}
-          attemptId={attemptId}
-          sourceLabel="Bundled synthetic scene"
-          sourceStatus={SOURCE_TRUTH.status}
-          status={chatStatus}
-          error={chatError}
-          messages={messages}
-          onContextChange={setSceneContext}
-          onSend={askAvailable ? sendAsk : undefined}
-          onRetry={() => setAttemptId(newAttemptId())}
+        <MainAssistant
+          chat={{
+            contextRevision,
+            context: sceneContext,
+            attemptId,
+            sourceLabel: "Bundled synthetic scene",
+            sourceStatus: SOURCE_TRUTH.status,
+            messages,
+            onContextChange: setSceneContext,
+            onSend: askAvailable ? sendAsk : undefined,
+            onRetry: () => setAttemptId(newAttemptId()),
+          }}
+          run={runState}
+          request={request}
         />
-        <RunTrace state={runState} />
         <AgentSimulationAdapter events={askEvents} />
         <ResultCards results={askResults} />
         {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
@@ -643,13 +674,13 @@ export function App() {
             <p className="eyebrow">DATA DISCLOSURE</p>
             <h2>Provenance, assumptions, and limits</h2>
             <dl>
-              <dt>Artifact</dt><dd>{data.execution.provenance.artifactId} · hash {data.execution.provenance.inputHash}</dd>
-              <dt>Source</dt><dd>{data.execution.provenance.sourceId} ({data.execution.provenance.sourceVersion})</dd>
-              <dt>Source reference</dt><dd><code>{data.execution.provenance.sourceRef}</code></dd>
-              <dt>Scope</dt><dd>{data.execution.provenance.scope}</dd>
+              <dt>Artifact</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.artifact}</dd>
+              <dt>Source</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.source}</dd>
+              <dt>Source reference</dt><dd><code>{TEXAS_TOPOLOGY_DISCLOSURE.reference}</code></dd>
+              <dt>Scope</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.scope}</dd>
             </dl>
-            <ul>{data.execution.assumptions.notes.map((note) => <li key={note}>{note}</li>)}</ul>
-            <ul>{data.execution.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul>
+            <ul>{TEXAS_TOPOLOGY_DISCLOSURE.assumptions.map((note) => <li key={note}>{note}</li>)}</ul>
+            <ul>{TEXAS_TOPOLOGY_DISCLOSURE.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul>
           </section>
         </div>
       )}

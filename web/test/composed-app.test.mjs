@@ -18,6 +18,8 @@ import { mkdir } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { readBuiltScripts } from "./built-assets.mjs";
+
 const webRoot = new URL("../", import.meta.url);
 const compiled = new URL("../node_modules/.cache/flux-composed-app.mjs", import.meta.url);
 await mkdir(new URL(".", compiled), { recursive: true });
@@ -49,6 +51,7 @@ test("every landed panel is mounted in the one App", () => {
   // Each entry is a marker only that component can produce: its own class or
   // its own aria-label. Unmounting any one of them turns this red.
   const mounted = {
+    "main assistant seam": /class="flux-main-assistant"/,
     "chat dock": /class="flux-chat"/,
     "chat transcript": /class="flux-chat-transcript"/,
     "result cards": /class="ask-result__empty"|class="ask-results"/,
@@ -75,6 +78,29 @@ test("the default composition mounts the Texas model surface without a five-bus 
   assert.doesNotMatch(markup, /class="asset-inspector"|aria-label="Scenario inspector"|Source-backed physical inventory/);
 });
 
+test("the chat dock and run trace are mounted only through the one assistant seam", () => {
+  // #305 landed a second assembly of ChatDock + RunTrace beside the page's own
+  // inline one and mounted neither. There is now exactly one home: the dock and
+  // the trace appear once each, and both sit inside `.flux-main-assistant`.
+  assert.equal((markup.match(/class="flux-chat"/g) ?? []).length, 1, "exactly one chat dock in the App");
+  assert.equal((markup.match(/class="run-trace"/g) ?? []).length, 1, "exactly one run trace in the App");
+  const seam = markup.slice(markup.indexOf('class="flux-main-assistant"'));
+  assert.ok(seam.includes('class="flux-chat"'), "the dock must be inside the assistant seam");
+  assert.ok(seam.includes('class="run-trace"'), "the trace must be inside the assistant seam");
+  // The seam's own no-inference claim reaches the composed screen.
+  assert.match(markup, /data-scene-action-availability="unavailable"/);
+  assert.match(markup, /data-scene-action-reason="absent_from_received_ask_event_data"/);
+});
+
+test("the assistant seam is in a shipped chunk, not only in its own test", async () => {
+  // A component that renders perfectly and is in no built chunk is
+  // indistinguishable from one that does not exist. `readBuiltScripts` reads
+  // the entry *and* its page chunks, so this cannot pass for the wrong reason.
+  const bundle = await readBuiltScripts();
+  assert.ok(bundle.includes("flux-main-assistant"), "the assistant seam is in no built chunk");
+  assert.ok(bundle.includes("absent_from_received_ask_event_data"), "the seam's machine reason is in no built chunk");
+});
+
 test("the composed shell publishes the machine provenance token, not prose", () => {
   assert.match(markup, /<main data-source-status="synthetic">/);
 });
@@ -92,13 +118,22 @@ test("every layer renders unavailable with a named producer reason before any ro
 });
 
 test("the composed screen renders no status label but the ones its data supports", () => {
-  // The synthetic fixture and six unavailable layers can produce exactly two of
-  // the six display strings. Relabelling any surface introduces a third.
+  // The synthetic fixture and six unavailable layers produce two of the six
+  // display strings. The mounted scenario edit composer (2WKG-440) adds exactly
+  // one more: an edit a user composes is a proposal, and `hypothetical` is the
+  // IA's token for a proposal (`docs/design/texas-demo-narrative-ia.md`, the
+  // truth-label table). It is rendered from `STATUS_COPY`, not written here.
+  // The set stays exact, so relabelling any surface still introduces a fourth
+  // and fails.
   const shown = Object.entries(app.STATUS_COPY)
     .filter(([, label]) => new RegExp(`(^| )${label}( |$|\\.)`).test(text))
     .map(([token]) => token)
     .sort();
-  assert.deepEqual(shown, ["synthetic", "unavailable"].sort());
+  assert.deepEqual(shown, ["hypothetical", "synthetic", "unavailable"].sort());
+  // And the three that would be claims this screen cannot make stay absent.
+  for (const token of ["source_supported", "source_screened", "request_failed"]) {
+    assert.ok(!shown.includes(token), `the composed screen renders ${token}`);
+  }
 });
 
 test("the run trace, when mounted, carries the scene's own status and not the reducer default", () => {

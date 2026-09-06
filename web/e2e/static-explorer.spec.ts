@@ -14,8 +14,7 @@ import { expect, test, type Page } from "@playwright/test";
  *     denylist over two path prefixes, and it is installed for every test.
  */
 
-const SYNTHETIC_NAV_SUMMARY = /Synthetic · fixture source · no asserted topology · no API required/i;
-const SYNTHETIC_STATUS_PILL = /Synthetic five-bus preview · not Minnesota data/i;
+const SYNTHETIC_NAV_SUMMARY = /Synthetic ACTIVSg2000 static topology · model API required/i;
 /** Any claim of source support over a synthetic fixture, in any spelling. */
 const SOURCE_BACKED_CLAIM = /source[_ -]?backed|source[_ -]?supported|source[_ -]?screened|Minnesota coverage/i;
 
@@ -71,33 +70,15 @@ async function expectSameOriginOnly(page: Page): Promise<void> {
 async function expectSyntheticProvenance(page: Page): Promise<void> {
   await expect(page.locator("main")).toHaveAttribute("data-source-status", "synthetic");
   await expect(page.getByText(SYNTHETIC_NAV_SUMMARY)).toBeVisible();
-  await expect(page.getByText(SYNTHETIC_STATUS_PILL)).toBeVisible();
   await expect(page.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
 }
 
-test("the static explorer selects scenarios and keeps its synthetic label through every selection", async ({ page }) => {
+test("the static explorer exposes the synthetic Texas topology boundary", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ACTIVSg2000 network geometry" })).toBeVisible();
   await expectSyntheticProvenance(page);
-
-  await page.getByRole("button", { name: /Candidate A/i }).first().click();
-  await expect(page.getByText(/NETWORK STATE · CANDIDATE A/i)).toBeVisible();
-  const inspector = page.locator("aside.inspector");
-  // Wait on state only the post-click render can produce, then assert what survived it.
-  await expect(inspector.getByText(/CANDIDATE A · \+\d+ MW AT/i)).toBeVisible();
-  await expect(inspector.getByText(/MODELED UNMET DEMAND/i)).toBeVisible();
-  await expectSyntheticProvenance(page);
-
-  await page.getByRole("button", { name: /Candidate B/i }).first().click();
-  await expect(page.getByText(/NETWORK STATE · CANDIDATE B/i)).toBeVisible();
-  await expect(inspector.getByText(/CANDIDATE B · \+\d+ MW AT/i)).toBeVisible();
-  await expectSyntheticProvenance(page);
-
-  // Back to the reference run: the baseline copy is a different render, not a leftover.
-  await page.getByRole("button", { name: /Baseline/i }).first().click();
-  await expect(page.getByText(/NETWORK STATE · BASELINE/i)).toBeVisible();
-  await expect(inspector.getByText(/NO CAPACITY ADDED/i)).toBeVisible();
-  await expectSyntheticProvenance(page);
+  await expect(page.getByLabel("Full synthetic Texas topology workspace", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Texas model topology unavailable/i)).toBeVisible();
 
   await expectSameOriginOnly(page);
 });
@@ -129,21 +110,12 @@ test("the chat dock hosts the real evidence surface and states its own unavailab
   await expectSameOriginOnly(page);
 });
 
-test("the physical-inventory map is mounted inside the one App, with its disclosures", async ({ page }) => {
+test("the Texas topology workspace names an unavailable model response", async ({ page }) => {
   await page.goto("/");
-  const panel = page.getByLabel("Source-backed physical inventory");
-  await expect(panel).toBeVisible();
-  // The map is the merged #213 foundation, drawn once. It loads in the browser,
-  // so this waits for the real renderer rather than the server-rendered slot.
-  await expect(panel.getByLabel("Map and renderer status")).toBeVisible({ timeout: 20_000 });
-  await expect(panel.locator("canvas.maplibregl-canvas")).toBeVisible();
-  // And there is no second, mis-projected geometry surface over it.
-  await expect(panel.locator("svg.grid-geometry-overlay")).toHaveCount(0);
-
-  // The inventory API is not served by this origin, so the panel names the
-  // refusal instead of showing an empty map as if it were an empty state.
-  await expect(panel.getByLabel("Coverage and geometry availability")).toBeVisible();
-  await expect(panel.locator(".grid-map-note")).toContainText(/Unavailable|Request failed|Requesting the source-backed inventory release/);
+  const workspace = page.getByLabel("Full synthetic Texas topology workspace", { exact: true });
+  await expect(workspace).toBeVisible();
+  await expect(workspace.getByRole("status")).toContainText(/Texas model topology unavailable/i);
+  await expect(workspace.getByRole("status")).toContainText(/no Copilot API origin is configured/i);
   await expectSameOriginOnly(page);
 });
 
@@ -162,7 +134,7 @@ test("every layer is disclosed unavailable with the producer reason, never hidde
     await expect(row.locator("p.layer-reason")).not.toBeEmpty();
     await expect(row.locator("input[type=checkbox]")).toBeDisabled();
   }
-  await expect(page.getByLabel("Layer status legend")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Layers and evidence" })).toBeVisible();
   await expectSameOriginOnly(page);
 });
 
@@ -172,42 +144,35 @@ test("the explainer deep-links and navigation retain URL state without a documen
   });
 
   await page.goto("/explainer?scenario=uri_2021&h=3#method");
-  await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How the math works, and how much of it is real." })).toBeVisible();
   await expect(page).toHaveTitle("Flux | How the math works");
   await expect(page.getByRole("link", { name: "How the math works" })).toHaveAttribute("aria-current", "page");
   await expect(page.locator("main")).toHaveAttribute("data-source-status", "unavailable");
   expect(await page.evaluate(() => window.sessionStorage.getItem("flux-document-loads"))).toBe("1");
 
   await page.getByRole("link", { name: "Scenario explorer" }).click();
-  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ACTIVSg2000 network geometry" })).toBeVisible();
   await expect(page).toHaveURL(/\/?scenario=uri_2021&h=3#method$/);
   await expect(page).toHaveTitle("Flux | Resilience desk");
   await expect(page.getByRole("link", { name: "Scenario explorer" })).toHaveAttribute("aria-current", "page");
   expect(await page.evaluate(() => window.sessionStorage.getItem("flux-document-loads"))).toBe("1");
 
   await page.goBack();
-  await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "How the math works, and how much of it is real." })).toBeVisible();
   await expect(page).toHaveTitle("Flux | How the math works");
   await page.goForward();
-  await expect(page.getByRole("heading", { name: /Where does 300 MW cut the most unmet demand/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "ACTIVSg2000 network geometry" })).toBeVisible();
   await expectSameOriginOnly(page);
 });
 
-test("keyboard selection works and the disclosure names the artifact it read", async ({ page }) => {
+test("the data disclosure identifies the Texas model boundary", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: /Candidate B/i }).first().focus();
-  await page.keyboard.press("Enter");
-  await expect(page.getByText(/NETWORK STATE · CANDIDATE B/i)).toBeVisible();
-  // Digit keys are the shell's own shortcut; 1 is the baseline run.
-  await page.keyboard.press("1");
-  await expect(page.getByText(/NETWORK STATE · BASELINE/i)).toBeVisible();
-
   const disclosure = page.getByRole("button", { name: "Data, units & limits" });
   await disclosure.click();
   const dialog = page.getByRole("dialog", { name: "Data disclosure" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText("flux:synthetic-scenario-input:v1", { exact: false })).toBeVisible();
-  await expect(dialog.getByText(/not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model/i)).toBeVisible();
+  await expect(dialog.getByText("tx:synthetic-topology:activsg2000-current-v1", { exact: false })).toBeVisible();
+  await expect(dialog.getByText(/synthetic ACTIVSg2000 topology; not a physical asset/i)).toBeVisible();
   await expect(dialog.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
 
   await page.keyboard.press("Escape");

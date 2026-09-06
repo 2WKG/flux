@@ -130,6 +130,33 @@ kind is added to that table and that module, and nowhere else.
 {"v":1,"seq":9,"call_id":"call_01J8...","tool":"cascade","ok":true,"result":{"scene_action":{"action_id":"action-7","kind":"cascade","tool_call_id":"call_01J8...","cascade_id":"run_01J9...","reversible":true,"status":"available"}},"elapsed_ms":124}
 ```
 
+**Which producer emits it, and which does not.** `POST /ask` has two server-side
+paths and they do NOT emit the same `result` shape, so a consumer must read only
+what both can carry.
+
+* The **dispatcher path** (`copilot/routes/ask.py::_stream_dispatcher`, taken
+  when `app.state.ask_backend` is `None` and a `tool_provider` is injected)
+  emits `ToolResult.result` verbatim. `copilot/dispatcher.py::_scene_action`
+  attaches the envelope above for `scenario_edit` and `cascade` whenever the
+  validated output is `available`. This is the only path that emits a
+  `scene_action` today, and a captured frame from it is checked in at
+  `web/src/main-assistant/fixtures/ask-scene-action-frames.json`.
+* The **AskBackend path** (`copilot/agent/loop.py`, taken whenever a provider
+  credential is configured) narrates through `copilot/narration.py`, whose
+  `_METADATA_FIELDS = {"status", "provenance", "unavailable"}` are stripped from
+  the emitted evidence. `scene_action` is deliberately not in that set and would
+  survive — but `copilot/agent/registry.py` binds only `top_lines` and
+  `causal_query`, neither of which declares a scene action, so this path emits
+  none. Registering a scene-action tool there is a product decision, not a
+  browser change.
+
+The consequence for consumers is the rule already stated above: `status`,
+`provenance` and `unavailable` are **path-dependent** and MUST NOT be read from
+`tool_result.result`. Only the `scene_action` envelope may be. An earlier
+revision of `MainAssistant` keyed on `ToolOutput.status`; it passed its own
+tests, which were written from the generated type definition rather than from a
+captured frame, and was dead on the path a keyed deployment takes.
+
 ### `citation`
 
 A retrieved source that may support an external claim. Required: `v`, `seq`,
@@ -185,13 +212,28 @@ receive: any text already delivered is retained as incomplete. Decided as OQ-1
 in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)
 on 2026-09-06. The rule and its reducer landed in
 `web/src/ask/run-state/reducer.ts` (the `stream_closed` action) and
-`web/src/failure-states/adapters.ts` (`fromStreamClose`); **no transport
-dispatches it yet.** The live SSE reader closes its stream at
-`web/src/data/transport.ts:226-228` with no reducer attached, so today a
-terminal-less stream still leaves the run in `active`. Wiring that close to
-`stream_closed` is follow-up **FU-4** in
-[`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md),
-and it is done when the chat dock mounts the run reducer (PR #252).
+`web/src/failure-states/adapters.ts` (`fromStreamClose`). The live path now
+dispatches it: `web/src/data/ask-stream.ts` reads the SSE body opened through
+`web/src/data/transport.ts` and dispatches `stream_closed` on every EOF, abort,
+and broken read — always, not only when it suspects a problem, because only the
+reducer knows whether a terminal event already arrived. `web/src/pages/MainPage.tsx`
+mounts that state through the one chat seam
+(`web/src/main-assistant/MainAssistant.tsx`), whose `streamCloseFailure` renders
+the frozen `request_failed` token and the named code. That closes follow-up
+**FU-4** in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md);
+`web/src/main-assistant/MainAssistant.test.mjs` drives `runAsk` over a stream
+that ends with no terminal frame and asserts the rendered token, so dropping the
+dispatch or the render turns it red.
+
+The word *abort* in that sentence was false when it was first written: the abort
+branch re-threw before reaching the dispatch, so an aborted run kept its phase
+and the dock reported `streaming` forever. It is true now — the branch dispatches
+`stream_closed` with `reason: "abort"` before re-throwing, and the caller still
+receives the rejection. A third case in
+`web/src/main-assistant/MainAssistant.test.mjs` drives a real `AbortController`
+through the real transport and asserts the run reaches `failed` with
+`stream_ended_without_terminal` and the abort copy from
+`STREAM_CLOSE_MESSAGE`; deleting the dispatch turns it red.
 
 **Which side owns a terminal-less close.** The rule above holds when the
 *server* walks away: an EOF or a connection loss with the client still
