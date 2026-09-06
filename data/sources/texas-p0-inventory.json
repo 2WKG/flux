@@ -167,7 +167,7 @@
       "source_url": "https://www.weather.gov/gis/ZoneCounty",
       "vintage": "bp16ap26 crosswalk edition",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [{"logical_name": "bp16ap26.dbx", "immutable_id": "sha256:69d3472d4d576b8a4924efb7a43108f7c64111f503e15efd650f43dc617a6f12", "raw_path": "nws_zone_county/bp16ap26/bp16ap26.dbx"}],
+      "artifacts": [{"logical_name": "bp10nv20.dbx", "immutable_id": "sha256:7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6", "raw_path": "nws_zone_county/bp10nv20/bp10nv20.dbx"}, {"logical_name": "bp05mr24.dbx", "immutable_id": "sha256:ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e", "raw_path": "nws_zone_county/bp05mr24/bp05mr24.dbx"}, {"logical_name": "bp16ap26.dbx", "immutable_id": "sha256:69d3472d4d576b8a4924efb7a43108f7c64111f503e15efd650f43dc617a6f12", "raw_path": "nws_zone_county/bp16ap26/bp16ap26.dbx"}],
       "coverage": "County mapping support for zone-typed NOAA Storm Events. The 2021-era edition match remains an explicit uncertainty.",
       "timezone": "crosswalk carries source timezone labels",
       "units": {"identifiers": "NWS zone and county FIPS codes"},
@@ -175,7 +175,7 @@
       "checked_in_receipt": "data/sources/texas-nws-zone-county-bp16ap26.json",
       "status": "validated",
       "ingestion_timestamp": "2026-09-06T04:40:00Z",
-      "reason": "The public crosswalk was retrieved and validated for all 254 Texas county FIPS. Its 2021 historical-zone mismatch is recorded with the affected Storm Events records; it is not silently repaired."
+      "reason": "Window-aware historical NWS-original editions are pinned for Uri and Beryl with archive-hosting provenance; the builder fails closed outside their verified intervals. Current bp16ap26 remains contextual and is never used as a future fallback."
     },
     {
       "id": "noaa-hrrr-scenario-weather",
