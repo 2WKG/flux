@@ -395,7 +395,21 @@ def test_bounded_fips_major_false_zero_never_claims_source_absence(
         "observed_intervals_in_retrieved_rows": 0,
         "expected_intervals_at_15_min": 4,
     }
-    assert "UncoveredLabel" not in result["receipt"]["gaps"]
+    # The harm this PR exists to prevent is a bounded run emitting a coverage
+    # verdict at all. `_gap_entries` never writes the bare token "UncoveredLabel",
+    # so a substring check over the gap sentences is what must be asserted, plus
+    # the structured coverage entries that would carry the false zero.
+    assert not any("UncoveredLabel" in entry for entry in result["receipt"]["gaps"]), (
+        result["receipt"]["gaps"]
+    )
+    assert all(
+        county["coverage_state"] == "not_assessed_from_bounded_range"
+        for county in detail["coverage_by_county"].values()
+    ), detail["coverage_by_county"]
+    assert all(
+        county["availability"] == "Unknown"
+        for county in detail["coverage_by_county"].values()
+    ), detail["coverage_by_county"]
 
 
 def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -406,7 +420,10 @@ def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["receipt_id"].islower()
     assert isinstance(result["receipt"]["gaps"], list)
-    assert "the full annual file was not streamed" in result["receipt"]["verification"]["notes"]
+    assert (
+        "the full annual file was not streamed"
+        in result["receipt"]["verification"]["notes"]
+    )
 
 
 def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -436,7 +453,9 @@ def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["license_or_access"].startswith("CC BY 4.0")
     assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
-    assert result["receipt"]["verification"]["sha256_computed_from_response_body"] is True
+    assert (
+        result["receipt"]["verification"]["sha256_computed_from_response_body"] is True
+    )
 
 
 def test_the_receipt_object_carries_no_fields_the_schema_forbids(
@@ -448,6 +467,84 @@ def test_the_receipt_object_carries_no_fields_the_schema_forbids(
     schema = receipt_schema()
     assert set(result["receipt"]) <= set(schema["properties"])
     assert set(schema["required"]).issubset(result["receipt"])
-    assert result["receipt"]["capture_method"]
+    # 2WKG-461/#199: these four live inside `receipt`, never beside it, and the
+    # pin stays explicit so it does not depend on what `schema["required"]`
+    # happens to list.
+    for field in ("capture_method", "verification", "files", "uncertainty"):
+        assert field in result["receipt"], field
     assert "capture_method" not in result
     assert "verification" not in result
+
+
+def _cli_argv(cache_dir: Path, *extra: str) -> list[str]:
+    start, end = window()
+    return [
+        "--event-id",
+        "cli",
+        "--year",
+        "2024",
+        "--start-source-clock",
+        start.strftime("%Y-%m-%dT%H:%M:%S"),
+        "--end-source-clock",
+        end.strftime("%Y-%m-%dT%H:%M:%S"),
+        "--states",
+        "Minnesota",
+        "--fips",
+        "27137",
+        "--cache-dir",
+        str(cache_dir),
+        *extra,
+    ]
+
+
+def _run_main(
+    argv: list[str],
+    source: FakeSource,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> dict[str, Any]:
+    monkeypatch.setattr(eaglei.requests, "Session", lambda: source)
+    monkeypatch.setattr(
+        eaglei.requests,
+        "get",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no network")),
+    )
+    eaglei.main(argv)
+    return json.loads(capsys.readouterr().out)
+
+
+def test_the_cli_takes_the_exhaustive_path_by_default(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    body: bytes,
+) -> None:
+    """The wire, not just the keyword default: `main()` with no mode flag."""
+    _write_completed_source(tmp_path, body, etag=SOURCE_ETAG)
+    source = FakeSource(body)
+
+    payload = _run_main(_cli_argv(tmp_path), source, monkeypatch, capsys)
+
+    assert payload["receipt"]["capture_method"] == "exhaustive_annual_stream"
+    assert payload["eaglei"]["acquisition_complete"] is True
+
+
+def test_the_cli_takes_the_bounded_path_only_when_asked(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    body: bytes,
+) -> None:
+    source = FakeSource(body)
+
+    payload = _run_main(
+        _cli_argv(tmp_path, "--bounded-http-range"), source, monkeypatch, capsys
+    )
+
+    assert payload["receipt"]["capture_method"] == "bounded_http_range_binary_search"
+    assert payload["eaglei"]["acquisition_complete"] is False
+
+
+def test_the_cli_no_longer_offers_the_unsafe_opt_in_flag(tmp_path: Path) -> None:
+    with pytest.raises(SystemExit):
+        eaglei.main(_cli_argv(tmp_path, "--allow-full-download"))
