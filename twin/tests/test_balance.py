@@ -6,6 +6,7 @@ import pandapower as pp
 import pytest
 
 from twin.balance import balance_report
+from twin.cascade import island_primitives
 from twin.contracts import SimulationInputError
 from twin.edits import outage
 
@@ -106,11 +107,14 @@ def test_state_ba_and_county_scopes_use_only_declared_bus_identity(
 
 def test_edited_island_scope_uses_same_in_service_connectivity_as_cascade():
     net = _net()
-    result = balance_report(
-        net, scope="island", scope_id=101, edits=[outage("line:10")]
+    edits = [outage("line:10")]
+    result = balance_report(net, scope="island", scope_id=101, edits=edits)
+    cascade_island = next(
+        island for island in island_primitives(net, edits) if 101 in island["bus_ids"]
     )
 
     assert result["bus_ids"] == [101]
+    assert result["bus_ids"] == cascade_island["bus_ids"]
     assert result["draw_mw"] == 100.0
     assert result["capability_mw"] == 120.0
     assert result["dispatch_mw"] == 40.0
