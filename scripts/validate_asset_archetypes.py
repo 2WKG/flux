@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Any
 
@@ -44,6 +45,44 @@ ARCHETYPE_FIELDS = {
 }
 LOD1_MAX_SHARE = 0.40
 LOD2_MAX_SHARE = 0.12
+
+# Where a delivered binary would land if the "binaries are not committed"
+# boundary in docs/design/3d-asset-contract.md ever eroded: beside the catalog
+# in data/, or in the web bundle's static directory. Scanned recursively so a
+# model tucked into a subdirectory is still reported.
+MODEL_SEARCH_DIRS = ("data", "web")
+MODEL_SUFFIXES = (".glb", ".gltf")
+# Never walked: vendored, built or generated trees are not deliverables.
+_SKIP_DIRS = {
+    "node_modules",
+    "dist",
+    ".venv",
+    "__pycache__",
+    ".git",
+    "parquet",
+    "duck",
+}
+
+
+def find_model_files(root: Path = ROOT) -> list[str]:
+    """Return every committed-tree glTF binary, repo-relative and sorted.
+
+    This is the honest answer to "has a .glb crept in?". It is derived, not
+    declared: build_report reports what this finds, so the report goes true the
+    moment a model appears.
+    """
+    found: list[str] = []
+    for rel in MODEL_SEARCH_DIRS:
+        base = root / rel
+        if not base.is_dir():
+            continue
+        for dirpath, dirnames, filenames in os.walk(base):
+            dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+            for name in filenames:
+                if name.endswith(MODEL_SUFFIXES):
+                    path = Path(dirpath, name)
+                    found.append(path.relative_to(root).as_posix())
+    return sorted(found)
 
 
 def _issue_key(value: object) -> bool:
@@ -154,8 +193,9 @@ def validate_catalog(catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
-def build_report(catalog: dict[str, Any]) -> dict[str, Any]:
+def build_report(catalog: dict[str, Any], root: Path = ROOT) -> dict[str, Any]:
     errors = validate_catalog(catalog)
+    model_files = find_model_files(root)
     archetypes = catalog.get("archetypes", [])
     categories: dict[str, int] = {}
     for entry in archetypes:
@@ -167,8 +207,9 @@ def build_report(catalog: dict[str, Any]) -> dict[str, Any]:
         "archetypeCount": len(archetypes),
         "categories": dict(sorted(categories.items())),
         "validation": {"passed": not errors, "errors": errors},
-        "modelFilesPresent": False,
-        "modelFilesNote": "This validates the contract and catalog only. No .glb is committed; the asset pipeline (2WKG-374 Minnesota, 2WKG-320 Texas) produces and checks the binaries.",
+        "modelFilesPresent": bool(model_files),
+        "modelFiles": model_files,
+        "modelFilesNote": "modelFilesPresent is derived: data/ and web/ are walked for .glb/.gltf and every hit is listed in modelFiles. This validates the contract and catalog only; the asset pipeline (2WKG-374 Minnesota, 2WKG-320 Texas) produces and checks the binaries, which are not committed here.",
     }
 
 
