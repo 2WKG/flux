@@ -29,7 +29,8 @@
     "selection_basis": "NCEI Storm Events episode 175466, Hennepin zone event 1064375, is a compound cold candidate with matched NCEI weather evidence but incomplete EAGLE-I outage coverage.",
     "exclusions": [],
     "uncertainties": [
-      "The EAGLE-I annual traversal does not provide a complete 24-sample outage window; no zero imputation, outage rate, or five-percent label is asserted."
+      "The EAGLE-I annual traversal does not provide a complete 24-sample outage window; no zero imputation, outage rate, or five-percent label is asserted.",
+      "NCEI event 1064375 is retained as zone-level candidate context only; its report is not a county time series and cannot establish county weather coverage."
     ]
   },
   "source_receipts": [
@@ -160,28 +161,15 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "source_receipt_ids": [
-          "ncei_stormevents_2022"
-        ],
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "1064375"
-          ],
-          "source_window": {
-            "start_utc": "2022-12-23T11:00:00Z",
-            "end_utc": "2022-12-24T14:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "CZ_FIPS:060",
-          "limitations": "NCEI weather-zone report; not a county time series."
-        },
-        "notes": "The NCEI source interval intersects this canonical county window."
+        "event_report": null,
+        "notes": "NCEI event 1064375 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
       },
       "outage": {
         "coverage": "UncoveredLabel",
