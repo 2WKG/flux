@@ -122,6 +122,24 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/api/v1/grid/layers/{layer}"): RouteContract(
+        success=Cell(
+            "copilot/test_physical_layers.py::test_tx_lines_are_real_http_pages_with_release_bound_cursor",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_physical_layers.py::test_invalid_viewport_and_unknown_physical_layer_use_shared_errors",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_physical_layers.py::test_missing_release_is_explicitly_unavailable",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_physical_layers.py::test_invalid_viewport_and_unknown_physical_layer_use_shared_errors",
+            404,
+        ),
+    ),
     ("POST", "/site-score"): RouteContract(
         success=Cell(
             "copilot/test_interventions.py::test_site_read_is_server_side_and_unqualified_comparison_is_unavailable",
