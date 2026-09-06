@@ -1,9 +1,7 @@
 # Interactive synthetic-simulation HTTP surface
 
-`copilot.interactive_routes.create_interactive_router(duckdb_path=..., case_path=...)`
-creates an opt-in router under `/interactive`.  The default `copilot.app:app`
-does not mount it.  The demo composition may mount it after the reviewed
-synthetic core is available.
+`copilot.app:app` mounts the interactive surface at the public root using one
+process-local service and a freshly built synthetic network per request.
 
 All five success bodies have the same truth envelope:
 `model_fidelity: "dc_screening"`,
@@ -13,11 +11,11 @@ Each request uses a copied scenario network and every cascade call supplies
 
 | Method and path | Typed inputs | Measured `data` |
 | --- | --- | --- |
-| `POST /interactive/scenario/edit` | `{base_scenario_id, ops:[{op:"outage", element_id}], hour?, seed?}` | `{edit_hash, feasibility:[…]}` in `data`; the immutable edit is process-memory only |
-| `POST /interactive/cascade` | `{element_ids, scenario_id, hour, edit_hash?, seed?}` | one solver-produced `CascadeResult` in `data` |
-| `GET /interactive/balance` | `scope=base\|edit`, `scenario_id`, `hour`, `edit_hash?` | measured `GridBalance` in `data` |
-| `GET /interactive/redundancy` | `bus_id`, `scenario_id`, `hour` | measured `RedundancyScore` in `data` |
-| `POST /interactive/siting/search` | `{kind:"synthetic_generation", unit_mw, scenario_id, n, hour?, seed?}` | up to eight core-ranked candidate counterfactuals in `data` |
+| `POST /scenario/edit` | `{base_scenario_id, ops:[{op:"outage", element_id}], hour?, seed?}` | `{edit_hash, feasibility:[…]}` in `data`; the immutable edit is process-memory only |
+| `POST /cascade` | `{element_ids, scenario_id, hour, edit_hash?, seed?}` | one solver-produced `CascadeResult` in `data` |
+| `GET /balance` | `scope=base\|edit`, `scenario_id`, `hour`, `edit_hash?` | measured `GridBalance` in `data` |
+| `GET /redundancy` | `bus_id`, `scenario_id`, `hour` | measured `RedundancyScore` in `data` |
+| `POST /siting/search` | `{kind:"synthetic_generation", unit_mw, scenario_id, n, hour?, seed?}` | up to five core-ranked candidate counterfactuals in `data` |
 
 `/siting/search` deliberately has no feasibility or composite score. It ranks
 the canonical model buses then performs an actual bounded counterfactual for

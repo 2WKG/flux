@@ -1,78 +1,67 @@
-"""Actual HTTP contracts for the opt-in interactive simulation router."""
+"""HTTP contracts for the mounted, non-persisting interactive routes."""
 
 from __future__ import annotations
 
-import asyncio
 import sys
 from pathlib import Path
 from types import ModuleType
 
-import pandas as pd
 from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
-from copilot.interactive_routes import (
-    CascadeRequest,
-    ScenarioEditRequest,
-    create_interactive_router,
-    create_interactive_service,
-)
-
-
-class _Net(dict):
-    def __init__(self) -> None:
-        super().__init__()
-        self.bus = pd.DataFrame(
-            {"flux_source_bus_id": [1001, 1004]}, index=[1000, 1003]
-        )
 
 
 def _client(monkeypatch) -> TestClient:
-    core = ModuleType("twin.cascade")
-    core.immutable_scenario_net = lambda net, ids: net
-    core.scenario_identity = lambda ids, scenario, hour, **kwargs: {
-        "scenario_hash": "a" * 16,
-        "element_ids": ids,
-    }
-    core.feasibility_report = lambda net: {"status": "solved"}
-    core.run_cascade = lambda *args, **kwargs: (
-        {"run_id": "run", "synthetic": True} if kwargs["write"] is False else None
-    )
-    core.balance_report = lambda net: {"served_load_mw": 1.0}
-    core.redundancy_report = lambda net, ids: [{"bus_id": ids[0], "source_hops": 1}]
-    core.rank_candidate_placements = lambda net, ids: [
-        {"bus_id": value} for value in ids
-    ]
-    core.placement_counterfactual = lambda *args, **kwargs: {
-        "site_bus": kwargs["site_bus"]
-    }
-    monkeypatch.setitem(sys.modules, "twin.cascade", core)
+    net = {"synthetic": True}
     build = ModuleType("twin.build")
-    build.cached_base_network = lambda case_path, db_path: _Net()
+    build.build_network = lambda path: net
     monkeypatch.setitem(sys.modules, "twin.build", build)
-    settings = Settings(
-        duckdb_path=Path("/tmp/grid.duckdb"), cors_origins=("http://localhost:5173",)
-    )
-    app = create_app(settings)
-    service = create_interactive_service(
-        duckdb_path=settings.duckdb_path, case_path=Path("/tmp/case.m")
-    )
-    app.state.interactive_service = service
-    app.include_router(create_interactive_router(service=service))
+
+    edits = ModuleType("twin.edits")
+    edits.outage = lambda element_id: {"element_id": element_id}
+    edits.edit_hash = lambda values: "f" * 16
+    monkeypatch.setitem(sys.modules, "twin.edits", edits)
+
+    feasibility = ModuleType("twin.feasibility")
+    feasibility.evaluate_feasibility = lambda net, edit: {"status": "valid"}
+    monkeypatch.setitem(sys.modules, "twin.feasibility", feasibility)
+
+    cascade = ModuleType("twin.cascade")
+    cascade.run_cascade = lambda net, edits: {"lost_load_mw": 2.0}
+    monkeypatch.setitem(sys.modules, "twin.cascade", cascade)
+
+    balance = ModuleType("twin.balance")
+    balance.balance_report = lambda net, edits=(): {"served_load_mw": 1.0}
+    monkeypatch.setitem(sys.modules, "twin.balance", balance)
+
+    redundancy = ModuleType("siting.redundancy")
+    redundancy.score_redundancy = lambda net, bus_id, **kwargs: {
+        "bus_id": bus_id,
+        "score": 75.0,
+    }
+    monkeypatch.setitem(sys.modules, "siting.redundancy", redundancy)
+
+    search = ModuleType("siting.search")
+    search.search_locations = lambda net, **kwargs: [
+        {"rank": 1, "candidate_id": "bus-7"}
+    ]
+    monkeypatch.setitem(sys.modules, "siting.search", search)
+
+    app = create_app(Settings(duckdb_path=Path("/tmp/grid.duckdb")))
     return TestClient(app)
 
 
-def _assert_labels(body):
+def _assert_envelope(body: dict) -> None:
     assert body["model_fidelity"] == "dc_screening"
     assert body["network_provenance"] == "synthetic_activsg2000"
     assert body["limitations"]
 
 
-def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
+def test_all_ticket_436_routes_are_mounted_at_the_public_root(monkeypatch) -> None:
     client = _client(monkeypatch)
     edit = client.post(
-        "/interactive/scenario/edit",
+        "/scenario/edit",
         json={
             "base_scenario_id": "uri_2021",
             "ops": [{"op": "outage", "element_id": "line:7"}],
@@ -83,7 +72,7 @@ def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
     responses = [
         edit,
         client.post(
-            "/interactive/cascade",
+            "/cascade",
             json={
                 "element_ids": ["line:7"],
                 "scenario_id": "uri_2021",
@@ -91,15 +80,12 @@ def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
                 "edit_hash": edit_hash,
             },
         ),
+        client.get("/balance", params={"scope": "edit", "edit_hash": edit_hash}),
         client.get(
-            "/interactive/balance", params={"scope": "edit", "edit_hash": edit_hash}
-        ),
-        client.get(
-            "/interactive/redundancy",
-            params={"bus_id": 1001, "scenario_id": "uri_2021", "hour": 0},
+            "/redundancy", params={"bus_id": 7, "scenario_id": "uri_2021", "hour": 0}
         ),
         client.post(
-            "/interactive/siting/search",
+            "/siting/search",
             json={
                 "kind": "synthetic_generation",
                 "unit_mw": 300,
@@ -110,31 +96,29 @@ def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
     ]
     for response in responses:
         assert response.status_code == 200, response.text
-        _assert_labels(response.json())
-    assert responses[3].json()["data"]["source_bus_id"] == 1001
-    assert responses[3].json()["data"]["pp_bus_index"] == 1000
+        _assert_envelope(response.json())
+    assert responses[1].json()["data"]["lost_load_mw"] == 2.0
+    assert responses[3].json()["data"]["bus_id"] == 7
+    assert responses[4].json()["data"]["candidates"][0]["candidate_id"] == "bus-7"
+    assert "/interactive/cascade" not in client.get("/openapi.json").json()["paths"]
 
 
-def test_unknown_or_malformed_edits_fail_explicitly(monkeypatch):
+def test_unknown_and_malformed_edits_fail_explicitly(monkeypatch) -> None:
     client = _client(monkeypatch)
-    assert (
-        client.get(
-            "/interactive/balance", params={"scope": "edit", "edit_hash": "a" * 16}
-        ).status_code
-        == 404
+    missing = client.get("/balance", params={"scope": "edit", "edit_hash": "f" * 16})
+    assert missing.status_code == 404
+    assert missing.json()["error"]["code"] == "not_found"
+    malformed = client.post(
+        "/scenario/edit", json={"base_scenario_id": "uri", "ops": []}
     )
-    assert (
-        client.post(
-            "/interactive/scenario/edit", json={"base_scenario_id": "uri", "ops": []}
-        ).status_code
-        == 422
-    )
+    assert malformed.status_code == 422
+    assert malformed.json()["error"]["code"] == "invalid_input"
 
 
-def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch):
+def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch) -> None:
     client = _client(monkeypatch)
     edit = client.post(
-        "/interactive/scenario/edit",
+        "/scenario/edit",
         json={
             "base_scenario_id": "uri",
             "seed": 1,
@@ -142,7 +126,7 @@ def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch):
         },
     )
     replay = client.post(
-        "/interactive/cascade",
+        "/cascade",
         json={
             "element_ids": ["line:7"],
             "scenario_id": "uri",
@@ -155,56 +139,18 @@ def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch):
     assert replay.json()["error"]["code"] == "invalid_input"
 
 
-def test_service_and_router_share_an_immutable_edit_registry(monkeypatch):
-    client = _client(monkeypatch)
-    service = client.app.state.interactive_service
-    edit = asyncio.run(
-        service.scenario_edit(
-            ScenarioEditRequest.model_validate(
-                {
-                    "base_scenario_id": "uri",
-                    "ops": [{"op": "outage", "element_id": "line:7"}],
-                }
-            )
-        )
-    )
-    result = client.post(
-        "/interactive/cascade",
-        json={
-            "element_ids": ["line:7"],
-            "scenario_id": "uri",
-            "hour": 0,
-            "edit_hash": edit["data"]["edit_hash"],
-        },
-    )
-    assert result.status_code == 200
-    direct = asyncio.run(
-        service.cascade(
-            CascadeRequest.model_validate(
-                {
-                    "element_ids": ["line:7"],
-                    "scenario_id": "uri",
-                    "hour": 0,
-                    "edit_hash": edit["data"]["edit_hash"],
-                }
-            )
-        )
-    )
-    assert direct["data"]["run_id"] == "run"
-
-
-def test_core_unavailability_is_never_a_plausible_default(monkeypatch):
+def test_missing_core_is_an_explicit_unavailable_error(monkeypatch) -> None:
     client = _client(monkeypatch)
 
     class SimulationUnavailableError(Exception):
         pass
 
-    def unavailable(*args, **kwargs):
+    def unavailable(path):
         raise SimulationUnavailableError()
 
-    sys.modules["twin.cascade"].run_cascade = unavailable
+    sys.modules["twin.build"].build_network = unavailable
     response = client.post(
-        "/interactive/cascade",
-        json={"element_ids": ["line:7"], "scenario_id": "uri", "hour": 0},
+        "/cascade", json={"element_ids": ["line:7"], "scenario_id": "uri", "hour": 0}
     )
     assert response.status_code == 503
+    assert response.json()["error"]["code"] == "unavailable"
