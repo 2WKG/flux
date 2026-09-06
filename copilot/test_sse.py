@@ -332,6 +332,28 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
     assert stream.done(verified=True).seq == 4
 
 
+def test_failed_tool_result_is_non_terminal_and_settles_the_pending_call() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    event = stream.failed_tool_result(
+        "call-1",
+        "score_site",
+        "tool_error",
+        "The tool could not complete.",
+        elapsed_ms=1,
+    )
+
+    assert event.event == "tool_result"
+    assert event.data["ok"] is False
+    assert event.data["error"] == {
+        "code": "tool_error",
+        "message": "The tool could not complete.",
+    }
+    assert stream.done(verified=True).event == "done"
+
+
 def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_terminal() -> (
     None
 ):
