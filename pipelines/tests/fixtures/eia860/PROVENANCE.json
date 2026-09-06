@@ -1,0 +1,36 @@
+{
+  "retrieved_at": "2026-09-06T07:43:27Z",
+  "provider": "U.S. Energy Information Administration",
+  "source_url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
+  "parent_sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+  "parent_bytes": 23285571,
+  "license_access": "Public EIA data; see EIA terms of use.",
+  "capture_method": "HTTPS GET of the published archive; sha256 computed from the response body and checked against the receipted parent_sha256 before any slice was cut.",
+  "cut_method": "scripts/cut_eia860_test_slice.py copies the three zip members the parser reads under their published names, keeps their published sheet names, copies each sheet's two preamble rows and its header row verbatim, and keeps only the data rows whose Plant Code is one of 2038, 7732, 8063, 62908, 69414. No cell value is edited, synthesized or reordered; whole rows are the only unit dropped.",
+  "purpose": "Test fixture. pipelines/tests/test_eia860_physical.py runs build_eia860_physical_inventory over this slice with no pd.read_excel patch, so the published member names, the _HEADER_ROW offset, the three Schedule 3 sheet names and the _required column set are all under test.",
+  "row_selection_rationale": {
+    "8063": "TX DeCordova: Operable, Retired and Canceled and Schedule 3.4 storage rows for one plant; its BESS unit appears in both 3.1 and 3.4, which is what the storage-dedupe assertion needs.",
+    "7732": "TX Turbine: the real Schedule 2 row whose Latitude/Longitude cells are blank, so geometry is unavailable rather than (0, 0).",
+    "69414": "TX Blevins Solar & Storage: Proposed Schedule 3.1 rows plus a second 3.1/3.4 storage overlap.",
+    "62908": "MN Anoka BESS: Operable storage.",
+    "2038": "MN Cambridge CT Hybrid: Proposed Schedule 3.4 storage against Operable generators."
+  },
+  "files": {
+    "eia8602025ER-slice.zip": {
+      "bytes": 29643,
+      "sha256": "f10b986ea960411a705c83aaccde352e080d154f310eaeda716ab2c410087539",
+      "members": [
+        "2___Plant_Y2025_Early_Release.xlsx",
+        "3_1_Generator_Y2025_Early_Release.xlsx",
+        "3_4_Energy_Storage_Y2025_Early_Release.xlsx"
+      ]
+    }
+  },
+  "re_derivation": [
+    "curl -L -o eia8602025ER.zip https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
+    "shasum -a 256 eia8602025ER.zip  # bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+    "uv run python scripts/cut_eia860_test_slice.py eia8602025ER.zip pipelines/tests/fixtures/eia860/eia8602025ER-slice.zip",
+    "shasum -a 256 pipelines/tests/fixtures/eia860/eia8602025ER-slice.zip  # f10b986ea960411a705c83aaccde352e080d154f310eaeda716ab2c410087539"
+  ],
+  "uncertainty": "The cutter pins workbook and zip timestamps so the slice is byte-reproducible from the same parent archive; this was verified by cutting it twice and comparing sha256. EIA republishes the early release in place, so a future download of the same URL may not match parent_sha256 - the script refuses to cut in that case rather than producing a silently different slice. Nothing in this repository re-verifies the parent archive against EIA at test time; the tests read the checked-in bytes only."
+}

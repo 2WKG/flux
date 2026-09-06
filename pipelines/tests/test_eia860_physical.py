@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+import io
 import json
+import re
 import zipfile
 from pathlib import Path
 
-import pandas as pd
+import openpyxl
 import pytest
 
 from pipelines.eia860_physical import (
@@ -16,200 +18,240 @@ from pipelines.eia860_physical import (
     EIA860PhysicalError,
     build_eia860_physical_inventory,
 )
+from pipelines.physical_inventory import artifact_sha256, validate_artifact
+
+FIXTURE_DIR = Path(__file__).resolve().parent / "fixtures" / "eia860"
+SLICE_PATH = FIXTURE_DIR / "eia8602025ER-slice.zip"
+PROVENANCE_PATH = FIXTURE_DIR / "PROVENANCE.json"
+_UNIT_SHEETS = ("Operable", "Proposed", "Retired and Canceled")
+_MEMBER_SHEETS = {
+    PLANT_MEMBER: ("Plant",),
+    GENERATOR_MEMBER: _UNIT_SHEETS,
+    STORAGE_MEMBER: _UNIT_SHEETS,
+}
 
 
 @pytest.fixture()
-def eia860_archive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    archive_path = tmp_path / "eia8602025ER.zip"
-    with zipfile.ZipFile(archive_path, "w") as archive:
-        for member in (PLANT_MEMBER, GENERATOR_MEMBER, STORAGE_MEMBER):
-            archive.writestr(member, b"placeholder")
-    frames = iter(
-        [
-            pd.DataFrame(
-                [
-                    {
-                        "Plant Code": 10,
-                        "Plant Name": "Texas Plant",
-                        "State": "TX",
-                        "Latitude": 31.25,
-                        "Longitude": -98.5,
-                        "County": "Example",
-                        "Balancing Authority Code": "ERCO",
-                        "Grid Voltage (kV)": 138,
-                    },
-                    {
-                        "Plant Code": 20,
-                        "Plant Name": "Minnesota Plant",
-                        "State": "MN",
-                        "Latitude": 45.0,
-                        "Longitude": -93.0,
-                        "County": "Example",
-                        "Balancing Authority Code": "MISO",
-                        "Grid Voltage (kV)": 115,
-                    },
-                    {
-                        "Plant Code": 30,
-                        "Plant Name": "Missing location",
-                        "State": "TX",
-                        "Latitude": None,
-                        "Longitude": None,
-                    },
-                ]
-            ),
-            pd.DataFrame(
-                [
-                    {
-                        "Plant Code": 10,
-                        "State": "TX",
-                        "Generator ID": "G1",
-                        "Status": "OP",
-                        "Nameplate Capacity (MW)": 90,
-                        "Summer Capacity (MW)": 80,
-                        "Winter Capacity (MW)": 100,
-                        "Technology": "Combustion",
-                        "Prime Mover": "CT",
-                        "Energy Source 1": "NG",
-                    }
-                ]
-            ),
-            pd.DataFrame(
-                [
-                    {
-                        "Plant Code": 10,
-                        "State": "TX",
-                        "Generator ID": "G2",
-                        "Status": "V",
-                        "Nameplate Capacity (MW)": 20,
-                    }
-                ]
-            ),
-            pd.DataFrame(
-                [
-                    {
-                        "Plant Code": 10,
-                        "State": "TX",
-                        "Generator ID": "G3",
-                        "Status": "RE",
-                        "Nameplate Capacity (MW)": 10,
-                    }
-                ]
-            ),
-            pd.DataFrame(
-                [
-                    {
-                        "Plant Code": 10,
-                        "State": "TX",
-                        "Generator ID": "G1",
-                        "Status": "OP",
-                        "Nameplate Capacity (MW)": 50,
-                        "Nameplate Energy Capacity (MWh)": 200,
-                        "Maximum Charge Rate (MW)": 50,
-                        "Maximum Discharge Rate (MW)": 50,
-                        "Technology": "Batteries",
-                        "Prime Mover": "BA",
-                        "Storage Technology 1": "LIB",
-                    }
-                ]
-            ),
-            pd.DataFrame(
-                columns=[
-                    "Plant Code",
-                    "State",
-                    "Generator ID",
-                    "Status",
-                    "Nameplate Capacity (MW)",
-                ]
-            ),
-            pd.DataFrame(
-                columns=[
-                    "Plant Code",
-                    "State",
-                    "Generator ID",
-                    "Status",
-                    "Nameplate Capacity (MW)",
-                ]
-            ),
-        ]
+def eia860_slice() -> Path:
+    """The committed slice of the real EIA-860 2025ER archive.
+
+    Nothing here patches ``pd.read_excel``: the parser opens the published zip
+    member names, reads the published sheet names at the published header
+    offset, and sees the published column set.
+    """
+    return SLICE_PATH
+
+
+def _archive_without_column(target: Path, member: str, sheet: str, column: str) -> Path:
+    """Copy the slice with one published column deleted from one sheet."""
+    with zipfile.ZipFile(SLICE_PATH) as source:
+        payloads = {name: source.read(name) for name in _MEMBER_SHEETS}
+    book = openpyxl.load_workbook(io.BytesIO(payloads[member]))
+    worksheet = book[sheet]
+    header_row = next(
+        row for index, row in enumerate(worksheet.iter_rows()) if index == 2
     )
-    monkeypatch.setattr(
-        "pipelines.eia860_physical.pd.read_excel", lambda *args, **kwargs: next(frames)
+    index = next(
+        cell.column for cell in header_row if str(cell.value).strip() == column
     )
-    return archive_path
+    worksheet.delete_cols(index)
+    buffer = io.BytesIO()
+    book.save(buffer)
+    payloads[member] = buffer.getvalue()
+    with zipfile.ZipFile(target, "w") as destination:
+        for name, payload in payloads.items():
+            destination.writestr(name, payload)
+    return target
+
+
+def test_committed_slice_matches_its_provenance_receipt():
+    provenance = json.loads(PROVENANCE_PATH.read_text(encoding="utf-8"))
+    recorded = provenance["files"][SLICE_PATH.name]
+    payload = SLICE_PATH.read_bytes()
+    assert hashlib.sha256(payload).hexdigest() == recorded["sha256"]
+    assert len(payload) == recorded["bytes"]
+    with zipfile.ZipFile(SLICE_PATH) as archive:
+        assert sorted(archive.namelist()) == sorted(_MEMBER_SHEETS)
 
 
 def test_eia860_observations_keep_plant_point_and_unit_attachments_separate(
-    eia860_archive: Path,
+    eia860_slice: Path,
 ):
     inventory = build_eia860_physical_inventory(
-        eia860_archive, states=["TX", "MN"], retrieved_at="2026-09-06T12:00:00Z"
+        eia860_slice, states=["TX", "MN"], retrieved_at="2026-09-06T07:43:27Z"
     )
-    texas = next(
-        row for row in inventory["records"] if row["asset_id"] == "eia:plant:10"
+    assert [row["asset_id"] for row in inventory["records"]] == [
+        "eia:plant:2038",
+        "eia:plant:62908",
+        "eia:plant:69414",
+        "eia:plant:7732",
+        "eia:plant:8063",
+    ]
+    decordova = next(
+        row for row in inventory["records"] if row["asset_id"] == "eia:plant:8063"
     )
-    assert texas["geometry"] == {"type": "Point", "coordinates": [-98.5, 31.25]}
-    assert texas["attributes"]["unit_coordinate_status"] == "unavailable"
-    assert texas["attributes"]["electrical_connectivity_status"] == "unavailable"
-    assert texas["attributes"]["generator_units"][0]["energy_source_1"] == "NG"
-    assert (
-        texas["attributes"]["storage_units"][0]["nameplate_energy_capacity_mwh"]
-        == 200.0
+    # Published Schedule 2 values for plant 8063, read out of the slice.
+    assert decordova["geometry"] == {
+        "type": "Point",
+        "coordinates": [-97.700556, 32.403056],
+    }
+    assert decordova["coordinate_status"] == "source"
+    assert decordova["attributes"]["plant_name"] == "DeCordova Steam Electric Station"
+    assert decordova["attributes"]["state"] == "TX"
+    assert decordova["attributes"]["county_name"] == "Hood"
+    assert decordova["attributes"]["balancing_authority_code"] == "ERCO"
+    assert decordova["attributes"]["plant_grid_voltage_kv"] == 345.0
+    assert decordova["attributes"]["unit_coordinate_status"] == "unavailable"
+    assert decordova["attributes"]["electrical_connectivity_status"] == "unavailable"
+    generators = {
+        unit["generator_id"]: unit
+        for unit in decordova["attributes"]["generator_units"]
+    }
+    assert generators["CT1"]["status_sheet"] == "Operable"
+    assert generators["CT1"]["status_code"] == "OP"
+    assert generators["CT1"]["nameplate_capacity_mw"] == 89.4
+    assert generators["CT1"]["energy_source_1"] == "NG"
+    assert generators["CT1"]["prime_mover"] == "GT"
+    assert generators["1"]["status_sheet"] == "Retired and Canceled"
+    assert generators["1"]["nameplate_capacity_mw"] == 799.2
+    storage = decordova["attributes"]["storage_units"]
+    assert [unit["generator_id"] for unit in storage] == ["BESS"]
+    assert storage[0]["nameplate_energy_capacity_mwh"] == 263.0
+    assert storage[0]["storage_technology_1"] == "LIB"
+
+    # Plant 7732 is the real Schedule 2 row whose coordinate cells are blank.
+    turbine = next(
+        row for row in inventory["records"] if row["asset_id"] == "eia:plant:7732"
     )
+    assert turbine["geometry"] is None
+    assert turbine["coordinate_status"] == "unavailable"
+
     assert all(
         row["asset_kind"] == "generation_facility" for row in inventory["records"]
     )
     coverage = {row["class_id"]: row for row in inventory["coverage"]}
-    assert coverage["generation_facility"]["denominator"] == 3
+    assert coverage["generation_facility"]["denominator"] == 5
+    assert coverage["generation_facility"]["known_count"] == 4
     assert coverage["generation_facility"]["unknown_count"] == 1
-    assert coverage["unit_native_coordinate"]["unavailable_count"] == 4
+    assert coverage["generation_unit_attachment"]["denominator"] == 16
+    assert coverage["storage_unit_attachment"]["denominator"] == 4
+    assert coverage["unit_native_coordinate"]["unavailable_count"] == 20
     assert coverage["electrical_connectivity"]["denominator"] is None
+    assert inventory["diagnostics"]["facilities_with_schedule3_attachments"] == 5
     assert (
         inventory["source"]["content_sha256"]
-        == hashlib.sha256(eia860_archive.read_bytes()).hexdigest()
+        == hashlib.sha256(eia860_slice.read_bytes()).hexdigest()
     )
 
 
-def test_eia860_requires_explicit_timezone_and_expected_source_columns(
-    eia860_archive: Path,
-):
+def test_eia860_reads_every_schedule3_status_sheet(eia860_slice: Path):
+    inventory = build_eia860_physical_inventory(
+        eia860_slice, states=["TX", "MN"], retrieved_at="2026-09-06T07:43:27Z"
+    )
+    generator_sheets: dict[str, list[str]] = {}
+    storage_sheets: dict[str, list[str]] = {}
+    for facility in inventory["records"]:
+        for unit in facility["attributes"]["generator_units"]:
+            generator_sheets.setdefault(unit["status_sheet"], []).append(
+                unit["source_record_id"]
+            )
+        for unit in facility["attributes"]["storage_units"]:
+            storage_sheets.setdefault(unit["status_sheet"], []).append(
+                unit["source_record_id"]
+            )
+    # All three published Schedule 3.1 sheets contribute rows in this slice, so
+    # dropping one from the read loses source records.
+    assert sorted(generator_sheets) == sorted(_UNIT_SHEETS)
+    assert len(generator_sheets["Operable"]) == 9
+    assert len(generator_sheets["Proposed"]) == 3
+    assert len(generator_sheets["Retired and Canceled"]) == 4
+    assert sorted(storage_sheets) == ["Operable", "Proposed"]
+    assert (
+        "eia860:2025er:generation_unit:8063:CT5:retired_and_canceled"
+        in generator_sheets["Retired and Canceled"]
+    )
+
+
+def test_eia860_requires_a_utc_offset_on_retrieved_at(eia860_slice: Path):
     with pytest.raises(EIA860PhysicalError, match="UTC offset"):
         build_eia860_physical_inventory(
-            eia860_archive, states=["TX"], retrieved_at="2026-09-06T12:00:00"
+            eia860_slice, states=["TX"], retrieved_at="2026-09-06T07:43:27"
+        )
+
+
+@pytest.mark.parametrize(
+    ("member", "sheet", "column"),
+    [
+        (PLANT_MEMBER, "Plant", "Longitude"),
+        (GENERATOR_MEMBER, "Operable", "Nameplate Capacity (MW)"),
+        (STORAGE_MEMBER, "Operable", "Generator ID"),
+    ],
+)
+def test_eia860_refuses_a_workbook_missing_a_published_column(
+    tmp_path: Path, member: str, sheet: str, column: str
+):
+    damaged = _archive_without_column(tmp_path / "damaged.zip", member, sheet, column)
+    with pytest.raises(
+        EIA860PhysicalError, match=re.escape(f"missing columns: [{column!r}]")
+    ):
+        build_eia860_physical_inventory(
+            damaged, states=["TX", "MN"], retrieved_at="2026-09-06T07:43:27Z"
+        )
+
+
+def test_eia860_refuses_an_archive_without_the_published_member(tmp_path: Path):
+    archive_path = tmp_path / "incomplete.zip"
+    with (
+        zipfile.ZipFile(SLICE_PATH) as source,
+        zipfile.ZipFile(archive_path, "w") as destination,
+    ):
+        for name in _MEMBER_SHEETS:
+            if name != PLANT_MEMBER:
+                destination.writestr(name, source.read(name))
+    with pytest.raises(EIA860PhysicalError, match=re.escape(PLANT_MEMBER)):
+        build_eia860_physical_inventory(
+            archive_path, states=["TX"], retrieved_at="2026-09-06T07:43:27Z"
         )
 
 
 def test_contract_adapter_preserves_units_without_promoting_their_plant_point(
-    eia860_archive: Path, monkeypatch: pytest.MonkeyPatch
+    eia860_slice: Path,
 ):
-    pytest.importorskip("pipelines.physical_inventory")
     from pipelines.eia860_physical import build_physical_inventory_artifact
 
     artifact = build_physical_inventory_artifact(
-        eia860_archive, state="TX", retrieved_at="2026-09-06T12:00:00Z"
+        eia860_slice, state="TX", retrieved_at="2026-09-06T07:43:27Z"
     )
-    units = [
-        asset for asset in artifact["assets"] if asset["asset_kind"] == "generator_unit"
-    ]
-    assert units and all(asset["geometry_status"] == "unavailable" for asset in units)
+    by_kind: dict[str, list[dict]] = {}
+    for asset in artifact["assets"]:
+        by_kind.setdefault(asset["asset_kind"], []).append(asset)
+    assert all(
+        asset["geometry_status"] == "unavailable" for asset in by_kind["generator_unit"]
+    )
     assert artifact["terminals"] == []
     assert artifact["connectivity_edges"] == []
-    assert (
-        len(
-            [
-                asset
-                for asset in artifact["assets"]
-                if asset["asset_kind"] == "storage_unit"
-            ]
-        )
-        == 1
-    )
-    assert len(units) == 2
+    # TX slice: 3 plants, 12 Schedule 3.1 rows and 2 Schedule 3.4 rows. The two
+    # storage rows are also listed in Schedule 3.1, so one physical unit yields
+    # exactly one asset and the generator side drops to 10.
+    assert len(by_kind["plant"]) == 3
+    assert len(by_kind["generator_unit"]) == 10
+    assert len(by_kind["storage_unit"]) == 2
+    assert len(artifact["assets"]) == 15
+    storage_ids = {asset["asset_id"] for asset in by_kind["storage_unit"]}
+    assert storage_ids == {
+        "eia860:2025er:storage_unit:69414:BSBES",
+        "eia860:2025er:storage_unit:8063:BESS",
+    }
+    generator_units = {
+        asset["source_record_id"].split(":")[4] for asset in by_kind["generator_unit"]
+    }
+    assert "BESS" not in generator_units
+    assert "BSBES" not in generator_units
+    assert artifact["content_sha256"] == artifact_sha256(artifact)
+    assert validate_artifact(artifact) == artifact
 
 
 def test_checked_state_artifacts_validate_and_link_back_to_source_intake():
-    pytest.importorskip("pipelines.physical_inventory")
-    from pipelines.physical_inventory import artifact_sha256, validate_artifact
-
     root = Path(__file__).resolve().parents[2]
     for state, expected_count in (("tx", 4907), ("mn", 2405)):
         artifact_path = (
