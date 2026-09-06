@@ -1,6 +1,6 @@
 """Grid-twin physics modules for synthetic topology only."""
 
-from twin.build import cached_base_network
+from twin.build import cached_base_network, model_geometry
 from twin.cascade import (
     add_unit,
     balance_report,
@@ -36,6 +36,7 @@ __all__ = [
     "control_room_payload",
     "feasibility_report",
     "immutable_scenario_net",
+    "model_geometry",
     "placement_counterfactual",
     "rank_candidate_placements",
     "redundancy_report",

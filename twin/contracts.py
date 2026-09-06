@@ -66,6 +66,7 @@ class CascadeResult:
     synthetic: bool = True
     loading_by_element: dict[str, float] = field(default_factory=dict)
     county_impacts: tuple[dict[str, Any], ...] = ()
+    scenario_identity: dict[str, Any] = field(default_factory=dict)
 
     def json(self) -> dict[str, Any]:
         """Return the copilot-friendly payload without numpy/pandas values."""
@@ -82,6 +83,7 @@ class CascadeResult:
             "solver": self.solver,
             "loading_by_element": {key: float(value) for key, value in self.loading_by_element.items()},
             "county_impacts": [dict(value) for value in self.county_impacts],
+            "scenario_identity": dict(self.scenario_identity),
         }
 
 

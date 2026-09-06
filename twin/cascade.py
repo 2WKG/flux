@@ -111,8 +111,22 @@ def run_cascade(
         raise SimulationInputError(
             "persistence of non-default solver settings or unit counterfactuals requires an explicit counterfactual workflow"
         )
+    identity = scenario_identity(
+        forced_key,
+        scenario_id,
+        hour,
+        seed=seed,
+        unit_mw=unit_mw,
+        site_bus=site_bus,
+        net=scenario_net,
+        overload_limit_pct=overload_limit_pct,
+        max_stages=max_stages,
+    )
     result = CascadeResult(
-        run_id=make_run_id(scenario_id, seed, forced_key, counterfactual_site_id, unit_mw),
+        run_id=make_run_id(
+            scenario_id, seed, forced_key, counterfactual_site_id, unit_mw,
+            scenario_hash=str(identity["scenario_hash"]),
+        ),
         scenario_id=scenario_id,
         hour=hour,
         tripped_element_ids=tuple(events),
@@ -122,6 +136,7 @@ def run_cascade(
         topology=str(scenario_net.get("flux_topology", SYNTHETIC_TOPOLOGY_LABEL)),
         loading_by_element=loading_by_element,
         county_impacts=tuple(county_impacts),
+        scenario_identity={"version": "v1", **identity},
     )
     if write:
         _check_cancel(cancel_check)
@@ -317,9 +332,10 @@ def make_run_id(
     forced_out: Sequence[str],
     counterfactual_site_id: int | None = None,
     unit_mw: float | None = None,
+    scenario_hash: str | None = None,
 ) -> str:
     """Build the shared deterministic baseline/counterfactual run identity."""
-    digest = hashlib.sha256("\x1f".join(sorted(forced_out)).encode()).hexdigest()[:8]
+    digest = scenario_hash[:8] if scenario_hash is not None else hashlib.sha256("\x1f".join(sorted(forced_out)).encode()).hexdigest()[:8]
     if counterfactual_site_id is not None:
         if unit_mw is None:
             raise SimulationInputError("counterfactual run_id requires unit_mw")
@@ -498,6 +514,13 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
         reasons.append("weather source-run receipt is unavailable")
     if persisted is None:
         reasons.append("cascade result is not persisted")
+    identity = result.get("scenario_identity")
+    expected_identity = (
+        f"scenario_identity=v1:{identity.get('scenario_hash')}"
+        if isinstance(identity, Mapping) and identity.get("scenario_hash") else None
+    )
+    if persisted is not None and expected_identity is not None and expected_identity not in str(persisted[1]):
+        reasons.append("persisted row lacks matching scenario identity proof")
     return {
         "run_id": result["run_id"],
         "scenario_id": result["scenario_id"],
@@ -517,7 +540,13 @@ def control_room_payload(result: Mapping[str, Any], db_path: str | Path) -> dict
             if weather is not None else None
         ),
         "persisted_provenance": (
-            {"source_name": persisted[0], "source_ref": persisted[1], "source_version": persisted[2], "fixture_batch_id": persisted[3]}
+            {
+                "source_name": persisted[0],
+                "source_ref": persisted[1],
+                "source_version": persisted[2],
+                "fixture_batch_id": persisted[3],
+                "scenario_identity": identity,
+            }
             if persisted is not None else None
         ),
         "qualification": {"playback_qualified": not reasons, "reasons": reasons},
@@ -555,7 +584,10 @@ def persist_result(
             "critical_loads_lost_json": json.dumps(list(result.critical_loads_lost)),
             "counterfactual_site_id": counterfactual_site_id,
             "source_name": "twin.cascade",
-            "source_ref": "ACTIVSg2000 synthetic topology",
+            "source_ref": (
+                "ACTIVSg2000 synthetic topology; "
+                f"scenario_identity=v1:{result.scenario_identity.get('scenario_hash', 'unavailable')}"
+            ),
             "source_version": "current",
             "source_retrieved_at": None,
             "fixture_batch_id": "synthetic-cascade",

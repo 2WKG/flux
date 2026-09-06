@@ -104,7 +104,13 @@ def _attach_element_ids(net: Any) -> None:
         net.line["flux_element_id"] = [f"line:{index + 1}" for index in net.line.index]
     if "flux_element_id" not in net.impedance:
         net.impedance["flux_element_id"] = [f"impedance:{index + 1}" for index in net.impedance.index]
-    net.gen["flux_element_id"] = [f"generator:{index + 1}" for index in net.gen.index]
+    gen_lookup = net.get("_from_ppc_lookups", {}).get("gen")
+    if gen_lookup is not None:
+        for source_index, row in gen_lookup.iterrows():
+            if str(row["element_type"]) == "gen":
+                net.gen.loc[int(row["element"]), "flux_element_id"] = f"generator:{int(source_index) + 1}"
+    if "flux_element_id" not in net.gen:
+        net.gen["flux_element_id"] = [f"generator:{index + 1}" for index in net.gen.index]
     net.load["flux_element_id"] = [f"load:{index + 1}" for index in net.load.index]
 
 
@@ -179,6 +185,100 @@ def network_summary(net: Any) -> dict[str, int | str]:
         "loads": len(net.load),
         "generators": len(net.gen),
     }
+
+
+def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, Any]:
+    """Resolve synthetic model elements to current-AUX geometry, never inventory.
+
+    ``net`` must have been built with ``db_path`` so its bus points were
+    validated through the current AUX ingest records.  Unknown IDs and missing
+    coordinates are returned as explicit unresolved elements instead of a map
+    guess.  IDs remain model/MATPOWER identities, never physical assets.
+    """
+    if "flux_coordinate_source" not in net or "flux_source_bus_id" not in net.bus:
+        raise SimulationUnavailableError(
+            "model geometry requires build_network(..., db_path=<validated current AUX database>)"
+        )
+    all_elements: dict[str, tuple[str, int]] = {}
+    for table in ("line", "impedance", "gen", "load"):
+        if "flux_element_id" not in net[table]:
+            raise SimulationUnavailableError("model geometry requires flux element identifiers")
+        for index, element_id in net[table].flux_element_id.items():
+            all_elements[str(element_id)] = (table, int(index))
+    selected = sorted(all_elements) if element_ids is None else [str(value) for value in element_ids]
+    elements: list[dict[str, Any]] = []
+    for element_id in selected:
+        record = all_elements.get(element_id)
+        if record is None:
+            elements.append({"element_id": element_id, "resolved": False, "reason": "unknown synthetic model element"})
+            continue
+        table, index = record
+        frame = net[table]
+        if table in {"line", "impedance"}:
+            from_bus, to_bus = int(frame.at[index, "from_bus"]), int(frame.at[index, "to_bus"])
+            first, second = _bus_point(net, from_bus), _bus_point(net, to_bus)
+            if first is None or second is None:
+                elements.append({"element_id": element_id, "resolved": False, "reason": "current AUX point unavailable"})
+                continue
+            geometry: dict[str, Any] = {"type": "LineString", "coordinates": [first, second]}
+            coordinates: dict[str, Any] = {
+                "from": {"lon": first[0], "lat": first[1]},
+                "to": {"lon": second[0], "lat": second[1]},
+            }
+            source_bus_ids = [int(net.bus.at[from_bus, "flux_source_bus_id"]), int(net.bus.at[to_bus, "flux_source_bus_id"])]
+        else:
+            bus = int(frame.at[index, "bus"])
+            point = _bus_point(net, bus)
+            if point is None:
+                elements.append({"element_id": element_id, "resolved": False, "reason": "current AUX point unavailable"})
+                continue
+            geometry = {"type": "Point", "coordinates": point}
+            coordinates = {"lon": point[0], "lat": point[1]}
+            source_bus_ids = [int(net.bus.at[bus, "flux_source_bus_id"])]
+        elements.append({
+            "element_id": element_id,
+            "resolved": True,
+            "role": {"line": "line", "impedance": "impedance_branch", "gen": "generator", "load": "load"}[table],
+            "pandapower_index": index,
+            "source_id": element_id,
+            "source_bus_ids": source_bus_ids,
+            "coordinates": coordinates,
+            "geometry": geometry,
+            "provenance": {"topology": SYNTHETIC_TOPOLOGY_LABEL, "coordinate_source": "tamu_aux"},
+        })
+    unresolved = [element for element in elements if not element["resolved"]]
+    return {
+        "status": "partial" if unresolved else "available",
+        **({"reason": "one or more requested synthetic elements could not be resolved"} if unresolved else {}),
+        "data": {
+            "topology": {
+                "label": SYNTHETIC_TOPOLOGY_LABEL,
+                "synthetic": True,
+                "solver": "pandapower.rundcpp",
+            },
+            "elements": elements,
+            "capabilities": {"selected_component_failure": True},
+            "provenance": {
+                "coordinate_source": "tamu_aux",
+                "mapping": "pandapower/MATPOWER element ids with current AUX bus coordinates",
+                "physical_inventory_equivalence": False,
+            },
+        },
+    }
+
+
+def _bus_point(net: Any, bus_id: int) -> list[float] | None:
+    raw = net.bus.at[bus_id, "geo"]
+    if not isinstance(raw, str):
+        return None
+    try:
+        point = json.loads(raw)
+        coordinates = point["coordinates"]
+        if point.get("type") != "Point" or len(coordinates) != 2:
+            return None
+        return [float(coordinates[0]), float(coordinates[1])]
+    except (TypeError, ValueError, KeyError):
+        return None
 
 
 if __name__ == "__main__":

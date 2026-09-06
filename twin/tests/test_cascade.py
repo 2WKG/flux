@@ -104,6 +104,11 @@ def test_identity_and_immutable_edit_are_deterministic() -> None:
     forward = run_cascade(["line:1", "load:1"], "storm", 1, net=net)
     reverse = run_cascade(["load:1", "1", "line:1"], "storm", 1, net=net)
     assert forward == reverse
+    changed_case = _overloaded_impedance_net()
+    changed_case["flux_case_path"] = __file__
+    original = run_cascade(["line:1"], "storm", 1, net=net)
+    changed = run_cascade(["line:1"], "storm", 1, net=changed_case)
+    assert original["run_id"] != changed["run_id"]
 
 
 def test_feasibility_balance_redundancy_and_measured_counterfactual() -> None:
@@ -132,7 +137,9 @@ def test_persistence_requires_real_schema_and_writes_copilot_shape(tmp_path) -> 
     con.close()
     run_cascade(["load:1"], "storm", 2, net=_overloaded_impedance_net(), db_path=db, write=True)
     con = duckdb.connect(str(db), read_only=True)
-    assert con.execute("SELECT lost_load_mw, source_name FROM cascade_runs").fetchone() == (10.0, "twin.cascade")
+    stored = con.execute("SELECT lost_load_mw, source_name, source_ref FROM cascade_runs").fetchone()
+    assert stored[0:2] == (10.0, "twin.cascade")
+    assert "scenario_identity=v1:" in stored[2]
     con.close()
     with pytest.raises(SimulationUnavailableError, match="write=True"):
         run_cascade([], "storm", 0, net=_overloaded_impedance_net(), write=True)
