@@ -3,6 +3,7 @@
 This route deliberately delegates eligibility to ``bind_asset``.  It does not
 score, simulate, recommend, or make a permitting assertion.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -92,16 +93,20 @@ def validate_placement(path: Path, proposal: SmrPlacementRequest) -> dict:
             "status": "valid",
             "placement": binding,
             "limitations": [
-                "Validation only; no siting score, simulation, permitability, or "
-                "construction claim is made."
+                (
+                    "Validation only; no siting score, simulation, permitability, "
+                    "or construction claim is made."
+                )
             ],
         }
     return {
         "status": "unknown",
         "placement": binding,
         "limitations": [
-            "No accepted placement evidence is available; the result is an "
-            "illustrative catalogue preview."
+            (
+                "No accepted placement evidence is available; the result is an "
+                "illustrative catalogue preview."
+            )
         ],
     }
 
