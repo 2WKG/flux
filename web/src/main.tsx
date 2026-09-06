@@ -723,18 +723,23 @@ export function App() {
     setSceneMode("inventory");
   }, [updateSceneContext]);
 
-  const selectPhysicalInventoryAsset = useCallback((asset: SpatialItem) => {
+  const selectPhysicalInventoryAsset = useCallback((asset: SpatialItem, region: RegionId = controlRoomRegion) => {
     // This is an exact physical-inventory identity from the map adapter. It is
     // intentionally separate from `selected_element_id`, whose only valid
     // producer is the synthetic Texas model scene.
+    setControlRoomRegion(region);
+    const nextGridState: GridState = region === "texas" ? "tx" : "mn";
+    setGridState(nextGridState);
+    setGridLayers(GRID_LAYERS[nextGridState]);
     setGridSelected(asset);
     setLiveCascade(null);
     setSelectedModelElementId(undefined);
     setSceneMode("inventory");
+    setForecastCountyFips(region === "texas" ? "48201" : "27053");
     updateSceneContext({
       ...EMPTY_SCENE_CONTEXT,
-      region: controlRoomRegion,
-      county_fips: controlRoomRegion === "texas" ? "48201" : "27053",
+      region,
+      county_fips: region === "texas" ? "48201" : "27053",
       view_mode: "physical_inventory",
       selected_physical_asset_id: asset.asset_id,
     });
