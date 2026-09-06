@@ -117,6 +117,18 @@ def test_template_registry_rejects_mismatched_or_unapproved_relation_declaration
         )
 
 
+@pytest.mark.parametrize(
+    "name", ["Summary_rows", "_summary_rows", "summary-rows", "a" * 65]
+)
+def test_template_names_match_the_public_template_id_contract(name: str) -> None:
+    with pytest.raises(ValueError, match="template_id contract"):
+        ApprovedMinnesotaQuery(
+            name,
+            "SELECT id FROM mn_summary",
+            frozenset({"mn_summary"}),
+        )
+
+
 def test_reads_only_registered_view_with_cte_comments_and_bound_row_cap(
     db_path: Path,
 ) -> None:
