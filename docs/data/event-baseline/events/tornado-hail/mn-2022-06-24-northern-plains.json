@@ -76,7 +76,7 @@
       "bytes": 11817849,
       "etag": null,
       "units": "Storm Events detail reports in source units.",
-      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
       "filters": "EVENT_ID=1042825,1042829; STATE=MINNESOTA; CZ_NAME=MAHNOMEN; EVENT_TYPE=Thunderstorm Wind or Tornado.",
       "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
       "gaps": [
@@ -165,8 +165,8 @@
             "1042829"
           ],
           "source_window": {
-            "start_utc": "2022-06-25T01:16:00Z",
-            "end_utc": "2022-06-25T01:23:00Z"
+            "start_utc": "2022-06-25T02:16:00Z",
+            "end_utc": "2022-06-25T02:23:00Z"
           },
           "spatial_scope": "county",
           "scope_identifier": "MN Mahnomen County",
