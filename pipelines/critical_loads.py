@@ -9,6 +9,7 @@ import geopandas as gpd
 import pandas as pd
 
 from pipelines.db import log_artifact, replace_frame
+from pipelines.state_scope import StateScope, scope
 
 
 def _stable_id(namespace: str, source_id: str) -> int:
@@ -136,12 +137,17 @@ def _centroid_counties(con, centroids: gpd.GeoSeries) -> pd.Series:
 
 
 def load_dod(
-    con, geojson_path: str, min_area_km2: float = 1.0, release: str = "fy2024"
+    con,
+    geojson_path: str,
+    min_area_km2: float = 1.0,
+    release: str = "fy2024",
+    states=None,
 ) -> int:
     path = Path(geojson_path)
+    selected_scope = states if isinstance(states, StateScope) else scope(states)
     bases = gpd.read_file(path).to_crs(3083)
     active = bases[
-        (bases["stateNameCode"].str.lower() == "tx")
+        bases["stateNameCode"].str.upper().isin(selected_scope.usps)
         & (bases["siteOperationalStatus"] == "act")
     ].copy()
     active["area_km2"] = active.geometry.area / 1_000_000
@@ -180,14 +186,16 @@ def load_dod(
         reporting_component TEXT, operational_status TEXT, is_joint_base BOOLEAN, area_km2 DOUBLE, geom_wkb BLOB)""")
     # Remove only geometry currently owned by DoD before replacing its parent
     # slice.  Other facility sources keep their geometry rows intact.
+    scoped_dod = f"kind = 'dod' AND ({selected_scope.county_where()})"
     con.execute(
-        "DELETE FROM critical_load_geometry WHERE cl_id IN (SELECT cl_id FROM critical_loads WHERE kind = 'dod')"
+        "DELETE FROM critical_load_geometry WHERE cl_id IN "
+        f"(SELECT cl_id FROM critical_loads WHERE {scoped_dod})"
     )
     rows = replace_frame(
         con,
         "critical_loads",
         frame,
-        where="kind = 'dod'",
+        where=scoped_dod,
         source_name="ntad_military_bases",
         source_ref=path.name,
         source_version=release,
@@ -208,7 +216,7 @@ def load_dod(
         con,
         "critical_load_geometry",
         geometry,
-        where="cl_id IN (SELECT cl_id FROM critical_loads WHERE kind = 'dod')",
+        where=f"cl_id IN (SELECT cl_id FROM critical_loads WHERE {scoped_dod})",
     )
     log_artifact(
         con,
