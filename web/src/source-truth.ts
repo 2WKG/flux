@@ -66,8 +66,11 @@ export function deriveSourceTruth(provenance: DerivableProvenance): SourceTruth 
  * the truth-label table), which hyphenates the first two. They previously read
  * "Source supported"/"Source screened" here while `src/layers/LayerControls.tsx`
  * carried the hyphenated IA spelling, so the same status read two ways; the IA
- * is the authority and this owner now matches it. `src/layers/legend.test.mjs`
- * pins these values against that table by label, not by line number.
+ * is the authority and this owner now matches it. `src/inspector/Inspector.tsx`
+ * carried the unhyphenated spelling for longer still, and its own test pinned it;
+ * both now read from here. `src/layers/legend.test.mjs` pins these values against
+ * that table by label, not by line number, and `src/status-vocabulary.test.mjs`
+ * pins that no surface re-spells them.
  */
 export const STATUS_COPY: Record<AssetStatus, string> = {
   source_supported: "Source-supported",
