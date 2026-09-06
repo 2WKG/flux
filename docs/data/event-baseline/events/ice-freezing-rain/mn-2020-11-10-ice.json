@@ -27,7 +27,7 @@
     "exclusions": [],
     "uncertainties": [
       "NCEI CZ_TYPE=Z record is zone evidence.",
-      "The initial EAGLE-I range acquisition is unqualified because its time-based search is unsafe for non-globally-time-ordered annual files; exhaustive annual scan is pending.",
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
       "No native customer denominator is available."
     ]
   },

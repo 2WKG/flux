@@ -5,14 +5,10 @@
     "event_id": "mn-2022-11-10-ice",
     "parent_system_id": "upper_midwest_2022-11-10_colorado_low",
     "primary_hazard": "ice_storm",
-    "secondary_hazards": [
-      "strong_wind",
-      "heavy_rain"
-    ],
-    "compound": true,
+    "secondary_hazards": [],
+    "compound": false,
     "source_event_ids": [
-      "ncei:2022:175528:1065063",
-      "ncei:2022:175528:1065064"
+      "ncei:2022:175528:1065063"
     ],
     "context_window": {
       "start_utc": "2022-11-09T00:00:00Z",
@@ -27,11 +23,12 @@
       "end_utc": "2022-11-14T00:00:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "NCEI episode 175528 records 0.20-0.35 inch freezing rain in Cook County during a Colorado low, with wind and rainfall components reported separately in its episode narrative.",
+    "selection_basis": "NCEI event 1065063 in episode 175528 records 0.20-0.35 inch freezing rain in the Northern Cook/Northern Lake forecast zone during a Colorado low.",
     "exclusions": [],
     "uncertainties": [
       "NCEI zone 012 spans Northern Cook/Northern Lake, so it is retained as zone-scope weather evidence for the Cook County candidate.",
-      "No EAGLE-I county extract has been retained; outage coverage and denominator are unavailable."
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
+      "No native customer denominator is available."
     ]
   },
   "source_receipts": [

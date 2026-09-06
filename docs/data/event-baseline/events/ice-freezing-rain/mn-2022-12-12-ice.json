@@ -28,7 +28,8 @@
     "uncertainties": [
       "NCEI CZ_TYPE=Z record is zone evidence.",
       "The 18:00Z canonical window has only a one-hour intersection with the NCEI report; it is retained as a candidate, not an accepted event.",
-      "No EAGLE-I county extract has been retained; outage coverage and denominator are unavailable."
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
+      "No native customer denominator is available."
     ]
   },
   "source_receipts": [

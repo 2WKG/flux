@@ -5,15 +5,10 @@
     "event_id": "mn-wi-2022-03-29-ice",
     "parent_system_id": "upper_midwest_2022-03-29_ice",
     "primary_hazard": "ice_storm",
-    "secondary_hazards": [
-      "heavy_snow"
-    ],
-    "compound": true,
+    "secondary_hazards": [],
+    "compound": false,
     "source_event_ids": [
-      "ncei:2022:167599:1014369",
-      "ncei:2022:167600:1014370",
-      "ncei:2022:167600:1014371",
-      "ncei:2022:167600:1014372"
+      "ncei:2022:167599:1014369"
     ],
     "context_window": {
       "start_utc": "2022-03-28T00:00:00Z",
@@ -28,11 +23,11 @@
       "end_utc": "2022-04-02T00:00:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "NCEI episode 167599/event 1014369 reports quarter-inch freezing rain in the Southern Lake forecast zone; linked Wisconsin records document the same low-pressure episode.",
+    "selection_basis": "NCEI event 1014369 in episode 167599 reports quarter-inch freezing rain in the Southern Lake forecast zone.",
     "exclusions": [],
     "uncertainties": [
       "NCEI Southern Lake is a forecast zone rather than a county observation.",
-      "The initial EAGLE-I range acquisition is unqualified because its time-based search is unsafe for non-globally-time-ordered annual files; exhaustive annual scan is pending."
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero."
     ]
   },
   "source_receipts": [
