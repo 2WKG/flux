@@ -353,6 +353,18 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .texas-topology-map { position: relative; min-block-size: 42rem; overflow: hidden; border-radius: 10px }
 .texas-topology-map .maplibregl-map { block-size: 42rem }
 .texas-topology-map > p { position: absolute; z-index: 2; inset: auto .75rem .75rem .75rem; margin: 0; padding: .6rem .75rem; max-inline-size: 50rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: .78rem }
+.model-workspace { display: block; margin-inline: calc((100dvw - min(100dvw, 1520px)) / -2); }
+.model-workspace .scene-viewport { position: relative; min-height: calc(100dvh - 52px); padding: 0; border-radius: 0 }
+.model-workspace .texas-topology-map, .model-workspace .texas-topology-map .maplibregl-map { min-block-size: calc(100dvh - 52px); block-size: calc(100dvh - 52px); border-radius: 0 }
+.model-workspace .map-head, .model-workspace .legend, .model-workspace .layer-controls, .model-workspace .layer-list, .model-workspace .layer-suppressions, .model-workspace .timeline { position: absolute; z-index: 3; margin: 0; max-inline-size: min(28rem, calc(100% - 2rem)); background: rgb(9 17 29 / 93%); border: 1px solid var(--line-strong); border-radius: .5rem; padding: .6rem .75rem }
+.model-workspace .map-head { inset: .75rem auto auto .75rem }
+.model-workspace .legend { inset: auto auto .75rem .75rem }
+.model-workspace .layer-controls { inset: .75rem .75rem auto auto }
+.model-workspace .layer-list, .model-workspace .layer-suppressions, .model-workspace .timeline { display: none }
+.model-workspace .inspector { display: none }
+.texas-model-unavailable { display: grid; gap: .65rem; min-block-size: 28rem; place-content: center; padding: 2rem; border: 1px solid var(--amber); border-radius: .6rem; color: var(--ink) }
+.texas-model-unavailable span { color: var(--muted) }
+.texas-model-unavailable button { width: fit-content; padding: .45rem .7rem; border: 1px solid var(--line-strong); border-radius: .4rem }
 .map-foundation-notice { position: absolute; inset: auto .75rem .75rem .75rem; z-index: 2; display: grid; gap: .25rem; max-inline-size: 52rem; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: 13px; line-height: 1.35 }
 .map-foundation-notice strong { font-size: .8rem; letter-spacing: .06em; text-transform: uppercase }
 .grid-inventory { margin-top: 16px; padding: 20px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
