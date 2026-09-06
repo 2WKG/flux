@@ -1,0 +1,213 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2019-10-09-pge-psps",
+    "parent_system_id": "ca-2019-10-offshore-wind",
+    "primary_hazard": "planned_psps",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "pge-2019-10-09-12-amended-post-event-report"
+    ],
+    "context_window": {
+      "start_utc": "2019-10-08T00:00:00Z",
+      "end_utc": "2019-10-15T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-10-09T07:09:00Z",
+      "end_utc": "2019-10-13T00:41:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-10-13T00:41:00Z",
+      "end_utc": "2019-10-14T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "PG&E's amended CPUC-filed post-event report says the first circuit was de-energized at 2019-10-09 00:09 PDT, lists Napa among the first-phase counties, and describes a forecast offshore-wind event. This is planned de-energization evidence only.",
+    "exclusions": [
+      "No complete county six-hour weather series has been collected."
+    ],
+    "uncertainties": [
+      "The 00:09 PDT start is the report's first circuit system-wide, not a Napa-specific circuit activation time.",
+      "The report's PG&E/CPUC account is not independent verification of wildfire causation or a county outage label.",
+      "Reported wind-related damage/hazards are retained separately from this planned-PSPS candidate and are not represented as fire occurrence or verified wildfire damage."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "cpuc-pge-2019-10-09-12-amended-pdf",
+      "provider": "California Public Utilities Commission; filing by Pacific Gas and Electric Company",
+      "url": "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2019-and-earlier/pge-public-safety-power-shutoff-oct-912-reportamended.pdf",
+      "release": "Amended PG&E Public Safety Power Shutoff Report to the CPUC, October 9-12 2019 De-Energization Event; dated 2019-11-08",
+      "retrieved_at_utc": "2026-09-06T07:26:50Z",
+      "license_or_access": "Public CPUC-hosted filing; no explicit reuse license was identified in the retrieved PDF.",
+      "raw_sha256": "b6ed0ae54352a34967ddc019a8690f89166fce99d518ef096065fc5e67cfd55d",
+      "filtered_sha256": null,
+      "bytes": 5850090,
+      "etag": null,
+      "units": "Reported local Pacific time, customer counts, wind speed, and narrative; no county six-hour EAGLE-I outage units supplied.",
+      "timezone_conversion": "Report's 2019 local operational times are treated as PDT (UTC-07:00): 2019-10-09 00:09 PDT = 2019-10-09T07:09:00Z; 2019-10-12 17:41 PDT = 2019-10-13T00:41:00Z.",
+      "filters": "Retrieved amended PDF only; candidate record selects Napa County (FIPS 06055) and the UTC six-hour interval containing the system-wide first-circuit start.",
+      "grid_index_mapping": "No EAGLE-I county rows or gridded weather values mapped; report lists Napa as an affected first-phase county but does not establish a Napa-specific start time for this canonical window.",
+      "gaps": [
+        "HTTP HEAD returned Content-Length and Last-Modified but no ETag.",
+        "PDF is retained in ignored data/raw/psps, not Git.",
+        "No matched weather time series or EAGLE-I outage label receipt is present."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-psps-2019-napa",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:01:08.837133Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "filtered_sha256": "96cb9a9b7654647fa3ee310719f1b1aa99ebb6a5ff94c4e64be0bc1d094f2e7b",
+      "bytes": 1102778792,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=California; county_fips=06055; window=UTC half-open [2019-10-09T06:00:00+00:00, 2019-10-09T12:00:00+00:00)",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547885",
+        "source_file": "eaglei_outages_2019.csv",
+        "source_file_id": 42547885,
+        "source_file_bytes": 1102778792,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+        "raw_artifact_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+        "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2019-10-09-pge-psps-06055-20191009060000_eaglei_2019_20191009T060000_20191009T120000.csv",
+        "filtered_artifact_sha256": "96cb9a9b7654647fa3ee310719f1b1aa99ebb6a5ff94c4e64be0bc1d094f2e7b"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2019-10-09-pge-psps-napa-06055-20191009t0600z",
+      "county_fips": "06055",
+      "boundary_vintage": "US Census TIGER/Line 2023 county FIPS reference; geometry not used",
+      "scenario_id": "ca_2019_10_pge_psps",
+      "window_start_utc": "2019-10-09T06:00:00Z",
+      "window_end_utc": "2019-10-09T12:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "cpuc-pge-2019-10-09-12-amended-pdf",
+        "eaglei-psps-2019-napa"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-psps-2019-napa:06055|2019-10-09 06:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 06:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 06:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 06:45:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 07:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 07:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 07:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 07:45:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 08:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 08:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 08:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 08:45:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 09:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 09:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 09:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 09:45:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 10:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 10:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 10:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 10:45:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 11:00:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 11:15:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 11:30:00",
+        "eaglei-psps-2019-napa:06055|2019-10-09 11:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-psps-2019-napa",
+          "county_fips": "06055",
+          "start_utc": "2019-10-09T06:00:00Z",
+          "end_utc": "2019-10-09T12:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "cpuc-pge-2019-10-09-12-amended-pdf"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "pge-2019-10-09-12-amended-post-event-report"
+          ],
+          "source_window": {
+            "start_utc": "2019-10-09T07:09:00Z",
+            "end_utc": "2019-10-13T00:41:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "Napa County, California (FIPS 06055), named among first-phase counties",
+          "limitations": "The report documents planned PSPS conditions and regional/offshore-wind rationale, but no complete county six-hour weather series."
+        },
+        "notes": "Report evidence intersects this window at the system-wide start; it is not sampled county weather coverage."
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-psps-2019-napa"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Complete full-annual-source scan; planned de-energization is not substituted for a computed customer-rate label."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

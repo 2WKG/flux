@@ -22,6 +22,9 @@ publish an external service. `--status` reports the recorded processes and
 `--stop` stops them and verifies their ports are released before it reports
 success. Full start, stop, and limitation details are in
 [`docs/runbooks/local-startup.md`](docs/runbooks/local-startup.md).
+The Minnesota-specific aggregate/source boundary, static/API separation, and
+external-delivery limitation are recorded in
+[`docs/runbooks/minnesota-demo-handoff.md`](docs/runbooks/minnesota-demo-handoff.md).
 
 Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request. `web/server.mjs` exposes **no API route**: 2WKG-300 (`db53a83`) deleted `GET /api/demo` along with its scenario selection and failure envelope, and the static origin now returns the SPA shell for every path — `/api/demo` answers `200 text/html` with a body byte-identical to `/`. The Copilot API is a separate FastAPI service ([`docs/specs/05-copilot.md`](docs/specs/05-copilot.md)). Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
