@@ -106,8 +106,27 @@ def _encoded_event(event: SseEvent) -> ServerSentEvent:
     )
 
 
+def _answering_provider(
+    request: Request, backend: AskBackend | None
+) -> AsyncNarrationProvider | None:
+    """The provider that will actually produce this answer, or ``None``.
+
+    A deployment-injected backend may carry its own provider; otherwise the
+    app's configured provider (built once in ``create_app`` from
+    ``COPILOT_PROVIDER``) answers.  This is the single source of truth for both
+    the stream and the run-metadata headers, so the headers can never name a
+    provider that did not answer.
+    """
+
+    if backend is not None and getattr(backend, "provider", None) is not None:
+        return backend.provider
+    return getattr(request.app.state, "narration_provider", None)
+
+
 async def _stream_backend(
-    backend: AskBackend, payload: AskRequest
+    backend: AskBackend,
+    payload: AskRequest,
+    provider: AsyncNarrationProvider | None,
 ) -> AsyncIterator[ServerSentEvent]:
     """Start the SSE lifecycle before local work so ping/disconnect stay live."""
 
@@ -125,7 +144,7 @@ async def _stream_backend(
         )
         return
     async for event in stream_turn(
-        backend.provider, turn, stream=stream, include_lifecycle=False
+        provider, turn, stream=stream, include_lifecycle=False
     ):
         yield _encoded_event(event)
 
@@ -162,14 +181,31 @@ def ask(
         raise UnavailableError("SSE replay is not available for this attempt.")
 
     backend = getattr(request.app.state, "ask_backend", None)
+    provider = _answering_provider(request, backend)
     if backend is None:
         events = _unavailable_events("The local Copilot backend is not configured.")
         content = _encoded_events(events)
     else:
-        content = _stream_backend(backend, payload)
+        content = _stream_backend(backend, payload, provider)
+    # Run metadata, not stream data: the SSE event vocabulary stays identical
+    # across providers, and these headers are deliberately absent from the CORS
+    # expose list, so the browser cannot branch on which model answered while an
+    # operator reading the response still can.
+    #
+    # They are read from the provider that answers this request, never from
+    # `settings`: a deployment-injected backend can carry a different provider,
+    # and stamping the configured name onto its answer would be exactly the
+    # plausible default in run metadata that this contract forbids.  When no
+    # provider answers, the headers are omitted rather than guessed.
+    headers = {"X-Flux-Attempt-Id": payload.attempt_id}
+    provider_name = getattr(provider, "name", None)
+    provider_model = getattr(provider, "model", None)
+    if provider_name is not None and provider_model is not None:
+        headers["X-Flux-Copilot-Provider"] = str(provider_name)
+        headers["X-Flux-Copilot-Model"] = str(provider_model)
     return EventSourceResponse(
         content,
-        headers={"X-Flux-Attempt-Id": payload.attempt_id},
+        headers=headers,
         ping=HEARTBEAT_SECONDS,
         ping_message_factory=_heartbeat,
     )
