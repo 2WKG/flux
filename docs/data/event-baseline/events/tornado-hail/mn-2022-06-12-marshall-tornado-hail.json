@@ -27,6 +27,9 @@
     "uncertainties": [
       "EAGLE-I extraction returned zero observations in priority window.",
       "Path/survey cannot establish a countywide outage label."
+    ],
+    "source_event_ids": [
+      "1041821"
     ]
   },
   "source_receipts": [
@@ -67,7 +70,10 @@
         "notes": "No retained HRRR receipt.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
       },
       "outage": {
         "coverage": "UncoveredLabel",
@@ -75,7 +81,10 @@
         "notes": "EAGLE-I range extraction observed 0 of 24 expected 15-minute observations; this is UncoveredLabel, not zero outage.",
         "expected_samples": null,
         "observed_samples": null,
-        "missing_timestamps": []
+        "missing_timestamps": [],
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
       },
       "matched_coverage_decision": "unavailable",
       "label": {
