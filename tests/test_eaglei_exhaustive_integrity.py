@@ -291,3 +291,101 @@ def test_batch_emits_full_receipts_and_selected_csv_equivalent_to_single_scan(
         "123",
         "123",
     ]
+
+
+def test_batch_verifies_trusted_sidecar_before_opening_a_csv_parser(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = (
+        HEADER
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:00:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:15:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:30:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:45:00,123\n"
+    ).encode()
+    raw = _write_completed_source(tmp_path, payload)
+    sidecar = raw.with_name(f"{raw.name}.source.json")
+    metadata = json.loads(sidecar.read_text(encoding="utf-8"))
+    metadata["raw_sha256"] = "0" * 64
+    sidecar.write_text(json.dumps(metadata), encoding="utf-8")
+    requests_path = tmp_path / "requests.json"
+    requests_path.write_text(
+        json.dumps(
+            [
+                {
+                    "event_id": "untrusted",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T01:00:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["27137"],
+                }
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original_reader = eaglei.csv.DictReader
+
+    def forbidden_reader(*args: object, **kwargs: object) -> object:
+        raise AssertionError("an untrusted annual source reached CSV parsing")
+
+    monkeypatch.setattr(eaglei.csv, "DictReader", forbidden_reader)
+
+    with pytest.raises(eaglei.EagleiError, match="sidecar|cache|metadata"):
+        eaglei.batch_scan_requests(requests_path, tmp_path)
+
+    monkeypatch.setattr(eaglei.csv, "DictReader", original_reader)
+
+
+def test_two_same_year_batch_requests_parse_the_annual_csv_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = (
+        HEADER
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:00:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:15:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:30:00,123\n"
+        + "27137,St Louis,Minnesota,5,2024-06-19 00:45:00,123\n"
+    ).encode()
+    raw = _write_completed_source(tmp_path, payload)
+    requests_path = tmp_path / "requests.json"
+    requests_path.write_text(
+        json.dumps(
+            [
+                {
+                    "event_id": "first",
+                    "year": 2024,
+                    "start": "2024-06-19T00:00:00Z",
+                    "end": "2024-06-19T00:30:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["27137"],
+                },
+                {
+                    "event_id": "second",
+                    "year": 2024,
+                    "start": "2024-06-19T00:30:00Z",
+                    "end": "2024-06-19T01:00:00Z",
+                    "states": ["Minnesota"],
+                    "fips": ["27137"],
+                },
+            ]
+        ),
+        encoding="utf-8",
+    )
+    original_reader = eaglei.csv.DictReader
+    parse_count = 0
+
+    def counting_reader(*args: object, **kwargs: object) -> object:
+        nonlocal parse_count
+        handle = args[0]
+        if Path(handle.name) == raw:
+            parse_count += 1
+        return original_reader(*args, **kwargs)
+
+    monkeypatch.setattr(eaglei.csv, "DictReader", counting_reader)
+
+    receipts = eaglei.batch_scan_requests(requests_path, tmp_path)
+
+    assert parse_count == 1
+    assert [receipt["event_id"] for receipt in receipts] == ["first", "second"]
+    assert all(receipt["acquisition_complete"] for receipt in receipts)
