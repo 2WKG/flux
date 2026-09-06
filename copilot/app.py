@@ -19,6 +19,10 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
+from copilot.interactive_routes import (
+    create_interactive_router,
+    create_interactive_service,
+)
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.comparisons import router as comparisons_router
@@ -26,6 +30,8 @@ from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.minnesota_smr import router as minnesota_smr_router
+from copilot.routes.mn_comparisons import router as mn_comparisons_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
@@ -75,6 +81,12 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(minnesota_smr_router)
+    app.include_router(mn_comparisons_router)
+    app.state.interactive_service = create_interactive_service(
+        duckdb_path=app.state.settings.duckdb_path
+    )
+    app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 
 
