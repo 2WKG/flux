@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 from types import ModuleType
 
+import pandas as pd
 from fastapi.testclient import TestClient
 
 from copilot.app import create_app
@@ -19,9 +20,11 @@ from copilot.interactive_routes import (
 
 
 class _Net(dict):
-    class Bus:
-        index = (1000, 1001)
-    bus = Bus()
+    def __init__(self) -> None:
+        super().__init__()
+        self.bus = pd.DataFrame(
+            {"flux_source_bus_id": [1001, 1004]}, index=[1000, 1003]
+        )
 
 
 def _client(monkeypatch) -> TestClient:
@@ -63,12 +66,14 @@ def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
         edit,
         client.post("/interactive/cascade", json={"element_ids": ["line:7"], "scenario_id": "uri_2021", "hour": 0, "edit_hash": edit_hash}),
         client.get("/interactive/balance", params={"scope": "edit", "edit_hash": edit_hash}),
-        client.get("/interactive/redundancy", params={"bus_id": 1000, "scenario_id": "uri_2021", "hour": 0}),
+        client.get("/interactive/redundancy", params={"bus_id": 1001, "scenario_id": "uri_2021", "hour": 0}),
         client.post("/interactive/siting/search", json={"kind": "synthetic_generation", "unit_mw": 300, "scenario_id": "uri_2021", "n": 1}),
     ]
     for response in responses:
         assert response.status_code == 200, response.text
         _assert_labels(response.json())
+    assert responses[3].json()["data"]["source_bus_id"] == 1001
+    assert responses[3].json()["data"]["pp_bus_index"] == 1000
 
 
 def test_unknown_or_malformed_edits_fail_explicitly(monkeypatch):
