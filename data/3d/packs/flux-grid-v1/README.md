@@ -121,8 +121,9 @@ binaries and `.blend` masters are never committed. Rebuild outside the checkout:
 
 ```sh
 blender --background --factory-startup --python data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py -- --output /path/to/asset-build
-uv run --extra dev python data/3d/packs/flux-grid-v1/validation/validate_pack.py --root /path/to/asset-build
-uv run --extra dev python -m unittest discover -s data/3d/packs/flux-grid-v1/validation -p 'test_validate_pack.py'
+uv run --extra dev python data/3d/packs/flux-grid-v1/validation/validate_pack.py --root /path/to/asset-build \
+  --output /path/to/asset-build/validation/independent-audit.json
+uv run --extra dev python -m unittest discover -s data/3d/packs/flux-grid-v1/validation -p 'test_*.py'
 uv run --extra dev python scripts/validate_asset_source.py
 cd web
 npm ci
@@ -133,6 +134,24 @@ node --test src/map/flux-grid-assets.test.mjs src/map/flux-maplibre-symbols.test
 
 Non-Blender Python checks use the repository's Python 3.12 environment
 (`uv sync --frozen --extra dev`); do not substitute macOS's older system Python.
+
+`source/pipeline/assemble_runtime_pack.py` turns that audited build into the
+runtime package a browser is served; `verification/local-runtime-build.md` is the
+full command sequence, including the symbol rasterization the assembler requires.
+It binds the audit to the build: every GLB, metadata record and preview the audit
+names is re-hashed and refused by name if the bytes moved, so a model replaced
+after the audit ran cannot reach the manifest.
+`validation/test_assemble_runtime_pack.py` is its counterexample suite.
+
+**The committed binary digests are not reproducible and are not a
+reproducibility claim.** `verification/rebuild-determinism.json` records the
+measurement: two builds on one machine give byte-identical GLBs and metadata but
+18/18 byte-different preview PNGs (identical pixels, differing embedded Blender
+render timestamps), so `package.SHA256SUMS` differs on every run; and the
+rebuild's 54 GLBs total 15,170,796 bytes against the 15,170,916 pinned below.
+Read those digests as one unrecorded machine's receipts. Combined with
+`archive.json`'s null `download_url` and its `publication_blocker`, there is
+today no way for a consumer to obtain an installable pack.
 
 Measured one-of-each totals: 253,521 LOD0 triangles; 37,330 LOD1; 7,288 LOD2.
 All 54 GLBs total 15,170,916 bytes. The full distribution's browser report covers

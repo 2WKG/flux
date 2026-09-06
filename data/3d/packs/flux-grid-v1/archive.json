@@ -5,6 +5,7 @@
   "sha256": "ee032fe57c2cb61495271d6387a24f3acf9abd68e84e3b5dd2546ab90d45b39c",
   "download_url": null,
   "publication_status": "binary_attachment_pending",
+  "publication_blocker": "No publication location exists. The archive has never been attached to a release, no owner is named here or in releases/, and this repository cannot produce the bytes: verification/rebuild-determinism.json shows a local rebuild does not reproduce package.SHA256SUMS even on one machine, so the self-build fallback does not satisfy an installer that verifies against this inventory. Until someone attaches this exact filename and digest to a named release and fills in download_url, no consumer can obtain an installable pack, and any instruction that tells an operator to download and install it names an input that does not exist.",
   "package_root": "flux-grid-assets",
   "original_private_handoff_sha256": "8635e7404d5c0f1487bd07281de66222379d81be27205124ad8a1fcc6abbcb85",
   "public_copy_changes": "Detailed validation-report paths made package-relative; three superseded development receipts omitted; inventory rebuilt. All 54 GLBs and both Blender masters are byte-identical to the approved handoff. Generic author-home metadata remains embedded in the Blender masters.",
