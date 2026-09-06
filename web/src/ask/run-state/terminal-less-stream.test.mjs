@@ -3,9 +3,10 @@
  *
  * `docs/research/sse-event-schema.md` guarantees exactly one terminal event per
  * attempt -- never both, never neither -- so a silent close is the server
- * breaking its own contract. Until this rule existed the browser had no token
- * for that case: the run sat in `active` forever and `ChatDock` rendered a bare
- * sentence. These assertions pin the whole chain the decision names, from the
+ * breaking its own contract. Without this rule the browser has no token for
+ * that case: the run sits in `active` forever and `ChatDock` renders a bare
+ * sentence. The rule and its reducer land here; no transport dispatches
+ * `stream_closed` yet (FU-4, PR #252), so these assertions pin the whole chain the decision names, from the
  * reducer through the failure adapter to the frozen display copy, so that
  * dropping the rule, re-pointing it at `unavailable`, or losing the named code
  * each turns a specific row red rather than quietly degrading the screen.
@@ -112,6 +113,14 @@ test("every close reason -- eof, abort, network -- lands on the same frozen toke
     assert.equal(statusOf(surface), "request_failed", `${reason} must be request_failed`);
     assert.equal(surface.code, "stream_ended_without_terminal");
     assert.match(state.issues.at(-1).message, /terminal done or error/);
+    // The reducer and the adapter must read the SAME copy, not two copies that
+    // happen to contain the same five words: a regex cannot tell those apart,
+    // so drifting one owner's string has to fail here.
+    assert.equal(
+      state.issues.at(-1).message,
+      surface.message,
+      `${reason}: the reducer and the failure adapter must report one string from one owner`,
+    );
     assert.equal(state.issues.at(-1).kind, "stream_ended_without_terminal");
   }
   // The three reasons are distinguishable in prose without changing the token.

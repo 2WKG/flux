@@ -4,9 +4,11 @@
  * from the opaque request attempt id.
  */
 import type { AssetStatus } from "../../labels";
-import { STREAM_ENDED_WITHOUT_TERMINAL } from "../../failure-states/types";
+import { STREAM_CLOSE_MESSAGE, STREAM_ENDED_WITHOUT_TERMINAL } from "../../failure-states/types";
+import type { StreamCloseReason } from "../../failure-states/types";
 
-export { STREAM_ENDED_WITHOUT_TERMINAL };
+export { STREAM_CLOSE_MESSAGE, STREAM_ENDED_WITHOUT_TERMINAL };
+export type { StreamCloseReason };
 
 /**
  * The six IA status tokens, owned once by `src/labels.ts`. This module names the
@@ -142,9 +144,6 @@ export interface RunState {
   failureCode?: typeof STREAM_ENDED_WITHOUT_TERMINAL;
   issues: readonly TraceIssue[];
 }
-
-/** How the transport ended. Re-stated here so the action is self-describing. */
-export type StreamCloseReason = "eof" | "abort" | "network";
 
 export type RunAction =
   | { type: "event"; identity: RunIdentity; event: RunEvent }

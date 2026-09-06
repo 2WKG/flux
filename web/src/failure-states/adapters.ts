@@ -1,11 +1,15 @@
 import type { ClientState, NetworkFailureReason } from "../data/client-state";
 import {
+  STREAM_CLOSE_MESSAGE,
   STREAM_ENDED_WITHOUT_TERMINAL,
   failureStatusFor,
   type FailureKind,
   type FailureStateInput,
   type FailureStatus,
+  type StreamCloseReason,
 } from "./types";
+
+export type { StreamCloseReason };
 
 const NETWORK_REASON_KIND = {
   unreachable: "network_failure",
@@ -86,15 +90,6 @@ export function fromSseTerminalError(
     retainedContext,
   };
 }
-
-/** How the transport ended without delivering a terminal event. */
-export type StreamCloseReason = "eof" | "abort" | "network";
-
-const STREAM_CLOSE_MESSAGE: Record<StreamCloseReason, string> = {
-  eof: "The stream ended without the required terminal done or error event, so this answer is incomplete.",
-  abort: "The stream was aborted before the required terminal done or error event, so this answer is incomplete.",
-  network: "The connection was lost before the required terminal done or error event, so this answer is incomplete.",
-};
 
 /**
  * OQ-1, decided: a stream that closes with neither a terminal `done` nor a

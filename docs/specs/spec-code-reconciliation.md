@@ -63,6 +63,22 @@ with the token as the named code `stream_ended_without_terminal`.
 (the `request_failed` row) now state the rule as normative; the "undecided / nothing implements it"
 wording is gone from both. The original options are kept below as the record of the call.
 
+**Defined, not yet wired.** `stream_closed` has no production dispatcher. `RunTrace.tsx:44-49` is
+the only `useReducer(runReducer, …)` in the tree and dispatches `event` / `source_status` /
+`cancel_requested`, never a close; the live SSE reader closes its stream at
+`web/src/data/transport.ts:226-228` with no reducer attached. So a terminal-less stream still
+leaves the run in `active` in the shipped app, and will until the close is dispatched. Two
+follow-ups, named here and not done in #248:
+
+- **FU-4** — dispatch `stream_closed` from the live transport (`web/src/data/transport.ts:226-228`)
+  when the chat dock mounts the run reducer (PR [#252](https://github.com/2WKG/flux/pull/252)).
+- **FU-5** — server-side: `copilot/routes/ask.py:117-119` re-raises `asyncio.CancelledError` with no
+  terminal event, so once FU-4 lands a user Stop would read "Request failed" instead of
+  `ChatDock.tsx:128`'s stopped-on-purpose copy. The client must not guess — only a terminal `error`
+  with code `cancelled` may report a confirmed cancellation — so the server should emit that
+  terminal before re-raising. A client-initiated abort is an expected close, not a contract break;
+  an EOF or connection loss with the client still listening is.
+
 #### The question as it stood (historical — superseded by the decision above)
 
 At the time of writing, `docs/design/texas-demo-narrative-ia.md:98` stated, in exactly one place and in no other document:

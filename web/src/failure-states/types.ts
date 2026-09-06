@@ -73,6 +73,21 @@ export function failureStatusFor(kind: FailureKind): FailureStatus | null {
  */
 export const STREAM_ENDED_WITHOUT_TERMINAL = "stream_ended_without_terminal";
 
+/** How the transport ended without delivering a terminal event. */
+export type StreamCloseReason = "eof" | "abort" | "network";
+
+/**
+ * The user-visible sentence for each close reason, owned once here. The reducer
+ * (`ask/run-state/reducer.ts`) and the failure-state adapter (`./adapters.ts`)
+ * both report the same close, so they must read the same copy: a second copy
+ * could drift silently while every regex pinning it still matched.
+ */
+export const STREAM_CLOSE_MESSAGE: Record<StreamCloseReason, string> = {
+  eof: "The stream ended without the required terminal done or error event, so this answer is incomplete.",
+  abort: "The stream was aborted before the required terminal done or error event, so this answer is incomplete.",
+  network: "The connection was lost before the required terminal done or error event, so this answer is incomplete.",
+};
+
 export interface FailureStateInput {
   kind: FailureKind;
   /** Safe, source-supplied explanation. Omit to use the canonical local copy. */

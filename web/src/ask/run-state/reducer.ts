@@ -1,5 +1,6 @@
 import {
   MAX_EVENTS_PER_ATTEMPT,
+  STREAM_CLOSE_MESSAGE,
   STREAM_ENDED_WITHOUT_TERMINAL,
   SCHEMA_VERSION,
   TERMINAL_ERROR_CODES,
@@ -12,15 +13,8 @@ import type {
   RunIdentity,
   RunState,
   SourceStatus,
-  StreamCloseReason,
   TraceIssue,
 } from "./types";
-
-const STREAM_CLOSE_MESSAGE: Record<StreamCloseReason, string> = {
-  eof: "The stream ended without the required terminal done or error event, so this answer is incomplete.",
-  abort: "The stream was aborted before the required terminal done or error event, so this answer is incomplete.",
-  network: "The connection was lost before the required terminal done or error event, so this answer is incomplete.",
-};
 
 export function createRunState(identity: RunIdentity, sourceStatus: SourceStatus = "source_supported"): RunState {
   return { identity, sourceStatus, phase: "idle", expectedSeq: 1, text: "", trace: [], tools: {}, issues: [] };
