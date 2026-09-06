@@ -27,9 +27,7 @@ test("Texas map zoom control reaches lod2 and requests the visible model", async
   await page.route("**/assets/flux-grid/models/transmission_line_segment.glb", (route) => { glbRequests.push(route.request().url()); return route.fulfill({ body: model, contentType: "model/gltf-binary" }); });
 
   await page.goto("/");
-  // Exact: the workspace section around it is labelled "Full synthetic Texas
-  // topology workspace", so a substring match resolves to two elements and
-  // Playwright's strict mode fails before any assertion runs.
+  // The workspace has a distinct accessible label from the map itself.
   const map = page.getByLabel("Full synthetic Texas topology", { exact: true });
   await expect(map).toBeVisible();
   // The truth label the route supplied, on both the machine attribute and the
