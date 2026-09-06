@@ -53,9 +53,11 @@ function assetManifest(value: unknown): FluxAssetManifest | null {
   const validAsset = (asset: unknown) => {
     if (!record(asset) || typeof asset.archetype_id !== "string" || typeof asset.semantic_name !== "string" ||
       typeof asset.category !== "string" || !record(asset.footprint_m) || typeof asset.footprint_m.width !== "number" ||
-      typeof asset.footprint_m.length !== "number" || !record(asset.lods)) return false;
+      typeof asset.footprint_m.length !== "number") return false;
+    const lods = asset.lods;
+    if (!record(lods)) return false;
     return ["lod0", "lod1", "lod2"].every((lod) => {
-      const file = asset.lods[lod];
+      const file = lods[lod];
       return validFile(file) && typeof file.triangles === "number";
     });
   };
