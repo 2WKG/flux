@@ -440,7 +440,10 @@ def test_cite_hit_preserves_source_version_date_and_provenance() -> None:
                 text="Minnesota evidence remains bounded by documented sources.",
                 chunk_index=0,
                 content_kind="source",
-                provenance={"retrieved_at": "2026-09-05T18:01:41+00:00", "source_name": "Flux project document"},
+                provenance={
+                    "retrieved_at": "2026-09-05T18:01:41+00:00",
+                    "source_name": "Flux project document",
+                },
                 title="Minnesota source citation inventory",
                 page=1,
             ),
