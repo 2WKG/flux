@@ -22,9 +22,10 @@ from pipelines.eaglei import load_county_customers, load_coverage_history, load_
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
 from pipelines.joins import join_bus_county, join_critical_loads_to_bus
+from pipelines.manifest import build_manifest, store_manifest, write_manifest
 from pipelines.nri import load_nri
 from pipelines.state_scope import scope
-from pipelines.storm_events import load_storm_events
+from pipelines.storm_events import NwsCrosswalkRelease, load_storm_events
 
 P0_RAW_INPUTS_CATALOG = (
     Path(__file__).resolve().parents[1] / "datasets" / "catalog.json"
@@ -71,6 +72,36 @@ def _p0_raw_inputs(
         )
     except (KeyError, OSError, TypeError, json.JSONDecodeError) as error:
         raise RuntimeError(f"invalid P0 raw-input catalog: {catalog}") from error
+
+
+def _nws_crosswalk_releases(
+    raw: Path, catalog: Path | None = None
+) -> tuple[NwsCrosswalkRelease, ...]:
+    """Read source-pinned NWS editions instead of selecting a current file."""
+
+    catalog = catalog or P0_RAW_INPUTS_CATALOG
+    try:
+        entries = json.loads(catalog.read_text(encoding="utf-8"))[
+            "nws_crosswalk_releases"
+        ]
+        releases = tuple(
+            NwsCrosswalkRelease(
+                release=entry["release"],
+                path=raw.joinpath(*entry["path"]),
+                valid_from=datetime.fromisoformat(entry["valid_from"]),
+                valid_until=datetime.fromisoformat(entry["valid_until"]),
+                source_url=entry["source_url"],
+                sha256=entry["sha256"],
+            )
+            for entry in entries
+        )
+    except (KeyError, OSError, TypeError, ValueError, json.JSONDecodeError) as error:
+        raise RuntimeError(
+            f"invalid NWS crosswalk release catalog: {catalog}"
+        ) from error
+    if not releases:
+        raise RuntimeError("NWS crosswalk release catalog is empty")
+    return releases
 
 
 def _missing_p0_inputs(
@@ -167,8 +198,7 @@ def _build_mutating(
         ]
         assert all(eia_files)
         counts["ba_load_hourly"] = load_eia930(con, [str(path) for path in eia_files])
-        crosswalk = _required(raw, "nws_zone_county", "bp16ap26", "bp16ap26.dbx")
-        assert crosswalk
+        crosswalk_releases = _nws_crosswalk_releases(raw)
         for year, file_name in (
             (2021, "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"),
             (2024, "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"),
@@ -176,7 +206,7 @@ def _build_mutating(
             details = _required(raw, "storm_events", str(year), file_name)
             assert details
             counts[f"storm_events_{year}"] = load_storm_events(
-                con, str(details), str(crosswalk), year, selected_scope
+                con, str(details), crosswalk_releases, year, selected_scope
             )
         mcc = _required(raw, "eaglei", "support", "MCC.csv")
         coverage = _required(raw, "eaglei", "support", "coverage_history.csv")
@@ -208,6 +238,22 @@ def _build_mutating(
     finally:
         con.close()
     return counts
+
+
+def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> dict:
+    """Describe the staged release before it is checked and promoted.
+
+    The manifest is stored in the staged database and written next to the
+    staged Parquet export, so both are promoted together or not at all.
+    """
+    con = connect(stage_db)
+    try:
+        manifest = build_manifest(con, state_scope=scope(states).slug)
+        store_manifest(con, manifest)
+    finally:
+        con.close()
+    write_manifest(manifest, stage_parquet / "manifest.json")
+    return manifest
 
 
 def _copy_database(source: Path, stage: Path) -> None:
@@ -326,7 +372,8 @@ def build(
             stage_parquet.mkdir()
         args = (str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
         counts = _build_mutating(*args, states=states)
-        checks = run_checks(str(stage_db))
+        _write_stage_manifest(stage_db, stage_parquet, states)
+        checks = run_checks(str(stage_db), states)
         if not all(check.passed for check in checks):
             raise RuntimeError(
                 "staged P0 quality checks failed: "
