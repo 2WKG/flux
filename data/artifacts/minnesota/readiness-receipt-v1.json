@@ -72,6 +72,7 @@
         "status": "verified"
       }
     ],
+    "model_mode": "aggregate",
     "sources": [
       {
         "crs": "EPSG:4269",
@@ -136,7 +137,7 @@
     "status": "unavailable"
   },
   "format": "flux-minnesota-readiness-receipt-v1",
-  "generated_at": "2026-09-06T13:36:10+00:00",
+  "generated_at": "2026-09-06T14:48:27+00:00",
   "issue": "2WKG-417",
   "mode_decision": "Aggregate mode is selected because the topology decision gate has 5 unmet items and no Minnesota case is present. Texas/ACTIVSg2000 topology is not a substitute.",
   "prohibited_claims": [
@@ -166,10 +167,109 @@
         "published_evidence": "docs/data/minnesota-p0-curated-source-receipts.md carries the counts measured when PR #266 loaded this store; they are that run's evidence, not a measurement by this receipt.",
         "reason": "no --database was supplied to this run",
         "status": "unavailable"
+      },
+      {
+        "input": "minnesota_solver_case",
+        "next_steps": [
+          "Obtain an authorized MISO Model Manager / MTEP reliability-model delivery under CEII NDA, then record bus counts and identifiers in a source decision record.",
+          "Verify r/x, their per-unit base, and endpoint bus references in a delivered case before any import.",
+          "Require normal and emergency ratings with units, plus a generator/load-to-bus reconciliation, in the delivered case.",
+          "Obtain written legal approval before requesting a delivery.",
+          "Review GridSFM 2026_05_07 field-by-field (impedance, base MVA, ratings, load/generation, units, license) or import a licensed MISO delivery; record the mapping in a source decision record."
+        ],
+        "reason": "no Minnesota case is present in this repository and no licensed delivery has been obtained; the topology gate has 5 unmet items (bus_identity_and_region_mapping, branch_identity_and_impedance, base_mva_ratings_and_allocation, terms_permitting_use, documented_solver_field_mapping)",
+        "status": "unavailable"
+      },
+      {
+        "input": "ba_to_service_area_allocation_crosswalk",
+        "next_steps": [
+          "Do not allocate. Report MISO balancing-authority totals only until a reviewed, complete, non-overlapping crosswalk is accepted and versioned."
+        ],
+        "reason": "No reviewed complete, non-overlapping BA-to-service-area crosswalk is available; MISO BA values are not allocated to Minnesota geography.",
+        "status": "unavailable"
       }
     ]
   },
   "selected_model_mode": "aggregate",
+  "source_authority_ledger": {
+    "corroborates_topology_gate": true,
+    "corroboration_detail": "real_electrical_connectivity is 'unavailable' in the ledger, which is consistent with an unmet topology gate. A ledger status of 'available' or 'complete' would contradict it and stops this receipt.",
+    "ledger": "data/sources/minnesota-source-authority-ledger-v1.json",
+    "ledger_id": "mn-physical-grid-source-authority-v1",
+    "physical_class_coverage": [
+      {
+        "class_id": "retail_service_area",
+        "denominator": 192,
+        "known_count": 192,
+        "reason": "Official retail service-area geometry is available, but it is not a physical-network asset inventory.",
+        "status": "available_limited"
+      },
+      {
+        "class_id": "transmission_line",
+        "denominator": null,
+        "known_count": 31,
+        "reason": "Statewide source was withdrawn by its publisher for accuracy/currentness; county geometry cannot establish statewide coverage.",
+        "status": "available_limited"
+      },
+      {
+        "class_id": "subtransmission_line",
+        "denominator": null,
+        "known_count": null,
+        "reason": "No current, authoritative statewide source with a verified subtransmission classification was acquired.",
+        "status": "unavailable"
+      },
+      {
+        "class_id": "substation",
+        "denominator": null,
+        "known_count": 11,
+        "reason": "County geometry is source-backed but does not supply statewide completeness or electrical terminals.",
+        "status": "available_limited"
+      },
+      {
+        "class_id": "support_structure",
+        "denominator": null,
+        "known_count": null,
+        "reason": "No statewide support/tower inventory with native geometry and accuracy basis was acquired.",
+        "status": "unavailable"
+      },
+      {
+        "class_id": "distribution_line_and_device",
+        "denominator": null,
+        "known_count": null,
+        "reason": "EUSA polygons identify retail service territory only. No statewide feeder, device, terminal or distribution-connectivity source was acquired.",
+        "status": "unavailable"
+      },
+      {
+        "class_id": "real_electrical_connectivity",
+        "denominator": null,
+        "known_count": null,
+        "reason": "No source-backed terminal-to-terminal edge set was acquired. Geometry, proximity, roads, imagery and synthetic cases cannot create connectivity.",
+        "status": "unavailable"
+      },
+      {
+        "class_id": "cross_border_interface",
+        "denominator": null,
+        "known_count": null,
+        "reason": "Interfaces to Manitoba, North Dakota, South Dakota, Iowa and Wisconsin require asset-specific source evidence. MISO planning/model acquisition is restricted and no authorized artifact was acquired.",
+        "status": "restricted"
+      }
+    ],
+    "retail_service_area_class": "available_limited",
+    "retail_service_area_count_reconciliation": {
+      "authoritative_for_source_authority_and_class_coverage": "data/sources/minnesota-source-authority-ledger-v1.json. The ledger names itself authoritative for Minnesota source authority, acquisition state, and physical-class coverage in its own related_provenance_artifacts, and its count is a verified live query with a checked-in response receipt.",
+      "authoritative_for_this_receipt": "pipelines/fixtures/inputs/minnesota_aggregate_manifest_v1.json. The manifest pins the artifact this receipt actually measured, so its count is the one that describes the committed evidence.",
+      "ledger_basis": "live ArcGIS FeatureServer count query at 2026-09-06T07:34:00Z, response pinned in data/sources/receipts/minnesota-eusa-count-2026-09-06.json",
+      "ledger_count": 192,
+      "ledger_source_id": "mngeo_eusa_featureserver_2026",
+      "manifest_basis": "rows in the static util_eusa.gpkg publicdownload snapshot recorded at manifest retrieved_at 2026-09-06T02:11:00Z",
+      "manifest_count": 181,
+      "manifest_source_id": "mngeo_service_areas_2026",
+      "subject": "Minnesota retail electric service-area feature count",
+      "why_they_differ": "The two numbers count different artifacts at different times: a live FeatureServer feature count versus the row count of a static GeoPackage download. Neither is a count of utilities, grid assets, feeders, substations, or customers, neither is corrected into the other, and the difference is recorded rather than reconciled away."
+    },
+    "retrieved_at": "2026-09-06T00:00:00Z",
+    "truth_boundary": "A source marked unavailable, restricted, denied, or candidate closes only that acquisition attempt. It neither changes the physical class to complete nor permits inferred assets, geometry, terminals, or connectivity."
+  },
   "source_decision_record": {
     "county_grain_public_context": [
       {
@@ -284,6 +384,9 @@
     "items": [
       {
         "evidence": "docs/research/minnesota/solver-network-feasibility.md: no public candidate supplies an inspectable bus set. EIA and HIFLD state that substation locations are not published, so line routes cannot establish buses.",
+        "evidence_documents": [
+          "docs/research/minnesota/solver-network-feasibility.md"
+        ],
         "id": "bus_identity_and_region_mapping",
         "next_step": "Obtain an authorized MISO Model Manager / MTEP reliability-model delivery under CEII NDA, then record bus counts and identifiers in a source decision record.",
         "requirement": "Bus identity plus a documented mapping of each bus to Minnesota geography or region.",
@@ -291,6 +394,9 @@
       },
       {
         "evidence": "docs/research/minnesota/solver-network-feasibility.md: HIFLD supplies geographic line features only and publishes no r, x, or electrical base. FERC Form 715 power-flow cases are CEII.",
+        "evidence_documents": [
+          "docs/research/minnesota/solver-network-feasibility.md"
+        ],
         "id": "branch_identity_and_impedance",
         "next_step": "Verify r/x, their per-unit base, and endpoint bus references in a delivered case before any import.",
         "requirement": "Branch identity, endpoints, and r/x with units and base.",
@@ -298,6 +404,9 @@
       },
       {
         "evidence": "docs/research/minnesota/solver-network-feasibility.md: the only public rating data is the DOE/NREL modelled 2007-2013 static rating set in amperes, which its publisher says is not a substitute for operator limits. EIA-930 is balancing-authority hourly demand, not a nodal allocation.",
+        "evidence_documents": [
+          "docs/research/minnesota/solver-network-feasibility.md"
+        ],
         "id": "base_mva_ratings_and_allocation",
         "next_step": "Require normal and emergency ratings with units, plus a generator/load-to-bus reconciliation, in the delivered case.",
         "requirement": "System base MVA, branch thermal ratings with units, and bus-level load/generation allocation.",
@@ -305,6 +414,9 @@
       },
       {
         "evidence": "MISO restricts FTP reliability-model access to logged-in users under a CEII NDA/UNDA; FERC classifies Form 715 Parts 2-6 as CEII. Neither permits redistribution here today.",
+        "evidence_documents": [
+          "docs/research/minnesota/solver-network-feasibility.md"
+        ],
         "id": "terms_permitting_use",
         "next_step": "Obtain written legal approval before requesting a delivery.",
         "requirement": "Terms that permit storing and using the case in this demo.",
@@ -312,6 +424,10 @@
       },
       {
         "evidence": "No Minnesota case is present in this repository, so no field mapping exists to document. The GridSFM release named in docs/specs/10-minnesota-demo.md is unreviewed source evidence, not an accepted artifact, and is not checked in.",
+        "evidence_documents": [
+          "docs/research/minnesota/solver-network-feasibility.md",
+          "docs/specs/10-minnesota-demo.md"
+        ],
         "id": "documented_solver_field_mapping",
         "next_step": "Review GridSFM 2026_05_07 field-by-field (impedance, base MVA, ratings, load/generation, units, license) or import a licensed MISO delivery; record the mapping in a source decision record.",
         "requirement": "A documented mapping from source fields into the chosen solver.",
@@ -326,6 +442,30 @@
       "base_mva_ratings_and_allocation",
       "terms_permitting_use",
       "documented_solver_field_mapping"
-    ]
+    ],
+    "verdict_basis": {
+      "checked_documents": [
+        {
+          "document": "docs/design/minnesota-gate-0-approval.md",
+          "required_statement": "Aggregate mode is the default and only mode.",
+          "statement_found": true,
+          "status": "present"
+        },
+        {
+          "document": "docs/research/minnesota/solver-network-feasibility.md",
+          "required_statement": "use the aggregate fallback now",
+          "statement_found": true,
+          "status": "present"
+        },
+        {
+          "document": "docs/specs/10-minnesota-demo.md",
+          "required_statement": null,
+          "statement_found": false,
+          "status": "present"
+        }
+      ],
+      "derivation": "declared, not derived",
+      "statement": "Each item status above is declared by pipelines/minnesota_readiness.py from the cited research; no code parses a status out of a prose document. Three things are derived and enforced on every run: each cited evidence document exists, the frozen Gate 0 approval still states 'Aggregate mode is the default and only mode.', and the feasibility research still decides 'use the aggregate fallback now'. If any of those changes the receipt stops with a ReadinessError instead of republishing a verdict the record no longer supports."
+    }
   }
 }

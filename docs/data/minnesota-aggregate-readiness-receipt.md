@@ -52,6 +52,20 @@ crosswalk exists, so no MISO value is allocated to Minnesota geography.
 | `eia860_2024` | `https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip` | `State == 'MN'`, operable generators | — | `summer_capacity_mw` MW | 73 county rows | plants without exactly one containing county stay unassigned; no nearest-county assignment |
 | `eia930_balance_2024_h1` | `https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jan_Jun.csv` | `Balancing Authority == 'MISO'` | UTC end of hour | demand / net generation / interchange MW | 4,368 | MISO balancing authority, **not** Minnesota demand |
 
+**Two independent service-area counts, reconciled and not averaged.** The
+manifest records 181 rows for `mngeo_service_areas_2026`: the row count of the
+static `util_eusa.gpkg` publicdownload snapshot it pins. The #224
+source-authority ledger
+[`minnesota-source-authority-ledger-v1.json`](../../data/sources/minnesota-source-authority-ledger-v1.json)
+records 192 features for `mngeo_eusa_featureserver_2026`: a live ArcGIS
+FeatureServer count query with a checked-in response receipt. They count
+different artifacts at different times. The ledger is authoritative for source
+authority and physical-class coverage — it names itself so in its own
+`related_provenance_artifacts` — and the manifest is authoritative for the
+artifact this receipt actually measured. Neither number is corrected into the
+other; the receipt reads both at run time and publishes the difference under
+`source_authority_ledger.retail_service_area_count_reconciliation`.
+
 Two digest kinds appear and are not interchangeable. `file_sha256` pins the
 committed evidence files and this receipt recomputes all three on every run
 (LF-normalised, so a Windows checkout matches a Linux one). The manifest's
