@@ -175,11 +175,6 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
             "upstream_error",
             "The answer provider is unavailable.",
         ),
-        (
-            "tool_failed",
-            "tool_error",
-            "A requested tool could not complete.",
-        ),
     ],
 )
 def test_named_failures_emit_one_safe_terminal_error(
@@ -205,6 +200,28 @@ def test_named_failures_emit_one_safe_terminal_error(
     )
     with pytest.raises(StreamStateError, match="terminal"):
         stream.done(verified=True)
+
+
+def test_failed_tool_result_is_non_terminal_and_settles_the_pending_call() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    stream.tool_call("call-1", "score_site", {"site_id": "site_tx_0007"})
+
+    event = stream.failed_tool_result(
+        "call-1",
+        "score_site",
+        "tool_error",
+        "The tool could not complete.",
+        elapsed_ms=1,
+    )
+
+    assert event.event == "tool_result"
+    assert event.data["ok"] is False
+    assert event.data["error"] == {
+        "code": "tool_error",
+        "message": "The tool could not complete.",
+    }
+    assert stream.done(verified=True).event == "done"
 
 
 def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_terminal() -> (
@@ -253,7 +270,6 @@ def test_complete_success_stream_has_contiguous_matching_sse_ids_and_one_termina
         ("disconnected", "cancelled"),
         ("timed_out", "deadline"),
         ("provider_failed", "upstream_error"),
-        ("tool_failed", "tool_error"),
     ],
 )
 def test_failure_streams_have_exactly_one_terminal_error(
