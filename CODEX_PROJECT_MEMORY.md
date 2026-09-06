@@ -5,7 +5,7 @@ not product code and should be updated through a pull request.
 
 ## Repository
 
-- GitHub: `Wyzard1004/flux`
+- GitHub: `2WKG/flux`
 - Product: **GridMind**, a state-configurable grid resilience prototype. Public context is state-scoped; the only implemented topology adapter is Texas / ACTIVSg2000 / ERCOT and requires its source artifacts and build.
 - Default branch: `master`
 - GitHub workflow: work on a feature or unit branch, push it, and open a PR into
