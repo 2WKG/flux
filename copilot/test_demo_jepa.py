@@ -61,6 +61,25 @@ def test_loader_rejects_county_outside_observed_coverage(tmp_path: Path) -> None
     assert result.reason == "No experimental JEPA forecast is available for the selected county."
 
 
+def test_loader_selects_a_county_forecast_from_the_final_artifact_shape(tmp_path: Path) -> None:
+    artifact = _artifact()
+    artifact["scope"] = {"observed_county_fips": ["27053", "48201"]}
+    artifact["county_forecasts"] = [
+        artifact["forecast"],
+        {
+            "county_fips": "48201",
+            "predicted_customers_out": [4, 5],
+            "actual_customers_out": [5, 6],
+        },
+    ]
+    result = read_experimental_jepa_forecast(
+        _write(tmp_path / "jepa.json", artifact), county_fips="48201"
+    )
+
+    assert result.status == "available"
+    assert result.data["forecast"]["county_fips"] == "48201"
+
+
 def test_loader_rejects_bad_artifact_instead_of_creating_a_forecast(tmp_path: Path) -> None:
     artifact = _artifact()
     artifact["forecast"] = {"county_fips": "27053", "predicted_counts": [1]}
