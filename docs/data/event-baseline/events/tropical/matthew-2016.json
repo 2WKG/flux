@@ -1,0 +1,243 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tropical",
+  "event": {
+    "event_id": "matthew-2016",
+    "source_event_ids": [
+      "nhc:AL142016"
+    ],
+    "parent_system_id": "matthew-2016",
+    "primary_hazard": "tropical_cyclone",
+    "secondary_hazards": [
+      "wind",
+      "rain",
+      "storm_surge"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2016-09-28T00:00:00Z",
+      "end_utc": "2016-10-12T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2016-10-07T09:00:00Z",
+      "end_utc": "2016-10-09T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2016-10-09T00:00:00Z",
+      "end_utc": "2016-10-12T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record; the retained NCEI event record does not prove county weather coverage for the selected Flagler County window.",
+    "exclusions": [
+      "Texas Uri and Beryl are not recataloged as new events."
+    ],
+    "uncertainties": [
+      "NHC advisory scope is system/weather evidence, not county outage evidence.",
+      "NCEI EVENT_ID 659040 reports CZ_FIPS 038, which does not establish county weather coverage for FIPS 12035."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nhc-matthew-2016-archive",
+      "provider": "NOAA National Hurricane Center",
+      "url": "https://www.nhc.noaa.gov/archive/2016/MATTHEW.shtml",
+      "release": "2016 advisory archive",
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "Public NOAA archive",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "advisory text and UTC issue times",
+      "timezone_conversion": "Archive UTC times retained; no local-time conversion",
+      "filters": "Matthew advisory archive; representative Florida coastal county-window",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "No downloaded advisory artifact hash retained in this candidate-only receipt."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "ncei-matthew-2016-details",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2016_c20260323.csv.gz",
+      "release": "Storm Events Details 2016, c20260323",
+      "retrieved_at_utc": "2026-09-06T09:00:00Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "d8e1389897df3557e74ba36820357f6962a7c0ca922595400fe74d883f7a5036",
+      "filtered_sha256": null,
+      "bytes": 9065715,
+      "etag": null,
+      "units": "Storm Events reported event interval and zone scope",
+      "timezone_conversion": "CZ_TIMEZONE EST-5 retained and converted to UTC by adding five hours",
+      "filters": "EVENT_ID 659040; retained Storm Events row reports CZ_FIPS 038",
+      "grid_index_mapping": "Reported NCEI CZ_FIPS 038 does not establish the selected FIPS 12035 county weather coverage; no physical-grid mapping",
+      "gaps": [
+        "The retained event row's CZ_FIPS 038 does not match the selected FIPS 12035 county weather claim."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-matthew-2016-12035-1218z",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547825",
+      "release": "10.6084/m9.figshare.24237376.v4; exhaustive annual scan",
+      "retrieved_at_utc": "2026-09-06T07:44:54.291826Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "2c1b364a3b06aee56326174c4644750ea86ba9be4585c5e40eeb7835431bfc9c",
+      "filtered_sha256": "3a8fc207f718f6db796ab58bbf57ca9df3242e5bd236bd3cad9b24bbc8eb291f",
+      "bytes": 619779314,
+      "etag": "\"8e4e85e81db474a708278aabef1198ec\"",
+      "units": "customers_out: customers; run_start_time UTC",
+      "timezone_conversion": "none; source time is UTC",
+      "filters": "FIPS 12035; [2016-10-07T12:00:00Z,2016-10-07T18:00:00Z); exhaustive annual scan",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547825",
+        "source_file": "eaglei_outages_2016.csv",
+        "source_file_id": 42547825,
+        "source_file_bytes": 619779314,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "approved-storage://event-baseline/annual-source/eaglei_outages_2016.csv",
+        "raw_artifact_sha256": "2c1b364a3b06aee56326174c4644750ea86ba9be4585c5e40eeb7835431bfc9c",
+        "source_sidecar_uri": "approved-storage://event-baseline/annual-source/eaglei_outages_2016.csv.source.json",
+        "source_sidecar_sha256": "d951000a916d0a136c0a0412ce4c67c880663b350398c619437edf1e65692a50",
+        "filtered_artifact_uri": "approved-storage://event-baseline/matthew-2016-12035-20161007120000_eaglei_2016_20161007T120000_20161007T180000.csv",
+        "filtered_artifact_sha256": "3a8fc207f718f6db796ab58bbf57ca9df3242e5bd236bd3cad9b24bbc8eb291f"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "matthew-2016-12035-2016-10-07t12z",
+      "county_fips": "12035",
+      "boundary_vintage": "Census 2024 county-equivalent FIPS",
+      "scenario_id": "matthew-2016-replay",
+      "window_start_utc": "2016-10-07T12:00:00Z",
+      "window_end_utc": "2016-10-07T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nhc-matthew-2016-archive",
+        "ncei-matthew-2016-details",
+        "eaglei-matthew-2016-12035-1218z"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 12:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 12:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 12:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 12:45:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 13:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 13:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 13:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 13:45:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 14:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 14:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 14:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 14:45:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 15:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 15:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 15:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 15:45:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 16:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 16:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 16:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 16:45:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 17:00:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 17:15:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 17:30:00",
+        "eaglei-matthew-2016-12035-1218z:12035|2016-10-07 17:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-matthew-2016-12035-1218z",
+          "county_fips": "12035",
+          "start_utc": "2016-10-07T12:00:00Z",
+          "end_utc": "2016-10-07T18:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "nhc-matthew-2016-archive",
+          "ncei-matthew-2016-details"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "NCEI EVENT_ID 659040 intersects the canonical time window but reports CZ_FIPS 038, not evidence of weather coverage for FIPS 12035.",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "ncei:659040"
+          ],
+          "source_window": {
+            "start_utc": "2016-10-07T12:00:00Z",
+            "end_utc": "2016-10-08T12:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "CZ_FIPS=038",
+          "limitations": "The retained NCEI zone identifier does not match FIPS 12035, so this report cannot establish county weather coverage for the selected record."
+        }
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-matthew-2016-12035-1218z"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "notes": "Exhaustive annual scan returned all 24 expected 15-minute observations for FIPS 12035.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "not_matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "aggregation": "max_customers_out_over_window_samples",
+        "observed_outage_customers": 57341,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

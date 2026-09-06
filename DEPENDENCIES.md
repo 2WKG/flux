@@ -29,8 +29,8 @@ Key imports pass. A DuckDB query passes, and a tiny LightGBM fit passes.
 - physics: pandapower 3.5.3, lightsim2grid, pypsa, scipy, **matpower** (bundles `case_ACTIVSg2000.m`, 10k, 25k, 70k), **matpowercaseframes** (required by pandapower's `.m` importer)
 - ML / causal: lightgbm 4.7.0, scikit-learn, dowhy, econml, pgmpy
 - copilot: fastapi, uvicorn, sse-starlette, anthropic 1.4.0, pydantic, pypdf, rank-bm25, python-dotenv
-- installed extra: `dev` (pytest, ruff, jupyter); `stretch` (grid2op, torch,
-  torch-geometric) remains optional
+- installed extra: `dev` (pytest, ruff, jupyter); `stretch` (grid2op) and
+  `gnn` (torch, torch-geometric) remain optional
 
 Proof the twin dependency chain works end to end:
 
