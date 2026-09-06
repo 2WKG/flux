@@ -47,6 +47,10 @@ class _PersistedInvalid(ValueError):
     """A supposedly qualified score cannot be represented honestly."""
 
 
+class _DeclaredUnavailable(ValueError):
+    """A persisted manifest explicitly says that its result is unavailable."""
+
+
 def _unavailable(reason: str, *, artifact: str, **details: str) -> UnavailableError:
     messages = {
         "database_missing": "The comparison database is unavailable.",
@@ -60,6 +64,7 @@ def _unavailable(reason: str, *, artifact: str, **details: str) -> UnavailableEr
         "invalid_persisted_result": (
             "The persisted result does not contain the required identity or evidence."
         ),
+        "artifact_unavailable": "The requested persisted result is unavailable.",
     }
     return UnavailableError(
         messages[reason], details={"artifact": artifact, "reason": reason, **details}
@@ -204,6 +209,8 @@ def _score_payload(
         regulatory_label,
     ) = row
     artifact_id = _as_string(artifact_id, label="artifact_id")
+    if availability == "unavailable":
+        raise _DeclaredUnavailable("score manifest is unavailable")
     if availability != "available":
         raise _PersistedInvalid("unavailable score has a domain row")
     if model_mode not in {"topology", "aggregate", "not_applicable"}:
@@ -243,6 +250,10 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
         for row in rows:
             try:
                 score, components = _score_payload(con, row)
+            except _DeclaredUnavailable as exc:
+                raise _unavailable(
+                    "artifact_unavailable", artifact="comparison"
+                ) from exc
             except _PersistedInvalid as exc:
                 raise _unavailable(
                     "invalid_persisted_result", artifact="mn_score_results"
@@ -339,6 +350,10 @@ def critical_elements(
                         "runs": runs,
                     }
                 )
+            except _DeclaredUnavailable as exc:
+                raise _unavailable(
+                    "artifact_unavailable", artifact="critical_elements"
+                ) from exc
             except _PersistedInvalid as exc:
                 raise _unavailable(
                     "invalid_persisted_result", artifact="critical_elements"

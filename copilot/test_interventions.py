@@ -38,12 +38,13 @@ def score_artifact(
     score: float = 3.0,
     mode: str = "topology",
     geography_id: str = "mn",
+    availability: str = "available",
 ) -> None:
     with duckdb.connect(str(path)) as con:
         ensure_minnesota_schema(con)
         con.execute(
-            "INSERT INTO mn_artifact_manifests VALUES (?, 'score', ?, ?, 'available', ?, '{}', CURRENT_TIMESTAMP, '[]', '[\"fixture limitation\"]', '[]')",
-            [artifact_id, SCHEMA_VERSION, geography_id, mode],
+            "INSERT INTO mn_artifact_manifests VALUES (?, 'score', ?, ?, ?, ?, '{}', CURRENT_TIMESTAMP, '[]', '[\"fixture limitation\"]', '[]')",
+            [artifact_id, SCHEMA_VERSION, geography_id, availability, mode],
         )
         con.execute(
             "INSERT INTO mn_artifact_provenance VALUES (?, 0, 'fixture:synthetic', 'fixture://score', 'v1', CURRENT_TIMESTAMP, 'test fixture', ?, ?, FALSE)",
@@ -68,7 +69,10 @@ def test_site_read_is_server_side_and_unqualified_comparison_is_unavailable(
     assert response.json()["model_mode"] == "topology"
     assert response.json()["limitations"] == ["fixture limitation"]
     assert response.json()["source_kind"] == "fixture"
-    assert response.json()["provenance"]["site_score"]["source_name"] == "fixture:site-score"
+    assert (
+        response.json()["provenance"]["site_score"]["source_name"]
+        == "fixture:site-score"
+    )
 
     comparison = client(path).post(
         "/compare",
@@ -121,6 +125,23 @@ def test_aggregate_comparison_is_explicitly_unsupported(tmp_path: Path) -> None:
     )
     assert response.status_code == 503
     assert response.json()["error"]["details"]["reason"] == "unsupported_model_mode"
+
+
+def test_line_comparison_reads_a_named_persisted_score(tmp_path: Path) -> None:
+    path = tmp_path / "line-comparison.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:0000000000000003",
+        components='{"scenario_id":"mn_fixture","intervention_id":"line:line-1"}',
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["line:line-1"]},
+    )
+    assert response.status_code == 200
+    assert response.json()["interventions"][0]["intervention_id"] == "line:line-1"
 
 
 def test_critical_elements_use_persisted_values_with_stable_paging(
@@ -177,6 +198,9 @@ def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
         .status_code
         == 503
     )
+    critical = client(path).get("/elements/critical", params={"region": "mn"})
+    assert critical.status_code == 503
+    assert critical.json()["error"]["details"]["reason"] == "missing"
     for identifier in ("site:", "site:1@not-a-number", "site:1@200"):
         assert (
             client(path)
@@ -187,6 +211,28 @@ def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
             .status_code
             == 422
         )
+
+
+def test_declared_unavailable_score_is_not_reported_as_invalid_persisted_data(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "unavailable.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:0000000000000004",
+        availability="unavailable",
+        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "artifact_unavailable"
+
+
 def test_malformed_safety_flags_fail_closed(tmp_path: Path):
     p = tmp_path / "x.duckdb"
     db(p)
