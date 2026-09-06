@@ -31,6 +31,9 @@ class AskContext(BaseModel):
     selected_site_id: str | None = Field(default=None, min_length=1, max_length=128)
     compare_site_id: str | None = Field(default=None, min_length=1, max_length=128)
     selected_element_id: str | None = Field(default=None, min_length=1, max_length=128)
+    selected_physical_asset_id: str | None = Field(
+        default=None, pattern=r"^[A-Za-z0-9._:-]{1,256}$"
+    )
     unit_mw: int | None = Field(default=None)
     region: Literal["texas", "minnesota"] | None = None
     county_fips: str | None = Field(default=None, pattern=r"^\d{5}$")

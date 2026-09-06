@@ -16,6 +16,7 @@ from time import perf_counter
 from types import MappingProxyType
 from typing import Protocol
 
+from copilot.demo.inventory import InventoryEvidence
 from copilot.demo.jepa import DEFAULT_JEPA_ARTIFACT, read_experimental_jepa_forecast
 from copilot.narration import GroundedNarration, narrate
 from copilot.routes.ask import AskRequest
@@ -50,6 +51,12 @@ class CascadeRunner(Protocol):
     ) -> CascadeData | CoreCascadeEvidence | ToolOutput: ...
 
 
+class InventoryReader(Protocol):
+    async def read(
+        self, region: str, selected_physical_asset_id: str | None = None
+    ) -> InventoryEvidence: ...
+
+
 class DeterministicNarrationProvider:
     """A no-network narrator for tool-provenanced results.
 
@@ -71,14 +78,18 @@ class DemoAskBackend:
         provider: AsyncNarrationProvider | None = None,
         *,
         jepa_artifact_path: Path = DEFAULT_JEPA_ARTIFACT,
+        inventory_reader: InventoryReader | None = None,
     ) -> None:
         self._cascade_runner = cascade_runner
         self.provider = provider or DeterministicNarrationProvider()
         self._jepa_artifact_path = jepa_artifact_path
+        self._inventory_reader = inventory_reader
 
     async def turn(self, payload: AskRequest) -> ToolTurn:
         """Build a tool turn. Unsupported prompts are explicit tool failures."""
 
+        if _asks_for_inventory(payload.question):
+            return await _inventory_turn(payload, self._inventory_reader)
         if _asks_for_experimental_forecast(payload.question):
             return _experimental_forecast_turn(payload, self._jepa_artifact_path)
         if not _asks_for_cascade(payload.question):
@@ -183,6 +194,63 @@ def _asks_for_experimental_forecast(question: str) -> bool:
     text = question.casefold()
     return any(
         word in text for word in ("jepa", "trajectory forecast", "count forecast")
+    )
+
+
+def _asks_for_inventory(question: str) -> bool:
+    text = question.casefold()
+    return any(
+        phrase in text
+        for phrase in (
+            "inventory",
+            "source-backed",
+            "source backed",
+            "energy infrastructure",
+            "this asset",
+        )
+    )
+
+
+async def _inventory_turn(
+    payload: AskRequest, reader: InventoryReader | None
+) -> ToolTurn:
+    context = payload.context
+    if (
+        context is None
+        or context.view_mode != "physical_inventory"
+        or context.region is None
+    ):
+        return _unavailable_turn(
+            payload,
+            "Select a physical-inventory map region before requesting its source inventory.",
+        )
+    if reader is None:
+        return _unavailable_turn(
+            payload, "The physical-inventory reader is not configured."
+        )
+    evidence = await reader.read(context.region, context.selected_physical_asset_id)
+    if evidence.status == "unavailable":
+        return _unavailable_turn(
+            payload,
+            evidence.reason
+            or "The selected physical-inventory release is unavailable.",
+        )
+    return ToolTurn(
+        call_id=f"inventory:{payload.attempt_id}",
+        tool="physical_inventory",
+        input={
+            "region": context.region,
+            "view_mode": context.view_mode,
+            "selected_physical_asset_id": context.selected_physical_asset_id,
+        },
+        narration=GroundedNarration(
+            status="available",
+            text="The selected physical-inventory release and its source records are available in the tool card.",
+            evidence=MappingProxyType(dict(evidence.data)),
+            provenance=evidence.provenance,
+            citations=(),
+            limitations=evidence.limitations,
+        ),
     )
 
 

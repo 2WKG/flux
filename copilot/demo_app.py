@@ -31,6 +31,7 @@ _interactive_service = create_interactive_service(
 _demo_backend = build_demo_ask_backend(
     duckdb_path=_settings.duckdb_path,
     case_path=_case_path,
+    physical_inventory_root=_settings.physical_inventory_root,
     jepa_artifact_path=(
         _repository_root
         / "data/artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json"

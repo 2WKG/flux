@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from gzip import open as gzip_open
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.demo.ask_backend import CoreCascadeEvidence, DemoAskBackend
+from copilot.demo.inventory import PhysicalInventoryReader
 from copilot.tools.schemas import ArtifactRef, CascadeData, TrippedElement
 
 ATTEMPT = "demo_cascade_0123456789"
@@ -102,15 +104,81 @@ def _events(response) -> list[tuple[str, dict[str, object]]]:
 
 
 def _client(
-    runner: _ActualRunner, *, jepa_artifact_path: Path | None = None
+    runner: _ActualRunner,
+    *,
+    jepa_artifact_path: Path | None = None,
+    inventory_reader: PhysicalInventoryReader | None = None,
 ) -> TestClient:
     backend = DemoAskBackend(
         runner,
         **({"jepa_artifact_path": jepa_artifact_path} if jepa_artifact_path else {}),
+        **({"inventory_reader": inventory_reader} if inventory_reader else {}),
     )
     return TestClient(
         create_app(Settings(duckdb_path="data/duck/grid.duckdb"), ask_backend=backend)
     )
+
+
+def _physical_inventory_reader() -> PhysicalInventoryReader:
+    return PhysicalInventoryReader(Path("data/artifacts/physical_inventory"))
+
+
+def _first_tx_asset_id() -> str:
+    path = Path("data/artifacts/physical_inventory/tx/physical-inventory-1.1.0.json.gz")
+    with gzip_open(path, "rt", encoding="utf-8") as stream:
+        release = json.load(stream)
+    return str(release["assets"][0]["asset_id"])
+
+
+def test_inventory_questions_use_the_verified_physical_release_not_cascade() -> None:
+    runner = _ActualRunner()
+    response = _client(runner, inventory_reader=_physical_inventory_reader()).post(
+        "/ask",
+        json={
+            "attempt_id": ATTEMPT,
+            "question": "What energy infrastructure is here?",
+            "context": {"region": "texas", "view_mode": "physical_inventory"},
+            "history": [],
+        },
+    )
+
+    events = _events(response)
+    assert [event for event, _ in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "text",
+        "done",
+    ]
+    assert runner.calls == []
+    assert events[1][1]["tool"] == "physical_inventory"
+    result = events[2][1]["result"]
+    assert result["region"] == "texas"
+    assert result["source_records"]
+    assert result["selected_asset"] is None
+
+
+def test_selected_physical_asset_is_resolved_from_the_verified_release() -> None:
+    response = _client(
+        _ActualRunner(), inventory_reader=_physical_inventory_reader()
+    ).post(
+        "/ask",
+        json={
+            "attempt_id": ATTEMPT,
+            "question": "Tell me about this asset.",
+            "context": {
+                "region": "texas",
+                "view_mode": "physical_inventory",
+                "selected_physical_asset_id": _first_tx_asset_id(),
+            },
+            "history": [],
+        },
+    )
+
+    result = _events(response)[2][1]["result"]
+    selected = result["selected_asset"]
+    assert selected["asset_id"] == _first_tx_asset_id()
+    assert selected["source"]["source_ref"]
 
 
 def test_existing_ask_http_path_runs_a_provenanced_cascade_tool_and_streams_plain_text() -> (
