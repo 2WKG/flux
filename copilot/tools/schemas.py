@@ -135,14 +135,14 @@ _SQL_INPUT_XOR_SCHEMA = {
                 "query": {"type": "string"},
                 "template_id": {"type": "null"},
             },
-            "required": ["query", "template_id"],
+            "required": ["query"],
         },
         {
             "properties": {
                 "query": {"type": "null"},
                 "template_id": {"type": "string"},
             },
-            "required": ["query", "template_id"],
+            "required": ["template_id"],
         },
     ]
 }

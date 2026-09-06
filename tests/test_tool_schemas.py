@@ -157,13 +157,17 @@ def test_exported_sql_contract_keeps_the_xor_in_json_schema_and_typescript() -> 
     schema = {"$ref": "#/$defs/SqlInput", "$defs": document["$defs"]}
     validator = Draft202012Validator(schema)
 
+    # The exported public contract preserves the original query-only form;
+    # strict provider schemas add the explicit null companion above.
+    assert validator.is_valid({"query": "SELECT 1"})
+    assert validator.is_valid({"template_id": "summary_rows"})
     assert validator.is_valid({"query": "SELECT 1", "template_id": None})
     assert validator.is_valid({"query": None, "template_id": "summary_rows"})
     assert not validator.is_valid({"query": None, "template_id": None})
     assert not validator.is_valid({"query": "SELECT 1", "template_id": "summary_rows"})
     assert (
         "export type SqlInput = { query?: string | null; template_id?: string | null; } "
-        "& ({ query: string; template_id: null; } | { query: null; template_id: string; });"
+        "& ({ query: string; template_id?: null; } | { query?: null; template_id: string; });"
         in render_ts(document)
     )
 
