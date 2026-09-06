@@ -8,7 +8,7 @@ function assertBoundedRequest(requests: readonly { url: string; method: string }
     expect(request.method).toBe("GET");
     const url = new URL(request.url);
     if (url.origin === baseURL) {
-      expect(url.pathname).not.toMatch(/^\/(?:ask|api|model|provider)(?:\/|$)/);
+      expect(url.pathname === "/" || url.pathname === "/favicon.ico" || url.pathname.startsWith("/assets/")).toBeTruthy();
       continue;
     }
     expect(url.hostname).toBe(openFreeMapHost);
