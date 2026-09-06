@@ -7,6 +7,14 @@ import {fileURLToPath} from 'node:url';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const lockRoot = path.join(root, 'data/3d/packs/flux-grid-v1');
 const catalogRelative = 'data/3d/asset-archetypes-v1.json';
+const releaseReceiptRelative = 'releases/flux-grid-runtime-v1-20260906.json';
+const publishedRelease = Object.freeze({
+  release_tag: 'flux-grid-runtime-v1-20260906',
+  asset_filename: 'flux-grid-runtime-v1-20260906T103700Z.zip',
+  archive_sha256: '44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78',
+  runtime_manifest_sha256: '068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b',
+  release_contents: {archetypes: 18, glb_files: 54, preview_png_files: 18},
+});
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 
 export function runtimeInventory(text) {
@@ -33,13 +41,18 @@ export function parseReviewedJson(bytes, label, location) {
   }
 }
 
-export function validateRuntimeManifest(manifest, inventory, catalogBytes) {
+export function validateRuntimeManifest(manifest, inventory, catalogBytes, {completion} = {}) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) throw new Error('Invalid reviewed runtime manifest.');
-  if (manifest.completion !== 'source_only_binaries_unpublished') throw new Error('Reviewed runtime manifest has an unsupported completion state.');
+  const validCompletions=new Set(['source_only_binaries_unpublished','complete_locally_generated']);
+  if (!validCompletions.has(manifest.completion) || (completion && manifest.completion!==completion)) throw new Error('Reviewed runtime manifest has an unsupported completion state.');
   if (!Array.isArray(manifest.assets) || manifest.assets.length !== 18) throw new Error('Reviewed runtime manifest must declare 18 assets.');
-  const contract = manifest.source_contract;
-  if (!contract || typeof contract !== 'object' || contract.file !== catalogRelative) throw new Error(`Reviewed runtime manifest must pin the frozen catalog: ${catalogRelative}`);
-  if (typeof contract.sha256 !== 'string' || contract.sha256 !== digest(catalogBytes)) throw new Error('Reviewed runtime manifest source contract does not match the frozen catalog bytes.');
+  if (manifest.completion==='source_only_binaries_unpublished') {
+    const contract = manifest.source_contract;
+    if (!contract || typeof contract !== 'object' || contract.file !== catalogRelative) throw new Error(`Reviewed runtime manifest must pin the frozen catalog: ${catalogRelative}`);
+    if (typeof contract.sha256 !== 'string' || contract.sha256 !== digest(catalogBytes)) throw new Error('Reviewed runtime manifest source contract does not match the frozen catalog bytes.');
+  } else if (manifest.contract_id!=='flux:3d-asset-archetypes:v1' || manifest.package_name!=='flux-grid-assets-runtime' || manifest.runtime_base_url!=='/assets/flux-grid/' || manifest.status_material!=='MAT_STATUS') {
+    throw new Error('Published runtime manifest has an unsupported complete-local shape.');
+  }
   const catalog = parseReviewedJson(catalogBytes, 'frozen asset archetype catalog', catalogRelative);
   if (!Array.isArray(catalog.archetypes) || catalog.archetypes.length === 0) throw new Error('Frozen asset archetype catalog declares no archetypes.');
   const known = new Set(catalog.archetypes.map(entry => entry?.id));
@@ -64,8 +77,39 @@ export function validateRuntimeManifest(manifest, inventory, catalogBytes) {
   // Defensive: 18 assets x 3 uniquely-pinned LODs already forces 54, so this line
   // cannot be reached from a manifest that passes the checks above.
   if (resources.size !== 54) throw new Error('Reviewed runtime manifest must declare 54 distinct model resources.');
-  const totals = manifest.totals;
-  if (!totals || typeof totals !== 'object' || totals.archetypes !== manifest.assets.length || totals.glb_files !== resources.size) throw new Error(`Reviewed runtime manifest totals disagree with its assets: expected ${manifest.assets.length} archetypes and ${resources.size} model resources.`);
+  if (manifest.completion==='source_only_binaries_unpublished') {
+    const totals = manifest.totals;
+    if (!totals || typeof totals !== 'object' || totals.archetypes !== manifest.assets.length || totals.glb_files !== resources.size) throw new Error(`Reviewed runtime manifest totals disagree with its assets: expected ${manifest.assets.length} archetypes and ${resources.size} model resources.`);
+  }
+}
+
+export function validatePublishedReleaseReceipt(receipt, catalogBytes) {
+  if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) throw new Error('Invalid published release receipt.');
+  for (const [key,value] of Object.entries(publishedRelease)) {
+    if (JSON.stringify(receipt[key]) !== JSON.stringify(value)) throw new Error(`Published release receipt does not pin ${key}.`);
+  }
+  if (receipt.publication_status!=='published_external_attachment_verified') throw new Error('Published release receipt is not verified as attached.');
+  if (receipt.source_contract?.file!==catalogRelative || receipt.source_contract.sha256!==digest(catalogBytes)) throw new Error('Published release receipt source contract does not match the frozen catalog bytes.');
+  return publishedRelease;
+}
+
+async function verifiedPublishedRelease(packRoot, catalogBytes, archivePath) {
+  if (!archivePath) throw new Error('Installer requires a verified published archive path.');
+  const receiptBytes=await readFile(path.join(packRoot,releaseReceiptRelative));
+  const receipt=parseReviewedJson(receiptBytes,'published release receipt',path.join(packRoot,releaseReceiptRelative));
+  const release=validatePublishedReleaseReceipt(receipt,catalogBytes);
+  await rejectSymlinks(path.dirname(archivePath),path.basename(archivePath));
+  if (digest(await readFile(archivePath))!==release.archive_sha256) throw new Error('Published release archive checksum mismatch.');
+  return release;
+}
+
+function validatePublishedPackageShape(inventory, release) {
+  const glbs=inventory.filter(file=>file.relative.endsWith('.glb'));
+  const previews=inventory.filter(file=>file.relative.endsWith('.preview.png'));
+  const metadata=inventory.filter(file=>file.relative.endsWith('.meta.json'));
+  if (inventory.length!==96 || glbs.length!==release.release_contents.glb_files || previews.length!==release.release_contents.preview_png_files || metadata.length!==release.release_contents.archetypes || !inventory.some(file=>file.relative==='manifest.json')) {
+    throw new Error('Published runtime package has an incomplete or unsupported shape.');
+  }
 }
 
 async function rejectSymlinks(base, relative) {
@@ -80,13 +124,17 @@ async function rejectSymlinks(base, relative) {
   }
 }
 
-export async function installFluxGridPack(packageRoot, repoRoot = root, {packRoot = lockRoot, catalogRoot = root} = {}) {
+export async function installFluxGridPack(packageRoot, repoRoot = root, {packRoot = lockRoot, catalogRoot = root, archivePath} = {}) {
   await lstat(path.join(repoRoot, 'web/package.json'));
-  const manifestPath = path.join(packRoot, 'manifest.json');
-  const manifestBytes = await readFile(manifestPath);
-  const inventory = runtimeInventory(await readFile(path.join(packRoot, 'package.SHA256SUMS'), 'utf8'));
+  await rejectSymlinks(path.dirname(packageRoot),path.basename(packageRoot));
   const catalogBytes = await readFile(path.join(catalogRoot, catalogRelative));
-  validateRuntimeManifest(parseReviewedJson(manifestBytes, 'reviewed runtime manifest', manifestPath), inventory, catalogBytes);
+  const release=await verifiedPublishedRelease(packRoot,catalogBytes,archivePath);
+  const manifestPath = path.join(packageRoot, 'manifest.json');
+  const manifestBytes = await readFile(manifestPath);
+  if (digest(manifestBytes)!==release.runtime_manifest_sha256) throw new Error('Published release runtime manifest checksum mismatch.');
+  const inventory = runtimeInventory(await readFile(path.join(packageRoot, 'package.SHA256SUMS'), 'utf8'));
+  validatePublishedPackageShape(inventory,release);
+  validateRuntimeManifest(parseReviewedJson(manifestBytes, 'published runtime manifest', manifestPath), inventory, catalogBytes, {completion:'complete_locally_generated'});
   const candidates = [];
   for (const {expected, relative} of inventory) {
     await rejectSymlinks(packageRoot, relative);
@@ -113,6 +161,6 @@ export async function installFluxGridPack(packageRoot, repoRoot = root, {packRoo
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  if (!process.argv[2]) throw new Error('Usage: node scripts/install_flux_grid_pack.mjs /path/to/extracted/flux-grid-assets');
-  console.log(JSON.stringify(await installFluxGridPack(path.resolve(process.argv[2])), null, 2));
+  if (!process.argv[2] || !process.argv[3]) throw new Error('Usage: node scripts/install_flux_grid_pack.mjs /path/to/extracted/flux-grid-assets /path/to/verified-release.zip');
+  console.log(JSON.stringify(await installFluxGridPack(path.resolve(process.argv[2]),root,{archivePath:path.resolve(process.argv[3])}), null, 2));
 }

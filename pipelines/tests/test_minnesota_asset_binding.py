@@ -11,6 +11,8 @@ from pipelines.minnesota_asset_binding import (
     AssetBindingError,
     bind_asset,
     bind_from_files,
+    bind_later_infrastructure,
+    bind_later_infrastructure_from_files,
 )
 from pipelines.minnesota_schema import ensure_minnesota_schema
 
@@ -18,6 +20,12 @@ ROOT = Path(__file__).resolve().parents[2]
 
 CATALOG_PATH = ROOT / "data/3d/asset-archetypes-v1.json"
 INVENTORY_PATH = ROOT / "data/sources/minnesota-accepted-artifact-inventory.json"
+LATER_INFRASTRUCTURE_REQUEST_PATH = (
+    ROOT / "data/3d/requests/minnesota-later-infrastructure-v1.json"
+)
+LATER_INFRASTRUCTURE_RECEIPT_PATH = (
+    ROOT / "data/3d/receipts/minnesota-later-infrastructure-binding-v1.json"
+)
 
 ACCEPTED_ARTIFACT = "mn:scene:coverage:v1"
 ACCEPTED_SCENE = "mn:scene:coverage:v1:facility-1"
@@ -31,6 +39,10 @@ def _catalog() -> dict:
 
 def _inventory() -> dict:
     return json.loads(INVENTORY_PATH.read_text())
+
+
+def _later_infrastructure_request() -> dict:
+    return json.loads(LATER_INFRASTRUCTURE_REQUEST_PATH.read_text())
 
 
 def _model(archetype_id: str = "transmission_line_segment") -> dict:
@@ -414,3 +426,64 @@ def test_bind_from_files_previews_when_storage_has_no_manifest(tmp_path):
 
     assert binding["render_mode"] == "catalog_preview"
     assert "no mn_artifact_manifests row" in binding["disclosure"]
+
+
+# --- 2WKG-402 later-infrastructure runtime binding ---------------------------
+
+
+def test_later_infrastructure_request_binds_all_four_as_non_geographic_previews(
+    tmp_path,
+):
+    """Published geometry stays unplaced until Minnesota evidence is accepted."""
+    binding = bind_later_infrastructure(
+        _db(tmp_path), _catalog(), _inventory(), _later_infrastructure_request()
+    )
+
+    assert binding["runtime_release"] == {
+        "tag": "flux-grid-runtime-v1-20260906",
+        "archive_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+        "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+        "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+    }
+    assert binding["summary"] == {"total": 4, "placed": 0, "catalog_previews": 4}
+    assert [asset["archetype_id"] for asset in binding["assets"]] == [
+        "battery_storage",
+        "warehouse_logistics_center",
+        "school_emergency_services",
+        "ev_charging_station",
+    ]
+    assert all(asset["render_mode"] == "catalog_preview" for asset in binding["assets"])
+    assert all("coordinates" not in asset for asset in binding["assets"])
+    assert all(
+        "no accepted Minnesota placement artifact" in asset["disclosure"]
+        for asset in binding["assets"]
+    )
+
+
+def test_later_infrastructure_refuses_release_drift_or_a_partial_pack(tmp_path):
+    request = _later_infrastructure_request()
+    request["runtime_release"]["archive_sha256"] = "0" * 64
+    with pytest.raises(AssetBindingError, match="verified Flux Grid runtime release"):
+        bind_later_infrastructure(_db(tmp_path), _catalog(), _inventory(), request)
+
+    request = _later_infrastructure_request()
+    request["assets"] = request["assets"][:-1]
+    with pytest.raises(AssetBindingError, match="exactly the four 2WKG-402"):
+        bind_later_infrastructure(_db(tmp_path), _catalog(), _inventory(), request)
+
+
+def test_later_infrastructure_file_entry_and_readback_receipt_match(tmp_path):
+    db_path = tmp_path / "mn.duckdb"
+    con = duckdb.connect(str(db_path))
+    ensure_minnesota_schema(con)
+    con.close()
+
+    binding = bind_later_infrastructure_from_files(
+        CATALOG_PATH, INVENTORY_PATH, LATER_INFRASTRUCTURE_REQUEST_PATH, db_path
+    )
+    receipt = json.loads(LATER_INFRASTRUCTURE_RECEIPT_PATH.read_text())
+
+    assert receipt["runtime_release"] == binding["runtime_release"]
+    assert receipt["binding"] == binding
+    assert receipt["installer"]["status"] == "installed"
+    assert receipt["placement_status"] == "unavailable"

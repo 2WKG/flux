@@ -1,0 +1,52 @@
+{
+  "format": "flux:minnesota-later-infrastructure-binding:v1",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "runtime_release": {
+    "tag": "flux-grid-runtime-v1-20260906",
+    "archive_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+    "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+    "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b"
+  },
+  "assets": [
+    {
+      "model": {
+        "archetype_id": "battery_storage",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/battery_storage/battery_storage.glb",
+        "footprint_m": {"length": 80, "width": 50},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 18000, "lod1": 7000, "lod2": 2000}
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "warehouse_logistics_center",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/warehouse_logistics_center/warehouse_logistics_center.glb",
+        "footprint_m": {"length": 180, "width": 120},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 20000, "lod1": 7500, "lod2": 2200}
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "school_emergency_services",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/school_emergency_services/school_emergency_services.glb",
+        "footprint_m": {"length": 100, "width": 70},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 22000, "lod1": 8500, "lod2": 2400}
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "ev_charging_station",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/ev_charging_station/ev_charging_station.glb",
+        "footprint_m": {"length": 40, "width": 25},
+        "connectors": ["MV_FEED"],
+        "lod_triangles": {"lod0": 14000, "lod1": 5000, "lod2": 1500}
+      }
+    }
+  ]
+}
