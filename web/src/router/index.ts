@@ -42,7 +42,7 @@ export const ROUTES: readonly Route[] = [
     label: "Scenario explorer",
     title: "Flux | Resilience desk",
     truthLabels: ["synthetic"],
-    truthNote: "Every figure on this page is read from the checked-in five-bus fixture.",
+    truthNote: "This page renders the backend-served static synthetic ACTIVSg2000 network artifact; it is not a numerical solve or a physical-grid claim.",
   },
   {
     id: "explainer",

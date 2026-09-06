@@ -61,28 +61,22 @@ test("API-shaped paths state that this static origin is unavailable", async () =
   }
 });
 
-test("every response carries a CSP that names no off-origin source", async () => {
+test("every response carries a CSP that names no off-origin source and permits only WebAssembly evaluation", async () => {
   const get = await origin();
   for (const path of ["/", "/assets/app.js", "/api/demo", "/anything"]) {
     const response = await get(path);
     assert.equal(response.csp, CONTENT_SECURITY_POLICY, `${path} served without the policy`);
   }
+  assert.match(CONTENT_SECURITY_POLICY, /script-src 'self' 'wasm-unsafe-eval'/);
+  assert.doesNotMatch(CONTENT_SECURITY_POLICY, /'unsafe-eval'/);
   for (const directive of CONTENT_SECURITY_POLICY.split("; ")) {
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
       assert.ok(
-        // `'wasm-unsafe-eval'` permits compiling a WebAssembly module and
-        // nothing else -- it names no source, so it cannot reach any server,
-        // off-origin or otherwise. deck.gl's WebGL runtime needs it.
         ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
-  }
-  // The relaxation is bounded: the broad script-eval permissions stay refused,
-  // so `'wasm-unsafe-eval'` cannot be widened into `'unsafe-eval'` unnoticed.
-  for (const forbidden of ["'unsafe-eval'", "'unsafe-hashes'", "*"]) {
-    assert.ok(!CONTENT_SECURITY_POLICY.includes(forbidden), `the policy allows ${forbidden}`);
   }
 });
 
@@ -121,7 +115,7 @@ test("with no API origin configured, every allowlisted path refuses by name", as
   // the answer is never the shell.
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/health", "/scenarios", "/scenarios/baseline", "/api/v1/grid/layers/line", "/layers/buses"]) {
+  for (const path of ["/demo/model", "/health", "/scenarios", "/scenarios/baseline", "/api/v1/grid/layers/line", "/layers/buses"]) {
     const response = await get(path);
     assert.equal(response.status, 503, `${path} must refuse, not answer`);
     assert.match(response.type, /json/, `${path} must refuse in the envelope's own media type`);
@@ -172,9 +166,11 @@ test("a configured API origin forwards only the allowlisted read paths", async (
   });
   const base = await proxyOrigin(api);
 
-  const forwarded = await fetch(`${base}/api/v1/grid/layers/line?state=mn&limit=100`);
-  assert.equal(forwarded.status, 200);
-  assert.deepEqual(await forwarded.json(), { ok: true, url: "/api/v1/grid/layers/line?state=mn&limit=100" });
+  for (const path of ["/api/v1/grid/layers/line?state=mn&limit=100", "/demo/model?element_id=bus%3A1"]) {
+    const forwarded = await fetch(`${base}${path}`);
+    assert.equal(forwarded.status, 200);
+    assert.deepEqual(await forwarded.json(), { ok: true, url: path });
+  }
 
   // Not on the table: a path outside it, and a method outside it. Neither may
   // reach the upstream -- which the `seen` assertion at the end proves. What
@@ -194,7 +190,7 @@ test("a configured API origin forwards only the allowlisted read paths", async (
   // static origin has no POST route, so it 404s here rather than reaching the API.
   const wrongMethod = await fetch(`${base}/health`, { method: "POST" });
   assert.equal(wrongMethod.status, 404, "POST /health must not be forwarded");
-  assert.deepEqual(seen, ["GET /api/v1/grid/layers/line?state=mn&limit=100"]);
+  assert.deepEqual(seen, ["GET /api/v1/grid/layers/line?state=mn&limit=100", "GET /demo/model?element_id=bus%3A1"]);
 });
 
 test("an unreachable upstream answers in the failure-envelope shape, not an HTML error page", async () => {
@@ -223,4 +219,21 @@ test("there is no second application entry to serve", async () => {
   const scripts = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../package.json", import.meta.url), "utf8"));
   assert.ok(!scripts.includes("dist-map"), "a second application dist is configured again");
   assert.ok(!scripts.includes("build:map"), "a second application build entry is configured again");
+});
+
+
+test("a partially streamed upstream timeout closes that response without taking down the proxy", async () => {
+  const api = await upstream((_req, res) => {
+    res.writeHead(200, { "content-type": "model/gltf-binary" });
+    res.write(Buffer.from([0x67, 0x6c, 0x54, 0x46]));
+    // Deliberately never end: the proxy timeout must contain the stream error.
+  });
+  const server = createApp({ apiOrigin: api, proxyTimeoutMs: 25 }).listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  servers.push(server);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${base}/assets/flux-grid/manifest.json`);
+  await assert.rejects(response.arrayBuffer(), /abort|terminated|fetch/i);
+  const health = await fetch(`${base}/health`);
+  assert.equal(health.status, 200, "the proxy remains alive after the truncated stream");
 });
