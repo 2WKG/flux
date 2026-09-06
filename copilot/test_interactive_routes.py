@@ -1,6 +1,7 @@
 """Actual HTTP contracts for the opt-in interactive simulation router."""
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -9,7 +10,12 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
-from copilot.interactive_routes import create_interactive_router
+from copilot.interactive_routes import (
+    CascadeRequest,
+    ScenarioEditRequest,
+    create_interactive_router,
+    create_interactive_service,
+)
 
 
 class _Net(dict):
@@ -34,7 +40,11 @@ def _client(monkeypatch) -> TestClient:
     monkeypatch.setitem(sys.modules, "twin.build", build)
     settings = Settings(duckdb_path=Path("/tmp/grid.duckdb"), cors_origins=("http://localhost:5173",))
     app = create_app(settings)
-    app.include_router(create_interactive_router(duckdb_path=settings.duckdb_path, case_path=Path("/tmp/case.m")))
+    service = create_interactive_service(
+        duckdb_path=settings.duckdb_path, case_path=Path("/tmp/case.m")
+    )
+    app.state.interactive_service = service
+    app.include_router(create_interactive_router(service=service))
     return TestClient(app)
 
 
@@ -65,6 +75,32 @@ def test_unknown_or_malformed_edits_fail_explicitly(monkeypatch):
     client = _client(monkeypatch)
     assert client.get("/interactive/balance", params={"scope": "edit", "edit_hash": "a" * 16}).status_code == 404
     assert client.post("/interactive/scenario/edit", json={"base_scenario_id": "uri", "ops": []}).status_code == 422
+
+
+def test_service_and_router_share_an_immutable_edit_registry(monkeypatch):
+    client = _client(monkeypatch)
+    service = client.app.state.interactive_service
+    edit = asyncio.run(service.scenario_edit(
+        ScenarioEditRequest.model_validate({
+            "base_scenario_id": "uri", "ops": [{"op": "outage", "element_id": "line:7"}]
+        })
+    ))
+    result = client.post(
+        "/interactive/cascade",
+        json={
+            "element_ids": ["line:7"],
+            "scenario_id": "uri",
+            "hour": 0,
+            "edit_hash": edit["data"]["edit_hash"],
+        },
+    )
+    assert result.status_code == 200
+    direct = asyncio.run(service.cascade(
+        CascadeRequest.model_validate(
+            {"element_ids": ["line:7"], "scenario_id": "uri", "hour": 0, "edit_hash": edit["data"]["edit_hash"]}
+        )
+    ))
+    assert direct["data"]["run_id"] == "run"
 
 
 def test_core_unavailability_is_never_a_plausible_default(monkeypatch):
