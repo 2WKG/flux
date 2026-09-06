@@ -224,11 +224,28 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
             slice_end = _utc(_require(source_slice, "end_utc", slice_prefix), f"{slice_prefix}.end_utc")
             if slice_end <= slice_start:
                 raise ValidationError(f"{slice_prefix}: end must be after start")
+        slice_receipt_ids = {source_slice["receipt_id"] for source_slice in record["source_slices"]}
+        for source_key in record["source_row_keys"]:
+            receipt_id, separator, native_key = source_key.partition(":")
+            if not separator or not native_key or receipt_id not in slice_receipt_ids:
+                raise ValidationError(f"{prefix}.source_row_keys: each key must be <slice receipt_id>:<source-native-row-key>")
         for coverage_name in ("weather", "outage"):
             coverage = record[coverage_name]
             if not isinstance(coverage, dict) or coverage.get("coverage") not in {"covered", "uncovered", "UncoveredLabel"}:
                 raise ValidationError(f"{prefix}.{coverage_name}: invalid coverage state")
             _receipt_ids(coverage.get("source_receipt_ids"), known_receipts, f"{prefix}.{coverage_name}.source_receipt_ids", required=record["disposition"] == "accepted")
+            for field in ("expected_samples", "observed_samples", "missing_timestamps", "notes"):
+                _require(coverage, field, f"{prefix}.{coverage_name}")
+            expected, observed, missing = coverage["expected_samples"], coverage["observed_samples"], coverage["missing_timestamps"]
+            if not isinstance(missing, list):
+                raise ValidationError(f"{prefix}.{coverage_name}.missing_timestamps: expected list")
+            for timestamp in missing:
+                _utc(timestamp, f"{prefix}.{coverage_name}.missing_timestamps")
+            if coverage["coverage"] == "covered":
+                if not isinstance(expected, int) or expected <= 0 or observed != expected or missing:
+                    raise ValidationError(f"{prefix}.{coverage_name}: covered requires complete expected/observed samples and no gaps")
+            elif expected is not None and (not isinstance(observed, int) or observed > expected):
+                raise ValidationError(f"{prefix}.{coverage_name}: observed samples may not exceed expected samples")
         weather_state, outage_state = record["weather"]["coverage"], record["outage"]["coverage"]
         if record["disposition"] == "accepted" and (weather_state != "covered" or outage_state != "covered" or record["matched_coverage_decision"] != "matched"):
             raise ValidationError(f"{prefix}: accepted requires matched covered weather and outage evidence")

@@ -41,10 +41,10 @@ def bundle() -> dict:
             "scenario_id": "test-scenario", "window_start_utc": "2021-01-01T06:00:00Z", "window_end_utc": "2021-01-01T12:00:00Z",
             "disposition": "accepted", "mode": "replay", "provenance_receipt_ids": ["source_receipt"],
             "source_evidence_status": "available",
-            "source_row_keys": ["test-provider:test-release:27053:2021-01-01T06:00:00Z"],
+            "source_row_keys": ["source_receipt:test-release:27053:2021-01-01T06:00:00Z"],
             "source_slices": [{"receipt_id": "source_receipt", "county_fips": "27053", "start_utc": "2021-01-01T06:00:00Z", "end_utc": "2021-01-01T12:00:00Z"}],
-            "weather": {"coverage": "covered", "source_receipt_ids": ["source_receipt"], "notes": "fixture"},
-            "outage": {"coverage": "covered", "source_receipt_ids": ["source_receipt"], "notes": "fixture"},
+            "weather": {"coverage": "covered", "source_receipt_ids": ["source_receipt"], "expected_samples": 6, "observed_samples": 6, "missing_timestamps": [], "notes": "fixture"},
+            "outage": {"coverage": "covered", "source_receipt_ids": ["source_receipt"], "expected_samples": 6, "observed_samples": 6, "missing_timestamps": [], "notes": "fixture"},
             "matched_coverage_decision": "matched",
             "label": {"rule_version": "county_outage_5pct_v1", "status": "computed", "observed_outage_customers": 5, "customer_denominator": {"status": "available", "value": 100}, "outage_rate": 0.05, "positive": True},
             "forecast": {"prediction_cutoff_utc": None, "forecast_evaluation": "not_forecast_scored", "inputs": []},
@@ -64,6 +64,13 @@ def test_uncovered_eaglei_label_cannot_be_accepted() -> None:
         validator.validate_bundle(candidate)
 
 
+def test_accepted_row_rejects_partial_outage_coverage() -> None:
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["outage"].update({"observed_samples": 5, "missing_timestamps": ["2021-01-01T11:00:00Z"]})
+    with pytest.raises(validator.ValidationError, match="complete expected/observed"):
+        validator.validate_bundle(candidate)
+
+
 def test_missing_denominator_is_honest_accepted_observation() -> None:
     candidate = copy.deepcopy(bundle())
     candidate["records"][0]["label"].update({"status": "unavailable", "observed_outage_customers": 5, "customer_denominator": {"status": "unavailable", "value": None}, "outage_rate": None, "positive": None})
@@ -75,8 +82,8 @@ def test_candidate_without_fetched_rows_does_not_need_invented_source_keys() -> 
     candidate["event"]["disposition"] = "candidate_only"
     record = candidate["records"][0]
     record.update({"disposition": "candidate_only", "source_evidence_status": "unavailable", "source_row_keys": [], "source_slices": [], "provenance_receipt_ids": []})
-    record["weather"] = {"coverage": "uncovered", "source_receipt_ids": [], "notes": "not fetched"}
-    record["outage"] = {"coverage": "UncoveredLabel", "source_receipt_ids": [], "notes": "not fetched"}
+    record["weather"] = {"coverage": "uncovered", "source_receipt_ids": [], "expected_samples": None, "observed_samples": None, "missing_timestamps": [], "notes": "not fetched"}
+    record["outage"] = {"coverage": "UncoveredLabel", "source_receipt_ids": [], "expected_samples": None, "observed_samples": None, "missing_timestamps": [], "notes": "not fetched"}
     record["matched_coverage_decision"] = "unavailable"
     record["label"].update({"status": "UncoveredLabel", "observed_outage_customers": None, "outage_rate": None, "positive": None})
     validator.validate_bundle(candidate)
