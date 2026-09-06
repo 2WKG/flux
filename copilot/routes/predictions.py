@@ -1,4 +1,4 @@
-"""Read-only qualified-prediction and persisted-cascade reads.
+"""Read-only qualified-prediction and persisted-cascade reads (2WKG-104).
 
 ``GET /predictions`` returns the bare array pinned by ``docs/specs/05-copilot.md``
 §Routes: one element per ``outage_predictions`` row whose provenance cites an
@@ -9,14 +9,22 @@ qualified row is never hidden behind unqualified ones.  Heuristic rows cite no
 evaluation and are therefore never "qualified"; an artifact holding only such
 rows is ``no_qualified_prediction``, by design.
 
-``GET /cascade`` returns one persisted ``cascade_runs`` run, unwrapped, in the
-spec-05 cascade layer shape ``{run_id, scenario_id, hours:[...], provenance,
-attributes}``.  ``lost_load_mw`` and the topology label come from the row's own
-columns and provenance (``pipelines.db`` ``PROVENANCE_COLUMNS``), never from a
-constant.  With no ``run_id`` the "latest" run is the one with the greatest
-``source_retrieved_at`` (the only timestamp the table carries); runs without it
-sort last and ties fall back to lexical ``run_id`` order — there is no run
-timestamp column, so this is documented rather than pretended.
+``GET /cascade`` returns one persisted ``cascade_runs`` run, unwrapped.  A run is
+eligible only when the Minnesota artifact metadata qualifies it: its
+``mn_model_results`` row is ``validated``, its ``mn_artifact_manifests`` row is
+``available`` with ``model_mode = 'topology'``, and the manifest has provenance
+rows.  The payload is the spec-05 cascade layer shape plus the artifact's own
+metadata: ``{run_id, scenario_id, artifact_id, model_mode, geography_id,
+hours:[{hour, tripped_element_ids, lost_load_mw, counties_dark,
+critical_loads_lost}], provenance:[...], limitations:[...], source_kind,
+topology, attributes}``.  ``lost_load_mw`` is read from the row (MW, see
+``CASCADE_ATTRIBUTES``); ``source_kind``/``topology`` are derived from the
+artifact's and the row's persisted provenance, never from a constant — a run
+whose provenance supports neither label is ``topology_label_unavailable``.
+With no ``run_id`` the "latest" run is the qualified run whose manifest has the
+greatest ``created_at`` (the only run-level timestamp persisted); ties fall back
+to lexical ``run_id`` order, which is documented rather than pretended to be
+temporal.
 
 Failures use the shared failure envelope (``copilot.api``) with a named
 ``reason`` in ``details``; malformed parameters are the shared 422
@@ -26,6 +34,7 @@ Failures use the shared failure envelope (``copilot.api``) with a named
 from __future__ import annotations
 
 import json
+from datetime import datetime
 from typing import Annotated, Any, Final, Literal
 
 import duckdb
@@ -43,7 +52,12 @@ PREDICTION_TABLES: Final = (
     "prediction_provenance",
     "evaluation_artifacts",
 )
-CASCADE_TABLES: Final = ("cascade_runs",)
+CASCADE_TABLES: Final = (
+    "cascade_runs",
+    "mn_artifact_manifests",
+    "mn_artifact_provenance",
+    "mn_model_results",
+)
 MAX_PREDICTIONS: Final = 1000
 
 # Persisted identifiers are lowercase, bounded route values (the #54/#95
@@ -89,20 +103,44 @@ CASCADE_ATTRIBUTES: Final[dict[str, dict[str, str | None]]] = {
     },
 }
 
-_RUN_COLUMNS: Final = """run_id, scenario_id, hour, tripped_element_ids_json,
-           lost_load_mw, counties_dark_json, critical_loads_lost_json,
-           source_name, source_ref, source_version, source_retrieved_at,
-           fixture_batch_id"""
-_LATEST_RUN_SQL: Final = """
-    SELECT run_id FROM cascade_runs WHERE scenario_id = ?
-    GROUP BY run_id
-    ORDER BY max(source_retrieved_at) DESC NULLS LAST, run_id DESC
+# The qualified-run selection: a persisted cascade run counts only when its
+# Minnesota model result is validated and its manifest is an available topology
+# artifact with provenance.  ``run_id`` narrows it; otherwise the manifest with
+# the greatest ``created_at`` wins (``run_id`` desc is the documented tie-break).
+_QUALIFIED_RUN_SQL: Final = """
+    SELECT DISTINCT c.run_id, m.artifact_id, m.model_mode, m.geography_id,
+           m.limitations_json, m.created_at
+    FROM cascade_runs AS c
+    JOIN mn_model_results AS r ON r.model_run_id = c.run_id
+    JOIN mn_artifact_manifests AS m ON m.artifact_id = r.artifact_id
+    WHERE c.scenario_id = ?
+      AND {run_filter}
+      AND m.availability = 'available'
+      AND m.model_mode = 'topology'
+      AND r.validation_status = 'validated'
+      AND EXISTS (
+          SELECT 1 FROM mn_artifact_provenance AS p
+          WHERE p.artifact_id = m.artifact_id
+      )
+    ORDER BY m.created_at DESC, c.run_id DESC
     LIMIT 1
 """
-_RUN_SQL: Final = f"""
-    SELECT {_RUN_COLUMNS} FROM cascade_runs
+_RUN_EXISTS_SQL: Final = (
+    "SELECT 1 FROM cascade_runs WHERE scenario_id = ? AND run_id = ? LIMIT 1"
+)
+_HOURS_SQL: Final = """
+    SELECT hour, tripped_element_ids_json, lost_load_mw, counties_dark_json,
+           critical_loads_lost_json, source_name, source_ref
+    FROM cascade_runs
     WHERE scenario_id = ? AND run_id = ?
     ORDER BY hour
+"""
+_PROVENANCE_SQL: Final = """
+    SELECT source_name, source_ref, source_version, retrieved_at,
+           license_or_terms, source_record_id, content_sha256, is_derived
+    FROM mn_artifact_provenance
+    WHERE artifact_id = ?
+    ORDER BY provenance_ordinal
 """
 
 _MESSAGES: Final = {
@@ -112,7 +150,13 @@ _MESSAGES: Final = {
         "No persisted prediction cites a qualified evaluation artifact."
     ),
     "topology_cascade_unsupported_or_absent": (
-        "No persisted topology cascade run exists for the scenario."
+        "No qualified persisted topology cascade run exists for the scenario."
+    ),
+    "invalid_topology_artifact": (
+        "The topology cascade artifact metadata does not match the documented contract."
+    ),
+    "topology_label_unavailable": (
+        "The persisted provenance does not identify the cascade topology."
     ),
     "schema_mismatch": "The {artifact} artifact does not match the documented contract.",
     "query_failed": "The {artifact} artifact could not be read.",
@@ -121,6 +165,10 @@ _MESSAGES: Final = {
 
 class _RowInvalid(ValueError):
     """A persisted cascade row violates the documented shape."""
+
+
+class _ArtifactInvalid(ValueError):
+    """The qualifying Minnesota artifact metadata violates its contract."""
 
 
 def _unavailable(reason: str, *, artifact: str, **extra: str) -> UnavailableError:
@@ -191,29 +239,37 @@ def predictions(
         con.close()
 
 
-def _json_list(value: object, label: str) -> list[Any]:
+def _json_list(value: object, label: str, error: type[ValueError]) -> list[Any]:
     if isinstance(value, str):
         try:
             value = json.loads(value)
         except ValueError as exc:
-            raise _RowInvalid(f"{label} is not JSON") from exc
+            raise error(f"{label} is not JSON") from exc
     if not isinstance(value, list):
-        raise _RowInvalid(f"{label} must be a JSON array")
+        raise error(f"{label} must be a JSON array")
     return value
 
 
-def _cascade_from_rows(rows: list[tuple[object, ...]]) -> dict[str, Any]:
+def _require_str(value: object, label: str, error: type[ValueError]) -> str:
+    if not isinstance(value, str) or not value:
+        raise error(f"{label} must be a non-empty string")
+    return value
+
+
+def _hours_from_rows(
+    rows: list[tuple[object, ...]],
+) -> tuple[list[dict[str, Any]], list[tuple[str, str]]]:
     hours: list[dict[str, Any]] = []
+    row_sources: list[tuple[str, str]] = []
     for row in rows:
         (
-            run_id,
-            scenario_id,
             hour,
             tripped,
             lost_load_mw,
             counties_dark,
             critical_loads_lost,
-            *_provenance,
+            source_name,
+            source_ref,
         ) = row
         if not isinstance(hour, int) or isinstance(hour, bool) or hour < 0:
             raise _RowInvalid("hour must be a non-negative integer")
@@ -222,56 +278,103 @@ def _cascade_from_rows(rows: list[tuple[object, ...]]) -> dict[str, Any]:
         hours.append(
             {
                 "hour": hour,
-                "tripped_element_ids": _json_list(tripped, "tripped_element_ids_json"),
+                "tripped_element_ids": _json_list(
+                    tripped, "tripped_element_ids_json", _RowInvalid
+                ),
                 "lost_load_mw": float(lost_load_mw),
-                "counties_dark": _json_list(counties_dark, "counties_dark_json"),
+                "counties_dark": _json_list(
+                    counties_dark, "counties_dark_json", _RowInvalid
+                ),
                 "critical_loads_lost": _json_list(
-                    critical_loads_lost, "critical_loads_lost_json"
+                    critical_loads_lost, "critical_loads_lost_json", _RowInvalid
                 ),
             }
         )
-    (
-        run_id,
-        scenario_id,
-        *_hour_fields,
-        source_name,
-        source_ref,
-        source_version,
-        source_retrieved_at,
-        fixture_batch_id,
-    ) = rows[0]
-    for label, value in (
-        ("run_id", run_id),
-        ("scenario_id", scenario_id),
-        ("source_name", source_name),
-        ("source_ref", source_ref),
-        ("fixture_batch_id", fixture_batch_id),
+        row_sources.append(
+            (
+                _require_str(source_name, "source_name", _RowInvalid),
+                _require_str(source_ref, "source_ref", _RowInvalid),
+            )
+        )
+    return hours, row_sources
+
+
+def _provenance_from_rows(rows: list[tuple[object, ...]]) -> list[dict[str, Any]]:
+    provenance: list[dict[str, Any]] = []
+    for row in rows:
+        (
+            source_name,
+            source_ref,
+            source_version,
+            retrieved_at,
+            license_or_terms,
+            source_record_id,
+            content_sha256,
+            is_derived,
+        ) = row
+        if source_record_id is not None and not isinstance(source_record_id, str):
+            raise _ArtifactInvalid("source_record_id is not a string")
+        if not isinstance(is_derived, bool):
+            raise _ArtifactInvalid("is_derived is not a boolean")
+        if not isinstance(retrieved_at, datetime):
+            raise _ArtifactInvalid("retrieved_at is not a timestamp")
+        provenance.append(
+            {
+                "source_name": _require_str(
+                    source_name, "source_name", _ArtifactInvalid
+                ),
+                "source_ref": _require_str(source_ref, "source_ref", _ArtifactInvalid),
+                "source_version": _require_str(
+                    source_version, "source_version", _ArtifactInvalid
+                ),
+                "retrieved_at": _as_utc(retrieved_at),
+                "license_or_terms": _require_str(
+                    license_or_terms, "license_or_terms", _ArtifactInvalid
+                ),
+                "source_record_id": source_record_id,
+                "content_sha256": _require_str(
+                    content_sha256, "content_sha256", _ArtifactInvalid
+                ),
+                "is_derived": is_derived,
+            }
+        )
+    if not provenance:
+        raise _ArtifactInvalid("the topology artifact has no provenance")
+    return provenance
+
+
+def _limitations(value: object) -> list[str]:
+    limitations = _json_list(value, "limitations_json", _ArtifactInvalid)
+    if not limitations or not all(
+        isinstance(item, str) and item for item in limitations
     ):
-        if not isinstance(value, str) or not value:
-            raise _RowInvalid(f"{label} must be a non-empty string")
-    source_kind, topology = _derive_labels(source_name, source_ref)
-    return {
-        "run_id": run_id,
-        "scenario_id": scenario_id,
-        "hours": hours,
-        "provenance": {
-            "source_name": source_name,
-            "source_ref": source_ref,
-            "source_version": source_version,
-            "source_retrieved_at": _as_utc(source_retrieved_at),
-            "fixture_batch_id": fixture_batch_id,
-            "source_kind": source_kind,
-            "topology": topology,
-        },
-        "attributes": CASCADE_ATTRIBUTES,
-    }
+        raise _ArtifactInvalid("limitations_json must be a non-empty list of strings")
+    return limitations
+
+
+def _topology_labels(
+    sources: list[tuple[str, str]],
+) -> tuple[str, str | None]:
+    """Derive the reality label from persisted provenance, never a constant.
+
+    Any ACTIVSg reference marks the run as simulated synthetic topology; a run
+    whose every source is a fixture is a fixture.  Anything else is unlabelled
+    and the caller fails closed.
+    """
+    labels = [_derive_labels(name, ref) for name, ref in sources]
+    for source_kind, topology in labels:
+        if topology is not None:
+            return str(source_kind), topology
+    if labels and all(source_kind == "fixture" for source_kind, _ in labels):
+        return "fixture", None
+    raise _ArtifactInvalid("no provenance row identifies the topology")
 
 
 @router.get("/cascade")
 def cascade(
     request: Request, scenario_id: ScenarioIdQuery, run_id: RunIdQuery = None
 ) -> dict[str, Any]:
-    """Read one persisted topology cascade run; aggregate evidence cannot supply one."""
+    """Read one qualified persisted topology cascade run; never compute one."""
 
     artifact = "cascade_runs"
     settings: Settings = request.app.state.settings
@@ -281,28 +384,68 @@ def cascade(
         if missing:
             raise _unavailable("missing", artifact=missing[0])
         try:
-            if run_id is None:
-                latest = con.execute(_LATEST_RUN_SQL, [scenario_id]).fetchone()
-                if latest is None:
-                    raise _unavailable(
-                        "topology_cascade_unsupported_or_absent", artifact=artifact
+            params = [scenario_id] if run_id is None else [scenario_id, run_id]
+            chosen = con.execute(
+                _QUALIFIED_RUN_SQL.format(
+                    run_filter="TRUE" if run_id is None else "c.run_id = ?"
+                ),
+                params,
+            ).fetchone()
+            if chosen is None:
+                if run_id is not None and (
+                    con.execute(_RUN_EXISTS_SQL, [scenario_id, run_id]).fetchone()
+                    is None
+                ):
+                    raise NotFoundError(
+                        "The requested cascade run does not exist for the scenario.",
+                        details={"scenario_id": scenario_id, "run_id": run_id},
                     )
-                run_id = str(latest[0])
-            rows = con.execute(_RUN_SQL, [scenario_id, run_id]).fetchall()
+                raise _unavailable(
+                    "topology_cascade_unsupported_or_absent",
+                    artifact=artifact,
+                    **({} if run_id is None else {"run_id": run_id}),
+                )
+            run_id = str(chosen[0])
+            hour_rows = con.execute(_HOURS_SQL, [scenario_id, run_id]).fetchall()
+            provenance_rows = con.execute(_PROVENANCE_SQL, [chosen[1]]).fetchall()
         except duckdb.BinderException as exc:
             raise _unavailable("schema_mismatch", artifact=artifact) from exc
         except duckdb.Error as exc:
             raise _unavailable("query_failed", artifact=artifact) from exc
-        if not rows:
-            raise NotFoundError(
-                "The requested cascade run does not exist for the scenario.",
-                details={"scenario_id": scenario_id, "run_id": run_id},
-            )
-        try:
-            return _cascade_from_rows(rows)
-        except _RowInvalid as exc:
-            raise _unavailable(
-                "schema_mismatch", artifact=artifact, run_id=run_id
-            ) from exc
     finally:
         con.close()
+
+    try:
+        hours, row_sources = _hours_from_rows(hour_rows)
+    except _RowInvalid as exc:
+        raise _unavailable("schema_mismatch", artifact=artifact, run_id=run_id) from exc
+    try:
+        artifact_id = _require_str(chosen[1], "artifact_id", _ArtifactInvalid)
+        geography_id = _require_str(chosen[3], "geography_id", _ArtifactInvalid)
+        limitations = _limitations(chosen[4])
+        provenance = _provenance_from_rows(provenance_rows)
+    except _ArtifactInvalid as exc:
+        raise _unavailable(
+            "invalid_topology_artifact", artifact=artifact, run_id=run_id
+        ) from exc
+    try:
+        source_kind, topology = _topology_labels(
+            [(p["source_name"], p["source_ref"]) for p in provenance] + row_sources
+        )
+    except _ArtifactInvalid as exc:
+        raise _unavailable(
+            "topology_label_unavailable", artifact=artifact, run_id=run_id
+        ) from exc
+    return {
+        "run_id": run_id,
+        "scenario_id": scenario_id,
+        "artifact_id": artifact_id,
+        "model_mode": chosen[2],
+        "geography_id": geography_id,
+        "hours": hours,
+        "provenance": provenance,
+        "limitations": limitations,
+        "source_kind": source_kind,
+        "topology": topology,
+        "attributes": CASCADE_ATTRIBUTES,
+    }
