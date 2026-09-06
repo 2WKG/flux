@@ -43,6 +43,15 @@
      No web font is loaded, so no font family is declared that is not available. */
   --font-sans: ui-sans-serif, system-ui, sans-serif;
   --font-mono: ui-monospace, monospace;
+  /* The main-assistant seam (#305) named these three and the sheet defined none
+     of them, so every rule below fell through to a hard-coded light hex against
+     this dark system. They are aliases onto the palette above, not a fourth ink,
+     a second border or a rival surface. `stylesheet-unification.test.mjs` now
+     asserts that every custom property this sheet uses is defined in it, so a
+     future rule cannot reintroduce a silent fallback palette. */
+  --ink-muted: var(--muted);
+  --border-subtle: var(--line);
+  --surface-subtle: var(--panel-sunken);
   font-family: var(--font-sans);
   background: #071221;
   color: var(--ink);
@@ -450,7 +459,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 
 .flux-main-assistant__header p {
   margin: 0;
-  color: var(--ink-muted, #627386);
+  color: var(--ink-muted);
   font-size: 0.78rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -465,15 +474,15 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 
 .flux-main-assistant__grounding,
 .flux-main-assistant__scene-action {
-  border: 1px solid var(--border-subtle, #b8c3cc);
+  border: 1px solid var(--border-subtle);
   border-radius: 0.4rem;
   padding: 0.7rem 0.8rem;
 }
 
 .flux-main-assistant__grounding {
-  color: var(--ink-muted, #425466);
+  color: var(--ink-muted);
 }
 
 .flux-main-assistant__scene-action {
-  background: var(--surface-subtle, #f5f7f8);
+  background: var(--surface-subtle);
 }

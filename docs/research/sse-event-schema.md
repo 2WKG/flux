@@ -146,13 +146,18 @@ receive: any text already delivered is retained as incomplete. Decided as OQ-1
 in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)
 on 2026-09-06. The rule and its reducer landed in
 `web/src/ask/run-state/reducer.ts` (the `stream_closed` action) and
-`web/src/failure-states/adapters.ts` (`fromStreamClose`); **no transport
-dispatches it yet.** The live SSE reader closes its stream at
-`web/src/data/transport.ts:226-228` with no reducer attached, so today a
-terminal-less stream still leaves the run in `active`. Wiring that close to
-`stream_closed` is follow-up **FU-4** in
-[`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md),
-and it is done when the chat dock mounts the run reducer (PR #252).
+`web/src/failure-states/adapters.ts` (`fromStreamClose`). The live path now
+dispatches it: `web/src/data/ask-stream.ts` reads the SSE body opened through
+`web/src/data/transport.ts` and dispatches `stream_closed` on every EOF, abort,
+and broken read — always, not only when it suspects a problem, because only the
+reducer knows whether a terminal event already arrived. `web/src/pages/MainPage.tsx`
+mounts that state through the one chat seam
+(`web/src/main-assistant/MainAssistant.tsx`), whose `streamCloseFailure` renders
+the frozen `request_failed` token and the named code. That closes follow-up
+**FU-4** in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md);
+`web/src/main-assistant/MainAssistant.test.mjs` drives `runAsk` over a stream
+that ends with no terminal frame and asserts the rendered token, so dropping the
+dispatch or the render turns it red.
 
 **Which side owns a terminal-less close.** The rule above holds when the
 *server* walks away: an EOF or a connection loss with the client still

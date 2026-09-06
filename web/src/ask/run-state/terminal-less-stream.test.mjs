@@ -5,8 +5,10 @@
  * attempt -- never both, never neither -- so a silent close is the server
  * breaking its own contract. Without this rule the browser has no token for
  * that case: the run sits in `active` forever and `ChatDock` renders a bare
- * sentence. The rule and its reducer land here; no transport dispatches
- * `stream_closed` yet (FU-4, PR #252), so these assertions pin the whole chain the decision names, from the
+ * sentence. The rule and its reducer land here. `src/data/ask-stream.ts` is the
+ * production dispatcher (FU-4, closed by the 2WKG-480 assistant-seam follow-up)
+ * and `src/main-assistant/MainAssistant.test.mjs` covers that end-to-end path;
+ * these assertions pin the whole chain the decision names, from the
  * reducer through the failure adapter to the frozen display copy, so that
  * dropping the rule, re-pointing it at `unavailable`, or losing the named code
  * each turns a specific row red rather than quietly degrading the screen.

@@ -9,9 +9,9 @@
 import { useCallback, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from "react";
 import fixture from "../../../data/demo/bundle.json";
 import { deriveSourceTruth, sourceSummary, STATUS_COPY } from "../source-truth";
-import { ChatDock, type ChatError, type ChatMessage, type ChatStatus } from "../chat/ChatDock";
-import { EMPTY_SCENE_CONTEXT, type SceneContext } from "../chat/ask-contract";
-import { RunTrace } from "../ask/run-state/RunTrace";
+import { type ChatMessage } from "../chat/ChatDock";
+import { EMPTY_SCENE_CONTEXT, type AskRequestBody, type SceneContext } from "../chat/ask-contract";
+import { MainAssistant, type RequestOverlay } from "../main-assistant/MainAssistant";
 import { createRunState } from "../ask/run-state/reducer";
 import type { RunIdentity, RunState } from "../ask/run-state/types";
 import { ResultCards } from "../ask/results";
@@ -343,8 +343,10 @@ export function App() {
   const [sceneContext, setSceneContext] = useState<SceneContext>(EMPTY_SCENE_CONTEXT);
   const [initialAttemptId] = useState<string>(() => newAttemptId());
   const [attemptId, setAttemptId] = useState<string>(initialAttemptId);
-  const [chatStatus, setChatStatus] = useState<ChatStatus>("idle");
-  const [chatError, setChatError] = useState<ChatError | undefined>(undefined);
+  // What the page knows that the stream has not said yet. Everything the stream
+  // *did* say is read from `runState` by `MainAssistant`; this carries only the
+  // window before a run exists, so there is no second status authority.
+  const [request, setRequest] = useState<RequestOverlay>({});
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   // The trace is mounted from the first paint with an idle run: "no run yet" is a
   // real state of the run surface, and a trace that only appears once a stream
@@ -477,10 +479,9 @@ export function App() {
   const layerFilterResult = useMemo(() => applyFilters(layerSnapshots, layerFilter), [layerSnapshots, layerFilter]);
   const hiddenUncertainty = uncertainSuppressions(layerFilterResult);
 
-  const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
+  const sendAsk = useCallback((body: AskRequestBody) => {
     const identity: RunIdentity = { attemptId, contextRevision };
-    setChatStatus("streaming");
-    setChatError(undefined);
+    setRequest({ pending: true });
     setMessages((current) => [...current, { id: `${identity.attemptId}-${current.length}`, role: "user", content: body.question }]);
     const initial = createRunState(identity, SOURCE_TRUTH.status);
     setRunState(initial);
@@ -489,23 +490,27 @@ export function App() {
         setRunState(state);
         setAskResults(resultsFromRun(state));
         if (connection) {
-          setChatStatus("error");
-          setChatError({ code: "unavailable", message: connection.kind === "unavailable" || connection.kind === "failed" || connection.kind === "invalid" ? connection.message : "The stream did not open." });
+          // The connection never produced a stream, so the reducer saw nothing
+          // and has nothing to report. This is the one case the page may speak
+          // for, and it says so as a connection error rather than inventing a
+          // terminal SSE event the server never sent.
+          setRequest({ connectionError: { code: "unavailable", message: connection.kind === "unavailable" || connection.kind === "failed" || connection.kind === "invalid" ? connection.message : "The stream did not open." } });
           setApiFailure(fromClientState(connection));
           return;
         }
-        const terminal = state.terminal;
-        if (terminal?.type === "done") {
-          setChatStatus("done");
+        // The run reached a terminal state (or `ask-stream` dispatched
+        // `stream_closed` and the reducer made it `request_failed`, OQ-1).
+        // `MainAssistant` derives the visible status from that state; the page
+        // no longer maps phases to a second status of its own.
+        setRequest({});
+        if (state.terminal?.type === "done") {
           setMessages((current) => state.text ? [...current, { id: `${identity.attemptId}-answer`, role: "assistant", content: state.text }] : current);
-          return;
         }
-        setChatStatus("error");
-        setChatError(terminal?.type === "error"
-          ? { code: terminal.error.code, message: terminal.error.message, retryable: terminal.error.retryable }
-          : { code: "protocol_error", message: state.issues[state.issues.length - 1]?.message ?? "The stream ended without a terminal event." });
       })
-      .catch(() => setChatStatus("error"));
+      // `runAsk` rejects only for a caller-directed abort; the run itself is
+      // already `failed` via `stream_closed`, so the overlay just stops
+      // claiming a request is in flight.
+      .catch(() => setRequest({}));
   }, [attemptId, contextRevision]);
 
   return (
@@ -676,20 +681,21 @@ export function App() {
         onToggle={() => toggleChat("toggle")}
         collapsedLabel={askAvailable ? "Copilot endpoint reachable" : OFFLINE_DOCK_LABEL}
       >
-        <ChatDock
-          contextRevision={contextRevision}
-          context={sceneContext}
-          attemptId={attemptId}
-          sourceLabel="Bundled synthetic scene"
-          sourceStatus={SOURCE_TRUTH.status}
-          status={chatStatus}
-          error={chatError}
-          messages={messages}
-          onContextChange={setSceneContext}
-          onSend={askAvailable ? sendAsk : undefined}
-          onRetry={() => setAttemptId(newAttemptId())}
+        <MainAssistant
+          chat={{
+            contextRevision,
+            context: sceneContext,
+            attemptId,
+            sourceLabel: "Bundled synthetic scene",
+            sourceStatus: SOURCE_TRUTH.status,
+            messages,
+            onContextChange: setSceneContext,
+            onSend: askAvailable ? sendAsk : undefined,
+            onRetry: () => setAttemptId(newAttemptId()),
+          }}
+          run={runState}
+          request={request}
         />
-        <RunTrace state={runState} />
         <ResultCards results={askResults} />
         {apiFailure ? <FailureState state={apiFailure} onRetry={() => setAttemptId(newAttemptId())} /> : null}
       </ChatDockView>

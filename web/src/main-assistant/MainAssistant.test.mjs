@@ -7,11 +7,11 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { build } from "esbuild";
 
-const webRoot = path.dirname(new URL("../../package.json", import.meta.url).pathname);
+const webRoot = path.dirname(fileURLToPath(new URL("../../package.json", import.meta.url)));
 const componentPath = path.join(webRoot, "src/main-assistant/MainAssistant.tsx");
 const reducerPath = path.join(webRoot, "src/ask/run-state/reducer.ts");
 
@@ -21,7 +21,9 @@ async function component() {
   const output = path.join(directory, "entry.mjs");
   await writeFile(entry, `
     import { renderToStaticMarkup } from "react-dom/server";
-    export { chatStatusForRun, chatErrorForRun, sceneActionAvailability } from ${JSON.stringify(componentPath)};
+    export { chatStatusForRun, chatErrorForRun, sceneActionAvailability, streamCloseFailure } from ${JSON.stringify(componentPath)};
+    export { runAsk } from ${JSON.stringify(path.join(webRoot, "src/data/ask-stream.ts"))};
+    export { createRunState } from ${JSON.stringify(path.join(webRoot, "src/ask/run-state/reducer.ts"))};
     import { MainAssistant } from ${JSON.stringify(componentPath)};
     export const render = (props) => renderToStaticMarkup(<MainAssistant {...props} />);
   `, "utf8");
@@ -120,4 +122,158 @@ test("does not fabricate a protocol error into a server terminal payload", () =>
   const markup = api.render(props(run));
   assert.match(markup, /did not supply a terminal error event/);
   assert.match(markup, /Expected event 2, received 3/);
+});
+
+// ---------------------------------------------------------------------------
+// The seam derives availability from the tool contract, so both arms are real.
+// ---------------------------------------------------------------------------
+
+/** A contract-shaped `score_site` output (`src/contracts/copilot-tools.d.ts`). */
+const siteScore = (status, extra = {}) => ({
+  status,
+  site_id: "site-1",
+  scenario_id: "uri_2021",
+  unit_mw: 300,
+  name: "Probe site",
+  kind: "substation",
+  county_fips: "48001",
+  grid_value_score: 82.1,
+  safety_score: 4,
+  safety_flags: [],
+  regulatory_path: "interconnection",
+  lol_reduction_mwh: 12,
+  congestion_relief_pct: 3,
+  blackstart_reach_mw: 40,
+  critical_loads_protected: [],
+  ...extra,
+});
+
+test("a received tool output that declares contract status available reaches the available arm", () => {
+  const run = state([
+    event("lifecycle", 1, { status: "started" }),
+    event("tool_call", 2, { call_id: "call-9", tool: "score_site", input: { site_id: "site-1" } }),
+    event("tool_result", 3, { call_id: "call-9", tool: "score_site", ok: true, result: siteScore("available"), elapsed_ms: 9 }),
+    event("done", 4, { status: "completed", verified: true, unverified_numbers: [] }),
+  ]);
+  const availability = api.sceneActionAvailability(run);
+  assert.equal(availability.availability, "available");
+  assert.equal(availability.status, "available");
+  assert.equal(availability.result.call_id, "call-9");
+  const markup = api.render(props(run));
+  assert.match(markup, /data-scene-action-availability="available"/);
+  assert.match(markup, /data-scene-action-call="call-9"/);
+  assert.doesNotMatch(markup, /data-scene-action-reason=/);
+  assert.match(markup, /Scene evidence available from tool result call-9/);
+  // Reachable is not the same as over-claiming: v1 still has no action envelope.
+  assert.match(markup, /The action itself is still not inferred/);
+});
+
+test("a received tool output that declares itself unavailable is reported with the producer's own reason", () => {
+  const run = state([
+    event("lifecycle", 1, { status: "started" }),
+    event("tool_call", 2, { call_id: "call-8", tool: "score_site", input: { site_id: "site-1" } }),
+    event("tool_result", 3, {
+      call_id: "call-8", tool: "score_site", ok: true, elapsed_ms: 4,
+      result: siteScore("unavailable", { unavailable: { code: "artifact_unavailable", reason: "The scoring artifact is not published." } }),
+    }),
+    event("done", 4, { status: "completed", verified: false, unverified_numbers: ["grid_value_score"] }),
+  ]);
+  const availability = api.sceneActionAvailability(run);
+  assert.equal(availability.availability, "unavailable");
+  assert.equal(availability.reason, "declared_unavailable_by_received_tool_output");
+  assert.equal(availability.unavailable.code, "artifact_unavailable");
+  const markup = api.render(props(run));
+  assert.match(markup, /data-scene-action-reason="declared_unavailable_by_received_tool_output"/);
+  assert.match(markup, /The scoring artifact is not published/);
+});
+
+test("a result without the contract's own status field cannot reach the available arm", () => {
+  // The adversarial fixture: a plausible-looking payload with a planted
+  // `scene_action` and `status: "ok"`, which is not a `ToolStatus`.
+  const run = state([
+    event("lifecycle", 1, { status: "started" }),
+    event("tool_call", 2, { call_id: "call-7", tool: "score_site", input: {} }),
+    event("tool_result", 3, { call_id: "call-7", tool: "score_site", ok: true, elapsed_ms: 1, result: { status: "ok", scene_action: "pan_to", site_id: "site-1" } }),
+  ]);
+  assert.deepEqual(api.sceneActionAvailability(run), { availability: "unavailable", reason: "absent_from_received_ask_event_data" });
+});
+
+// ---------------------------------------------------------------------------
+// OQ-1 end to end: the live transport's own `stream_closed` dispatch, through
+// the reducer, to the rendered `request_failed` surface. Dropping the dispatch
+// in `src/data/ask-stream.ts` OR dropping `streamCloseFailure` from the render
+// turns this red.
+// ---------------------------------------------------------------------------
+
+const lifecycleFrame = new TextEncoder().encode('data: {"id":"1","v":1,"seq":1,"type":"lifecycle","status":"started"}\n\n');
+
+function streamThatEndsWithout(terminalReads) {
+  let index = 0;
+  return {
+    async connect() {
+      return {
+        kind: "ready",
+        data: {
+          reader: {
+            async read() {
+              const step = terminalReads[index];
+              index += 1;
+              if (step === undefined) return { done: true, value: undefined };
+              if (step === "throw") throw new Error("the socket closed before a terminal frame");
+              return { done: false, value: step };
+            },
+            cancel: async () => undefined,
+          },
+          decode: (frame) => {
+            const data = frame.split(/\r?\n/).filter((line) => line.startsWith("data:")).map((line) => line.slice(5).trim()).join("\n");
+            return data === "" ? null : JSON.parse(data);
+          },
+          close() {},
+        },
+      };
+    },
+  };
+}
+
+for (const [name, reads] of [["EOF", [lifecycleFrame]], ["a broken read", [lifecycleFrame, "throw"]]]) {
+  test(`a stream that ends on ${name} without a terminal event renders request_failed`, async () => {
+    const identity2 = { attemptId: "attempt_fedcba9876543210", contextRevision: "scene-r1" };
+    const { state: run } = await api.runAsk(
+      { attempt_id: identity2.attemptId, question: "What changed?", context: {}, history: [] },
+      identity2,
+      api.createRunState(identity2, "source_supported"),
+      { client: streamThatEndsWithout(reads) },
+    );
+    // The transport, not the test, is what declared the close.
+    assert.equal(run.phase, "failed");
+    assert.equal(run.terminal, undefined);
+    assert.equal(run.failureCode, "stream_ended_without_terminal");
+
+    const markup = api.render({ ...props(run), chat: { ...props(run).chat, attemptId: identity2.attemptId, contextRevision: identity2.contextRevision } });
+    // The frozen machine token and the named cause, not a bare sentence.
+    assert.match(markup, /data-request-status="request_failed"/);
+    assert.match(markup, /data-request-code="stream_ended_without_terminal"/);
+    assert.match(markup, /required terminal done or error event/);
+    assert.notEqual(api.streamCloseFailure(run), undefined);
+    assert.equal(api.chatStatusForRun(run), "error");
+  });
+}
+
+// ---------------------------------------------------------------------------
+// The overlay is narrow: the caller may only speak before the reducer has.
+// ---------------------------------------------------------------------------
+
+test("the caller's request overlay is only heard while the run is idle", () => {
+  const idle = state([]);
+  assert.equal(api.chatStatusForRun(idle), "idle");
+  assert.equal(api.chatStatusForRun(idle, { pending: true }), "streaming");
+  assert.equal(api.chatStatusForRun(idle, { connectionError: { code: "unavailable", message: "No stream." } }), "error");
+  assert.deepEqual(api.chatErrorForRun(idle, { connectionError: { code: "unavailable", message: "No stream." } }), { code: "unavailable", message: "No stream." });
+
+  const done = state([
+    event("lifecycle", 1, { status: "started" }),
+    event("done", 2, { status: "completed", verified: true, unverified_numbers: [] }),
+  ]);
+  assert.equal(api.chatStatusForRun(done, { connectionError: { code: "unavailable", message: "No stream." } }), "done");
+  assert.equal(api.chatErrorForRun(done, { connectionError: { code: "unavailable", message: "No stream." } }), undefined);
 });
