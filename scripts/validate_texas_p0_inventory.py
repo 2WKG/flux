@@ -148,6 +148,54 @@ def _validate_record(
             errors.append(
                 f"{prefix}.{status} record must have a null ingestion_timestamp"
             )
+        # A record that says nothing was retrieved cannot also publish the
+        # checksum of a retrieved artifact.
+        hashed = [
+            artifact.get("logical_name")
+            for artifact in artifacts
+            if artifact.get("immutable_id")
+        ]
+        if hashed:
+            errors.append(
+                f"{prefix}.{status} record claims an immutable artifact identifier "
+                f"for {', '.join(str(name) for name in hashed)}"
+            )
+
+
+# Feasibility evidence records that a source is reachable and how it would be
+# read. A record may keep it after a real ingest as historical planning
+# evidence, but it is never itself an ingest receipt: it must stay on disk and
+# keep saying so, rather than being promoted by editing one field.
+FEASIBILITY_ONLY_STATUS = "feasibility_only_not_ingested"
+
+
+def _feasibility_validation(
+    record: dict[str, Any],
+) -> tuple[dict[str, Any] | None, list[str]]:
+    """Check that declared feasibility evidence exists and still disclaims ingest."""
+    declared = record.get("feasibility_evidence")
+    if declared is None:
+        return None, []
+    path = Path(str(declared))
+    if not path.is_file():
+        return {"path": path.as_posix(), "passed": False}, [
+            f"{record['id']} feasibility_evidence is missing: {path}"
+        ]
+    try:
+        evidence = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as error:
+        return {"path": path.as_posix(), "passed": False}, [
+            f"{record['id']} feasibility_evidence is invalid JSON: {error.msg}"
+        ]
+    status = evidence.get("status") if isinstance(evidence, dict) else None
+    if status != FEASIBILITY_ONLY_STATUS:
+        return {"path": path.as_posix(), "passed": False}, [
+            (
+                f"{record['id']} feasibility_evidence must declare "
+                f'status "{FEASIBILITY_ONLY_STATUS}", not {status!r}'
+            )
+        ]
+    return {"path": path.as_posix(), "passed": True}, []
 
 
 def _runtime_artifacts(record: dict[str, Any], raw_root: Path) -> list[dict[str, Any]]:
@@ -235,10 +283,13 @@ def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
             # checks on a shape we did not validate.
             runtime_artifacts: list[dict[str, Any]] = []
             receipt_validation = None
+            feasibility_validation = None
         else:
             runtime_artifacts = _runtime_artifacts(record, raw_root)
             receipt_validation, receipt_errors = _receipt_validation(record)
             errors.extend(receipt_errors)
+            feasibility_validation, feasibility_errors = _feasibility_validation(record)
+            errors.extend(feasibility_errors)
         records.append(
             {
                 "id": record.get("id"),
@@ -256,6 +307,7 @@ def build_report(inventory: dict[str, Any], raw_root: Path) -> dict[str, Any]:
                 "reason": record.get("reason"),
                 "artifacts": runtime_artifacts,
                 "checked_in_receipt": receipt_validation,
+                "feasibility_evidence": feasibility_validation,
                 "schema_valid": index not in invalid,
             }
         )
