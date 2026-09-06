@@ -6,7 +6,7 @@
   "runtime": {
     "container": "glb",
     "specification": "glTF 2.0",
-    "reason": "Single-file binary glTF loads without sidecar fetches, is supported by three.js/deck.gl loaders already permitted in the browser bundle, and keeps one artifact per archetype for checksum pinning.",
+    "reason": "Single-file binary glTF loads without sidecar fetches, is supported by the deck.gl/loaders.gl stack already present in the browser bundle (@deck.gl/mesh-layers and @loaders.gl/gltf arrive transitively with deck.gl), and keeps one artifact per archetype for checksum pinning. Any other renderer, three.js included, is a new dependency and a separate decision: three is in neither web/package.json nor web/package-lock.json today.",
     "textures": "KTX2/Basis where a texture is required; plain PNG is acceptable for a first pass",
     "compression": "Draco geometry compression optional; if used it must be declared per file and the uncompressed triangle budget still applies"
   },
