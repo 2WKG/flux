@@ -21,11 +21,13 @@
       "start_utc": "2020-08-11T06:00:00Z",
       "end_utc": "2020-08-12T00:00:00Z"
     },
-    "disposition": "accepted",
+    "disposition": "candidate_only",
     "selection_basis": "NWS Central Region after-action review identifies the August 10 Corn Belt derecho; tornado components remain compound.",
     "uncertainties": [
       "Embedded tornado reporting remains a compound component; NCEI tornado evidence is path-specific rather than countywide.",
-      "Customer denominator is unavailable, so no outage rate or positive label is computed."
+      "Customer denominator is unavailable, so no outage rate or positive label is computed.",
+      "County window realigned from 15:00Z to the canonical 00/06/12/18 UTC slot 12:00-18:00Z (docs/specs/02-outage-model.md). NCEI 916103 runs 11:30-12:50 CZ_TIMEZONE CST-6 = 2020-08-10T17:30-18:50Z, whose onset falls in that slot.",
+      "Acceptance withdrawn with the window realignment. The committed EAGLE-I series is a complete 24/24 capture of 2020-08-10T15:00-21:00Z, which is not a canonical six-hour slot and overlaps the corrected 12:00-18:00Z window by only twelve intervals, so it cannot support a matched coverage decision for this record. Re-accepting this row needs a fresh EAGLE-I capture of 19113 over 2020-08-10T12:00-18:00Z."
     ],
     "source_event_ids": [
       "915999",
@@ -74,7 +76,7 @@
       "bytes": null,
       "etag": null,
       "units": "Storm Events detail reports in source units.",
-      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
       "filters": "EVENT_ID=915999,916103; STATE=IOWA; CZ_NAME=LINN; EVENT_TYPE=Tornado or Thunderstorm Wind.",
       "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
       "gaps": [
@@ -138,17 +140,16 @@
   ],
   "records": [
     {
-      "record_id": "midwest-2020-08-10-corn-belt-derecho-19113-1500",
+      "record_id": "midwest-2020-08-10-corn-belt-derecho-19113-1200",
       "county_fips": "19113",
       "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
       "scenario_id": "midwest-2020-08-10-corn-belt-derecho-replay",
-      "window_start_utc": "2020-08-10T15:00:00Z",
-      "window_end_utc": "2020-08-10T21:00:00Z",
-      "disposition": "accepted",
+      "window_start_utc": "2020-08-10T12:00:00Z",
+      "window_end_utc": "2020-08-10T18:00:00Z",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "ncei-stormevents-2020",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000"
+        "ncei-stormevents-2020"
       ],
       "weather": {
         "coverage": "covered",
@@ -166,8 +167,8 @@
             "916103"
           ],
           "source_window": {
-            "start_utc": "2020-08-10T16:30:00Z",
-            "end_utc": "2020-08-10T17:50:00Z"
+            "start_utc": "2020-08-10T17:30:00Z",
+            "end_utc": "2020-08-10T18:50:00Z"
           },
           "spatial_scope": "county",
           "scope_identifier": "IA Linn County",
@@ -175,22 +176,20 @@
         }
       },
       "outage": {
-        "coverage": "covered",
-        "source_receipt_ids": [
-          "eaglei-2020-42547894-20200810t150000-20200810t210000"
-        ],
-        "notes": "Qualified exhaustive annual EAGLE-I scan returned all 24 expected 15-minute observations for FIPS 19113. County weather evidence remains unavailable, so this cannot be matched or accepted.",
-        "expected_samples": 24,
-        "observed_samples": 24,
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "The committed EAGLE-I capture covers 2020-08-10T15:00-21:00Z, which is not a canonical 00/06/12/18 UTC window and is not this record's window after realignment to 12:00-18:00Z, so no outage evidence has been collected for this county-window. The superseded capture is kept in source_receipts as eaglei-2020-42547894-20200810t150000-20200810t210000 so the record of what was fetched survives, but it is not cited as this record's outage evidence and no sample count is asserted here.",
+        "expected_samples": null,
+        "observed_samples": null,
         "missing_timestamps": [],
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
         "event_report": null
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
+        "status": "UncoveredLabel",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
@@ -205,41 +204,9 @@
         "forecast_evaluation": "not_forecast_scored",
         "inputs": []
       },
-      "source_evidence_status": "available",
-      "source_row_keys": [
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 15:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 15:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 15:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 15:45:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 16:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 16:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 16:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 16:45:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 17:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 17:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 17:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 17:45:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 18:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 18:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 18:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 18:45:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 19:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 19:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 19:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 19:45:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 20:00:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 20:15:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 20:30:00Z",
-        "eaglei-2020-42547894-20200810t150000-20200810t210000:19113:2020-08-10 20:45:00Z"
-      ],
-      "source_slices": [
-        {
-          "receipt_id": "eaglei-2020-42547894-20200810t150000-20200810t210000",
-          "county_fips": "19113",
-          "start_utc": "2020-08-10T15:00:00Z",
-          "end_utc": "2020-08-10T21:00:00Z"
-        }
-      ]
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
     }
   ]
 }

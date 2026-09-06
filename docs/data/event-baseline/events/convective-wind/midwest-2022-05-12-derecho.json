@@ -73,7 +73,7 @@
       "bytes": 11817849,
       "etag": null,
       "units": "Storm Events wind magnitudes in source units; event 1033188 is a county Thunderstorm Wind report.",
-      "timezone_conversion": "Storm Events detail timestamp is local CDT; 2022-05-12 17:11-17:17 CDT intersects [2022-05-12T18:00Z,2022-05-13T00:00Z).",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
       "filters": "EVENT_ID=1033188; STATE=MINNESOTA; CZ_TYPE=C; CZ_NAME=LAC QUI PARLE; EVENT_TYPE=Thunderstorm Wind.",
       "grid_index_mapping": "County report is evidence only; no physical-grid mapping.",
       "gaps": [
@@ -162,8 +162,8 @@
             "1033188"
           ],
           "source_window": {
-            "start_utc": "2022-05-12T22:11:00Z",
-            "end_utc": "2022-05-12T22:17:00Z"
+            "start_utc": "2022-05-12T23:11:00Z",
+            "end_utc": "2022-05-12T23:17:00Z"
           },
           "spatial_scope": "county",
           "scope_identifier": "MN Lac qui Parle County",

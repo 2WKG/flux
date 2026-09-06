@@ -25,7 +25,8 @@
     "selection_basis": "NWS MPX archive describes a bowing line with damaging winds and tornadoes in western and central Minnesota.",
     "uncertainties": [
       "Archived summary must be supplemented by NCEI source IDs before acceptance.",
-      "No matched county outage evidence yet."
+      "No matched county outage evidence yet.",
+      "Record county corrected from 27121 (Pope) to 27145 (Stearns): both cited events, 1031070 and 1031071, are NCEI CZ_FIPS 145 STEARNS rows and the attached county report is MN Stearns County."
     ],
     "source_event_ids": [
       "1031070",
@@ -74,7 +75,7 @@
       "bytes": 11817849,
       "etag": null,
       "units": "Storm Events detail reports in source units.",
-      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "timezone_conversion": "Storm Events detail tabular timestamps carry CZ_TIMEZONE CST-6 and are standard time year-round; they are converted to UTC by adding six hours unconditionally, with no daylight-saving adjustment.",
       "filters": "EVENT_ID=1031070,1031071; STATE=MINNESOTA; CZ_NAME=STEARNS; EVENT_TYPE=Thunderstorm Wind.",
       "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
       "gaps": [
@@ -138,8 +139,8 @@
   ],
   "records": [
     {
-      "record_id": "minnesota-2022-05-30-severe-27121-1800",
-      "county_fips": "27121",
+      "record_id": "minnesota-2022-05-30-severe-27145-1800",
+      "county_fips": "27145",
       "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
       "scenario_id": "minnesota-2022-05-30-severe-replay",
       "window_start_utc": "2022-05-30T18:00:00Z",
@@ -163,40 +164,23 @@
             "1031070"
           ],
           "source_window": {
-            "start_utc": "2022-05-30T22:40:00Z",
-            "end_utc": "2022-05-30T22:41:00Z"
+            "start_utc": "2022-05-30T23:40:00Z",
+            "end_utc": "2022-05-30T23:41:00Z"
           },
           "spatial_scope": "county",
           "scope_identifier": "MN Stearns County",
-          "limitations": "County thunderstorm-wind report establishes occurrence and interval only; it is not a time series."
+          "limitations": "County thunderstorm-wind report establishes occurrence and interval only; it is not a time series. NCEI 1031070 is an instantaneous report (BEGIN == END at 17:40 CZ_TIMEZONE CST-6 = 2022-05-30T23:40Z); the source_window end is widened by one minute so that end > start, and the widening carries no claim of duration."
         }
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [
-          "eaglei-2022-42547897-20220530t180000-20220531t000000"
-        ],
-        "notes": "Qualified exhaustive annual EAGLE-I scan found 10 of 24 expected 15-minute observations for FIPS 27121. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
-        "expected_samples": 24,
-        "observed_samples": 10,
-        "missing_timestamps": [
-          "2022-05-30T18:00:00Z",
-          "2022-05-30T18:15:00Z",
-          "2022-05-30T18:30:00Z",
-          "2022-05-30T18:45:00Z",
-          "2022-05-30T19:00:00Z",
-          "2022-05-30T19:15:00Z",
-          "2022-05-30T19:30:00Z",
-          "2022-05-30T19:45:00Z",
-          "2022-05-30T20:00:00Z",
-          "2022-05-30T20:15:00Z",
-          "2022-05-30T20:30:00Z",
-          "2022-05-30T20:45:00Z",
-          "2022-05-30T21:00:00Z",
-          "2022-05-30T21:15:00Z"
-        ],
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
+        "source_receipt_ids": [],
+        "notes": "The committed EAGLE-I capture covers FIPS 27121 (Pope), which is not this record's county after the correction to 27145 (Stearns), so no outage evidence has been collected for this county-window. The superseded capture is kept in source_receipts as eaglei-2022-42547897-20220530t180000-20220531t000000 so the record of what was fetched survives, but it is not cited as this record's outage evidence and no sample count is asserted here.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
         "event_report": null
       },
       "matched_coverage_decision": "unavailable",
