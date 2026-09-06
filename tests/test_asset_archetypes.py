@@ -624,6 +624,30 @@ def test_model_file_scan_ignores_vendored_and_built_trees(tmp_path: Path):
     assert find_model_files(tmp_path) == ["data/3d/real.glb"]
 
 
+def test_local_build_outputs_do_not_read_as_unverified_binaries(tmp_path: Path):
+    """Every git-ignored build tree is skipped, not just the one named "dist".
+
+    The harness builds copy web/public into web/dist-harness and
+    web/dist-renderer-harness, so after `npm run build` or `node --test` the
+    installed runtime pack exists under both. The walk matches directory names
+    exactly, so before those names were skipped each copied .glb surfaced as an
+    "unverified model binary outside published runtime location" and turned this
+    suite red for the developer who ran the web tests, while CI — which never
+    writes those directories in the pytest job — stayed green.
+    """
+    _write_tree(
+        tmp_path,
+        "web/dist-harness/assets/flux-grid/hospital/hospital.glb",
+        "web/dist-renderer-harness/assets/flux-grid/wind_turbine/wind_turbine.glb",
+        "web/test-results/trace/probe.glb",
+        "web/playwright-report/data/probe.glb",
+        "build/staging/hospital.glb",
+        "data/3d/real.glb",
+    )
+
+    assert find_model_files(tmp_path) == ["data/3d/real.glb"]
+
+
 # --- Dependency claims are checked against the lockfile --------------------
 
 

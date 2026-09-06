@@ -68,10 +68,23 @@ LOD2_MAX_SHARE = 0.12
 # includes unexpected local binaries.
 MODEL_SEARCH_DIRS = ("data", "web")
 MODEL_SUFFIXES = (".glb", ".gltf")
-# Never walked: vendored, built or generated trees are not deliverables.
+# Never walked: vendored, built or generated trees are not deliverables. Every
+# name here is git-ignored, so a hit inside one is a local build output, never
+# something a reviewer could have committed. Missing one is not cosmetic: since
+# the runtime pack landed, any .glb the walk finds outside
+# web/public/assets/flux-grid is reported as an unverified binary, so an
+# unskipped build directory turns a developer's suite red on their own
+# `npm run build` while CI, which never writes one in the pytest job, stays
+# green. web/dist-harness and web/dist-renderer-harness did exactly that:
+# matching is by exact directory name, and neither is "dist".
 _SKIP_DIRS = {
     "node_modules",
     "dist",
+    "dist-harness",
+    "dist-renderer-harness",
+    "build",
+    "test-results",
+    "playwright-report",
     ".venv",
     "__pycache__",
     ".git",
