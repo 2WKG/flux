@@ -68,16 +68,50 @@ LOD2_MAX_SHARE = 0.12
 # includes unexpected local binaries.
 MODEL_SEARCH_DIRS = ("data", "web")
 MODEL_SUFFIXES = (".glb", ".gltf")
-# Never walked: vendored, built or generated trees are not deliverables.
-_SKIP_DIRS = {
-    "node_modules",
-    "dist",
-    ".venv",
-    "__pycache__",
-    ".git",
-    "parquet",
-    "duck",
-}
+# Never walked: vendored, built or generated trees are not deliverables. The
+# skip set exists to keep a developer's local build output from reading as a
+# committed binary, so every entry must be something git already ignores —
+# otherwise the walk would exempt a path a reviewer really could commit.
+#
+# That is why the anchored entries are matched by REPO-RELATIVE PATH and not by
+# bare directory name. The .gitignore rules they mirror are anchored to `web/`
+# and `data/`; a bare-name prune matches at any depth, so `data/test-results/`
+# — which git tracks happily — would have been silently exempt. Missing one of
+# these is not cosmetic in either direction: since the runtime pack landed, any
+# .glb the walk finds outside web/public/assets/flux-grid is reported as an
+# unverified binary, so an unskipped build directory turns a developer's suite
+# red on their own harness build, while CI, which never writes one in the pytest
+# job, stays green. web/dist-harness and web/dist-renderer-harness did exactly
+# that: they are written by `npm run build:harness` and
+# `npm run build:renderer-harness` (and therefore by
+# `node --test web/test/renderer-artifact.test.mjs`), neither is named "dist",
+# and neither was skipped.
+#
+# tests/test_asset_archetypes.py holds both halves against reality: the walk is
+# proved to still report data/test-results/stray.glb, and every entry below is
+# proved git-ignored with `git check-ignore` so the two can never drift apart.
+_SKIP_PATHS = frozenset(
+    {
+        "web/dist",
+        "web/dist-harness",
+        "web/dist-renderer-harness",
+        "web/test-results",
+        "web/playwright-report",
+        "data/parquet",
+    }
+)
+# Names git ignores at ANY depth: `node_modules/`, `build/`, `.venv/` and
+# `__pycache__/` carry no slash before their trailing one, so they are not
+# anchored. `.git` is never a deliverable and is not walked either.
+_SKIP_NAMES = frozenset(
+    {
+        "node_modules",
+        "build",
+        ".venv",
+        "__pycache__",
+        ".git",
+    }
+)
 _SAFE_RUNTIME_GLB = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+\.glb$")
 
 
@@ -94,7 +128,12 @@ def find_model_files(root: Path = ROOT) -> list[str]:
         if not base.is_dir():
             continue
         for dirpath, dirnames, filenames in os.walk(base):
-            dirnames[:] = [d for d in dirnames if d not in _SKIP_DIRS]
+            rel_dir = Path(dirpath).relative_to(root).as_posix()
+            dirnames[:] = [
+                d
+                for d in dirnames
+                if d not in _SKIP_NAMES and f"{rel_dir}/{d}" not in _SKIP_PATHS
+            ]
             for name in filenames:
                 if name.endswith(MODEL_SUFFIXES):
                     path = Path(dirpath, name)
