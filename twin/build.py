@@ -115,6 +115,7 @@ def build_network(db_path: str | Path) -> Any:
         element_id = f"load:{int(load_id)}"
         index = pp.create_load(net, _bus(net, bus_id), p_mw=float(demand), q_mvar=0.0, name=element_id)
         net.load.at[index, "flux_element_id"] = element_id
+        net.load.at[index, "flux_nominal_p_mw"] = float(demand)
         net.flux_element_lookup[element_id] = ("load", int(index))
     net["flux_input_sha256"] = _network_hash(buses, lines, generators, loads)
     return net
@@ -241,6 +242,7 @@ def _build_native_network(path: Path, buses: list[tuple[Any, ...]], lines: list[
             raise SimulationUnavailableError(f"native conversion missing load at bus_id {bus_id}") from exc
         element_id = f"load:{int(load_id)}"
         net.load.at[index, "flux_element_id"] = element_id
+        net.load.at[index, "flux_nominal_p_mw"] = float(demand)
         net.flux_element_lookup[element_id] = ("load", index)
     net["flux_input_sha256"] = _network_hash(buses, lines, generators, loads)
     return net
