@@ -126,8 +126,8 @@ class StorageProvenance(Frozen):
     source_version: str | None = None
     source_retrieved_at: datetime | None = None
     fixture_batch_id: str = Field(min_length=1)
-    source_kind: Literal["fixture", "observed", "simulated", "heuristic"] | None = Field(
-        default=None, exclude=True
+    source_kind: Literal["fixture", "observed", "simulated", "heuristic"] | None = (
+        Field(default=None, exclude=True)
     )
 
 
