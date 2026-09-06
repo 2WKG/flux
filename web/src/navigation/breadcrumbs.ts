@@ -38,7 +38,8 @@ export function createNavigationState(): NavigationState {
 
 export type FocusRejectionReason =
   | "unknown_scale"
-  | "invalid_statewide_target";
+  | "invalid_statewide_target"
+  | "missing_target_id";
 
 export type FocusResult =
   | { readonly kind: "focused"; readonly state: NavigationState }
@@ -68,6 +69,17 @@ export function focus(state: NavigationState, target: FocusTarget): FocusResult 
       };
     }
     return { kind: "focused", state: createNavigationState() };
+  }
+  // A non-statewide crumb must be addressable. An empty or whitespace id
+  // produces a breadcrumb `goToBreadcrumb` would happily return but nothing
+  // could ever resolve, so it is refused by name -- the same strictness
+  // `search.ts` applies to an empty source artifact id.
+  if (target.id.trim().length === 0) {
+    return {
+      kind: "rejected",
+      reason: "missing_target_id",
+      detail: `A ${target.scale} target must carry a non-empty id; ${JSON.stringify(target.id)} is not addressable.`,
+    };
   }
   const ancestors = state.breadcrumbs.filter((crumb) => scaleIndex(crumb.scale) < targetIndex);
   const breadcrumbs = [...ancestors, target];
