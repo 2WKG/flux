@@ -163,6 +163,68 @@ jobs:
             node --test $tests
           fi
 
+  web-e2e:
+    name: gate/web-e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Did web/ change?
+        id: changed
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git fetch --no-tags origin "$BASE_BRANCH"
+          if git diff --quiet "origin/$BASE_BRANCH...HEAD" -- web/; then
+            echo "web/ unchanged; skipping"; echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-node@v7
+        if: steps.changed.outputs.changed == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: npm ci
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: web
+        run: npm ci
+      - name: Resolve the pinned Playwright version
+        id: pw
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: web
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('@playwright/test/package.json').version")
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browser
+        if: steps.changed.outputs.changed == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install chromium
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: web
+        run: npx playwright install --with-deps chromium
+      - name: Browser proof (npm run test:e2e)
+        if: steps.changed.outputs.changed == 'true'
+        working-directory: web
+        run: npm run test:e2e
+      - name: Upload the Playwright report on failure
+        if: failure() && steps.changed.outputs.changed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            web/playwright-report
+            web/test-results
+          retention-days: 7
+
   contract-drift:
     name: gate/contract-drift
     runs-on: ubuntu-latest

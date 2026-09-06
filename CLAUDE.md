@@ -1,15 +1,32 @@
 # Flux
 
 Flux is the product, repository, and package. Work locally in this checkout.
-GitHub: `Wyzard1004/flux`; default branch `master`. Check the actual branches,
-upstream state, and existing work before using a branch or worktree.
+GitHub: `2WKG/flux`; default branch `master`. (The repository moved out of its
+original personal org; GitHub still redirects the old path, so older links resolve
+even though the org written in them is stale.) Check the actual branches, upstream
+state, and existing work before using a branch or worktree.
 
 ## Context and authority
 
 Start with `docs/specs/README.md`, then the complete amended
 `docs/specs/00-overview.md`, the applicable feature spec, and
-`docs/specs/VERIFICATION.md`. The amended overview is the current authority for
-the shared technical contract; it wins over downstream specs when they conflict.
+`docs/specs/VERIFICATION.md`.
+
+**Authority lattice** — four documents used to claim the top of it in four
+different ways. One order now, highest first:
+
+1. **Executable source, migrations, generated wiring, and tests.** They are the
+   fact. When prose disagrees with them, the prose is wrong and gets corrected
+   with the change. `docs/specs/spec-code-reconciliation.md` is the standing
+   ledger of known disagreements and how each was resolved.
+2. **`docs/specs/10-minnesota-demo.md` and `docs/specs/10-duckdb-contract.md`,
+   within what they explicitly supersede** — Minnesota geography, scenarios,
+   model mode, storage/identity contract, and demo acceptance language.
+3. **`docs/specs/00-overview.md`** for everything else in the shared technical
+   contract: table names, column names, tool signatures, scenario IDs, and the
+   route inventory. It wins over specs 01–09 and over the design and build docs.
+4. **Downstream feature specs (01–09), design docs, and runbooks.**
+
 The build documents describe a pragmatic delivery workflow and must not revive
 superseded frozen-gate or quantitative requirements.
 

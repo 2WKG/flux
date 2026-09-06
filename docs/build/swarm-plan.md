@@ -10,6 +10,16 @@ related:
 
 # Flux hackathon swarm plan
 
+> **Work-graph status (D-9).** Four rival work graphs describe this same project: this file's
+> units, [`team-work-plan.md`](team-work-plan.md)'s two waves,
+> [`../specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md)'s MN01–MN11 acceptance gates,
+> and that spec's numbered execution list. **Linear is the authoritative tracker** —
+> `.github/workflows/pr-gates.yml` `gate/linear-key` is what actually enforces a key on every PR,
+> and no prose graph here is enforced anywhere. Treat the units below as **historical**: they
+> record how the build was divided, not what is currently assigned. (One open question rides on
+> this — see OQ-2 in
+> [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md).)
+
 The amended `docs/specs/00-overview.md` is the current authority for the
 shared technical contract. This plan assigns ownership and integration order
 for a fast hackathon build. It does not impose an old gate baseline, numerical
