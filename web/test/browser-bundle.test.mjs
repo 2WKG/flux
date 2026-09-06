@@ -30,6 +30,28 @@ test("database packages are rejected by segment, including scoped and suffixed D
   }
 });
 
+test("a package name that is also an ordinary file name is judged as a package, not as a segment", () => {
+  // `sql.js` is a database package *and* a plausible file name. Matching the
+  // bare segment failed the whole build on
+  // `node_modules/is-unsafe/src/contexts/sql.js`, an XML-parser helper reached
+  // through the 3D asset loaders, which contains no database at all.
+  for (const input of [
+    "node_modules/is-unsafe/src/contexts/sql.js",
+    "src/contexts/sql.js",
+    "node_modules/some-orm/lib/postgres/index.js",
+  ]) {
+    assertBrowserBundle(inputs(input), webRoot);
+  }
+  // The real packages are still rejected, including under a nested node_modules.
+  for (const input of [
+    "node_modules/sql.js/dist/sql-wasm.js",
+    "node_modules/a/node_modules/sql.js/dist/sql-wasm.js",
+    "node_modules/wa-sqlite/src/sqlite-api.js",
+  ]) {
+    assert.throws(() => assertBrowserBundle(inputs(input), webRoot), /database dependency/, input);
+  }
+});
+
 test("analytics directories are judged on the web-relative input path, not the absolute one", () => {
   assert.throws(() => assertBrowserBundle(inputs("../model/probe.ts"), webRoot), /analytical or scoring code/);
   assert.throws(() => assertBrowserBundle(inputs("../pipelines/probe.ts"), webRoot), /analytical or scoring code/);
