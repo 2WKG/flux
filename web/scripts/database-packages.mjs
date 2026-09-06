@@ -20,7 +20,15 @@ export function databasePackageSpecifier() {
   return `(?:${[...scoped, ...names].join("|")})(?:\\/[^"'\`]*)?`;
 }
 
-/** Matches a database package below node_modules, never an incidental source file such as contexts/sql.js. */
+/**
+ * Matches a metafile input path whose segments name an installed database package,
+ * e.g. node_modules/@duckdb/duckdb-wasm/x.js.
+ *
+ * The package name is anchored to the `node_modules/` boundary that introduces it.
+ * Without that anchor a name like `sql.js` also matched any *file* called `sql.js`
+ * inside an unrelated dependency (deck.gl pulls in `is-unsafe/src/contexts/sql.js`,
+ * a string predicate with no database code), failing the build on a false positive.
+ */
 export function databasePackagePath() {
   const scoped = DATABASE_PACKAGE_SCOPES.map((scope) => `${escape(scope)}[/\\\\][^/\\\\]+`);
   const names = DATABASE_PACKAGE_NAMES.map(escape);
