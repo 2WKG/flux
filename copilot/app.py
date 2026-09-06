@@ -20,6 +20,19 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
+from copilot.dispatcher import (
+    ToolCallingProvider,
+    ToolDispatcher,
+    interactive_tool_handlers,
+)
+from copilot.interactive_routes import (
+    create_interactive_router,
+    create_interactive_service,
+)
+from copilot.non_interactive_tool_handlers import (
+    NonInteractiveToolServices,
+    non_interactive_tool_handlers,
+)
 from copilot.providers import build_narration_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
@@ -46,6 +59,8 @@ def create_app(
     *,
     ask_backend: AskBackend | None | object = _UNSET,
     narration_provider: AsyncNarrationProvider | None | object = _UNSET,
+    tool_provider: ToolCallingProvider | None = None,
+    tool_dispatcher: ToolDispatcher | None = None,
 ) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
@@ -71,6 +86,10 @@ def create_app(
         if ask_backend is _UNSET
         else ask_backend
     )
+    # The tool-calling transport is deployment-injected for the same reason the
+    # ask backend is: there is no configured default, so an uninjected
+    # deployment keeps the documented unavailable terminal rather than guessing.
+    app.state.tool_provider = tool_provider
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
@@ -95,6 +114,18 @@ def create_app(
             )
         return await http_exception_handler(request, exc)
 
+    app.state.interactive_service = create_interactive_service(
+        duckdb_path=app.state.settings.duckdb_path
+    )
+    app.state.tool_dispatcher = tool_dispatcher or ToolDispatcher(
+        interactive_tool_handlers(
+            app.state.interactive_service,
+            historical_handlers=non_interactive_tool_handlers(
+                NonInteractiveToolServices(database_path=app.state.settings.duckdb_path)
+            ),
+        )
+    )
+
     app.include_router(health_router)
     app.include_router(assets_router)
     app.include_router(placements_router)
@@ -109,6 +140,7 @@ def create_app(
     app.include_router(predictions_router)
     app.include_router(ask_router)
     app.include_router(explainer_router)
+    app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 
 

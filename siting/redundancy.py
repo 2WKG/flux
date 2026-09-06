@@ -125,16 +125,30 @@ def score_redundancy(
         if item["cascade_metrics"]
         and item["cascade_metrics"].get("status") == "unavailable"
     )
+    # A contingency whose twin replay failed to solve contributes topology-only
+    # reachability to ``survivability`` and to ``worst_contingency``, without
+    # the twin's grid-forming-source correction.  The evidence must therefore
+    # not keep claiming a full twin-cascade basis for the aggregate.
+    if not uses_twin:
+        status = "available"
+        cascade_basis = "not_run"
+    elif unavailable_cascades == 0:
+        status = "available_with_twin_cascade"
+        cascade_basis = "per_contingency_in_memory"
+    elif unavailable_cascades < len(contingencies):
+        status = "available_with_partial_twin_cascade"
+        cascade_basis = "per_contingency_in_memory_partial"
+    else:
+        status = "available_topology_only"
+        cascade_basis = "unavailable"
     evidence.update(
         {
-            "status": "available_with_twin_cascade" if uses_twin else "available",
+            "status": status,
             "active_branch_count": len(branches),
             "contingencies_evaluated": len(contingencies),
             "max_contingencies": max_contingencies,
-            "cascade": "per_contingency_in_memory" if uses_twin else "not_run",
-            "cascade_unavailable_contingencies": min(
-                unavailable_cascades, len(contingencies)
-            ),
+            "cascade": cascade_basis,
+            "cascade_unavailable_contingencies": unavailable_cascades,
         }
     )
     return {
