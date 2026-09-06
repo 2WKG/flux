@@ -12,12 +12,43 @@ import { expect, test, type Page } from "@playwright/test";
  *     must fail here.
  *  2. The no-network claim is an allowlist over request *origins*, not a
  *     denylist over two path prefixes, and it is installed for every test.
+ *  3. The API behind the origin is the real `copilot.app`, booted by
+ *     `scripts/e2e-stack.mjs`. A fresh clone has no `data/duck/grid.duckdb`, so
+ *     the data routes answer the API's own named `unavailable` envelopes rather
+ *     than fabricated rows -- and the assertions below pin *that* reason
+ *     (`API_DATABASE_REFUSAL`), not merely "something said unavailable". With
+ *     no API the refusal would come from `web/server.mjs` itself and read
+ *     `no_api_origin_configured`, so killing the API turns this suite red
+ *     instead of leaving it quietly green.
+ *
+ * KNOWN RED, and deliberately not silenced. Every case below asserts that the
+ * page reported no CSP violation, and on master each one fails with
+ * `script-src wasm-eval`: `web/server.mjs`'s policy is `script-src 'self'`,
+ * which forbids WebAssembly compilation, while the glTF path bundles
+ * meshoptimizer's decoder -- it probes for SIMD with `WebAssembly.validate` and
+ * then calls `WebAssembly.instantiate` on a bundled buffer, and Chromium
+ * refuses both. The single directive that would permit it is
+ * `'wasm-unsafe-eval'` (WebAssembly compilation only: no `eval`, no
+ * `new Function`, no off-origin source). Adding it is a security decision for
+ * the owner of that policy, so it is NOT taken here and the affected cases stay
+ * red rather than be weakened, skipped, or marked expected-failure. Measured:
+ * with the directive added locally all 12 e2e cases pass; without it 7 fail
+ * here and 5 pass. Nothing in this suite fails for any other reason.
  */
+
+/**
+ * The message `copilot/` emits when the DuckDB artifact is absent. Only a
+ * running API produces it: the origin's own no-upstream envelope says
+ * "no Copilot API origin is configured for this deployment" instead.
+ */
+const API_DATABASE_REFUSAL = /The (?:configured )?database artifact is unavailable\./;
 
 const SYNTHETIC_NAV_SUMMARY = /Synthetic · fixture source · no asserted topology · no API required/i;
 const SYNTHETIC_STATUS_PILL = /Synthetic five-bus preview · not Minnesota data/i;
 /** Any claim of source support over a synthetic fixture, in any spelling. */
 const SOURCE_BACKED_CLAIM = /source[_ -]?backed|source[_ -]?supported|source[_ -]?screened|Minnesota coverage/i;
+/** The one surface on this page that *is* source-supported and says so honestly. */
+const SOURCE_BACKED_PANEL = "Source-backed physical inventory";
 
 /** Every request the page made, recorded for the same-origin assertion. */
 const recorded = new WeakMap<Page, string[]>();
@@ -72,7 +103,22 @@ async function expectSyntheticProvenance(page: Page): Promise<void> {
   await expect(page.locator("main")).toHaveAttribute("data-source-status", "synthetic");
   await expect(page.getByText(SYNTHETIC_NAV_SUMMARY)).toBeVisible();
   await expect(page.getByText(SYNTHETIC_STATUS_PILL)).toBeVisible();
-  await expect(page.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
+  // Scoped to the synthetic surface, and only because the App is server-backed:
+  // the MN physical-inventory panel beside it is a genuinely source-supported
+  // release, so with the API up it legitimately renders "Scene state:
+  // source_supported" and "No source-backed statewide line denominator ... is
+  // available." A page-wide sweep would read those as the synthetic fixture
+  // claiming source support, which is the opposite of what this guards. The
+  // guard still fails if the synthetic explorer, its inspector, its status pill
+  // or its disclosure ever claims it.
+  const syntheticText = await page.evaluate((panelLabel) => {
+    const main = document.querySelector("main");
+    if (!main) return "";
+    const clone = main.cloneNode(true) as HTMLElement;
+    for (const node of clone.querySelectorAll(`[aria-label="${panelLabel}"]`)) node.remove();
+    return clone.textContent ?? "";
+  }, SOURCE_BACKED_PANEL);
+  expect(syntheticText).not.toMatch(SOURCE_BACKED_CLAIM);
 }
 
 test("the static explorer selects scenarios and keeps its synthetic label through every selection", async ({ page }) => {
@@ -108,8 +154,10 @@ test("the chat dock hosts the real evidence surface and states its own unavailab
   await expect(dock).toHaveClass(/collapsed/);
   const toggle = dock.getByRole("button", { name: /Ask about visible evidence/i });
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  // Nothing served this origin an API, so the dock says so rather than offering
-  // a Send button that would do nothing.
+  // The API *is* served on this origin, and it answered `/health` with its own
+  // named unavailable envelope (no DuckDB in a clean clone). `askAvailable` is
+  // derived from that probe, so the dock still refuses -- and it refuses for the
+  // reason the API gave, not because nothing was listening.
   await expect(dock.getByText(/Not available in this offline build/i)).toBeVisible();
 
   await toggle.click();
@@ -121,6 +169,10 @@ test("the chat dock hosts the real evidence surface and states its own unavailab
   await expect(dock.locator("section.run-trace")).toBeVisible();
   await expect(dock.getByText(/No answer results are available\./i)).toBeVisible();
   await expect(dock.locator("section.failure-state")).toBeVisible();
+  // The named state comes from the API's `/health` envelope. If the API is not
+  // running, this reads the origin's `no_api_origin_configured` copy instead and
+  // this assertion fails -- which is the point.
+  await expect(dock.locator("section.failure-state")).toContainText(API_DATABASE_REFUSAL);
   // The Send button is disabled while no endpoint has answered.
   await expect(dock.getByRole("button", { name: "Send" })).toBeDisabled();
 
@@ -140,10 +192,15 @@ test("the physical-inventory map is mounted inside the one App, with its disclos
   // And there is no second, mis-projected geometry surface over it.
   await expect(panel.locator("svg.grid-geometry-overlay")).toHaveCount(0);
 
-  // The inventory API is not served by this origin, so the panel names the
-  // refusal instead of showing an empty map as if it were an empty state.
+  // The inventory API *is* served by this origin now, and the MN physical
+  // inventory is a release artifact rather than a DuckDB table, so it answers
+  // with real records. The panel must therefore state a real, counted coverage
+  // and the release it read -- never a blank map, and never a refusal it no
+  // longer has. Without the API this note reads the unavailable copy and fails.
   await expect(panel.getByLabel("Coverage and geometry availability")).toBeVisible();
-  await expect(panel.locator(".grid-map-note")).toContainText(/Unavailable|Request failed|Requesting the source-backed inventory release/);
+  const note = panel.locator(".grid-map-note");
+  await expect(note).toContainText(/\d+ rendered from \d+ loaded records/, { timeout: 20_000 });
+  await expect(note).toContainText(/Release SHA-256: [0-9a-f]{64}/);
   await expectSameOriginOnly(page);
 });
 
@@ -162,6 +219,14 @@ test("every layer is disclosed unavailable with the producer reason, never hidde
     await expect(row.locator("p.layer-reason")).not.toBeEmpty();
     await expect(row.locator("input[type=checkbox]")).toBeDisabled();
   }
+  // The topology layer is the one layer with a server read route. Its reason is
+  // the API's own database refusal, so this row proves the request reached
+  // `copilot.app` and came back named -- a row that merely says "unavailable"
+  // cannot tell a booted API from an absent one.
+  // Web-first, not a sample: the topology reason arrives with the `/layers`
+  // answer, after the row has already rendered its pre-request state.
+  await expect(rows.locator("p.layer-reason").filter({ hasText: API_DATABASE_REFUSAL })).toHaveCount(1);
+  await expect(rows.locator("p.layer-reason").filter({ hasText: /no Copilot API origin is configured/i })).toHaveCount(0);
   await expect(page.getByLabel("Layer status legend")).toBeVisible();
   await expectSameOriginOnly(page);
 });

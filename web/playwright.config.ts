@@ -5,6 +5,9 @@ const systemChrome = "/Applications/Google Chrome.app/Contents/MacOS/Google Chro
 const executablePath = process.env.PLAYWRIGHT_EXECUTABLE_PATH
   ?? (existsSync(systemChrome) ? systemChrome : undefined);
 
+const port = process.env.FLUX_E2E_PORT ?? "4173";
+const baseURL = `http://127.0.0.1:${port}`;
+
 export default defineConfig({
   testDir: "./e2e",
   timeout: 30_000,
@@ -13,16 +16,21 @@ export default defineConfig({
   workers: 1,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:4173",
+    baseURL,
     browserName: "chromium",
     launchOptions: executablePath ? { executablePath } : undefined,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run build && node server.mjs",
-    url: "http://127.0.0.1:4173",
+    // Not `node server.mjs`: the App is server-backed, so the proof needs the
+    // real FastAPI app behind the origin's read forward. `scripts/e2e-stack.mjs`
+    // boots both and tears both down. The budget covers a cold `uv sync` plus
+    // the ~25 s first `import copilot.app`.
+    command: "npm run build && node scripts/e2e-stack.mjs",
+    url: baseURL,
+    env: { PORT: port },
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 600_000,
   },
 });
