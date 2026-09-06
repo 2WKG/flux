@@ -62,9 +62,6 @@ export type StatusLabel = (typeof STATUS_LABELS)[number];
  */
 export const PLACEABLE_STATUS_LABELS: readonly StatusLabel[] = ["source_supported", "source_screened"];
 
-/** Truth labels Gate 0 froze at artifact level. */
-export type TruthLabel = "source_backed" | "synthetic" | "unavailable";
-
 export type RejectionReason =
   | "malformed_collection"
   | "missing_crs"
@@ -73,17 +70,9 @@ export type RejectionReason =
   | "synthetic_topology_not_minnesota"
   | "aggregate_only_no_geometry"
   | "not_server_bound"
+  | "catalog_preview_no_geometry"
   | "no_features"
   | "coordinates_out_of_range";
-
-export interface SceneNode {
-  /** The server's own identifier, preserved verbatim. */
-  readonly id: string;
-  readonly name: string | null;
-  /** [longitude, latitude] in EPSG:4326, exactly as sent. */
-  readonly position: readonly [number, number];
-  readonly truthLabel: TruthLabel;
-}
 
 /** One `render_mode: "placed"` binding from `bind_asset`, carried verbatim. */
 export interface BoundPlacement {
@@ -91,54 +80,26 @@ export interface BoundPlacement {
   readonly id: string;
   readonly sourceArtifactId: string;
   readonly archetypeId: string;
-  readonly semanticType: string | null;
+  readonly semanticType: string;
   /** [longitude, latitude] in EPSG:4326, exactly as the server bound them. */
   readonly position: readonly [number, number];
   /** The server's `material.status_label`; the browser never supplies one. */
   readonly statusLabel: StatusLabel;
 }
 
-export interface AggregateZone {
-  readonly id: string;
-  readonly name: string | null;
-  /**
-   * The manifest's own `allocation_status`, carried through. The accepted
-   * aggregate manifest says `"unavailable"`, so an unallocated county renders
-   * as unavailable, not as source-backed.
-   */
-  readonly statusLabel: StatusLabel;
-}
-
-export interface SceneProvenance {
-  readonly layer: string;
-  readonly crs: typeof REQUIRED_CRS;
-  readonly sourceNames: readonly string[];
-  readonly fixtureBatchIds: readonly string[];
-  readonly topology: string | null;
-}
-
 export type SceneAdaptation =
   | {
-      /**
-       * Reserved for the day the `10-minnesota-demo.md` network decision gate
-       * opens. Nothing in this module returns it while Gate 0 holds; it exists
-       * so `allowsTopologyRendering` keeps a real, testable discriminant.
-       */
-      readonly kind: "topology_scene";
-      readonly nodes: readonly SceneNode[];
-      readonly provenance: SceneProvenance;
-    }
-  | {
       /** Server-bound points. Placements only -- never lines, towers, or flows. */
-      readonly kind: "bound_placements";
-      readonly placements: readonly BoundPlacement[];
-      readonly provenance: SceneProvenance;
+      readonly kind: "bound_placement";
+      readonly placement: BoundPlacement;
     }
   | {
-      /** Named zones only. Carries no geometry, so nothing may be drawn from it. */
-      readonly kind: "aggregate_zones";
-      readonly zones: readonly AggregateZone[];
-      readonly provenance: SceneProvenance;
+      /** The real aggregate manifest. It names no geometry, so nothing is drawn. */
+      readonly kind: "aggregate_coverage";
+      readonly manifestFormat: "flux-minnesota-aggregate-v1";
+      readonly allocationStatus: StatusLabel;
+      readonly allocationLimit: string;
+      readonly sourceIds: readonly string[];
       readonly renderableGeometry: false;
     }
   | {
@@ -185,11 +146,9 @@ function crsNameOf(collection: Record<string, unknown>): string | null {
  * `"fixture"`, `"simulated"`, or `None`, so those are the only kinds recognised
  * here. There is no accept token: no `/layers` provenance asserts acceptance.
  */
-function truthLabelOf(provenance: Record<string, unknown>): TruthLabel | null {
+function hasRecognizedLayerProvenance(provenance: Record<string, unknown>): boolean {
   const kinds = stringsOf(provenance.source_kinds);
-  if (kinds.length === 0) return null;
-  if (kinds.every((kind) => kind === "fixture" || kind === "simulated")) return "synthetic";
-  return null;
+  return kinds.length > 0 && kinds.every((kind) => kind === "fixture" || kind === "simulated");
 }
 
 /** Name why a feature cannot be placed, or null when its shape is sound. */
@@ -249,7 +208,7 @@ export function adaptLayerToScene(collection: unknown): SceneAdaptation {
     );
   }
 
-  if (truthLabelOf(provenance) === null) {
+  if (!hasRecognizedLayerProvenance(provenance)) {
     return reject(
       "unlabeled_provenance",
       "The collection has no server-asserted source label; the browser may not supply one.",
@@ -286,125 +245,106 @@ export function adaptLayerToScene(collection: unknown): SceneAdaptation {
  * The server already decided acceptance from storage. This preserves what it
  * decided -- `scene_id`, `coordinates`, `material.status_label` -- and refuses
  * anything that does not carry that decision. It never returns a
- * `topology_scene`: placements are points, and Gate 0 keeps lines, towers, and
- * flows shut.
+ * a topology scene: placements are points, and Gate 0 keeps lines, towers,
+ * and flows shut.
  *
- * `payload` is `{ layer?, placements: [...] }` where each entry is one
- * `bind_asset` result.
+ * `binding` is exactly one `bind_asset` result. `bind_from_files` returns one
+ * result too; no server endpoint currently emits a batch envelope, so this
+ * adapter deliberately does not invent one.
  */
-export function adaptBoundPlacements(payload: unknown): SceneAdaptation {
-  if (!isRecord(payload)) {
+export function adaptBoundPlacement(binding: unknown): SceneAdaptation {
+  if (!isRecord(binding)) {
     return reject("malformed_collection", "Payload is not a binding result object.");
   }
-  const entries = Array.isArray(payload.placements) ? payload.placements : null;
-  if (entries === null) {
-    return reject("malformed_collection", "Payload has no placements array.");
+  if (binding.render_mode === "catalog_preview") {
+    return reject(
+      "catalog_preview_no_geometry",
+      "The server returned a catalogue preview, which has no Minnesota placement geometry.",
+    );
   }
-  if (entries.length === 0) {
-    return reject("no_features", "The binding result names no placements.");
+  if (binding.render_mode !== "placed") {
+    return reject(
+      "not_server_bound",
+      `Binding has render_mode ${JSON.stringify(binding.render_mode)}; the server bound no geometry for it.`,
+    );
   }
 
-  const placements: BoundPlacement[] = [];
-  for (const [index, entry] of entries.entries()) {
-    const at = `Placement ${index}`;
-    if (!isRecord(entry)) {
-      return reject("malformed_collection", `${at} is not an object.`);
-    }
-    if (entry.render_mode !== "placed") {
-      return reject(
-        "not_server_bound",
-        `${at} has render_mode ${JSON.stringify(entry.render_mode)}; the server bound no geometry for it.`,
-      );
-    }
+  const material = isRecord(binding.material) ? binding.material : null;
+  const statusLabel = material === null ? null : material.status_label;
+  if (material === null || material.slot !== "MAT_STATUS" || !isStatusLabel(statusLabel)) {
+    return reject(
+      "unlabeled_provenance",
+      "Binding carries no MAT_STATUS material.status_label; the browser may not supply one.",
+    );
+  }
+  if (!PLACEABLE_STATUS_LABELS.includes(statusLabel)) {
+    return reject(
+      "not_server_bound",
+      `Binding is labelled ${statusLabel}, which is not in the accepted set ` +
+        `${PLACEABLE_STATUS_LABELS.join(", ")} and may not position geometry.`,
+    );
+  }
 
-    const material = isRecord(entry.material) ? entry.material : null;
-    const statusLabel = material === null ? null : material.status_label;
-    if (!isStatusLabel(statusLabel)) {
-      return reject(
-        "unlabeled_provenance",
-        `${at} carries no MAT_STATUS material.status_label; the browser may not supply one.`,
-      );
-    }
-    if (!PLACEABLE_STATUS_LABELS.includes(statusLabel)) {
-      return reject(
-        "not_server_bound",
-        `${at} is labelled ${statusLabel}, which is not in the accepted set ` +
-          `${PLACEABLE_STATUS_LABELS.join(", ")} and may not position geometry.`,
-      );
-    }
+  if (binding.crs === undefined || binding.crs === null || binding.coordinates === undefined) {
+    return reject("missing_crs", "Binding declares no complete CRS contract for its coordinates.");
+  }
+  if (binding.crs !== REQUIRED_CRS) {
+    return reject("unsupported_crs", `Binding declares ${JSON.stringify(binding.crs)}; ${REQUIRED_CRS} is required.`);
+  }
+  const coordinates = isRecord(binding.coordinates) ? binding.coordinates : null;
+  if (coordinates === null) {
+    return reject("malformed_collection", "Binding has no coordinates object.");
+  }
+  if (coordinates.crs === undefined || coordinates.crs === null) {
+    return reject("missing_crs", "Binding coordinates declare no CRS.");
+  }
+  if (coordinates.crs !== REQUIRED_CRS) {
+    return reject(
+      "unsupported_crs",
+      `Binding declares coordinates in ${JSON.stringify(coordinates.crs)}; ${REQUIRED_CRS} is required.`,
+    );
+  }
+  const { longitude, latitude } = coordinates;
+  if (typeof longitude !== "number" || typeof latitude !== "number") {
+    return reject("malformed_collection", "Binding has non-numeric coordinates.");
+  }
+  if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
+    return reject("coordinates_out_of_range", "Binding has non-finite coordinates.");
+  }
+  const [west, south, east, north] = MINNESOTA_BBOX;
+  if (longitude < west || longitude > east || latitude < south || latitude > north) {
+    return reject(
+      "coordinates_out_of_range",
+      `Binding at (${longitude}, ${latitude}) falls outside the documented Minnesota extent.`,
+    );
+  }
 
-    const declaredCrs = entry.crs;
-    if (declaredCrs === undefined || declaredCrs === null) {
-      return reject("missing_crs", `${at} declares no CRS; coordinates cannot be placed.`);
-    }
-    if (declaredCrs !== REQUIRED_CRS) {
-      return reject(
-        "unsupported_crs",
-        `${at} declares ${JSON.stringify(declaredCrs)}; ${REQUIRED_CRS} is required.`,
-      );
-    }
-
-    const coordinates = isRecord(entry.coordinates) ? entry.coordinates : null;
-    if (coordinates === null) {
-      return reject("malformed_collection", `${at} has no coordinates object.`);
-    }
-    const coordinateCrs = coordinates.crs ?? declaredCrs;
-    if (coordinateCrs !== REQUIRED_CRS) {
-      return reject(
-        "unsupported_crs",
-        `${at} declares coordinates in ${JSON.stringify(coordinateCrs)}; ${REQUIRED_CRS} is required.`,
-      );
-    }
-    const { longitude, latitude } = coordinates;
-    if (typeof longitude !== "number" || typeof latitude !== "number") {
-      return reject("malformed_collection", `${at} has non-numeric coordinates.`);
-    }
-    if (!Number.isFinite(longitude) || !Number.isFinite(latitude)) {
-      return reject("coordinates_out_of_range", `${at} has non-finite coordinates.`);
-    }
-    const [west, south, east, north] = MINNESOTA_BBOX;
-    if (longitude < west || longitude > east || latitude < south || latitude > north) {
-      return reject(
-        "coordinates_out_of_range",
-        `${at} at (${longitude}, ${latitude}) falls outside the documented Minnesota extent.`,
-      );
-    }
-
-    const sceneId = nonEmptyString(entry.scene_id);
-    const sourceArtifactId = nonEmptyString(entry.source_artifact_id);
-    const archetypeId = nonEmptyString(entry.archetype_id);
-    if (sceneId === null || sourceArtifactId === null || archetypeId === null) {
-      return reject(
-        "malformed_collection",
-        `${at} must carry a non-empty scene_id, source_artifact_id, and archetype_id.`,
-      );
-    }
-    if (!sceneId.startsWith(sourceArtifactId)) {
-      return reject(
-        "malformed_collection",
-        `${at} scene_id ${sceneId} is not namespaced under its source artifact ${sourceArtifactId}.`,
-      );
-    }
-
-    placements.push({
-      id: sceneId,
-      sourceArtifactId,
-      archetypeId,
-      semanticType: typeof entry.semantic_type === "string" ? entry.semantic_type : null,
-      position: [longitude, latitude] as const,
-      statusLabel,
-    });
+  const sceneId = nonEmptyString(binding.scene_id);
+  const sourceArtifactId = nonEmptyString(binding.source_artifact_id);
+  const archetypeId = nonEmptyString(binding.archetype_id);
+  const semanticType = nonEmptyString(binding.semantic_type);
+  if (sceneId === null || sourceArtifactId === null || archetypeId === null || semanticType === null) {
+    return reject(
+      "malformed_collection",
+      "Binding must carry non-empty scene_id, source_artifact_id, archetype_id, and semantic_type fields.",
+    );
+  }
+  if (!sceneId.startsWith(`${sourceArtifactId}:`)) {
+    return reject(
+      "malformed_collection",
+      `Binding scene_id ${sceneId} is not namespaced under its source artifact ${sourceArtifactId}.`,
+    );
   }
 
   return {
-    kind: "bound_placements",
-    placements,
-    provenance: {
-      layer: typeof payload.layer === "string" ? payload.layer : "unknown",
-      crs: REQUIRED_CRS,
-      sourceNames: stringsOf(payload.source_names),
-      fixtureBatchIds: stringsOf(payload.fixture_batch_ids),
-      topology: null,
+    kind: "bound_placement",
+    placement: {
+      id: sceneId,
+      sourceArtifactId,
+      archetypeId,
+      semanticType,
+      position: [longitude, latitude] as const,
+      statusLabel,
     },
   };
 }
@@ -412,70 +352,54 @@ export function adaptBoundPlacements(payload: unknown): SceneAdaptation {
 /**
  * Adapt aggregate-mode coverage into named zones.
  *
- * `coverage` is the aggregate manifest shape
- * (`pipelines/fixtures/inputs/minnesota_aggregate_manifest_v1.json`): a `layer`,
- * a `zones` array, and the manifest's own `allocation_status`. That status is
- * carried through to every zone -- today the manifest says `"unavailable"`, so
- * the zones say `"unavailable"` too. Nothing is relabelled and no boundary,
- * centroid, line, or tower is synthesised: there is no accepted geometry to
- * infer one from.
+ * `coverage` is the real aggregate manifest produced by
+ * `pipelines/minnesota_aggregate.py`. It has no layer or zones fields: its
+ * `allocation_status` means the aggregate evidence may be disclosed, but no
+ * geometry exists to draw. Nothing is relabelled and no boundary, centroid,
+ * line, or tower is synthesised.
  */
 export function adaptAggregateCoverage(coverage: unknown): SceneAdaptation {
   if (!isRecord(coverage)) {
     return reject("malformed_collection", "Aggregate coverage is not an object.");
   }
-  const layer = nonEmptyString(coverage.layer);
-  if (layer === null) {
-    return reject("malformed_collection", "Aggregate coverage declares no layer name.");
+  if (coverage.format !== "flux-minnesota-aggregate-v1" || coverage.model_mode !== "aggregate") {
+    return reject("malformed_collection", "Aggregate coverage does not declare the supported aggregate-manifest contract.");
   }
-  const rawZones = Array.isArray(coverage.zones) ? coverage.zones : null;
-  if (rawZones === null) {
-    return reject("malformed_collection", "Aggregate coverage has no zones array.");
+  const allocationStatus = coverage.allocation_status;
+  if (!isStatusLabel(allocationStatus)) {
+    return reject(
+      "unlabeled_provenance",
+      "Aggregate coverage carries no server allocation_status from the MAT_STATUS vocabulary.",
+    );
   }
-  if (rawZones.length === 0) {
-    return reject("no_features", "Aggregate coverage names no zones.");
+  const allocationLimit = nonEmptyString(coverage.allocation_limit);
+  if (allocationLimit === null) {
+    return reject("malformed_collection", "Aggregate coverage has no allocation limit.");
   }
-
-  const zones: AggregateZone[] = [];
-  for (const [index, rawZone] of rawZones.entries()) {
-    const at = `Zone ${index}`;
-    if (!isRecord(rawZone)) {
-      return reject("malformed_collection", `${at} is not an object.`);
-    }
-    const id = nonEmptyString(rawZone.id);
-    if (id === null) {
-      return reject("malformed_collection", `${at} has no non-empty string id.`);
-    }
-    const status = rawZone.allocation_status ?? coverage.allocation_status;
-    if (!isStatusLabel(status)) {
-      return reject(
-        "unlabeled_provenance",
-        `${at} carries no server allocation_status from the MAT_STATUS vocabulary; ` +
-          "the browser may not supply one.",
-      );
-    }
-    zones.push({
-      id,
-      name: typeof rawZone.name === "string" ? rawZone.name : null,
-      statusLabel: status,
-    });
+  const sources = Array.isArray(coverage.sources) ? coverage.sources : null;
+  if (sources === null || sources.length === 0) {
+    return reject("malformed_collection", "Aggregate coverage has no source records.");
+  }
+  const sourceIds: string[] = [];
+  for (const source of sources) {
+    if (!isRecord(source)) return reject("malformed_collection", "Aggregate coverage has a non-object source record.");
+    const sourceId = nonEmptyString(source.id);
+    if (sourceId === null) return reject("malformed_collection", "Aggregate coverage has a source record without an id.");
+    sourceIds.push(sourceId);
   }
 
   return {
-    kind: "aggregate_zones",
-    zones,
-    provenance: {
-      layer,
-      crs: REQUIRED_CRS,
-      sourceNames: stringsOf(coverage.source_names),
-      fixtureBatchIds: stringsOf(coverage.fixture_batch_ids),
-      topology: null,
-    },
+    kind: "aggregate_coverage",
+    manifestFormat: "flux-minnesota-aggregate-v1",
+    allocationStatus,
+    allocationLimit,
+    sourceIds,
     renderableGeometry: false,
   };
 }
 
 /** True when the adaptation may drive a topology scene: lines, towers, flows. */
 export function allowsTopologyRendering(adaptation: SceneAdaptation): boolean {
-  return adaptation.kind === "topology_scene";
+  void adaptation;
+  return false;
 }
