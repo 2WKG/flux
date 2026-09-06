@@ -292,11 +292,33 @@ curl -s -w "\n%{http_code}\n" http://localhost:8000/health
 | `POST /ask` emits `lifecycle` then SSE `error` code `unavailable` | The local app has no injected backend. This is expected; no provider is contacted. |
 | An unknown path returns 404 `not_found` | Only the nine routes listed above are registered. |
 
-## Verified on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
+## Current local API handoff verification
+
+The updated route inventory and `/ask` statements above were checked without
+starting the static demo, contacting a provider, or using an external route on
+master `560dc7fcec6a543198749b3fcf54edb98f4e95d5` (PR #124 plus the already
+merged local Ask implementation). A local FastAPI `TestClient` trace used
+`attempt_id: "local_startup_0001"` and found:
+
+- The default app (no injected backend) returns `200 text/event-stream`, echoes
+  `X-Flux-Attempt-Id: local_startup_0001`, then sends `lifecycle` sequence 1
+  and `error` sequence 2 with code `unavailable`.
+- An injected backend with local evidence but no provider remains `200` SSE;
+  it sends its tool events before the explicit unavailable terminal.
+- A valid `Last-Event-ID: 1` request is a pre-stream `503` JSON unavailable
+  response and has no attempt acknowledgement because replay storage is absent.
+
+`uv run --extra dev pytest -q copilot/test_api_route_inventory.py
+copilot/test_ask.py` passed 14 tests for the registered inventory and local SSE
+contract. This verification does not provide the separate 2WKG-418 fixture
+preparation path or any live HTTPS/tunnel/provider evidence.
+
+## Historical verification on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
 
 macOS (Darwin 25.6.0), Node v26.0.0, npm 11.12.1, uv 0.11.16, `uv run python`
-3.12.13, no `python` on `PATH` (`python3` is 3.9.6). Every command above was run
-in this order; outputs are verbatim.
+3.12.13, no `python` on `PATH` (`python3` is 3.9.6). The following original
+startup commands were run in this order; outputs are verbatim. They predate the
+current `/predictions`, `/cascade`, and `/ask` route inventory.
 
 ```
 $ uv sync --frozen --extra dev                                  rc=0
