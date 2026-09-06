@@ -133,6 +133,20 @@ def evaluate_feasibility(
             "spur_rating_unknown",
             {"basis": "smallest_conductor_class_for_voltage"},
         )
+    conductor_limit = _smallest_conductor_rating(net, proposal, base_kv)
+    if conductor_limit is not None and _kind(proposal) == "add_line":
+        proposed_rating = _number(proposal.get("rate_a_mw"))
+        if proposed_rating is not None and proposed_rating > conductor_limit:
+            return _result(
+                "invalid",
+                "P3",
+                "radial_spur_exceeds_smallest_conductor_rating",
+                {
+                    "rate_a_mw": proposed_rating,
+                    "smallest_conductor_rating_mw": conductor_limit,
+                    "base_kv": _number(proposal.get("base_kv")) or base_kv,
+                },
+            )
 
     edited = _apply_edit(net, edit)
     corridor = _check_corridor(edited)
@@ -347,6 +361,34 @@ def _capacity_mw(proposal: Mapping[str, Any]) -> float | None:
     return _number(
         proposal.get("pmax_mw", proposal.get("p_mw", proposal.get("rate_a_mw")))
     )
+
+
+def _smallest_conductor_rating(
+    net: Any, proposal: Mapping[str, Any], base_kv: float
+) -> float | None:
+    """Derive P3's cap from the least-rated installed line at the voltage.
+
+    Pandapower stores a line's thermal limit as ``max_i_ka``.  This conversion
+    makes the policy trace to the supplied synthetic network instead of
+    inventing an unsourced MW value for a conductor class.
+    """
+    lines = getattr(net, "line", None)
+    if not isinstance(lines, pd.DataFrame) or "max_i_ka" not in lines:
+        return None
+    voltage = _number(proposal.get("base_kv")) or base_kv
+    candidates: list[float] = []
+    buses = getattr(net, "bus", None)
+    if not isinstance(buses, pd.DataFrame):
+        return None
+    for _, row in lines.iterrows():
+        if not _in_service(row.get("in_service", True)):
+            continue
+        line_kv = _number(buses.at[row.get("from_bus"), "vn_kv"])
+        current = _number(row.get("max_i_ka"))
+        if line_kv is None or current is None or abs(line_kv - voltage) > 1e-6:
+            continue
+        candidates.append(3**0.5 * line_kv * current)
+    return min(candidates) if candidates else None
 
 
 def _number(value: Any) -> float | None:
