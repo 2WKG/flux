@@ -126,8 +126,12 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
     for the same-origin runtime copy committed by PR #332.
     """
     errors: list[str] = []
-    receipt = _read_json(root / PUBLISHED_RELEASE_RECEIPT, "published runtime receipt", errors)
-    inventory = _read_json(root / PUBLISHED_RUNTIME_INVENTORY, "published runtime inventory", errors)
+    receipt = _read_json(
+        root / PUBLISHED_RELEASE_RECEIPT, "published runtime receipt", errors
+    )
+    inventory = _read_json(
+        root / PUBLISHED_RUNTIME_INVENTORY, "published runtime inventory", errors
+    )
     catalog_path = root / "data/3d/asset-archetypes-v1.json"
 
     if receipt is not None:
@@ -139,12 +143,23 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
             if receipt.get(field) != expected:
                 errors.append(f"published runtime receipt does not pin {field}")
         source = receipt.get("source_contract")
-        if not isinstance(source, dict) or source.get("file") != "data/3d/asset-archetypes-v1.json":
+        if (
+            not isinstance(source, dict)
+            or source.get("file") != "data/3d/asset-archetypes-v1.json"
+        ):
             errors.append("published runtime receipt does not pin the source catalog")
-        elif not catalog_path.is_file() or source.get("sha256") != _sha256(catalog_path):
-            errors.append("published runtime receipt source catalog hash does not match")
+        elif not catalog_path.is_file() or source.get("sha256") != _sha256(
+            catalog_path
+        ):
+            errors.append(
+                "published runtime receipt source catalog hash does not match"
+            )
 
-    expected_ids = {entry.get("id") for entry in catalog.get("archetypes", []) if isinstance(entry, dict)}
+    expected_ids = {
+        entry.get("id")
+        for entry in catalog.get("archetypes", [])
+        if isinstance(entry, dict)
+    }
     expected_paths = {
         f"{asset_id}/{asset_id}{suffix}"
         for asset_id in expected_ids
@@ -159,18 +174,23 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
         if (
             inventory.get("schema_version") != 1
             or inventory.get("release_tag") != PUBLISHED_RUNTIME_RELEASE["release_tag"]
-            or inventory.get("archive_sha256") != PUBLISHED_RUNTIME_RELEASE["archive_sha256"]
+            or inventory.get("archive_sha256")
+            != PUBLISHED_RUNTIME_RELEASE["archive_sha256"]
             or inventory.get("runtime_manifest_sha256")
             != PUBLISHED_RUNTIME_RELEASE["runtime_manifest_sha256"]
         ):
-            errors.append("published runtime inventory is not bound to the verified release")
+            errors.append(
+                "published runtime inventory is not bound to the verified release"
+            )
         files = inventory.get("files")
         if not isinstance(files, list):
             errors.append("published runtime inventory files must be a list")
         else:
             for entry in files:
                 if not isinstance(entry, dict):
-                    errors.append("published runtime inventory has a non-object file entry")
+                    errors.append(
+                        "published runtime inventory has a non-object file entry"
+                    )
                     continue
                 path = entry.get("path")
                 digest = entry.get("sha256")
@@ -181,21 +201,34 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
                 if path in pinned:
                     errors.append(f"published runtime inventory duplicates {path}")
                     continue
-                if not isinstance(digest, str) or not re.fullmatch(r"[a-f0-9]{64}", digest):
-                    errors.append(f"published runtime inventory has an invalid digest for {path}")
+                if not isinstance(digest, str) or not re.fullmatch(
+                    r"[a-f0-9]{64}", digest
+                ):
+                    errors.append(
+                        f"published runtime inventory has an invalid digest for {path}"
+                    )
                     continue
                 if not isinstance(size, int) or size <= 0:
-                    errors.append(f"published runtime inventory has an invalid byte size for {path}")
+                    errors.append(
+                        f"published runtime inventory has an invalid byte size for {path}"
+                    )
                     continue
                 pinned[path] = entry
             if set(pinned) != expected_paths:
-                errors.append("published runtime inventory does not pin exactly the 54 expected GLBs")
+                errors.append(
+                    "published runtime inventory does not pin exactly the 54 expected GLBs"
+                )
 
     runtime_manifest = root / RUNTIME_ASSET_ROOT / "manifest.json"
     if not runtime_manifest.is_file():
         errors.append("published runtime manifest is missing from the runtime location")
-    elif _sha256(runtime_manifest) != PUBLISHED_RUNTIME_RELEASE["runtime_manifest_sha256"]:
-        errors.append("published runtime manifest digest does not match the verified release")
+    elif (
+        _sha256(runtime_manifest)
+        != PUBLISHED_RUNTIME_RELEASE["runtime_manifest_sha256"]
+    ):
+        errors.append(
+            "published runtime manifest digest does not match the verified release"
+        )
 
     actual_models = set(find_model_files(root))
     runtime_prefix = f"{RUNTIME_ASSET_ROOT.as_posix()}/"
@@ -203,7 +236,9 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
     unexpected = sorted(actual_models - allowed_models)
     missing = sorted(allowed_models - actual_models)
     if unexpected:
-        errors.append(f"unverified model binary outside published runtime location: {unexpected}")
+        errors.append(
+            f"unverified model binary outside published runtime location: {unexpected}"
+        )
     if missing:
         errors.append(f"published runtime is missing pinned model binaries: {missing}")
     for relative, entry in pinned.items():
@@ -211,9 +246,13 @@ def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]
         if not path.is_file():
             continue
         if path.stat().st_size != entry["bytes"]:
-            errors.append(f"published runtime byte size does not match inventory: {relative}")
+            errors.append(
+                f"published runtime byte size does not match inventory: {relative}"
+            )
         if _sha256(path) != entry["sha256"]:
-            errors.append(f"published runtime digest does not match inventory: {relative}")
+            errors.append(
+                f"published runtime digest does not match inventory: {relative}"
+            )
     return errors
 
 
