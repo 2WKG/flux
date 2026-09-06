@@ -11,6 +11,7 @@ from causal.validation import (
     MISSING_IDENTIFICATION,
     MISSING_OUTCOME_DEFINITION,
     MISSING_TREATMENT_DEFINITION,
+    UNRESOLVED_CITATION,
     validate_artifact,
 )
 
@@ -52,8 +53,13 @@ def _study() -> dict:
         "covariates": [],
         "assumptions": ["conditional exchangeability"],
         "diagnostics": [{"name": "balance", "status": "pass", "evidence": "recorded"}],
+        "citations": [{"source_id": "source-1", "locator": "table-1#row-7"}],
         "availability": {"status": "available"},
-        "estimate": {"estimand": "ATE", "method": "twfe_only"},
+        "estimate": {
+            "estimand": "ATE",
+            "method": "twfe_only",
+            "evidence": [{"source_id": "source-1", "locator": "table-1#row-7"}],
+        },
     }
 
 
@@ -77,6 +83,18 @@ def _study() -> dict:
             ),
             MISSING_DIAGNOSTICS,
         ),
+        (
+            lambda study: study["citations"][0].update(source_id="source-999"),
+            UNRESOLVED_CITATION,
+        ),
+        (
+            lambda study: study["estimate"]["evidence"][0].update(
+                source_id="source-999"
+            ),
+            UNRESOLVED_CITATION,
+        ),
+        (lambda study: study.pop("citations"), UNRESOLVED_CITATION),
+        (lambda study: study["citations"].clear(), UNRESOLVED_CITATION),
     ],
 )
 def test_each_insufficiency_code_fails_closed(mutate, expected) -> None:
@@ -103,9 +121,11 @@ def test_validator_returns_all_relevant_failed_criteria_without_data_values() ->
         MISSING_IDENTIFICATION,
         MISSING_DATA_COVERAGE,
         MISSING_DIAGNOSTICS,
+        UNRESOLVED_CITATION,
     )
     assert all(
-        "source-1" not in diagnostic.message for diagnostic in result.diagnostics
+        "source-1" not in diagnostic.message and "table-1" not in diagnostic.message
+        for diagnostic in result.diagnostics
     )
 
 
@@ -138,3 +158,28 @@ def test_incoherent_sample_counts_fail_closed() -> None:
     study["sample"].update(n_total=0, n_treated=1, n_control=1)
 
     assert validate_artifact(study).unavailable_codes == (MISSING_DATA_COVERAGE,)
+
+    # The arms cannot outnumber the sample: n_treated + n_control <= n_total.
+    study = _study()
+    study["sample"].update(n_total=2, n_treated=2, n_control=1)
+    assert validate_artifact(study).unavailable_codes == (MISSING_DATA_COVERAGE,)
+
+    study = _study()
+    study["sample"].update(n_total=3, n_treated=2, n_control=1)
+    assert validate_artifact(study).estimable
+
+
+def test_resolved_citations_are_required_before_an_effect_can_be_exposed() -> None:
+    study = _study()
+    assert validate_artifact(study).estimable
+
+    study["sources"].append({**study["sources"][0], "source_id": "source-2"})
+    study["citations"].append({"source_id": "source-2", "locator": "figure-3"})
+    assert validate_artifact(study).estimable
+
+    study["citations"].append({"source_id": "source-3", "locator": "figure-4"})
+    result = validate_artifact(study)
+    assert result.unavailable_codes == (UNRESOLVED_CITATION,)
+    assert all(
+        "source-3" not in diagnostic.message for diagnostic in result.diagnostics
+    )
