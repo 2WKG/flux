@@ -1,0 +1,53 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "NOAA National Centers for Environmental Information",
+ "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+ "vintage": "Storm Events 2021 c20260323 and 2024 c20260728 publication files",
+ "license_access": "Public NCEI dataset; cite the dataset. No file-level SPDX license is asserted.",
+ "files": {
+  "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz": {
+   "bytes": 10563953,
+   "sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715"
+  },
+  "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz": {
+   "bytes": 12693243,
+   "sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c"
+  },
+  "bp10nv20.dbx": {
+   "bytes": 321354,
+   "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6",
+   "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx",
+   "note": "Retrieved live from weather.gov on 2026-09-06; bytes match the catalog pin, so the archive.org mirror in the Texas receipt was not needed."
+  },
+  "bp05mr24.dbx": {
+   "bytes": 339683,
+   "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e",
+   "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx",
+   "note": "Retrieved live from weather.gov on 2026-09-06; bytes match the catalog pin."
+  }
+ },
+ "validation": {
+  "loader": "pipelines.storm_events.load_storm_events",
+  "scope": "MN",
+  "rows": {
+   "2021": 848,
+   "2024": 904,
+   "total": 1752
+  },
+  "distinct_events": 1743,
+  "event_types": 9,
+  "ts_begin_range": [
+   "2021-02-12T05:00Z",
+   "2024-09-21T20:53Z"
+  ],
+  "top_types": {
+   "Thunderstorm Wind": 706,
+   "Hail": 582,
+   "Extreme Cold/Wind Chill": 164,
+   "Tornado": 102,
+   "Flash Flood": 79
+  },
+  "result": "passed"
+ },
+ "uncertainty": "The two pinned NWS crosswalk editions were chosen for the Texas Uri and Beryl windows. Minnesota zone-type events outside those effective intervals are not expanded to counties and are recorded in ingest_warnings (194 interval warnings on this load) rather than mapped by a later edition. Minnesota county coverage of zone-type events is therefore incomplete until crosswalk editions covering Minnesota event windows are pinned."
+}

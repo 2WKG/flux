@@ -1,0 +1,206 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "cold-snap",
+  "event": {
+    "event_id": "mn-2018-01-01-arctic",
+    "parent_system_id": "upper_midwest_2018-01-01_arctic",
+    "primary_hazard": "extreme_cold",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "726380"
+    ],
+    "context_window": {
+      "start_utc": "2017-12-29T00:00:00Z",
+      "end_utc": "2018-01-09T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2017-12-31T00:00:00Z",
+      "end_utc": "2018-01-07T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2018-01-07T00:00:00Z",
+      "end_utc": "2018-01-09T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI Storm Events episode 121337, event 726380, is an independent cold candidate pending matched weather/outage evidence.",
+    "exclusions": [],
+    "uncertainties": [
+      "EAGLE-I coverage has not been collected for this candidate; it cannot be accepted.",
+      "NCEI event 726380 is retained as zone-level candidate context only; its report is not a county time series and cannot establish county weather coverage."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2018",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz",
+      "release": "c20260323",
+      "retrieved_at_utc": "2026-09-06T07:10:48Z",
+      "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events local begin/end times and event classifications.",
+      "timezone_conversion": "Local-to-UTC receipt verification is still required for final acceptance.",
+      "filters": "MINNESOTA; EPISODE_ID=121337; EVENT_ID=726380; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
+      "gaps": [
+        "Raw binary hash and bytes not retained."
+      ],
+      "capture_method": "metadata-only reference; retained raw and filtered artifacts unavailable",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No retained response body was available in this collection pass."
+      },
+      "files": {},
+      "uncertainty": "Raw and filtered artifacts were not retained; this receipt supports only the stated report context."
+    },
+    {
+      "receipt_id": "eaglei-2018-42547879-20180101t120000-20180101t180000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547879",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:40:02Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 999210542,
+      "etag": "\"726543e4a392e220108b035ba4c52e43\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC.",
+      "filters": "Full annual 2018 traversal; Minnesota FIPS 27013; UTC [2018-01-01T12:00:00Z,2018-01-01T18:00:00Z).",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Acquisition complete; no source rows exist for the 24 expected timestamps."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547879",
+        "source_file": "eaglei_outages_2018.csv",
+        "source_file_id": 42547879,
+        "source_file_bytes": 999210542,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+        "raw_artifact_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+        "source_sidecar_sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      },
+      "capture_method": "exhaustive_annual_stream",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+          "bytes": null,
+          "sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70"
+        },
+        "source_sidecar": {
+          "url": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+          "bytes": null,
+          "sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd"
+        },
+        "filtered": {
+          "url": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
+          "bytes": null,
+          "sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2018-01-01-arctic-27013-20180101t120000z",
+      "county_fips": "27013",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2018-01-01-arctic-replay",
+      "window_start_utc": "2018-01-01T12:00:00Z",
+      "window_end_utc": "2018-01-01T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2018",
+        "eaglei-2018-42547879-20180101t120000-20180101t180000"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "NCEI event 726380 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2018-42547879-20180101t120000-20180101t180000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2018-01-01T12:00:00Z",
+          "2018-01-01T12:15:00Z",
+          "2018-01-01T12:30:00Z",
+          "2018-01-01T12:45:00Z",
+          "2018-01-01T13:00:00Z",
+          "2018-01-01T13:15:00Z",
+          "2018-01-01T13:30:00Z",
+          "2018-01-01T13:45:00Z",
+          "2018-01-01T14:00:00Z",
+          "2018-01-01T14:15:00Z",
+          "2018-01-01T14:30:00Z",
+          "2018-01-01T14:45:00Z",
+          "2018-01-01T15:00:00Z",
+          "2018-01-01T15:15:00Z",
+          "2018-01-01T15:30:00Z",
+          "2018-01-01T15:45:00Z",
+          "2018-01-01T16:00:00Z",
+          "2018-01-01T16:15:00Z",
+          "2018-01-01T16:30:00Z",
+          "2018-01-01T16:45:00Z",
+          "2018-01-01T17:00:00Z",
+          "2018-01-01T17:15:00Z",
+          "2018-01-01T17:30:00Z",
+          "2018-01-01T17:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "Full annual traversal found no source rows; missing observations are UncoveredLabel and are not imputed as zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

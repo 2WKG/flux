@@ -168,7 +168,7 @@ def test_storm_events_records_unmatched_zone_assignments(tmp_path):
             "SELECT source_key, warning FROM ingest_warnings"
         ).fetchall() == [
             (
-                "2021:zone:999",
+                "2021:scope:tx:zone:999",
                 "1 Texas zone-type Storm Events had no county crosswalk mapping",
             ),
         ]
