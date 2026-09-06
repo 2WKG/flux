@@ -16,6 +16,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import pipelines.db as pdb
+from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.routes import predictions as predictions_module
@@ -170,10 +171,11 @@ class _Run:
     validation_status: str = "validated"
     with_provenance: bool = True
     limitations: str = '["Fixture topology evidence only."]'
+    artifact_id_override: str | None = None
 
     @property
     def artifact_id(self) -> str:
-        return f"mn:model:{self.run_id}"
+        return self.artifact_id_override or f"mn:model:{self.run_id}"
 
 
 def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
@@ -538,6 +540,8 @@ def test_persisted_cascade_is_returned_unwrapped(tmp_path: Path) -> None:
     }
     assert body["attributes"]["lost_load_mw"]["unit"] == "MW"
     assert "status" not in body
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert response.headers["X-Flux-Artifact"] == body["artifact_id"]
 
 
 def test_cascade_labels_come_from_the_persisted_provenance(tmp_path: Path) -> None:
@@ -631,6 +635,30 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
         "artifact": "cascade_runs",
         "reason": "topology_cascade_unsupported_or_absent",
     }
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
+
+
+def test_cascade_rejects_an_artifact_id_unsafe_for_an_http_header(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "unsafe-artifact.duckdb"
+    run = _Run(
+        "mn_winter_2023_snow-s0-0badf00d",
+        artifact_id_override="mn:storm\r\nX-Injected: yes",
+    )
+    _cascade_database(database, (run,))
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert _details(response) == {
+        "artifact": "cascade_runs",
+        "reason": "invalid_topology_artifact",
+        "run_id": run.run_id,
+    }
+    assert "X-Flux-Artifact" not in response.headers
+    assert "X-Injected" not in response.headers
 
 
 def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:

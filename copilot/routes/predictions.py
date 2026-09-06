@@ -38,9 +38,10 @@ from datetime import datetime
 from typing import Annotated, Any, Final, Literal
 
 import duckdb
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 
 from copilot.api import InvalidInputError, NotFoundError, UnavailableError
+from copilot.api.errors import ARTIFACT_HEADER
 from copilot.config import Settings
 from copilot.routes.scenarios import _as_utc, _derive_labels
 from models.outage.persistence import PersistenceError, query_predictions
@@ -169,6 +170,18 @@ class _RowInvalid(ValueError):
 
 class _ArtifactInvalid(ValueError):
     """The qualifying Minnesota artifact metadata violates its contract."""
+
+
+def _header_safe_artifact_id(value: object) -> str:
+    """Return an immutable artifact ID that can safely enter an HTTP header."""
+
+    if not isinstance(value, str) or not value:
+        raise _ArtifactInvalid("artifact_id must be a non-empty string")
+    if not value.isascii() or any(
+        not 33 <= ord(character) <= 126 for character in value
+    ):
+        raise _ArtifactInvalid("artifact_id is not safe for an HTTP header")
+    return value
 
 
 def _unavailable(reason: str, *, artifact: str, **extra: str) -> UnavailableError:
@@ -372,7 +385,10 @@ def _topology_labels(
 
 @router.get("/cascade")
 def cascade(
-    request: Request, scenario_id: ScenarioIdQuery, run_id: RunIdQuery = None
+    request: Request,
+    response: Response,
+    scenario_id: ScenarioIdQuery,
+    run_id: RunIdQuery = None,
 ) -> dict[str, Any]:
     """Read one qualified persisted topology cascade run; never compute one."""
 
@@ -420,7 +436,7 @@ def cascade(
     except _RowInvalid as exc:
         raise _unavailable("schema_mismatch", artifact=artifact, run_id=run_id) from exc
     try:
-        artifact_id = _require_str(chosen[1], "artifact_id", _ArtifactInvalid)
+        artifact_id = _header_safe_artifact_id(chosen[1])
         geography_id = _require_str(chosen[3], "geography_id", _ArtifactInvalid)
         limitations = _limitations(chosen[4])
         provenance = _provenance_from_rows(provenance_rows)
@@ -436,6 +452,7 @@ def cascade(
         raise _unavailable(
             "topology_label_unavailable", artifact=artifact, run_id=run_id
         ) from exc
+    response.headers[ARTIFACT_HEADER] = artifact_id
     return {
         "run_id": run_id,
         "scenario_id": scenario_id,
