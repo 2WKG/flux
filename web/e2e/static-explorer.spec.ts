@@ -114,7 +114,8 @@ test("the Texas topology workspace names an unavailable model response", async (
   await page.goto("/");
   const workspace = page.getByLabel("Full synthetic Texas topology workspace", { exact: true });
   await expect(workspace).toBeVisible();
-  await expect(workspace.getByRole("status")).toContainText(/Loading the synthetic Texas model/i);
+  await expect(workspace.getByRole("status")).toContainText(/Texas model topology unavailable/i);
+  await expect(workspace.getByRole("status")).toContainText(/no Copilot API origin is configured/i);
   await expectSameOriginOnly(page);
 });
 
@@ -133,7 +134,7 @@ test("every layer is disclosed unavailable with the producer reason, never hidde
     await expect(row.locator("p.layer-reason")).not.toBeEmpty();
     await expect(row.locator("input[type=checkbox]")).toBeDisabled();
   }
-  await expect(page.locator('ul[aria-label="Layer status legend"]').first()).toBeVisible();
+  await expect(page.getByRole("region", { name: "Layers and evidence" })).toBeVisible();
   await expectSameOriginOnly(page);
 });
 
@@ -170,8 +171,8 @@ test("the data disclosure identifies the Texas model boundary", async ({ page })
   await disclosure.click();
   const dialog = page.getByRole("dialog", { name: "Data disclosure" });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByText(/synthetic ACTIVSg2000/i)).toBeVisible();
-  await expect(dialog.getByText(/no power flow, contingency result, or physical-inventory equivalence/i)).toBeVisible();
+  await expect(dialog.getByText("tx:synthetic-topology:activsg2000-current-v1", { exact: false })).toBeVisible();
+  await expect(dialog.getByText(/synthetic ACTIVSg2000 topology; not a physical asset/i)).toBeVisible();
   await expect(dialog.getByText(SOURCE_BACKED_CLAIM)).toHaveCount(0);
 
   await page.keyboard.press("Escape");

@@ -78,6 +78,23 @@ const SOURCE_TRUTH = deriveSourceTruth(data.execution.provenance);
  */
 const OFFLINE_DOCK_LABEL = "Not available in this offline build";
 
+// The default workspace is the backend-served Texas topology, so its modal
+// must not inherit the retired five-bus lesson's fixture provenance.
+const TEXAS_TOPOLOGY_DISCLOSURE = {
+  artifact: "tx:synthetic-topology:activsg2000-current-v1",
+  source: "ACTIVSg2000 current MATPOWER case",
+  reference: "data/artifacts/synthetic_topology/tx/activsg2000-current-v1.json.manifest.json",
+  scope: "Synthetic Texas topology from the model API. It is not ERCOT topology or a physical-grid claim.",
+  assumptions: [
+    "Topology and coordinates are read from /demo/model; no numerical solve is implied.",
+    "The current AUX mapping supplies synthetic display coordinates only.",
+  ],
+  limitations: [
+    "Synthetic ACTIVSg2000 topology; not a physical asset, interconnection result, or observed electrical state.",
+    "Physical 3D placements are separately source-labelled observed-inventory visuals.",
+  ],
+} as const;
+
 /** `ASK_LIMITS.attemptIdPattern` is `^[A-Za-z0-9_-]{16,128}$`; this satisfies it. */
 function newAttemptId(): string {
   const random = Math.random().toString(36).slice(2).padEnd(12, "0").slice(0, 12);
@@ -637,13 +654,13 @@ export function App() {
             <p className="eyebrow">DATA DISCLOSURE</p>
             <h2>Provenance, assumptions, and limits</h2>
             <dl>
-              <dt>Artifact</dt><dd>{data.execution.provenance.artifactId} · hash {data.execution.provenance.inputHash}</dd>
-              <dt>Source</dt><dd>{data.execution.provenance.sourceId} ({data.execution.provenance.sourceVersion})</dd>
-              <dt>Source reference</dt><dd><code>{data.execution.provenance.sourceRef}</code></dd>
-              <dt>Scope</dt><dd>{data.execution.provenance.scope}</dd>
+              <dt>Artifact</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.artifact}</dd>
+              <dt>Source</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.source}</dd>
+              <dt>Source reference</dt><dd><code>{TEXAS_TOPOLOGY_DISCLOSURE.reference}</code></dd>
+              <dt>Scope</dt><dd>{TEXAS_TOPOLOGY_DISCLOSURE.scope}</dd>
             </dl>
-            <ul>{data.execution.assumptions.notes.map((note) => <li key={note}>{note}</li>)}</ul>
-            <ul>{data.execution.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul>
+            <ul>{TEXAS_TOPOLOGY_DISCLOSURE.assumptions.map((note) => <li key={note}>{note}</li>)}</ul>
+            <ul>{TEXAS_TOPOLOGY_DISCLOSURE.limitations.map((limit) => <li key={limit}>{limit}</li>)}</ul>
           </section>
         </div>
       )}
