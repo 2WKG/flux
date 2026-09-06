@@ -1,13 +1,12 @@
 {
   "manifest_kind": "published_physical_inventory_artifacts",
   "release_version": "1.1.0",
-  "compression": "gzip -n (deterministic mtime=0)",
+  "compression": "gzip, mtime=0 (no stored name or timestamp). compressed_sha256 identifies the committed bytes; it is not a reproducibility claim, because deflate output varies between compressors. The portable invariant is canonical_content_sha256, the contract-11 digest of the decompressed canonical JSON.",
   "artifacts": [
     {
       "state": "tx",
       "artifact_id": "tx:physical-inventory:1.1.0",
       "published_path": "data/artifacts/physical_inventory/tx/physical-inventory-1.1.0.json.gz",
-      "source_handoff_path": "/Users/joshua/flux-2wkg-441/data/physical-inventory/releases/tx/physical-inventory-1.1.0.json",
       "compressed_sha256": "5289f8495ba9a63607d33540fc622f4142f77747f7f407e3edb64873527c8b33",
       "canonical_content_sha256": "036feeb75c805a03a7489f8e916b15d408ef64c76117548700290db01ced0496",
       "canonical_json_bytes": 14398951,
@@ -16,22 +15,28 @@
       "input_artifact_sha256s": [
         "2a4741058ccf4cce99cbc7e7f4ede0f695e738f66521a1d696d423e2afa70c90",
         "713cdbd5c6c08856e28ccd346af5b89bcf841cbe0879c08a5f9a511d94cced5a"
-      ]
+      ],
+      "untracked_input_artifact_sha256s": [
+        "713cdbd5c6c08856e28ccd346af5b89bcf841cbe0879c08a5f9a511d94cced5a"
+      ],
+      "untracked_input_reason": "The HIFLD transmission-line component artifact is produced by pipelines.texas_hifld_lines from data/raw/hifld/, which .gitignore keeps out of Git, so this release's lineage is not fully resolvable from a clone. See data/sources/texas-hifld-lines-2024-09-30.json for that component's raw and normalized digests."
     },
     {
       "state": "mn",
       "artifact_id": "mn:physical-inventory:1.1.0",
       "published_path": "data/artifacts/physical_inventory/mn/physical-inventory-1.1.0.json.gz",
-      "source_handoff_path": "/Users/joshua/flux-2wkg-441/data/physical-inventory/releases/mn/physical-inventory-1.1.0.json",
-      "compressed_sha256": "aeab767671b755de484db5262d234a2ad643a95cf543c413959350058829f374",
-      "canonical_content_sha256": "4a58995d7cb82eaa5e79d5b9a8777a37d85dee64726c0a459ec57766019130ff",
-      "canonical_json_bytes": 1039934,
-      "compressed_bytes": 38203,
+      "compressed_sha256": "538855318e181264e734798e5fa78e6539fb98f072c61fb2485fc6002a1edf48",
+      "canonical_content_sha256": "1ea4272d60cdbf9072764749446b9677114c883c78e39f20e48a7d8873dc1728",
+      "canonical_json_bytes": 1043231,
+      "compressed_bytes": 37636,
       "asset_count": 2447,
       "input_artifact_sha256s": [
-        "b904e146bfc992ea7f423ecda0cd2f32502459bd690a776c9b2bf0b743425da2",
+        "b72432b7a2647ee9ce4267e9686c3e245cfa650aa8ad8be33f0cc32124f6ba47",
         "d92fe0a639f1528b45a2a75231b2903f9f571a8211f5e6f6ec54072375104ded"
-      ]
+      ],
+      "untracked_input_artifact_sha256s": [],
+      "untracked_input_reason": ""
     }
-  ]
+  ],
+  "canonical_json_source": "The canonical uncompressed release is exactly the gunzip of published_path; it is not tracked separately. canonical_content_sha256 is the contract-11 content digest of that JSON and canonical_json_bytes its length."
 }

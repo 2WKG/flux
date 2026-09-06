@@ -85,6 +85,29 @@ deduplicated, as may identical coverage rows; conflicting source IDs,
 duplicate physical identities, and conflicting class/scope coverage rows fail
 assembly.
 
+## Published release artifacts (size and lineage policy)
+
+A composed state release may be published under
+`data/artifacts/physical_inventory/<state>/physical-inventory-<version>.json.gz`
+and listed in `manifest-<version>.json`. These gzip streams are the one class of
+binary this repository tracks: they are the deliverable itself, not downloaded
+data, and `.gitattributes` marks `*.gz` binary so Git never rewrites them.
+
+Every published release carries a lineage that a clone can check.
+`input_artifact_sha256s` lists the component artifacts, and the manifest names
+any component that is *not* tracked here — with the reason — under
+`untracked_input_artifact_sha256s` / `untracked_input_reason`, rather than
+implying a lineage a clone cannot resolve. `compressed_sha256` identifies the
+committed bytes only; deflate output is not portable between compressors, so the
+reproducible invariant is `canonical_content_sha256`, the contract digest of the
+decompressed canonical JSON. `tests/test_physical_inventory_acceptance.py`
+re-hashes each published file, re-derives every manifest field from it, and
+reassembles the release from its tracked components.
+
+A release whose components cannot be tracked, or whose size would outgrow this
+policy, is published outside Git with a receipt under `data/sources/` recording
+where it lives; it is not committed.
+
 ## Relationship to spec 10 (declared divergence)
 
 The `physical_*` namespace and the `mn_*` namespace are two different contracts
