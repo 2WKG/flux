@@ -10,6 +10,16 @@ related:
 
 # Flux hackathon swarm plan
 
+> **Work-graph status (D-9).** Four rival work graphs describe this same project: this file's
+> units, [`team-work-plan.md`](team-work-plan.md)'s two waves,
+> [`../specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md)'s MN01–MN11 acceptance gates,
+> and that spec's numbered execution list. **Linear is the authoritative tracker** —
+> `.github/workflows/pr-gates.yml` `gate/linear-key` is what actually enforces a key on every PR,
+> and no prose graph here is enforced anywhere. Treat the units below as **historical**: they
+> record how the build was divided, not what is currently assigned. (One open question rides on
+> this — see OQ-2 in
+> [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md).)
+
 The amended `docs/specs/00-overview.md` is the current authority for the
 shared technical contract. This plan assigns ownership and integration order
 for a fast hackathon build. It does not impose an old gate baseline, numerical
@@ -29,6 +39,7 @@ threshold suite, or mandatory per-PR approval process.
 | U7 copilot | 05 | `copilot/**` | U3, U4, U5, U6 | Tool wrappers, source retrieval, and read APIs |
 | U8 frontend | 06 | `web/**` | U7 routes | Demo views and playback |
 | U9 causal layer | 07 | `causal/**` | U3, U4 | Labeled causal query support |
+| U10 historical event baseline | 2WKG-460/461 (contract), 462–472 (hazard bundles), 473 (catalog + split) | `docs/data/event-baseline/**` (schema at `docs/data/event-baseline/event_baseline.schema.json`), `scripts/data/event_baseline_*` | — | County-window contract and validated research receipts; hazard workers own only `events/<hazard>/`; final audit owns catalog and grouped splits |
 
 Suggested waves: U1; then U2 and U3; then U4 and U6; then U5, U7, and U9 as
 their dependencies become available; then U8. The critical path is

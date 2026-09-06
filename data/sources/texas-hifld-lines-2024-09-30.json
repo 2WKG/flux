@@ -1,0 +1,44 @@
+{
+  "boundary_source": "US Census Bureau TIGERweb State_County/MapServer layer 14 (States), STATE='48', outSR=4326, f=geojson; unsimplified state polygon",
+  "capture_method": "ArcGIS REST POST query against https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0/query: one returnIdsOnly=true selection with geometryType=esriGeometryPolygon, spatialRel=esriSpatialRelIntersects, inSR=4326, then 8 objectIds page(s) of at most 1000 ids with outSR=4326 and f=geojson",
+  "coverage": {
+    "asset_class": "line",
+    "denominator_basis": "unknown",
+    "denominator_count": null,
+    "observed_count": 7042,
+    "reason": "Native observed routes are partial/stale public overlay; endpoint labels are not terminals or edges.",
+    "scope_id": "us-tx",
+    "source_scope": "Archived national HIFLD service selected by supplied Texas polygon; no owner-level Texas completeness declaration",
+    "status": "partial",
+    "unavailable_count": null,
+    "unknown_count": null
+  },
+  "files": {
+    "us-tx-hifld-lines-2024-09-30-v1.0.0.json": {
+      "bytes": 24891864,
+      "note": "data/physical-inventory/ is gitignored bulk output; regenerate with the command in capture_method",
+      "path": "data/physical-inventory/texas/us-tx-hifld-lines-2024-09-30-v1.0.0.json",
+      "sha256": "a9f10f75017affa9c4e25dc6d1903e1d1dedeefbf7555487b51a5410d98dbdb3",
+      "tracked": false
+    }
+  },
+  "license_access": "Esri Master License Agreement in the service item metadata",
+  "provider": "Federal User Community / HIFLD archive",
+  "retrieved_at": "2026-09-06T07:52:12+00:00",
+  "source_url": "https://services2.arcgis.com/FiaPA4ga0iQKduv3/arcgis/rest/services/US_Electric_Power_Transmission_Lines/FeatureServer/0",
+  "uncertainty": "The archived national HIFLD overlay publishes no owner-level Texas completeness denominator, so coverage stays partial. Routes are retained whole and unclipped; SUB_1/SUB_2 remain source attributes and are not terminals or electrical connectivity.",
+  "verification": {
+    "artifact_content_sha256": "3596c2878543f09261855aca9d5c37ba11a4ba9663028165f87e06b32f5f4691",
+    "artifact_validated_by": "pipelines.physical_inventory.validate_artifact",
+    "connectivity_edges_created": 0,
+    "features_reconciled_to_selected_ids": true,
+    "observed_routes": 7042,
+    "response_bytes": 11578202,
+    "result": "passed",
+    "returned_features": 7042,
+    "selected_object_ids": 7042,
+    "source_feature_digest": "8ba55bfdbee7bbf56f2cfeac646d3aa0a74c5d68783d9a5d23edb67cf1d81cf9",
+    "terminals_created": 0
+  },
+  "vintage": "Archived service; last data update 2024-09-30"
+}

@@ -3,13 +3,13 @@
  * parser supplies `id` from the SSE frame; it is deliberately kept separate
  * from the opaque request attempt id.
  */
-export type SourceStatus =
-  | "source_supported"
-  | "source_screened"
-  | "hypothetical"
-  | "synthetic"
-  | "unavailable"
-  | "request_failed";
+import type { AssetStatus } from "../../labels";
+
+/**
+ * The six IA status tokens, owned once by `src/labels.ts`. This module names the
+ * vocabulary for the trace surface; it does not restate its members.
+ */
+export type SourceStatus = AssetStatus;
 
 export interface RunIdentity {
   attemptId: string;

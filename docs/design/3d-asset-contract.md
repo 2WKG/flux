@@ -95,6 +95,15 @@ label and a glyph or pattern, meeting text-contrast requirements.
 | LOD1 | ≤ 40% of LOD0 |
 | LOD2 | ≤ 12% of LOD0, still recognisable in silhouette at statewide zoom |
 
+**The LOD1/LOD2 percentages above are a load-bearing *string*, not just prose.** The browser does
+not hard-code 40% and 12%: `web/src/performance/archetype-catalog.ts:106-124` parses them out of
+the sentence in `data/3d/asset-archetypes-v1.json` → `budgets.lodRule`
+(`"lod1 <= 40% of lod0 triangles, lod2 <= 12%. …"`) with a regex, deliberately, so that it can
+never fall back to shares the contract does not state — a rule string it cannot read is the named
+rejection `invalid_lod_rule`, not a default. Two consequences: rewording that JSON sentence so the
+`lodN <= NN%` pattern no longer matches makes the whole catalog rejected at load, and *changing the
+numbers inside it silently changes the budget*. Edit the table above and `budgets.lodRule` together.
+
 The LOD chain is validated, so an "LOD" that does not actually reduce is a test
 failure rather than a runtime discovery. Streaming, culling, and instancing
 belong to 2WKG-371; the scene ceiling is stated here only so an archetype author
@@ -157,7 +166,16 @@ the axis-aligned bounds from `scene.nodes` and rejects geometry that overruns
 the archetype's `footprint_m` beyond the 5% tolerance, that leaves the scene's
 own `bounds_m`, or that does not sit on `y = 0` under the `ground_center` pivot.
 
-**Three tiers live under `data/3d/assets/` at once, and the validator applies
+**"Tier" here always means *delivery tier* (D-6.)** It is a Python-side, on-disk classification of
+how an archetype's source is delivered, with three values (`source_kit`, `blender_kit`,
+`flat_meta`) and one named refusal (`unknown_asset_tier`), all in
+`scripts/validate_asset_source.py:56-60`. It is **unrelated** to the browser's *LOD level*
+(`lod0`/`lod1`/`lod2`, `budgets.lodLevels` below, `web/src/performance/archetype-catalog.ts:27`,
+`:236`), which also happens to number three and carries its own nine-value rejection vocabulary
+(`archetype-catalog.ts:65-74`) that does not include `unknown_asset_tier`. Never call a LOD level a
+tier; the browser has no delivery-tier concept and the validator has no LOD concept.
+
+**Three delivery tiers live under `data/3d/assets/` at once, and the validator applies
 exactly one of them per entry.** A directory holding `<archetype_id>.scene.json`
 is a **source kit** and gets the rules above. A directory holding
 `<archetype_id>.blender.py` is a **blender kit**: its geometry is authored in a

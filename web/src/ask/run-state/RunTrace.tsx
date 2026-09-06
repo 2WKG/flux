@@ -1,15 +1,7 @@
 import { useEffect, useReducer, useRef } from "react";
 import { createRunState, runReducer } from "./reducer";
+import { STATUS_COPY } from "../../source-truth";
 import type { RunEvent, RunIdentity, SourceStatus } from "./types";
-
-const sourceStatusLabel: Record<SourceStatus, string> = {
-  source_supported: "Source-supported",
-  source_screened: "Source-screened",
-  hypothetical: "Hypothetical",
-  synthetic: "Synthetic",
-  unavailable: "Unavailable",
-  request_failed: "Request-failed",
-};
 
 export interface RunTraceProps {
   state: ReturnType<typeof createRunState>;
@@ -25,7 +17,7 @@ export function RunTrace({ state, onCancel }: RunTraceProps) {
   return (
     <section aria-label="Run progress" data-run-phase={state.phase} data-source-status={state.sourceStatus}>
       <p>Run {state.phase === "cancelling" ? "cancellation requested" : state.phase}</p>
-      <p role="status">Source status: {sourceStatusLabel[state.sourceStatus]}</p>
+      <p role="status">Source status: {STATUS_COPY[state.sourceStatus]}</p>
       {active && onCancel ? <button type="button" onClick={cancel} disabled={state.phase === "cancelling"}>Cancel run</button> : null}
       <ol aria-label="Tool trace">
         {Object.values(state.tools).map((tool) => <li key={tool.callId}><details><summary>{tool.tool}: {tool.result ? tool.result.ok ? "completed" : "failed" : "running"}</summary><pre>{JSON.stringify(tool.result?.ok ? tool.result.result : tool.result?.error ?? tool.input, null, 2)}</pre></details></li>)}

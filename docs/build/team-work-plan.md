@@ -9,6 +9,14 @@ related:
 
 # Flux team work plan
 
+> **Legacy Texas scope (D-5) and work-graph status (D-9).** The Texas/ERCOT framing below is the
+> legacy path [`../specs/README.md`](../specs/README.md) declares superseded by
+> [`../specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md) as planning authority; it is
+> retained because it is what the code runs. The key lists below are **historical**: Linear is the
+> authoritative tracker (`gate/linear-key` enforces it), and the keys transcribed here drift the
+> moment an issue moves. See OQ-2 in
+> [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md).
+
 This plan records the actual Linear assignments for the Flux 48-hour hackathon.
 It uses the lighter coordination workflow requested for this build: owners work
 in dependency order, run focused checks for the behavior they change, and

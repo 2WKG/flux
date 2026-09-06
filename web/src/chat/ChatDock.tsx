@@ -9,6 +9,9 @@ import {
   buildAskRequest,
 } from "./ask-contract";
 import "./chat.css";
+import type { TerminalErrorCode } from "../ask/run-state/types";
+import type { AssetStatus } from "../labels";
+import { STATUS_COPY } from "../source-truth";
 
 export type { SceneContext, AskRequestBody } from "./ask-contract";
 
@@ -21,16 +24,12 @@ export type { SceneContext, AskRequestBody } from "./ask-contract";
  */
 export type ChatStatus = "idle" | "streaming" | "done" | "error" | "cancelled";
 
-/** The closed v1 `error.code` set — copilot/sse.py `_ERROR_CODES`. */
-export type SseErrorCode =
-  | "invalid_request"
-  | "unavailable"
-  | "deadline"
-  | "upstream_error"
-  | "tool_error"
-  | "refusal"
-  | "cancelled"
-  | "protocol_error";
+/**
+ * The closed v1 `error.code` set — copilot/sse.py `_ERROR_CODES`. The browser
+ * states it once, in `src/ask/run-state/types.ts` (`TERMINAL_ERROR_CODES`); this
+ * name is an alias so the dock and the run trace cannot drift apart.
+ */
+export type SseErrorCode = TerminalErrorCode;
 
 /** A terminal `error` event, as the server sends it. The dock never invents one. */
 export type ChatError = {
@@ -42,7 +41,8 @@ export type ChatError = {
   requestId?: string;
 };
 
-export type SourceTruthLabel = "source_supported" | "source_screened" | "hypothetical" | "synthetic" | "unavailable" | "request_failed";
+/** The six IA status tokens, owned once by `src/labels.ts`. Never restated here. */
+export type SourceTruthLabel = AssetStatus;
 
 export type ChatMessage = {
   id: string;
@@ -68,15 +68,6 @@ export type ChatDockProps = {
   onCancel?: () => void;
   onRetry?: () => void;
   onContextChange?: (context: SceneContext) => void;
-};
-
-const sourceStatusLabel: Record<SourceTruthLabel, string> = {
-  source_supported: "Source-supported",
-  source_screened: "Source-screened",
-  hypothetical: "Hypothetical",
-  synthetic: "Synthetic",
-  unavailable: "Unavailable",
-  request_failed: "Request failed",
 };
 
 const statusLabel: Record<ChatStatus, string> = {
@@ -209,7 +200,7 @@ export function ChatDock({
 
       <div className="flux-chat-context" aria-label="Scene context">
         <div className="flux-chat-context-head">
-          <div><strong>Scene context</strong><span>Source: {sourceLabel} · Truth: {sourceStatusLabel[sourceStatus]} · revision {contextRevision}</span></div>
+          <div><strong>Scene context</strong><span>Source: {sourceLabel} · Truth: {STATUS_COPY[sourceStatus]} · revision {contextRevision}</span></div>
           <div><button type="button" onClick={() => setEditing((open) => !open)} aria-expanded={editing}>{editing ? "Done editing" : "Edit"}</button><button type="button" className="flux-chat-quiet" onClick={clear}>Clear</button></div>
         </div>
         {editing ? (
