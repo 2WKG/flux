@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
+from pipelines.common import sha256_file
 from pipelines.critical_loads import _ntad_source_ids, _unique_stable_ids, load_dod
 from pipelines.db import connect, replace_frame
 from pipelines.joins import join_critical_loads_to_bus
@@ -156,6 +157,7 @@ def test_storm_events_records_unmatched_zone_assignments(tmp_path):
                         valid_from=datetime.fromisoformat("2021-01-01"),
                         valid_until=datetime.fromisoformat("2022-01-01"),
                         source_url="https://example.test/nws/fixture.dbx",
+                        sha256=sha256_file(crosswalk),
                     )
                 ],
                 2021,

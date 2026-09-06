@@ -10,6 +10,7 @@ from shapely.geometry import Polygon
 
 import pipelines.build as build_module
 from pipelines.build import _dod_filename, _missing_p0_inputs, build
+from pipelines.common import sha256_file
 from pipelines.db import connect, replace_frame
 from pipelines.eia860 import _scope_plants, load_eia860_plants, seed_site_candidates
 from pipelines.state_scope import StateScope, scope
@@ -314,6 +315,7 @@ def _storm_inputs(tmp_path: Path) -> tuple[str, list[NwsCrosswalkRelease]]:
             valid_from=datetime.fromisoformat("2021-01-01"),
             valid_until=datetime.fromisoformat("2022-01-01"),
             source_url="https://example.test/nws/fixture.dbx",
+            sha256=sha256_file(crosswalk),
         )
     ]
 
