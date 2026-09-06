@@ -201,6 +201,14 @@ def validate_ledger(ledger: dict[str, Any], root: Path) -> list[str]:
             )
         if "verified_query" in source:
             _check_receipt(root, label, source["verified_query"], source["url"], errors)
+        for query in source.get("verified_queries", []):
+            _check_receipt(
+                root,
+                f"{label}.{query.get('query_id', '?')}",
+                query,
+                source["url"],
+                errors,
+            )
         for layer in source.get("verified_layers", []):
             layer_label = f"{label}.{layer.get('class_id', '?')}"
             layer_url = layer.get("layer_url", "")

@@ -20,7 +20,10 @@ LEDGERS = discover_ledgers(ROOT)
 
 # Ledgers that must exist. Without this the parametrisation below would pass
 # vacuously if the glob ever stopped matching.
-EXPECTED_LEDGERS = {"minnesota-source-authority-ledger-v1.json"}
+EXPECTED_LEDGERS = {
+    "minnesota-source-authority-ledger-v1.json",
+    "texas-source-authority-ledger-v1.json",
+}
 
 
 def test_every_expected_ledger_is_discovered():

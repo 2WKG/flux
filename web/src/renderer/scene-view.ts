@@ -18,6 +18,8 @@
  * that carries no recognised token becomes `unavailable`, never a guess.
  */
 
+import type { AssetStatus } from "../labels.js";
+
 /** The shared status vocabulary. Order is the file's; membership is what matters. */
 export const STATUS_LABELS = [
   "source_supported",
@@ -29,6 +31,20 @@ export const STATUS_LABELS = [
 ] as const;
 
 export type StatusLabel = (typeof STATUS_LABELS)[number];
+
+type AssertTrue<T extends true> = T;
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/**
+ * The renderer's slot vocabulary above and the browser's UI status vocabulary
+ * (`src/labels.ts`) must coincide: the 3D contract's `MAT_STATUS` slot binds
+ * exactly the UI set (`docs/design/minnesota-gate-0-approval.md:51-66`). This
+ * list stays written out because it mirrors the `statusMaterials.allowedLabels`
+ * array in `data/3d/asset-archetypes-v1.json`, exactly as
+ * `src/scene/minnesota-adapter.ts` does; the assertion is what makes a drift a
+ * `tsc --noEmit` failure instead of a silent tint bug.
+ */
+type _StatusLabelsMatchUiVocabulary = AssertTrue<Equals<StatusLabel, AssetStatus>>;
 
 /**
  * The only labels that may position geometry, kept identical to

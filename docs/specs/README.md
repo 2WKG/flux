@@ -9,6 +9,12 @@
 > both scopes as a geography-neutral identity, unit, coordinate, and provenance contract. It
 > contains no geographic fixture records and does not derive Minnesota data from the Texas case.
 
+> **Authority lattice and the spec↔code ledger.** [`00-overview.md`](00-overview.md)
+> §"Authority lattice (D-0)" states the single precedence order these documents follow, and
+> [`spec-code-reconciliation.md`](spec-code-reconciliation.md) records every known place a spec
+> disagreed with what `master` implements, what the code does, and how it was resolved. Read the
+> ledger before trusting a contract claim in any spec below.
+
 Product name: **Flux** (the repository and package stay `flux`; see `00-overview.md` amendment A8 and the retained pitch document).
 Headline: **state-configurable grid resilience analysis: outage context, synthetic-topology analysis where validated, and siting**. The repository's Texas / ACTIVSg2000 / ERCOT topology adapter requires its source artifacts and build; other states require their own validated source artifacts and configuration.
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the
