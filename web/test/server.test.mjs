@@ -71,10 +71,18 @@ test("every response carries a CSP that names no off-origin source", async () =>
     const [name, ...values] = directive.split(" ");
     for (const value of values) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
+        // `'wasm-unsafe-eval'` permits compiling a WebAssembly module and
+        // nothing else -- it names no source, so it cannot reach any server,
+        // off-origin or otherwise. deck.gl's WebGL runtime needs it.
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
+  }
+  // The relaxation is bounded: the broad script-eval permissions stay refused,
+  // so `'wasm-unsafe-eval'` cannot be widened into `'unsafe-eval'` unnoticed.
+  for (const forbidden of ["'unsafe-eval'", "'unsafe-hashes'", "*"]) {
+    assert.ok(!CONTENT_SECURITY_POLICY.includes(forbidden), `the policy allows ${forbidden}`);
   }
 });
 
