@@ -1,0 +1,26 @@
+{
+  "format": "flux:3d-archetype-source:v1",
+  "archetype_id": "water_treatment_plant",
+  "author_orientation": "-Z forward, Y up, right-handed",
+  "pivot": "ground_center",
+  "bounds_m": {"min": [-50, 0, -70], "max": [50, 18, 70]},
+  "materials": [
+    {"name": "MAT_STATUS", "base_color": "neutral_gray", "runtime_tinted": true},
+    {"name": "MAT_CONCRETE", "base_color": "neutral_concrete", "runtime_tinted": false},
+    {"name": "MAT_WATER", "base_color": "neutral_blue_gray", "runtime_tinted": false}
+  ],
+  "nodes": [
+    {"name": "SITE_PAD", "primitive": "box", "position_m": [0, 0.15, 0], "size_m": [100, 0.3, 140], "material": "MAT_CONCRETE"},
+    {"name": "PROCESS_HALL", "primitive": "box", "position_m": [-8, 7, -12], "size_m": [52, 14, 38], "material": "MAT_STATUS"},
+    {"name": "CLARIFIER_A", "primitive": "cylinder", "position_m": [-28, 2, 38], "size_m": [24, 4, 24], "material": "MAT_WATER"},
+    {"name": "CLARIFIER_B", "primitive": "cylinder", "position_m": [5, 2, 38], "size_m": [24, 4, 24], "material": "MAT_WATER"},
+    {"name": "CLARIFIER_C", "primitive": "cylinder", "position_m": [32, 2, 38], "size_m": [18, 4, 18], "material": "MAT_WATER"},
+    {"name": "PUMP_BUILDING", "primitive": "box", "position_m": [33, 5, -32], "size_m": [22, 10, 20], "material": "MAT_STATUS"},
+    {"name": "CONN_MV_FEED_0", "primitive": "empty", "position_m": [42, 0, 28]}
+  ],
+  "lods": {
+    "lod0": "process hall, clarifiers, pump building, and site pad",
+    "lod1": "process hall, three clarifier silhouettes, and pump building",
+    "lod2": "process hall mass, circular treatment basins, and feeder attachment"
+  }
+}
