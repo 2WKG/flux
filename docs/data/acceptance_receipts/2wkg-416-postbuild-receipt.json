@@ -1,0 +1,538 @@
+{
+  "built_database": {
+    "contract": {
+      "access_mode": "read_only",
+      "compatibility": "compatible",
+      "contract_version": "2.1.0",
+      "expected_contract_version": "2.1.0",
+      "file_sha256_after": "bf8f53639558703e2b7a2bbf2cbe431b4490c85af7604a3acd414a686044fb7b",
+      "file_sha256_before": "bf8f53639558703e2b7a2bbf2cbe431b4490c85af7604a3acd414a686044fb7b",
+      "file_unchanged": true,
+      "missing_contract_tables": [],
+      "next_step": "Run read-only quality checks before any release decision.",
+      "path": "run-artifacts/texas-p0-2wkg-416/grid.duckdb",
+      "status": "compatible",
+      "write_performed": false
+    },
+    "operations_alignment": {
+      "curated_source_ids": [
+        "activsg2000",
+        "census_tiger_county+fema_nri",
+        "eaglei",
+        "eia930",
+        "fema_nri",
+        "noaa_storm_events",
+        "ntad_military_bases",
+        "pudl_eia860"
+      ],
+      "mapped_operation_ids": [
+        "activsg2000",
+        "census-tiger-counties",
+        "dod-bases-tx",
+        "eaglei-2021",
+        "eaglei-2024",
+        "eia-930",
+        "fema-nri",
+        "noaa-storm-events",
+        "pudl-eia860-plants"
+      ],
+      "reason": "Every curated source/version has a declared operations mapping.",
+      "status": "ready",
+      "unoperated_source_ids": []
+    },
+    "p0_quality_checks": [
+      {
+        "detail": "buses=2000, branches=3206, transformers=847, loads=1125",
+        "name": "synthetic-case-counts",
+        "passed": true
+      },
+      {
+        "detail": "invalid/missing AUX coordinates=0",
+        "name": "synthetic-coordinates",
+        "passed": true
+      },
+      {
+        "detail": "counties=254, invalid_fips=0",
+        "name": "texas-counties",
+        "passed": true
+      },
+      {
+        "detail": "county rows=254, missing composite score=0",
+        "name": "fema-nri-texas",
+        "passed": true
+      },
+      {
+        "detail": "loaded years=2, negative-or-duplicate releases=0",
+        "name": "eaglei-target-quality",
+        "passed": true
+      },
+      {
+        "detail": "storm=6549, ba=35040, critical_invalid=0, candidate_invalid=0",
+        "name": "loaded-p0-domains",
+        "passed": true
+      }
+    ],
+    "scenario_weather": {
+      "reason": "Each selected state's counties need complete hourly weather across the stored scenario window before claiming outage, cascade, or full-Flux readiness.",
+      "scenarios": [
+        {
+          "ready": false,
+          "scenario_id": "uri_2021",
+          "scenario_present": false,
+          "states": [],
+          "ts_end": null,
+          "ts_start": null
+        },
+        {
+          "ready": false,
+          "scenario_id": "beryl_2024",
+          "scenario_present": false,
+          "states": [],
+          "ts_end": null,
+          "ts_start": null
+        }
+      ],
+      "status": "unavailable"
+    },
+    "status": "ready"
+  },
+  "checked_at": "2026-09-06T14:27:47.360177+00:00",
+  "database": {
+    "access_mode": "read_only",
+    "compatibility": "compatible",
+    "contract_version": "2.1.0",
+    "expected_contract_version": "2.1.0",
+    "file_sha256_after": "bf8f53639558703e2b7a2bbf2cbe431b4490c85af7604a3acd414a686044fb7b",
+    "file_sha256_before": "bf8f53639558703e2b7a2bbf2cbe431b4490c85af7604a3acd414a686044fb7b",
+    "file_unchanged": true,
+    "missing_contract_tables": [],
+    "next_step": "Run read-only quality checks before any release decision.",
+    "path": "run-artifacts/texas-p0-2wkg-416/grid.duckdb",
+    "status": "compatible",
+    "write_performed": false
+  },
+  "readiness": {
+    "current_hackathon_ready": false,
+    "dashboard_release_ready": true,
+    "exit_code_gate": "texas_p0_safe_to_stage",
+    "selected_states_public_context_ready": false,
+    "strict_provenance_ready": true,
+    "texas_full_flux_ready": false,
+    "texas_p0_safe_to_stage": true
+  },
+  "receipt_version": 1,
+  "requirements": {
+    "scenario_weather_required": true,
+    "strict_provenance_requested": true
+  },
+  "scope": {
+    "current_hackathon": "Minnesota only; model mode and source decision remain required.",
+    "next_step": "Complete MN01: record Minnesota source evidence and select topology only if solver-complete; otherwise select aggregate mode.",
+    "reason": "No accepted Minnesota source decision/manifest is supplied by this Texas P0 receipt.",
+    "status": "blocked"
+  },
+  "state_configurable_public_context": {
+    "eaglei_artifacts": [],
+    "eaglei_source_timezone": null,
+    "safe_staged_rebuild": {
+      "command": "uv run python -m pipelines.build_state_context --state <USPS-or-name-or-FIPS> --db-root <fresh-output>/duck --parquet-dir <fresh-output>/parquet --tiger <path> --nri <path> [--eaglei YEAR=PATH --eaglei-source-tz UTC]",
+      "rule": "Supply local artifacts explicitly. State-public-context staging does not acquire sources or imply topology."
+    },
+    "selected_states": [
+      {
+        "public_context_status": "incomplete",
+        "state": {
+          "fips": "48",
+          "name": "Texas",
+          "usps": "TX"
+        },
+        "topology": {
+          "reason": "ACTIVSg2000 is synthetic Texas research topology, not a real-grid or Minnesota-demo claim.",
+          "status": "available_synthetic_research_only"
+        }
+      }
+    ],
+    "shared_artifacts": {
+      "nri": {
+        "status": "not_supplied"
+      },
+      "tiger": {
+        "status": "not_supplied"
+      }
+    }
+  },
+  "texas_p0": {
+    "raw_inputs": {
+      "all_locked_with_provenance": true,
+      "all_present": true,
+      "artifacts": [
+        {
+          "label": "activsg2000_current/ACTIVSg2000.aux",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 6255512,
+                "receipt": "data/sources/activsg2000.json",
+                "retrieved_at": "2026-09-05T15:21:50+00:00",
+                "sha256": "4cfa04232705f058f73e616452e732fe240c0bf8354ca63d4f533f86a2085cdc"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 6255512,
+            "path": "data/raw/activsg2000_current/ACTIVSg2000.aux",
+            "schema_fingerprint": null,
+            "sha256": "4cfa04232705f058f73e616452e732fe240c0bf8354ca63d4f533f86a2085cdc"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "activsg2000_current/case_ACTIVSg2000.m",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 659545,
+                "receipt": "data/sources/activsg2000.json",
+                "retrieved_at": "2026-09-05T15:21:50+00:00",
+                "sha256": "5edb60e97153c27de68403499174557213090a5b04da1bbc34b3196715c5da94"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 659545,
+            "path": "data/raw/activsg2000_current/case_ACTIVSg2000.m",
+            "schema_fingerprint": null,
+            "sha256": "5edb60e97153c27de68403499174557213090a5b04da1bbc34b3196715c5da94"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "tiger/2024/tl_2024_us_county.zip",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 83913260,
+                "receipt": "data/sources/texas-tiger-2024.json",
+                "retrieved_at": "2026-09-06T04:37:05Z",
+                "sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 83913260,
+            "path": "data/raw/tiger/2024/tl_2024_us_county.zip",
+            "schema_fingerprint": null,
+            "sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "NRI v1.20 county data",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 24966535,
+                "receipt": "data/sources/texas-nri-v1.20.json",
+                "retrieved_at": "2026-09-06T04:37:05Z",
+                "sha256": "b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 24966535,
+            "path": "data/raw/nri/v1.20/NRI_Table_Counties.zip",
+            "schema_fingerprint": null,
+            "sha256": "b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "pudl/v2026.2.0/out_eia__yearly_plants.parquet",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 3228519,
+                "receipt": "data/sources/texas-pudl-eia860-v2026.2.0.json",
+                "retrieved_at": "2026-09-06T04:37:05Z",
+                "sha256": "66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 3228519,
+            "path": "data/raw/pudl/v2026.2.0/out_eia__yearly_plants.parquet",
+            "schema_fingerprint": "72530a87b28bc5b27c6c98f966577ed87daec68f70386145e790c512d1a6e623",
+            "sha256": "66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "pudl/v2026.2.0/out_eia__yearly_generators.parquet",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 10247414,
+                "receipt": "data/sources/texas-pudl-eia860-v2026.2.0.json",
+                "retrieved_at": "2026-09-06T04:37:05Z",
+                "sha256": "6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 10247414,
+            "path": "data/raw/pudl/v2026.2.0/out_eia__yearly_generators.parquet",
+            "schema_fingerprint": "e6a9644271d64a25c9186dcae31f74f7f5b658be4f1e29502c2afdb5de143c63",
+            "sha256": "6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 43073764,
+                "receipt": "data/sources/texas-eia930-2021-2024.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "40b183f333e0f3edc1b9a2ed48b792eff00fd477915dae79ce5784e862380f7f"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 43073764,
+            "path": "data/raw/eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
+            "schema_fingerprint": "fa1d8427047dbd279c22257c553172b4a95bc4b8aa7fd1946767e079cdce3c21",
+            "sha256": "40b183f333e0f3edc1b9a2ed48b792eff00fd477915dae79ce5784e862380f7f"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 47928993,
+                "receipt": "data/sources/texas-eia930-2021-2024.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "a602a8e577cfdd2fa3083413eaa4dd8ba7f0d2b26a2986f8f6d22917465ea49f"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 47928993,
+            "path": "data/raw/eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
+            "schema_fingerprint": "275576c2e9cc5e91b7c4d2726aa9deb7b67fcf9be69009fafd11c70266d69fb7",
+            "sha256": "a602a8e577cfdd2fa3083413eaa4dd8ba7f0d2b26a2986f8f6d22917465ea49f"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "nws_zone_county/bp10nv20/bp10nv20.dbx",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 321354,
+                "receipt": "data/sources/texas-nws-zone-county-bp16ap26.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 321354,
+            "path": "data/raw/nws_zone_county/bp10nv20/bp10nv20.dbx",
+            "schema_fingerprint": null,
+            "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "nws_zone_county/bp05mr24/bp05mr24.dbx",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 339683,
+                "receipt": "data/sources/texas-nws-zone-county-bp16ap26.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 339683,
+            "path": "data/raw/nws_zone_county/bp05mr24/bp05mr24.dbx",
+            "schema_fingerprint": null,
+            "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 10563953,
+                "receipt": "data/sources/texas-noaa-storm-events-2021-2024.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 10563953,
+            "path": "data/raw/storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+            "schema_fingerprint": "92aaac71b2c6f117c76cb1eb2d86b7cbb2b98753b98296e5d49e58e81b5fce3b",
+            "sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 12693243,
+                "receipt": "data/sources/texas-noaa-storm-events-2021-2024.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 12693243,
+            "path": "data/raw/storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+            "schema_fingerprint": "92aaac71b2c6f117c76cb1eb2d86b7cbb2b98753b98296e5d49e58e81b5fce3b",
+            "sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eaglei/support/MCC.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 40584,
+                "receipt": "data/sources/texas-eaglei-2021-2024.json",
+                "retrieved_at": "2026-09-06T05:20:00Z",
+                "sha256": "d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 40584,
+            "path": "data/raw/eaglei/support/MCC.csv",
+            "schema_fingerprint": "5a4f95ec3c8ac93af3c49bbd4bf601e833839c8dcb13a41f497b8c408b1880dc",
+            "sha256": "d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eaglei/support/coverage_history.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 11965,
+                "receipt": "data/sources/texas-eaglei-2021-2024.json",
+                "retrieved_at": "2026-09-06T05:20:00Z",
+                "sha256": "a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 11965,
+            "path": "data/raw/eaglei/support/coverage_history.csv",
+            "schema_fingerprint": "ed0441d01079ff21748cbfa336fed8e4365548edc87adea7a00baccbe30208be",
+            "sha256": "a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eaglei/2021/eaglei_outages_2021.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 1141058232,
+                "receipt": "data/sources/texas-eaglei-2021-2024.json",
+                "retrieved_at": "2026-09-06T05:20:00Z",
+                "sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 1141058232,
+            "path": "data/raw/eaglei/2021/eaglei_outages_2021.csv",
+            "schema_fingerprint": "34825f54714bbb8dc8d5e507b1d3abc3e513e35f7cde0d0acdabce64b5cf8648",
+            "sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "eaglei/2024/eaglei_outages_2024.csv",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 1444846424,
+                "receipt": "data/sources/texas-eaglei-2021-2024.json",
+                "retrieved_at": "2026-09-06T05:20:00Z",
+                "sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 1444846424,
+            "path": "data/raw/eaglei/2024/eaglei_outages_2024.csv",
+            "schema_fingerprint": "9510e6f6ce059dafbc356ebed44ed858e4852791139312572022b51a56ed855e",
+            "sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6"
+          },
+          "status": "ready"
+        },
+        {
+          "label": "ntad_military_bases/fy2024/texas.geojson",
+          "lock": {
+            "expected": [
+              {
+                "bytes": 534134,
+                "receipt": "data/sources/texas-ntad-military-bases-fy2024.json",
+                "retrieved_at": "2026-09-06T04:40:00Z",
+                "sha256": "5d8064bab8b36bd5a36d8a4621ca4bffc66d28b40c1b66ef6349eefa4f165a9c"
+              }
+            ],
+            "status": "verified"
+          },
+          "observed": {
+            "bytes": 534134,
+            "path": "data/raw/ntad_military_bases/fy2024/texas.geojson",
+            "schema_fingerprint": null,
+            "sha256": "5d8064bab8b36bd5a36d8a4621ca4bffc66d28b40c1b66ef6349eefa4f165a9c"
+          },
+          "status": "ready"
+        }
+      ],
+      "no_checksum_mismatch": true,
+      "raw_dir": "data/raw"
+    },
+    "reason": "ACTIVSg2000/Texas P0 must not be presented as the current Minnesota hackathon demo.",
+    "safe_staged_rebuild": {
+      "command": "uv run python -m pipelines.build --raw-dir <raw-dir> --db <fresh-output>/grid.duckdb --eaglei-source-tz UTC",
+      "rule": "Use a fresh output path. The builder stages and quality-checks before it promotes; never point it at a legacy database."
+    },
+    "status": "research_only"
+  },
+  "write_performed": false
+}

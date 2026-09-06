@@ -4,13 +4,15 @@
  *
  * Generic v1 ask events name tool calls/results and terminal errors. The
  * approved additive action, when present, is nested in a successful
- * `tool_result.result.scene_action`; provider identity, scene attribution, and
+ * `tool_result.result.scene_action` declared in `docs/research/sse-event-schema.md`
+ * § "`scene_action` (additive)"; provider identity, scene attribution, and
  * a reversal operation remain absent. This component therefore accepts only
  * that exact action shape and leaves every absent capability unavailable. It
  * is intentionally presentational: it neither opens a stream nor mutates a
  * scene.
  */
 import type { ErrorEvent, RunEvent, ToolCallEvent, ToolResultEvent } from "../ask/run-state/types";
+import { missingSceneActionIdentity, type SceneActionKind } from "../ask/results/types";
 
 export type SimulationCapability =
   | "simulation_action"
@@ -27,7 +29,7 @@ export interface UnavailableSimulationCapability {
 /** One additive action declared in a successful, attributed `tool_result`. */
 export interface ReceivedSceneAction {
   readonly actionId: string;
-  readonly kind: "scenario_edit" | "cascade";
+  readonly kind: Extract<SceneActionKind, "scenario_edit" | "cascade">;
   readonly toolCallId: string;
   readonly editHash?: string;
   readonly cascadeId?: string;
@@ -55,6 +57,14 @@ const unavailable: UnavailableSimulationCapability = {
   reason: "absent_from_received_ask_event_data",
 };
 
+/**
+ * One sentence for every kind, built from the identity field the shared rule says is
+ * missing. There is no per-kind copy and therefore no per-kind exemption.
+ */
+function missingIdentityReason(kind: ReceivedSceneAction["kind"], field: string): string {
+  return `The received ${kind} action has no stable ${field}, so it cannot be applied.`;
+}
+
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -74,7 +84,7 @@ function optionalString(value: unknown): string | undefined | null {
  * shape. Generic result objects remain opaque, and a malformed action is
  * deliberately indistinguishable from an absent one to callers.
  */
-function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | null {
+export function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | null {
   if (!event.ok) return null;
   const result = record(event.result);
   const source = record(result?.scene_action);
@@ -102,6 +112,23 @@ function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | nu
     || cascadeId === null
     || reason === null
   ) return null;
+
+  // Identity is decided by the shared rule in ../ask/results/types, for EVERY kind: an
+  // edit hash names an edit and a cascade id names a run. An action that claims to be
+  // available without the identity its own kind requires stays explicitly unavailable,
+  // and the refusal carries no identifier at all, so nothing on screen can be mistaken
+  // for the identity that is missing.
+  const missingIdentity = missingSceneActionIdentity(kind, { editHash, cascadeId });
+  if (status === "available" && missingIdentity !== null) {
+    return {
+      actionId,
+      kind,
+      toolCallId,
+      reversible: true,
+      status: "unavailable",
+      reason: missingIdentityReason(kind, missingIdentity),
+    };
+  }
 
   return {
     actionId,
