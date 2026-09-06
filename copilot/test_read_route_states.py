@@ -1,4 +1,12 @@
-"""Cross-route HTTP acceptance coverage for persisted Minnesota read states."""
+"""Cross-route HTTP acceptance coverage for persisted Minnesota read states.
+
+The database is built through the real contracts - `pipelines.db.connect`
+(`ensure_schema`, SCHEMA_VERSION 2.1.0) and `ensure_minnesota_schema` - via
+`copilot.persisted_fixtures`, so a column rename or constraint change in either
+fails these acceptance tests instead of leaving a hand-typed shadow schema
+green. The earlier hand-written fixture invented `site_scores.model_mode` and
+`site_scores.limitations_json`, which the real DDL does not define.
+"""
 
 from __future__ import annotations
 
@@ -9,9 +17,12 @@ import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
+from copilot.api.envelope import API_VERSION
+from copilot.api.errors import API_VERSION_HEADER
 from copilot.app import create_app
 from copilot.config import Settings
-from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
+from copilot.persisted_fixtures import persisted_read_route_database
+from pipelines.minnesota_schema import SCHEMA_VERSION
 
 
 def _client(path: Path) -> TestClient:
@@ -19,58 +30,7 @@ def _client(path: Path) -> TestClient:
 
 
 def _database(path: Path) -> None:
-    with duckdb.connect(str(path)) as con:
-        con.execute(
-            "CREATE TABLE site_candidates (site_id BIGINT, name TEXT, kind TEXT, "
-            "county_fips TEXT, source_name TEXT, source_ref TEXT, source_version TEXT, "
-            "source_retrieved_at TIMESTAMP, fixture_batch_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE site_scores (site_id BIGINT, scenario_id TEXT, unit_mw INTEGER, "
-            "safety_score DOUBLE, safety_flags_json JSON, grid_value_score DOUBLE, "
-            "lol_reduction_mwh DOUBLE, congestion_relief_pct DOUBLE, "
-            "blackstart_reach_mw DOUBLE, model_mode TEXT, limitations_json JSON, "
-            "source_name TEXT, source_ref TEXT, source_version TEXT, "
-            "source_retrieved_at TIMESTAMP, fixture_batch_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE lines (line_id BIGINT, from_bus BIGINT, to_bus BIGINT, "
-            "base_kv DOUBLE)"
-        )
-        con.execute(
-            "CREATE TABLE line_upgrade_scores (line_id BIGINT, scenario_id TEXT, "
-            "ranking_version TEXT, computed_at TIMESTAMP, source_name TEXT, source_ref TEXT, "
-            "source_kind TEXT, mw_per_musd DOUBLE, congestion_usd_yr DOUBLE, "
-            "dlr_uplift_mw DOUBLE, reconductor_uplift_mw DOUBLE, dlr_cost_usd DOUBLE, "
-            "reconductor_cost_usd DOUBLE, ferc_screen_pass BOOLEAN, spark_eligible BOOLEAN, "
-            "simulation_run_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE line_upgrade_detail (line_id BIGINT, scenario_id TEXT, region TEXT, "
-            "best_tech TEXT, congestion_method TEXT)"
-        )
-        con.execute(
-            "INSERT INTO site_candidates VALUES "
-            "(1, 'fixture site', 'coal_retired', '27001', 'fixture:site', "
-            "'fixture://site', 'v1', '2026-01-01', 'batch-1')"
-        )
-        con.execute(
-            "INSERT INTO site_scores VALUES "
-            "(1, 'mn_fixture', 300, 91, '[\"fixture safety flag\"]', 80, 70, 6, "
-            "12, 'topology', '[\"fixture limitation\"]', 'fixture:site-score', "
-            "'fixture://site-score', 'v1', '2026-01-01', 'batch-1')"
-        )
-        con.execute("INSERT INTO lines VALUES (10, 1, 2, 230)")
-        con.execute(
-            "INSERT INTO line_upgrade_scores VALUES "
-            "(10, 'mn_fixture', 'v1', '2026-01-01', 'fixture:line-score', "
-            "'fixture://line-score', 'fixture', 20, 2, 10, 9, 3, 4, true, false, NULL)"
-        )
-        con.execute(
-            "INSERT INTO line_upgrade_detail VALUES "
-            "(10, 'mn_fixture', 'mn', 'dlr', 'exact')"
-        )
-        ensure_minnesota_schema(con)
+    persisted_read_route_database(path)
 
 
 def _score(
@@ -158,7 +118,17 @@ def database(tmp_path: Path) -> Path:
     _score(
         path,
         "mn:score:comparison",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        components=json.dumps(
+            {
+                "scenario_id": "mn_fixture",
+                "intervention_id": "site:1@300",
+                "baseline_run_id": "run-baseline",
+                "run_id": "run-with",
+                "lol_reduction_mwh": 3.0,
+                "customer_hours_avoided": 12.0,
+                "critical_loads_protected": ["load-1"],
+            }
+        ),
     )
     _score(
         path,
@@ -173,12 +143,25 @@ def database(tmp_path: Path) -> Path:
 
 
 def _assert_unavailable(response, reason: str, artifact: str) -> None:
+    """Pin the whole documented failure envelope, not just its reason.
+
+    `docs/specs/05-copilot.md` states that every response carries
+    `X-Flux-Api-Version: v1`, and that an unavailable artifact is the shared
+    retryable envelope. Asserting only `status`/`data`/`reason` left the code,
+    the retryability, the meta version and the header free to drift.
+    """
+
     assert response.status_code == 503
-    assert response.json()["status"] == "unavailable"
-    assert response.json()["data"] is None
-    assert response.json()["error"]["code"] == "unavailable"
-    assert response.json()["error"]["details"]["artifact"] == artifact
-    assert response.json()["error"]["details"]["reason"] == reason
+    body = response.json()
+    assert body["status"] == "unavailable"
+    assert body["data"] is None
+    assert body["error"]["code"] == "unavailable"
+    assert body["error"]["retryable"] is True
+    assert body["error"]["retry_after_s"] == 30
+    assert body["error"]["details"]["artifact"] == artifact
+    assert body["error"]["details"]["reason"] == reason
+    assert body["meta"]["api_version"] == API_VERSION == "v1"
+    assert response.headers[API_VERSION_HEADER] == "v1"
 
 
 def test_persisted_results_expose_evidence_on_each_read_route(database: Path) -> None:
@@ -195,26 +178,38 @@ def test_persisted_results_expose_evidence_on_each_read_route(database: Path) ->
     )
     critical = client.get("/elements/critical", params={"region": "mn"})
 
-    assert site.status_code == lines.status_code == comparison.status_code == 200
+    assert (
+        site.status_code
+        == lines.status_code
+        == comparison.status_code
+        == critical.status_code
+        == 200
+    )
     assert site.json()["model_mode"] == "topology"
     assert site.json()["limitations"] == ["fixture limitation"]
     assert (
         site.json()["provenance"]["site_score"]["source_name"] == "fixture:site-score"
     )
     assert lines.json()["status"] == "available"
+    # The ready cell must assert the rows themselves: a ranking route that
+    # returns zero lines with valid provenance is not a ready read.
+    assert [line["line_id"] for line in lines.json()["lines"]] == ["10"]
+    assert lines.json()["scenario_id"] == "mn_fixture"
     assert lines.json()["provenance"][0]["source_kind"] == "fixture"
-    assert comparison.json()["interventions"][0]["model_mode"] == "topology"
-    assert comparison.json()["interventions"][0]["limitations"] == [
-        "fixture limitation"
-    ]
+    assert comparison.json()["interventions"][0]["intervention_id"] == "site:1@300"
+    assert comparison.json()["interventions"][0]["lol_reduction_mwh"] == 3.0
+    assert comparison.json()["evidence"][0]["model_mode"] == "topology"
+    assert comparison.json()["evidence"][0]["limitations"] == ["fixture limitation"]
     assert (
-        comparison.json()["interventions"][0]["provenance"][0]["source_name"]
+        comparison.json()["evidence"][0]["provenance"][0]["source_name"]
         == "fixture:score"
     )
-    assert critical.json()["elements"][0]["model_mode"] == "topology"
-    assert critical.json()["elements"][0]["limitations"] == ["fixture limitation"]
+    assert [item["element_id"] for item in critical.json()["elements"]] == ["line-10"]
+    assert critical.json()["scenario_ids"] == ["mn_fixture"]
+    assert critical.json()["evidence"][0]["model_mode"] == "topology"
+    assert critical.json()["evidence"][0]["limitations"] == ["fixture limitation"]
     assert (
-        critical.json()["elements"][0]["provenance"][0]["source_name"]
+        critical.json()["evidence"][0]["provenance"][0]["source_name"]
         == "fixture:score"
     )
 
@@ -302,11 +297,9 @@ def test_unavailable_artifacts_return_empty_truthful_envelopes(tmp_path: Path) -
 def test_non_topology_artifacts_are_explicitly_unsupported(database: Path) -> None:
     client = _client(database)
     with duckdb.connect(str(database)) as con:
-        con.execute("UPDATE site_scores SET model_mode='aggregate'")
-        con.execute(
-            "UPDATE mn_artifact_manifests SET model_mode='aggregate' "
-            "WHERE artifact_id IN ('mn:score:comparison', 'mn:score:critical')"
-        )
+        # `model_mode` lives on the manifest, not on site_scores: the real DDL
+        # 2.1.0 contract defines no such column.
+        con.execute("UPDATE mn_artifact_manifests SET model_mode='aggregate'")
 
     _assert_unavailable(
         client.post(
@@ -331,8 +324,14 @@ def test_non_topology_artifacts_are_explicitly_unsupported(database: Path) -> No
     )
 
 
-def test_invalid_input_is_rejected_before_a_persisted_read(database: Path) -> None:
-    client = _client(database)
+def test_invalid_input_is_rejected_before_a_persisted_read(tmp_path: Path) -> None:
+    """The ordering claim is made real: the database does not exist.
+
+    Every route below would answer 503 if it attempted a persisted read, so a
+    422 is only reachable when the input boundary rejects first.
+    """
+
+    client = _client(tmp_path / "never-created.duckdb")
     responses = (
         client.post(
             "/site-score",
@@ -350,3 +349,17 @@ def test_invalid_input_is_rejected_before_a_persisted_read(database: Path) -> No
         assert response.status_code == 422
         assert response.json()["status"] == "error"
         assert response.json()["error"]["code"] == "invalid_input"
+        assert response.json()["error"]["retryable"] is False
+        assert response.json()["meta"]["api_version"] == "v1"
+        assert response.headers[API_VERSION_HEADER] == "v1"
+
+    # The same reads against the same absent database are 503, which is what
+    # makes the 422s above evidence of ordering rather than of an absent file.
+    assert (
+        client.post(
+            "/site-score",
+            json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+        ).status_code
+        == 503
+    )
+    assert client.get("/elements/critical", params={"region": "mn"}).status_code == 503
