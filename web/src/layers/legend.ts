@@ -20,6 +20,7 @@
  */
 
 import { ASSET_STATUS_TOKENS, isAssetStatus, type AssetStatus } from "../labels.js";
+import { STATUS_COPY } from "../source-truth.js";
 import { glyphForStatus, UNKNOWN_STATUS_GLYPH } from "./status-glyphs.js";
 import type { LayerSnapshot } from "./filters.js";
 
@@ -32,40 +33,35 @@ export interface LegendEntry {
   readonly description: string;
 }
 
-/** Display copy for the six frozen statuses, quoted from the narrative-IA table. */
-const ENTRY_COPY: Readonly<Record<AssetStatus, { label: string; description: string }>> = {
-  source_supported: {
-    label: "Source-supported",
-    description: "Directly supported by the recorded source; opens Evidence.",
-  },
-  source_screened: {
-    label: "Source-screened",
-    description: "Screened against the recorded sources but not source-supported; never a finding.",
-  },
-  hypothetical: {
-    label: "Hypothetical",
-    description: "Compared inside the model's stated scope; never permitted, approved, or ready to build.",
-  },
-  synthetic: {
-    label: "Synthetic",
-    description: "An identified synthetic artifact only; never positioned as Minnesota infrastructure.",
-  },
-  unavailable: {
-    label: "Unavailable",
-    description: "A required artifact is absent, unbuilt, stale, or ineligible; the dependent value is hidden.",
-  },
-  request_failed: {
-    label: "Request failed",
-    description: "A request or provider failed; the last result may be stale but is not current.",
-  },
+/**
+ * The one-line meaning shown beside each label, condensed from the IA table's
+ * *"Meaning and interaction"* column (`docs/design/minnesota-demo-narrative-ia.md`,
+ * the truth-label table) -- condensed, not quoted, and deliberately not the
+ * "Required accompanying copy" column, which is producer-supplied (see the note
+ * on `legendForLayer`).
+ *
+ * Only the descriptions live here. The six *labels* are not restated: they are
+ * owned by `../source-truth.ts` `STATUS_COPY`, exactly as `./status-glyphs.ts`
+ * declares, and imported below.
+ */
+const ENTRY_DESCRIPTIONS: Readonly<Record<AssetStatus, string>> = {
+  source_supported: "Directly supported by the recorded source; opens Evidence.",
+  source_screened:
+    "Screened against the recorded sources but not source-supported; never a finding.",
+  hypothetical:
+    "Compared inside the model's stated scope; never rendered as permitted, approved, or ready to build.",
+  synthetic: "An identified synthetic artifact only; never positioned as Minnesota infrastructure.",
+  unavailable:
+    "A required artifact is absent, unbuilt, stale, or ineligible; the dependent value is hidden.",
+  request_failed: "A request or provider failed; the last result may be stale but is not current.",
 };
 
 /** Every legend entry, in the frozen token order. */
 export const STATUS_LEGEND: readonly LegendEntry[] = ASSET_STATUS_TOKENS.map((status) => ({
   status,
-  label: ENTRY_COPY[status].label,
+  label: STATUS_COPY[status],
   glyph: glyphForStatus(status),
-  description: ENTRY_COPY[status].description,
+  description: ENTRY_DESCRIPTIONS[status],
 }));
 
 export interface LayerLegend {
@@ -75,6 +71,13 @@ export interface LayerLegend {
   readonly currentStatus: AssetStatus;
   /** Why the layer is in that status, when it carries a reason. */
   readonly currentReason?: string;
+  /**
+   * The producer's request ID. Present on every `request_failed` legend -- the
+   * IA requires it in that row's accompanying copy -- and carried whenever a
+   * snapshot supplies one. A `request_failed` snapshot with no request ID gets
+   * `REQUEST_ID_UNSUPPLIED`, never a fabricated or plausible-looking ID.
+   */
+  readonly currentRequestId?: string;
   /** The full key, so a viewer can read any status the layer may take. */
   readonly entries: readonly LegendEntry[];
   /** True when the layer's status is not one the server asserts. */
@@ -82,19 +85,41 @@ export interface LayerLegend {
 }
 
 /**
+ * The named refusal a `request_failed` legend carries when the producer supplied
+ * no request ID. The IA's accompanying copy for that row is "safe message,
+ * request ID if supplied, retry guidance": when it is not supplied, the legend
+ * says so by name rather than omitting the field or minting an ID of its own.
+ */
+export const REQUEST_ID_UNSUPPLIED = "request-id-unsupplied";
+
+/**
  * Build the legend for one layer snapshot.
  *
  * An unrecognised status is not silently dropped or coerced to a friendly
  * default: the legend reports it as `unavailable` with the unknown glyph and
  * flags `unrecognized`, matching how `filters.ts` refuses the same value.
+ *
+ * On the IA's "Required accompanying copy" column: the one part of it this
+ * module can carry is the request ID, because `LayerSnapshot` already has the
+ * producer's `requestId`, so it is carried rather than dropped. The rest of
+ * that column is producer-supplied prose -- `unavailable`'s named next step and
+ * `request_failed`'s retry guidance -- and no field on `LayerSnapshot` asserts
+ * it. This module refuses it rather than inventing it, the same refusal
+ * `LayerControls.tsx` makes for the same two rows; a renderer must obtain that
+ * copy from the producer.
  */
 export function legendForLayer(snapshot: LayerSnapshot): LayerLegend {
   const recognized = isAssetStatus(snapshot.status);
+  const currentStatus: AssetStatus = recognized ? snapshot.status : "unavailable";
+  const requestId =
+    snapshot.requestId ??
+    (currentStatus === "request_failed" ? REQUEST_ID_UNSUPPLIED : undefined);
   return {
     layerId: snapshot.id,
     layerLabel: snapshot.label,
-    currentStatus: recognized ? snapshot.status : "unavailable",
+    currentStatus,
     ...(snapshot.reason === undefined ? {} : { currentReason: snapshot.reason }),
+    ...(requestId === undefined ? {} : { currentRequestId: requestId }),
     entries: STATUS_LEGEND,
     unrecognized: !recognized,
   };
