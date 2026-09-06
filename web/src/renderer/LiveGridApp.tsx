@@ -11,7 +11,9 @@ import "./renderer.css";
 
 const LAYERS = { tx: ["line", "generation", "storage"], mn: ["line", "substation", "generation", "storage"] } as const;
 type State = keyof typeof LAYERS;
-type Load = { kind: "loading" } | { kind: "ready"; pages: readonly SpatialPage[] } | { kind: "failure"; message: string };
+type Load = { kind: "loading" } | { kind: "ready"; pages: readonly SpatialPage[] } | { kind: "failure"; message: string; retryable: boolean };
+
+class GridRequestError extends Error { constructor(message: string, readonly retryable: boolean) { super(message); } }
 
 async function getAllPages(state: State, layer: string, bbox: string | null, signal: AbortSignal): Promise<readonly SpatialPage[]> {
   const pages: SpatialPage[] = [];
@@ -22,7 +24,7 @@ async function getAllPages(state: State, layer: string, bbox: string | null, sig
     if (bbox) query.set("bbox", bbox);
     const response = await fetch(`/api/v1/grid/layers/${encodeURIComponent(layer)}?${query}`, { signal });
     const payload = pageFrom(await response.json());
-    if (!response.ok || payload === null || "status" in payload) throw new Error(payload && "status" in payload ? payload.error.message : `Grid API returned ${response.status}.`);
+    if (!response.ok || payload === null || "status" in payload) throw new GridRequestError(payload && "status" in payload ? payload.error.message : `Grid API returned ${response.status}.`, response.status >= 500);
     pages.push(payload);
     cursor = payload.page.next_cursor;
   } while (cursor);
@@ -51,21 +53,35 @@ function LiveGridApp() {
   const [selected, setSelected] = useState<SpatialItem | null>(null);
   const [query, setQuery] = useState("");
   const [bbox, setBbox] = useState<string | null>(null);
+  const [refresh, setRefresh] = useState(0);
   useEffect(() => { setLayers(LAYERS[state]); setSelected(null); }, [state]);
   useEffect(() => {
     let current = true;
     const controller = new AbortController();
     setLoad({ kind: "loading" });
     Promise.all(layers.map((layer) => getAllPages(state, layer, bbox, controller.signal))).then((pages) => current && setLoad({ kind: "ready", pages: pages.flat() })).catch((error) => {
-      if (current && !(error instanceof DOMException && error.name === "AbortError")) setLoad({ kind: "failure", message: error instanceof Error ? error.message : String(error) });
+      if (current && !(error instanceof DOMException && error.name === "AbortError")) setLoad({ kind: "failure", message: error instanceof Error ? error.message : String(error), retryable: error instanceof GridRequestError && error.retryable });
     });
     return () => { current = false; controller.abort(); };
-  }, [state, layers, bbox]);
+  }, [state, layers, bbox, refresh]);
   const items = useMemo(() => load.kind === "ready" ? load.pages.flatMap((page) => page.items) : [], [load]);
   const filtered = useMemo(() => query.trim() ? items.filter((item) => item.asset_id.toLowerCase().includes(query.trim().toLowerCase()) || item.asset_kind.toLowerCase().includes(query.trim().toLowerCase())) : items, [items, query]);
   const features = useMemo(() => renderableFeatures(filtered), [filtered]);
   const accounting = geometryAccounting(items);
   const release = load.kind === "ready" && load.pages[0] ? load.pages[0] : null;
+  const coverage = useMemo(() => {
+    const rows = release?.coverage ?? [];
+    const seen = new Set<string>();
+    return rows.flatMap((row) => {
+      if (typeof row !== "object" || row === null || Array.isArray(row)) return [];
+      const value = row as Record<string, unknown>;
+      const keys = ["asset_class", "status", "scope_id", "source_scope", "reason"];
+      if (keys.some((key) => typeof value[key] !== "string")) return [];
+      const key = `${value.asset_class}:${value.scope_id}`;
+      if (seen.has(key)) return []; seen.add(key);
+      return [{ assetClass: value.asset_class as string, status: value.status as string, scope: value.source_scope as string, reason: value.reason as string, observed: value.observed_count, denominator: value.denominator_count, unknown: value.unknown_count, unavailable: value.unavailable_count }];
+    });
+  }, [release]);
   const deckLayers = useMemo<LayersList>(() => [new GeoJsonLayer({ id: "physical-inventory-display-geometry", data: features as never, pickable: true,
     stroked: true, filled: true, lineWidthMinPixels: 2, pointRadiusMinPixels: 5, getLineColor: [112, 213, 255, 235], getFillColor: [255, 191, 94, 220], getPointRadius: 60,
     onClick: ({ object }) => object && setSelected((object as { properties: SpatialItem }).properties),
@@ -77,7 +93,8 @@ function LiveGridApp() {
       <fieldset><legend>Layers</legend>{LAYERS[state].map((layer) => <label key={layer}><input type="checkbox" checked={layers.includes(layer)} onChange={(event) => updateLayer(layer, event.target.checked)} /> {layer}</label>)}</fieldset>
       <label>Search rendered inventory <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Asset ID or kind" /></label></section>
     <section className="grid-map" aria-label="Source-backed physical inventory map"><Map key={state} initialViewState={state === "tx" ? { longitude: -99, latitude: 31, zoom: 5 } : { longitude: -94, latitude: 46, zoom: 5.6 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMoveEnd={(event) => { const b = event.target.getBounds(); setBbox([b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].join(",")); }}><DeckOverlay layers={deckLayers} /></Map>
-      <div className="grid-map-note" role="status">{load.kind === "loading" ? "Loading source-backed inventory…" : load.kind === "failure" ? `Unavailable: ${load.message}` : <><strong>{release?.artifact_id} · {release?.artifact_version}</strong><span>{accounting.renderable} rendered from {accounting.totalLoaded} loaded {bbox ? "viewport" : "state"} records; {accounting.unavailableGeometry} loaded records have unavailable geometry and no marker was created.</span><span>Release SHA-256: {release?.release_sha256}; coverage rows remain available in the response.</span></>}</div></section>
+      <div className="grid-map-note" role="status">{load.kind === "loading" ? "Loading source-backed inventory…" : load.kind === "failure" ? <><span>Unavailable: {load.message}</span>{load.retryable && <button type="button" onClick={() => setRefresh((value) => value + 1)}>Retry inventory request</button>}</> : <><strong>{release?.artifact_id} · {release?.artifact_version}</strong><span>{accounting.renderable} rendered from {accounting.totalLoaded} loaded {bbox ? "viewport" : "state"} records; {accounting.unavailableGeometry} loaded records have unavailable geometry and no marker was created.</span><span>Release SHA-256: {release?.release_sha256}; coverage disclosure follows.</span></>}</div></section>
+    <section className="grid-coverage" aria-label="Coverage and geometry availability"><h2>Coverage and geometry availability</h2>{coverage.map((row) => <article key={`${row.assetClass}:${row.scope}`}><strong>{row.assetClass} · {row.status}</strong><p>{row.scope}</p><p>Observed: {String(row.observed ?? "Unknown")} / denominator: {String(row.denominator ?? "Unknown")}; unknown: {String(row.unknown ?? "Unknown")}; unavailable: {String(row.unavailable ?? "Unknown")}</p><p>{row.reason}</p></article>)}</section>
     <section className="grid-results" aria-label="Rendered inventory search results"><h2>Rendered inventory</h2>{features.slice(0, 25).map((feature) => <button key={feature.id} type="button" onClick={() => setSelected(feature.properties)}>{feature.id} · {feature.properties.asset_kind}</button>)}{features.length > 25 && <p>Showing the first 25 matching rendered features. Refine search to narrow this list.</p>}</section>
     <Inspector item={selected} />
   </main>;
