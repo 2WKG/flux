@@ -70,7 +70,10 @@ function LiveGridApp() {
   const accounting = geometryAccounting(items);
   const release = load.kind === "ready" && load.pages[0] ? load.pages[0] : null;
   const coverage = useMemo(() => {
-    const rows = release?.coverage ?? [];
+    // Each layer response carries its own class coverage. Combine the loaded
+    // envelopes before de-duplicating so the first selected layer cannot hide
+    // EIA's unavailable-unit counts or another source scope.
+    const rows = load.kind === "ready" ? load.pages.flatMap((page) => page.coverage) : [];
     const seen = new Set<string>();
     return rows.flatMap((row) => {
       if (typeof row !== "object" || row === null || Array.isArray(row)) return [];
@@ -81,7 +84,7 @@ function LiveGridApp() {
       if (seen.has(key)) return []; seen.add(key);
       return [{ assetClass: value.asset_class as string, status: value.status as string, scope: value.source_scope as string, reason: value.reason as string, observed: value.observed_count, denominator: value.denominator_count, unknown: value.unknown_count, unavailable: value.unavailable_count }];
     });
-  }, [release]);
+  }, [load]);
   const deckLayers = useMemo<LayersList>(() => [new GeoJsonLayer({ id: "physical-inventory-display-geometry", data: features as never, pickable: true,
     stroked: true, filled: true, lineWidthMinPixels: 2, pointRadiusMinPixels: 5, getLineColor: [112, 213, 255, 235], getFillColor: [255, 191, 94, 220], getPointRadius: 60,
     onClick: ({ object }) => object && setSelected((object as { properties: SpatialItem }).properties),
