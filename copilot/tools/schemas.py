@@ -9,10 +9,11 @@ an artifact/retrieval chunk or represented as an explicit unavailable result.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
@@ -134,6 +135,7 @@ _SQL_INPUT_XOR_SCHEMA = {
             "properties": {
                 "query": {"type": "string"},
                 "template_id": {"type": "null"},
+                "parameters": {},
             },
             "required": ["query"],
         },
@@ -141,6 +143,7 @@ _SQL_INPUT_XOR_SCHEMA = {
             "properties": {
                 "query": {"type": "null"},
                 "template_id": {"type": "string"},
+                "parameters": {},
             },
             "required": ["template_id"],
         },
@@ -170,6 +173,25 @@ class SqlInput(ContractModel):
             description="Named query advertised by the deployment's approved-template registry.",
         ),
     ] = None
+    parameters: Annotated[
+        list[str | int | float | bool | None],
+        Field(
+            default_factory=list,
+            max_length=25,
+            description="Bound values for positional placeholders in a deployment-owned template.",
+        ),
+    ]
+
+    @field_validator("parameters")
+    @classmethod
+    def _parameters_are_finite_json_scalars(
+        cls, values: list[str | int | float | bool | None]
+    ) -> list[str | int | float | bool | None]:
+        if any(
+            isinstance(value, float) and not math.isfinite(value) for value in values
+        ):
+            raise ValueError("SQL parameters must be finite JSON scalars")
+        return values
 
     @model_validator(mode="after")
     def _exactly_one_input(self) -> SqlInput:
