@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import duckdb
 import pytest
 
+from copilot.tools_lines import TopLinesReader
 from pipelines import db
 from pipelines.line_upgrade import (
     persist_ranking,
@@ -458,7 +459,69 @@ def test_writer_persists_declared_source_kind_to_both_line_artifacts(
 # --- CLI ---------------------------------------------------------------------
 
 
-def test_module_cli_refuses_loudly_instead_of_exiting_zero():
+def _qualified_artifacts(tmp_path, *, include_line: bool = True):
+    line = {
+        "line_id": 1,
+        "owner": "fixture utility",
+        "dlr": {
+            "conductor": {
+                "name": "Drake 795 kcmil ACSR 26/7",
+                "kcmil": 795,
+                "diameter_m": 0.0281432,
+                "r_ac_25c_ohm_m": 6.8898e-5,
+                "r_ac_75c_ohm_m": 8.2782e-5,
+                "t_max_c": 75.0,
+                "emissivity": 0.5,
+                "absorptivity": 0.5,
+            },
+            "weather": [
+                {"ts": "2024-01-01T12:00:00Z", "wind_ms": 4.0, "temp_c": 20.0},
+                {"ts": "2024-01-01T13:00:00Z", "wind_ms": 5.0, "temp_c": 20.0},
+            ],
+        },
+        "reconductor": {
+            "material": "ACSR",
+            "kcmil": 795,
+            "costs": {"345": {"value": 2_000_000, "source": "fixture cost"}},
+        },
+    }
+    line_artifact = {
+        "format": "flux-line-upgrade-v1",
+        "scenario_id": SCENARIO,
+        "region": "ERCOT",
+        "source_kind": "fixture",
+        "source_name": "fixture",
+        "source_ref": "line-upgrade-test",
+        "source_version": "1",
+        "fixture_batch_id": "batch-1",
+        "ranking_version": "v1",
+        "computed_at": "2024-01-01T00:00:00Z",
+        "grid_input_sha256": H,
+        "weather_input_sha256": H,
+        "cost_params_sha256": H,
+        "lines": [line] if include_line else [],
+    }
+    congestion_artifact = {
+        "format": "flux-congestion-v1",
+        "scenario_id": SCENARIO,
+        "records": [
+            {
+                "line_id": 1,
+                "source": "simulated",
+                "usd_per_year": 1_000_000,
+                "scenario_id": SCENARIO,
+                "run_id": "fixture-run",
+            }
+        ],
+    }
+    artifact_path = tmp_path / "line-input.json"
+    congestion_path = tmp_path / "congestion.json"
+    artifact_path.write_text(json.dumps(line_artifact), encoding="utf-8")
+    congestion_path.write_text(json.dumps(congestion_artifact), encoding="utf-8")
+    return artifact_path, congestion_path
+
+
+def test_module_cli_requires_explicit_qualified_references():
     completed = subprocess.run(
         [sys.executable, "-m", "pipelines.line_upgrade", "--region", "ERCOT"],
         capture_output=True,
@@ -467,4 +530,76 @@ def test_module_cli_refuses_loudly_instead_of_exiting_zero():
     )
 
     assert completed.returncode != 0
-    assert "not implemented" in completed.stderr
+    assert "--db" in completed.stderr
+
+
+def test_cli_assembles_qualified_fixture_writer_and_reader(tmp_path):
+    path = tmp_path / "grid.duckdb"
+    con = db.connect(path)
+    _seed_lines(con, (1,))
+    con.close()
+    artifact_path, congestion_path = _qualified_artifacts(tmp_path)
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pipelines.line_upgrade",
+            "--db",
+            str(path),
+            "--artifact",
+            str(artifact_path),
+            "--congestion",
+            str(congestion_path),
+            "--region",
+            "ERCOT",
+            "--scenario-id",
+            SCENARIO,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {"scored": 1, "unavailable": 0}
+    response = TopLinesReader(path).top_lines("ERCOT", "any", 10)
+    assert response.status == "available"
+    assert response.lines[0].source_class == "simulated"
+    assert response.provenance[0].source_kind == "fixture"
+
+
+def test_cli_reports_missing_line_artifact_input_without_persisting_a_score(tmp_path):
+    path = tmp_path / "grid.duckdb"
+    con = db.connect(path)
+    _seed_lines(con, (1,))
+    con.close()
+    artifact_path, congestion_path = _qualified_artifacts(tmp_path, include_line=False)
+
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "pipelines.line_upgrade",
+            "--db",
+            str(path),
+            "--artifact",
+            str(artifact_path),
+            "--congestion",
+            str(congestion_path),
+            "--region",
+            "ERCOT",
+            "--scenario-id",
+            SCENARIO,
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    assert json.loads(completed.stdout) == {"scored": 0, "unavailable": 1}
+    with duckdb.connect(str(path), read_only=True) as reopened:
+        assert reopened.execute(
+            "SELECT count(*) FROM line_upgrade_scores"
+        ).fetchone() == (0,)
