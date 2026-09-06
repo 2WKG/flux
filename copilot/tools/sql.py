@@ -269,6 +269,23 @@ def _json_value(value: Any, *, json_column: bool = False) -> JsonValue:
     raise ValueError(f"SQL returned unsupported value type {type(value).__name__}")
 
 
+@dataclass(frozen=True)
+class ApprovedMinnesotaQuery:
+    """A named deployment query with its complete relation declaration."""
+
+    name: str
+    sql: str
+    relations: frozenset[str]
+
+    def __post_init__(self) -> None:
+        if not _is_safe_view_name(self.name):
+            raise ValueError("approved query names must be simple identifiers")
+        if not self.relations or any(
+            not _is_safe_view_name(name) for name in self.relations
+        ):
+            raise ValueError("approved queries require declared simple relations")
+
+
 class MinnesotaSqlExecutor:
     """Execute one validated SELECT against deployment-registered local views."""
 
@@ -276,11 +293,24 @@ class MinnesotaSqlExecutor:
         self,
         database_path: Path | str,
         approved_views: Iterable[ApprovedMinnesotaView] = (),
+        approved_queries: Iterable[ApprovedMinnesotaQuery] = (),
         *,
         timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
     ) -> None:
         self._database_path = Path(database_path)
         self._views = {view.name: view for view in approved_views}
+        registered_queries = tuple(approved_queries)
+        self._queries = {query.name: query for query in registered_queries}
+        if len(self._queries) != len(registered_queries):
+            raise ValueError("approved query names must be unique")
+        for query in self._queries.values():
+            if not query.relations <= set(self._views):
+                raise ValueError("approved query relation is not an approved view")
+            _, relations, _ = _validate_statement(query.sql, set(self._views))
+            if relations != set(query.relations):
+                raise ValueError(
+                    "approved query relation declaration does not match SQL"
+                )
         self._timeout_seconds = timeout_seconds
         if timeout_seconds <= 0:
             raise ValueError("timeout_seconds must be positive")
@@ -353,12 +383,27 @@ class MinnesotaSqlExecutor:
         """
 
         try:
-            query = (
-                request.query
-                if isinstance(request, SqlInput)
-                else SqlInput(query=request).query
+            payload = (
+                request if isinstance(request, SqlInput) else SqlInput(query=request)
             )
         except Exception:  # noqa: BLE001 - Pydantic is the public input boundary.
+            return self._unavailable(
+                "unsupported_request", "SQL query is outside the fixed input contract"
+            )
+        if self._queries:
+            if payload.template_id is None or payload.query is not None:
+                return self._unavailable(
+                    "unsupported_request", "SQL requires one registered template_id"
+                )
+            template = self._queries.get(payload.template_id)
+            if template is None:
+                return self._unavailable(
+                    "unsupported_request", "SQL template is not registered"
+                )
+            query = template.sql
+        elif payload.query is not None:
+            query = payload.query
+        else:
             return self._unavailable(
                 "unsupported_request", "SQL query is outside the fixed input contract"
             )
