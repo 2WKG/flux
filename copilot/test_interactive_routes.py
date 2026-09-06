@@ -96,7 +96,7 @@ def test_all_ticket_436_routes_are_http_and_nonpersisting(monkeypatch):
         ),
         client.get(
             "/interactive/redundancy",
-            params={"bus_id": 1001, "scenario_id": "uri_2021", "hour": 0},
+            params={"bus_id": 1001, "scenario_id": "interactive", "hour": 0},
         ),
         client.post(
             "/interactive/siting/search",
@@ -129,6 +129,25 @@ def test_unknown_or_malformed_edits_fail_explicitly(monkeypatch):
         ).status_code
         == 422
     )
+
+
+def test_base_network_reports_refuse_unapplied_scenario_context(monkeypatch):
+    client = _client(monkeypatch)
+    for path, params in (
+        ("/interactive/balance", {"scenario_id": "uri_2021", "hour": 0}),
+        ("/interactive/balance", {"scenario_id": "interactive", "hour": 1}),
+        (
+            "/interactive/redundancy",
+            {"bus_id": 1001, "scenario_id": "uri_2021", "hour": 0},
+        ),
+        (
+            "/interactive/redundancy",
+            {"bus_id": 1001, "scenario_id": "interactive", "hour": 1},
+        ),
+    ):
+        response = client.get(path, params=params)
+        assert response.status_code == 422
+        assert response.json()["error"]["code"] == "invalid_input"
 
 
 def test_edit_hash_cannot_be_replayed_with_a_different_seed(monkeypatch):

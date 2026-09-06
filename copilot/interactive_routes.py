@@ -311,6 +311,7 @@ def _balance(
 ) -> dict[str, object]:
     from twin.cascade import balance_report, immutable_scenario_net
 
+    _require_base_context(scenario_id, hour)
     baseline = _net(case_path=case_path, duckdb_path=duckdb_path)
     return _result(
         baseline,
@@ -328,6 +329,7 @@ def _redundancy(
 ) -> dict[str, object]:
     from twin.cascade import redundancy_report
 
+    _require_base_context(scenario_id, hour)
     baseline = _net(case_path=case_path, duckdb_path=duckdb_path)
     pp_bus_index = _pp_bus_index(baseline, bus_id)
     report = redundancy_report(baseline, [pp_bus_index])[0]
@@ -335,6 +337,14 @@ def _redundancy(
     report["source_bus_id"] = bus_id
     report["pp_bus_index"] = pp_bus_index
     return _result(baseline, case_path, report)
+
+
+def _require_base_context(scenario_id: str, hour: int) -> None:
+    """Refuse context the base-network reports cannot apply."""
+    if scenario_id != "interactive" or hour != 0:
+        raise ValueError(
+            "balance and redundancy support only the base interactive network at hour 0"
+        )
 
 
 def _siting_search(
