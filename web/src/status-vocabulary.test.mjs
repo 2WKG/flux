@@ -214,19 +214,23 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   assert.ok(ASSET_STATUS_TOKENS.includes(token), `"${token}" is not one of the six IA status tokens`);
   assert.equal(token, "synthetic");
 
-  // Derivation site 1: the scenario-controls status chip, asserted as a slice so
-  // an unrelated occurrence of the word elsewhere on the page cannot satisfy it.
-  assert.match(
-    main,
-    new RegExp(`<span class="shell-status">${STATUS_COPY[token]} five-bus preview · not Minnesota data</span>`),
-    "the status chip does not render the owner's copy for the derived token",
+  // Derivation site 1: the scene legend under the topology viewport, asserted as
+  // a slice so an unrelated occurrence of the word elsewhere on the page cannot
+  // satisfy it. #358 replaced the Minnesota five-bus scene (and its
+  // `shell-status` chip) with the synthetic Texas ACTIVSg2000 topology; the
+  // legend is where that scene spells the derived token out.
+  const legend = main.match(/<div class="legend">([\s\S]*?)<\/div>/);
+  assert.ok(legend, "the scene no longer renders a legend");
+  assert.equal(
+    textOf(legend[1]),
+    `${STATUS_COPY[token]} model geometry · no solved flows or observed electrical state.`,
   );
   // Derivation site 2: the nav source summary, which leads with the same label.
   const live = main.match(/<div class="live">([\s\S]*?)<\/div>/);
   assert.ok(live, "the nav no longer renders a source summary");
   assert.equal(
     textOf(live[1]),
-    `${STATUS_COPY[token]} · fixture source · no asserted topology · no API required for this scene`,
+    `${STATUS_COPY[token]} ACTIVSg2000 static topology · model API required`,
   );
 
   // And the prohibited browser-invented status word never reaches the screen.
