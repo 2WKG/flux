@@ -1,0 +1,48 @@
+{
+  "archetype_id": "transmission_line_segment",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Transmission towers and line segments",
+  "category": "network",
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "pivot": "ground_center"
+  },
+  "triangles_lod0": 18000,
+  "triangles_lod1": 7000,
+  "triangles_lod2": 2000,
+  "footprint_m": {
+    "length": 12,
+    "width": 12
+  },
+  "connectors": [
+    {
+      "name": "CONN_HV_IN_0",
+      "role": "HV_IN",
+      "position_m": [0.0, 18.0, 6.0]
+    },
+    {
+      "name": "CONN_HV_OUT_0",
+      "role": "HV_OUT",
+      "position_m": [0.0, 18.0, -6.0]
+    }
+  ],
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "placement.status_label"
+    }
+  ],
+  "author": "Flux 2WKG-376",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original generic lattice-tower and conductor geometry authored for Flux; it represents no real Minnesota facility or circuit.",
+  "limit": "This is reusable scene geometry only. It does not assert a Minnesota location, owner, circuit, rating, energisation, or topology.",
+  "outputs": {
+    "glb": "transmission_line_segment.glb",
+    "preview": "transmission_line_segment.preview.png",
+    "source": "transmission_line_segment.blender.py"
+  }
+}
