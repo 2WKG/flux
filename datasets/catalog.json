@@ -941,6 +941,48 @@
       "downloads": []
     },
     {
+      "id": "tx-austin-energy-service-area",
+      "name": "Austin Energy electric service area boundary",
+      "category": "grid-distribution",
+      "groups": ["demo-tx"],
+      "access": "api",
+      "large": false,
+      "estimated_bytes": 70875,
+      "source_url": "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/UTILITIESCOMMUNICATION_austin_energy_service_area/FeatureServer/0",
+      "license": "City of Austin open data terms published with the hosted feature service",
+      "use": "Owner attribution for the Austin Energy distribution service area; native EPSG:2277 geometry",
+      "caveat": "One owner footprint polygon. It is not feeder, cable, device or service topology and carries no asset count",
+      "downloads": []
+    },
+    {
+      "id": "tx-nbu-electric-service-boundary",
+      "name": "New Braunfels Utilities electric service boundary",
+      "category": "grid-distribution",
+      "groups": ["demo-tx"],
+      "access": "api",
+      "large": false,
+      "estimated_bytes": 68349,
+      "source_url": "https://services.arcgis.com/yHSU3Q4NlapEfzn5/arcgis/rest/services/New_Braunfels_Utilities_Service_Boundaries/FeatureServer/0",
+      "license": "Publisher's hosted feature service terms",
+      "use": "Owner attribution for the NBU distribution service area; native EPSG:2278 geometry",
+      "caveat": "One owner footprint polygon; layers 1 and 2 are water and wastewater and are out of scope",
+      "downloads": []
+    },
+    {
+      "id": "tx-granbury-electric-provider-areas",
+      "name": "City of Granbury electric distribution provider areas",
+      "category": "grid-distribution",
+      "groups": ["demo-tx"],
+      "access": "api",
+      "large": false,
+      "estimated_bytes": 302796,
+      "source_url": "https://services6.arcgis.com/wHtOhDQeUxQY5fQy/arcgis/rest/services/Electric_Distribution/FeatureServer/90",
+      "license": "Publisher's hosted feature service terms",
+      "use": "Owner attribution inside the Granbury area; native EPSG:2276 geometry",
+      "caveat": "Despite the layer name, the 42 features are provider-area polygons with no feeder, device or connectivity attribute",
+      "downloads": []
+    },
+    {
       "id": "tx-puct-service-quality",
       "name": "Texas PUCT electric service-quality reports",
       "category": "reliability",
