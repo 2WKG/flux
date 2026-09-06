@@ -1,0 +1,129 @@
+{
+  "archetype_id": "factory_industrial_facility",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "triangles_lod0": 4739,
+  "triangles_lod1": 390,
+  "triangles_lod2": 140,
+  "footprint_m": {
+    "length": 200,
+    "width": 140
+  },
+  "connectors": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        58.8,
+        3.25,
+        -78.0
+      ]
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "bounds_m": {
+    "min": [
+      -67.9000015258789,
+      0.0,
+      -97.0
+    ],
+    "max": [
+      67.9000015258789,
+      44.125,
+      97.0
+    ]
+  },
+  "bounds_blender_m": {
+    "min": [
+      -67.9000015258789,
+      -97.0,
+      0.0
+    ],
+    "max": [
+      67.9000015258789,
+      97.0,
+      44.125
+    ],
+    "size": [
+      135.8000030517578,
+      194.0,
+      44.125
+    ]
+  },
+  "lod_bounds_blender_m": [
+    {
+      "min": [
+        -67.9000015258789,
+        -97.0,
+        0.0
+      ],
+      "max": [
+        67.9000015258789,
+        97.0,
+        44.125
+      ],
+      "size": [
+        135.8000030517578,
+        194.0,
+        44.125
+      ]
+    },
+    {
+      "min": [
+        -67.9000015258789,
+        -97.0,
+        0.0
+      ],
+      "max": [
+        67.9000015258789,
+        97.0,
+        44.125
+      ],
+      "size": [
+        135.8000030517578,
+        194.0,
+        44.125
+      ]
+    },
+    {
+      "min": [
+        -67.9000015258789,
+        -97.0,
+        0.0
+      ],
+      "max": [
+        67.9000015258789,
+        97.0,
+        43.5
+      ],
+      "size": [
+        135.8000030517578,
+        194.0,
+        43.5
+      ]
+    }
+  ],
+  "geometry_limit": "Depicts no process, output, or emissions profile.",
+  "materials": {
+    "status": "MAT_STATUS",
+    "decorative_accent": "MAT_ACCENT",
+    "status_tint_baked": false
+  },
+  "preview": "factory_industrial_facility.preview.png",
+  "lod_files": {
+    "lod0": "factory_industrial_facility.glb",
+    "lod1": "factory_industrial_facility.lod1.glb",
+    "lod2": "factory_industrial_facility.lod2.glb"
+  }
+}
