@@ -38,9 +38,6 @@ TRANSFORM_VERSION: Final = "1.0.0"
 
 IDENTITY_COLUMNS: Final = ("county_fips", "scenario_id", "window_start")
 
-FRAME_DIGEST_VERSION: Final = "feature-frame-v1"
-"""Prefix of the canonical frame encoding; bump when the encoding changes."""
-
 
 class TransformError(ValueError):
     """A feature artifact cannot safely be fitted or transformed."""
@@ -113,6 +110,10 @@ class TransformedFeatureFrame:
             "source_input_sha256": self.artifact.source_input_sha256,
             "feature_set_version": self.artifact.feature_set_version,
         }
+
+
+FRAME_DIGEST_VERSION: Final = "feature-frame-v1"
+"""Prefix of the canonical frame encoding; bump when the encoding changes."""
 
 
 def feature_frame_sha256(frame: pd.DataFrame) -> str:
@@ -188,23 +189,33 @@ def fit_feature_transforms(
     except SplitError as error:
         raise TransformError(f"invalid split manifest: {error}") from error
     if verified_input_artifact_sha256 != manifest.input_artifact_sha256:
-        raise TransformError("verified input artifact hash does not match the split manifest")
+        raise TransformError(
+            "verified input artifact hash does not match the split manifest"
+        )
     actual_input_sha256 = feature_frame_sha256(frame)
     if actual_input_sha256 != manifest.input_artifact_sha256:
-        raise TransformError("feature frame digest does not match the split manifest input artifact hash")
+        raise TransformError(
+            "feature frame digest does not match the split manifest input artifact hash"
+        )
     if not feature_set_version.strip():
         raise TransformError("feature_set_version must not be empty")
 
     columns = _validate_feature_columns(frame, feature_columns)
     frame_keys = _frame_keys(frame)
     partition_by_key = {
-        _manifest_key(assignment.key.county_fips, assignment.key.scenario_id, assignment.key.window_start): assignment.partition
+        _manifest_key(
+            assignment.key.county_fips,
+            assignment.key.scenario_id,
+            assignment.key.window_start,
+        ): assignment.partition
         for assignment in manifest.assignments
     }
     if len(partition_by_key) != len(manifest.assignments):
         raise TransformError("split manifest contains duplicate feature identities")
     if set(frame_keys) != set(partition_by_key):
-        raise TransformError("feature frame does not exactly match the split manifest population")
+        raise TransformError(
+            "feature frame does not exactly match the split manifest population"
+        )
 
     train_positions = [
         position
@@ -247,20 +258,30 @@ def apply_feature_transforms(
     """
 
     if verified_input_artifact_sha256 != artifact.source_input_sha256:
-        raise TransformError("verified input artifact hash does not match the transform artifact")
+        raise TransformError(
+            "verified input artifact hash does not match the transform artifact"
+        )
     if feature_set_version != artifact.feature_set_version:
-        raise TransformError("feature_set_version does not match the transform artifact")
+        raise TransformError(
+            "feature_set_version does not match the transform artifact"
+        )
 
     result = frame.copy(deep=True)
     for transform in artifact.transforms:
         if transform.name not in result.columns:
-            raise TransformError(f"feature frame is missing transform column {transform.name!r}")
+            raise TransformError(
+                f"feature frame is missing transform column {transform.name!r}"
+            )
         values = _numeric_values(result[transform.name], transform.name)
-        result[transform.name] = (values.fillna(transform.impute_value) - transform.mean) / transform.scale
+        result[transform.name] = (
+            values.fillna(transform.impute_value) - transform.mean
+        ) / transform.scale
     return TransformedFeatureFrame(frame=result, artifact=artifact)
 
 
-def _validate_feature_columns(frame: pd.DataFrame, feature_columns: Sequence[str]) -> tuple[str, ...]:
+def _validate_feature_columns(
+    frame: pd.DataFrame, feature_columns: Sequence[str]
+) -> tuple[str, ...]:
     columns = tuple(feature_columns)
     if not columns:
         raise TransformError("feature_columns must not be empty")
@@ -275,7 +296,9 @@ def _validate_feature_columns(frame: pd.DataFrame, feature_columns: Sequence[str
 def _frame_keys(frame: pd.DataFrame) -> tuple[tuple[str, str, pd.Timestamp], ...]:
     missing = set(IDENTITY_COLUMNS).difference(frame.columns)
     if missing:
-        raise TransformError(f"feature frame is missing identity columns: {sorted(missing)}")
+        raise TransformError(
+            f"feature frame is missing identity columns: {sorted(missing)}"
+        )
     counties = frame["county_fips"].astype("string")
     scenarios = frame["scenario_id"].astype("string")
     if counties.isna().any() or not counties.str.fullmatch(r"\d{5}").all():
@@ -292,7 +315,9 @@ def _frame_keys(frame: pd.DataFrame) -> tuple[tuple[str, str, pd.Timestamp], ...
     return keys
 
 
-def _manifest_key(county_fips: str, scenario_id: str, window_start: object) -> tuple[str, str, pd.Timestamp]:
+def _manifest_key(
+    county_fips: str, scenario_id: str, window_start: object
+) -> tuple[str, str, pd.Timestamp]:
     return county_fips, scenario_id, pd.Timestamp(window_start)
 
 
@@ -309,7 +334,9 @@ def _fit_numeric_transform(values: pd.Series, name: str) -> NumericTransform:
     # StandardScaler behaviour; use 1 so the stored artifact is finite.
     if scale == 0.0:
         scale = 1.0
-    return NumericTransform(name=name, impute_value=impute_value, mean=mean, scale=scale)
+    return NumericTransform(
+        name=name, impute_value=impute_value, mean=mean, scale=scale
+    )
 
 
 def _numeric_values(values: pd.Series, name: str) -> pd.Series:
