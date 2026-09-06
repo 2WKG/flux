@@ -1,4 +1,5 @@
 import { useId, type ChangeEvent, type CSSProperties } from "react";
+import { STATUS_COPY } from "../source-truth";
 
 /**
  * The immutable edit vocabulary from `twin.contracts.GridEdit`.
@@ -25,6 +26,19 @@ export type GridEdit =
     }>;
 
 export type GridEditKind = GridEdit["kind"];
+
+/**
+ * The IA's token for an editable proposal (`docs/design/texas-demo-narrative-ia.md`,
+ * the truth-label table). The panel previously rendered the prohibited
+ * decorative status word, which three frozen contracts refuse by name --
+ * `docs/design/3d-asset-contract.md`
+ * ("no decorative ... state"), `texas-demo-narrative-ia.md` ("prohibited
+ * browser-invented status ... Do not display or synthesize it") and
+ * `docs/design/minnesota-gate-0-approval.md` ("not approved") -- and a test
+ * asserted the violation. The display string comes from `STATUS_COPY`, the one
+ * owner of the six IA labels, so this surface cannot re-spell it.
+ */
+const HYPOTHETICAL = "hypothetical" as const;
 
 /** A verdict is copied from the edit service. The browser does not derive one. */
 export interface ServerFeasibilityVerdict {
@@ -74,7 +88,7 @@ const verdictCopy: Record<ServerFeasibilityVerdict["verdict"], string> = {
   unknown: "Server: unknown",
 };
 
-/** Returns an editable illustrative operation without judging whether it is feasible. */
+/** Returns an editable hypothetical operation without judging whether it is feasible. */
 export function blankGridEdit(kind: GridEditKind): GridEdit {
   switch (kind) {
     case "outage":
@@ -215,25 +229,25 @@ export function ScenarioEditPanel({
   ops,
   onOpsChange,
   serverState,
-  heading = "Illustrative scenario edits",
+  heading = "Hypothetical scenario edits",
 }: ScenarioEditPanelProps) {
   const headingId = useId();
   const changeOps = (next: readonly GridEdit[]) => onOpsChange?.(next);
 
-  return <section aria-labelledby={headingId} data-scenario-edit-panel="illustrative" style={styles.panel}>
+  return <section aria-labelledby={headingId} data-scenario-edit-panel="hypothetical" style={styles.panel}>
     <header>
-      <p style={styles.kicker}>Illustrative edits only</p>
+      <p style={styles.kicker}>Hypothetical edits only</p>
       <h2 id={headingId}>{heading}</h2>
-      <p>User-created producers, consumers, and transmission are illustrative. Feasibility comes only from the server; this panel does not calculate it.</p>
+      <p>User-created producers, consumers, and transmission are hypothetical. Feasibility comes only from the server; this panel does not calculate it.</p>
     </header>
 
     <label style={styles.field}><span>Base scenario ID</span><input value={baseScenarioId} onChange={(event) => onBaseScenarioIdChange?.(event.currentTarget.value)} /></label>
     <section aria-label="Ordered scenario operations" style={styles.operations}>
       <h3>Ordered operations</h3>
       <p>Order is preserved when the parent submits the future <code>POST /scenario/edit</code> request.</p>
-      {ops.length === 0 ? <p>No illustrative edits yet.</p> : <ol style={styles.operationList}>
+      {ops.length === 0 ? <p>No hypothetical edits yet.</p> : <ol style={styles.operationList}>
         {ops.map((edit, index) => <li key={`${index}-${edit.kind}-${edit.element_id}`} data-grid-edit-kind={edit.kind} style={styles.operation}>
-          <div style={styles.operationHeader}><strong>{index + 1}. {kindCopy[edit.kind]}</strong><span data-truth-label="illustrative" style={styles.illustrative}>Illustrative</span></div>
+          <div style={styles.operationHeader}><strong>{index + 1}. {kindCopy[edit.kind]}</strong><span data-truth-label={HYPOTHETICAL} style={styles.truthLabel}>{STATUS_COPY[HYPOTHETICAL]}</span></div>
           <EditFields edit={edit} onChange={(next) => changeOps(replaceGridEdit(ops, index, next))} />
           <div style={styles.actions}>
             <button type="button" onClick={() => changeOps(moveGridEdit(ops, index, index - 1))} disabled={index === 0}>Move earlier</button>
@@ -242,7 +256,7 @@ export function ScenarioEditPanel({
           </div>
         </li>)}
       </ol>}
-      <div aria-label="Add an illustrative operation" style={styles.actions}>
+      <div aria-label="Add a hypothetical operation" style={styles.actions}>
         {(Object.keys(kindCopy) as GridEditKind[]).map((kind) => <button key={kind} type="button" onClick={() => changeOps(insertGridEdit(ops, kind))}>Add {kindCopy[kind]}</button>)}
       </div>
     </section>
@@ -258,7 +272,7 @@ const styles: Record<string, CSSProperties> = {
   operationList: { display: "grid", gap: "0.75rem", margin: 0, paddingLeft: "1.5rem" },
   operation: { display: "grid", gap: "0.75rem", padding: "0.75rem", border: "1px solid currentColor" },
   operationHeader: { display: "flex", justifyContent: "space-between", gap: "0.75rem", alignItems: "center" },
-  illustrative: { fontSize: "0.8rem", fontWeight: 700 },
+  truthLabel: { fontSize: "0.8rem", fontWeight: 700 },
   fields: { display: "flex", flexWrap: "wrap", gap: "0.75rem" },
   actions: { display: "flex", flexWrap: "wrap", gap: "0.5rem" },
   server: { display: "grid", gap: "0.25rem", padding: "0.75rem", border: "1px solid currentColor" },

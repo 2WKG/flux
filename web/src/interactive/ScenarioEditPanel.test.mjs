@@ -17,6 +17,8 @@ await build({
       import { createElement } from "react";
       import { renderToStaticMarkup } from "react-dom/server";
       export { blankGridEdit, insertGridEdit, replaceGridEdit, removeGridEdit, moveGridEdit } from "./src/interactive/ScenarioEditPanel";
+      export { STATUS_COPY } from "./src/source-truth";
+      export { ASSET_STATUS_TOKENS } from "./src/labels";
       import { ScenarioEditPanel } from "./src/interactive/ScenarioEditPanel";
       export const render = (props) => renderToStaticMarkup(createElement(ScenarioEditPanel, props));
     `,
@@ -58,7 +60,7 @@ test("the five documented edit kinds expose only their documented fields", () =>
   for (const [kind, fields] of Object.entries(expected)) {
     const markup = panel.render(baseProps({ ops: [panel.blankGridEdit(kind)] }));
     assert.match(markup, new RegExp(`data-grid-edit-kind="${kind}"`));
-    assert.match(markup, /data-truth-label="illustrative"/, `${kind} must remain illustrative`);
+    assert.match(markup, /data-truth-label="hypothetical"/, `${kind} must be labelled hypothetical`);
     for (const field of fields) assert.ok(markup.includes(field), `${kind} is missing ${field}`);
   }
 });
@@ -107,4 +109,69 @@ test("loading, unavailable, and error remain explicit states", () => {
   const failed = panel.render(baseProps({ serverState: { kind: "error", reason: "The server returned 503." } }));
   assert.match(failed, /data-scenario-edit-state="error"/);
   assert.match(failed, /The server returned 503\./);
+});
+
+/** The prohibited decorative status word, spelled once, without seeding it. */
+const PROHIBITED_STATUS_WORD = ["illus", "trative"].join("");
+
+test("the panel's truth label is an IA token and never the prohibited status word", () => {
+  const markup = panel.render(baseProps({ ops: [panel.blankGridEdit("add_gen"), panel.blankGridEdit("add_line")] }));
+
+  // Every truth label this panel can render is one of the six IA tokens...
+  const labels = [...markup.matchAll(/data-truth-label="([^"]*)"/g)].map((match) => match[1]);
+  assert.ok(labels.length > 0, "the panel rendered no truth label at all");
+  for (const label of labels) {
+    assert.ok(panel.ASSET_STATUS_TOKENS.includes(label), `"${label}" is not one of the six IA status tokens`);
+    assert.equal(label, "hypothetical", "an editable proposal is hypothetical per the IA truth-label table");
+  }
+
+  // ...and its display string has one owner.
+  assert.ok(markup.includes(panel.STATUS_COPY.hypothetical), "the chip does not render STATUS_COPY.hypothetical");
+
+  // The prohibited word must not appear anywhere the panel renders, in copy or
+  // in an attribute. Three frozen contracts refuse it by name.
+  assert.ok(
+    !markup.toLowerCase().includes(PROHIBITED_STATUS_WORD),
+    "the prohibited decorative status word is back in the rendered panel",
+  );
+  assert.match(markup, /data-scenario-edit-panel="hypothetical"/);
+});
+
+test("no feasibility verdict is invented while the server has not returned one", () => {
+  // The panel's headline safety property: "Feasibility comes only from the
+  // server; this panel does not calculate it." Nothing asserted it before, so a
+  // browser-invented "looks valid" screen passed with the whole suite green.
+  const verdictShaped = /looks valid|\(feasible\)|\(infeasible\)|Browser screen|appears feasible|likely feasible/i;
+  for (const serverState of [
+    { kind: "loading" },
+    { kind: "unavailable" },
+    { kind: "error", reason: "The server returned 503." },
+    { kind: "ready", edit_hash: "server-hash-42", feasibility: [] },
+  ]) {
+    const markup = panel.render(baseProps({
+      ops: [panel.blankGridEdit("add_gen"), panel.blankGridEdit("add_line")],
+      serverState,
+    }));
+    assert.doesNotMatch(markup, verdictShaped, `a verdict-shaped claim appeared for ${serverState.kind}`);
+    assert.doesNotMatch(markup, /data-feasibility-verdict=/, `a verdict row appeared for ${serverState.kind}`);
+  }
+});
+
+test("every rendered verdict string is server-keyed copy, never composed in the browser", () => {
+  const owned = new Set(["Server: valid", "Server: invalid", "Server: unknown"]);
+  const markup = panel.render(baseProps({
+    ops: [panel.blankGridEdit("add_gen")],
+    serverState: {
+      kind: "ready",
+      edit_hash: "server-hash-42",
+      feasibility: [{ verdict: "valid", op_index: 0, reason: "Server found a compatible bus." }],
+    },
+  }));
+  const rendered = [...markup.matchAll(/<strong>(Server: [a-z]+)<\/strong>/g)].map((match) => match[1]);
+  assert.deepEqual(rendered, ["Server: valid"]);
+  for (const value of rendered) assert.ok(owned.has(value), `"${value}" is not a verdictCopy value`);
+
+  // And the operation heading carries no verdict of its own.
+  const headings = [...markup.matchAll(/<strong>(\d+\. [^<]*)<\/strong>/g)].map((match) => match[1]);
+  assert.deepEqual(headings, ["1. Add producer"], "the operation heading gained a browser-composed verdict");
 });

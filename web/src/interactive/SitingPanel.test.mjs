@@ -37,7 +37,7 @@ const fixture = {
     limitations: ["This fixture does not represent a physical location."],
     provenance: { artifactId: "fixture-siting-run", artifactVersion: "v1", sourceKind: "test fixture" },
   }],
-  limitations: ["This is an illustrative fixture for presentation behavior only."],
+  limitations: ["This is a presentation-behaviour fixture only."],
 };
 
 function renderedText(node) {
