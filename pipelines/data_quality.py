@@ -12,13 +12,16 @@ import json
 import urllib.error
 import urllib.request
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any
 
 import duckdb
 
 from pipelines.db import SCHEMA_VERSION, TABLE_COLUMNS, ensure_schema, validate_schema
+
+SourceMapping = tuple[tuple[str, ...], tuple[str, ...]]
 
 
 # Relations and domains are checked even though a freshly-created v1 database
@@ -139,6 +142,58 @@ def _load_json_lines(path: Path) -> list[dict[str, Any]]:
     return records
 
 
+def _curated_source_mappings(operations: dict[str, Any]) -> dict[tuple[str, str | None], SourceMapping]:
+    """Return the declared provenance-label to operations-ID crosswalk.
+
+    ``source_name`` is a persisted provenance label, whereas operations IDs are
+    dataset/release identities.  They are intentionally not required to have
+    the same spelling.  A source-version-specific entry takes precedence over
+    a source-name-only entry; the latter is the fallback for stable datasets.
+    """
+    known_ids = {str(source["id"]) for source in operations.get("sources", []) if source.get("id")}
+    mappings: dict[tuple[str, str | None], SourceMapping] = {}
+    for index, mapping in enumerate(operations.get("curated_source_mappings", [])):
+        source_name = mapping.get("source_name")
+        source_version = mapping.get("source_version")
+        operation_ids = mapping.get("operation_ids")
+        if not isinstance(source_name, str) or not source_name:
+            raise ValueError(f"curated_source_mappings[{index}] requires a nonempty source_name")
+        if source_version is not None and (not isinstance(source_version, str) or not source_version):
+            raise ValueError(f"curated_source_mappings[{index}].source_version must be a nonempty string when set")
+        if not isinstance(operation_ids, list) or not operation_ids or any(not isinstance(item, str) or not item for item in operation_ids):
+            raise ValueError(f"curated_source_mappings[{index}] requires nonempty operation_ids")
+        if len(set(operation_ids)) != len(operation_ids):
+            raise ValueError(f"curated_source_mappings[{index}] has duplicate operation_ids")
+        reconciliation_ids = mapping.get("reconciliation_operation_ids", operation_ids)
+        if not isinstance(reconciliation_ids, list) or not reconciliation_ids or any(not isinstance(item, str) or not item for item in reconciliation_ids):
+            raise ValueError(f"curated_source_mappings[{index}] requires nonempty reconciliation_operation_ids when set")
+        if len(set(reconciliation_ids)) != len(reconciliation_ids):
+            raise ValueError(f"curated_source_mappings[{index}] has duplicate reconciliation_operation_ids")
+        if not set(reconciliation_ids) <= set(operation_ids):
+            raise ValueError(f"curated_source_mappings[{index}] reconciliation_operation_ids must be declared operation_ids")
+        unknown_ids = set(operation_ids) - known_ids
+        if unknown_ids:
+            raise ValueError(f"curated_source_mappings[{index}] references unknown operations ID(s): {sorted(unknown_ids)}")
+        key = (source_name, source_version)
+        if key in mappings:
+            raise ValueError(f"curated_source_mappings has duplicate mapping for {source_name!r}, {source_version!r}")
+        mappings[key] = (tuple(operation_ids), tuple(reconciliation_ids))
+    return mappings
+
+
+def _operation_ids_for_curated_source(
+    source_name: str,
+    source_version: str | None,
+    *,
+    operated_ids: set[str],
+    mappings: dict[tuple[str, str | None], SourceMapping],
+) -> SourceMapping | None:
+    """Resolve a persisted source label without treating an unknown label as operated."""
+    if source_name in operated_ids:
+        return ((source_name,), (source_name,))
+    return mappings.get((source_name, source_version), mappings.get((source_name, None)))
+
+
 def _operations_checks(
     con: duckdb.DuckDBPyConnection,
     operations: dict[str, Any],
@@ -154,7 +209,7 @@ def _operations_checks(
             continue
         source_id = record.get("source_id")
         try:
-            retrieved_at = datetime.fromisoformat(str(record["retrieved_at_utc"]).replace("Z", "+00:00"))
+            retrieved_at = datetime.fromisoformat(str(record["retrieved_at_utc"]))
             if retrieved_at.tzinfo is None or retrieved_at.utcoffset() != timedelta(0):
                 raise ValueError("timestamp must be UTC-aware")
             if retrieved_at > now + timedelta(minutes=5):
@@ -165,14 +220,39 @@ def _operations_checks(
         if source_id:
             by_source[str(source_id)].append((retrieved_at, record))
 
-    source_names_sql = " UNION ALL ".join(f"SELECT source_name FROM {table}" for table in TABLE_COLUMNS)
-    curated_counts = dict(con.execute(
-        f"SELECT source_name, count(*) FROM ({source_names_sql}) GROUP BY source_name"
-    ).fetchall())
-    source_names = set(curated_counts)
+    source_names_sql = " UNION ALL ".join(
+        f"SELECT source_name, source_version FROM {table}" for table in TABLE_COLUMNS
+    )
+    curated_counts = {
+        (source_name, source_version): count
+        for source_name, source_version, count in con.execute(
+            f"SELECT source_name, source_version, count(*) FROM ({source_names_sql}) "
+            "GROUP BY source_name, source_version"
+        ).fetchall()
+    }
+    source_names = {source_name for source_name, _source_version in curated_counts}
     operated_ids = {source["id"] for source in operations["sources"]}
-    for source_id in sorted(source_names - operated_ids):
-        alerts.append(_alert("unoperated_source", f"Curated rows cite {source_id}, which has no operations record.", next_step="Add ownership, refresh, and freshness metadata before dashboard promotion."))
+    try:
+        mappings = _curated_source_mappings(operations)
+    except ValueError as exc:
+        alerts.append(_alert("invalid_source_mapping", str(exc), next_step="Repair the declared provenance-to-operations mapping before dashboard promotion."))
+        mappings = {}
+    required_operation_ids: set[str] = set()
+    reconciled_operation_counts: dict[str, int] = defaultdict(int)
+    for (source_name, source_version), count in sorted(
+        curated_counts.items(), key=lambda item: (item[0][0], item[0][1] or "")
+    ):
+        mapping = _operation_ids_for_curated_source(
+            source_name, source_version, operated_ids=operated_ids, mappings=mappings
+        )
+        if mapping is None:
+            version_suffix = f" at version {source_version!r}" if source_version is not None else ""
+            alerts.append(_alert("unoperated_source", f"Curated rows cite {source_name!r}{version_suffix}, which has no operations record or declared source mapping.", next_step="Add ownership, refresh, and freshness metadata before dashboard promotion."))
+            continue
+        operation_ids, reconciliation_ids = mapping
+        required_operation_ids.update(operation_ids)
+        for operation_id in reconciliation_ids:
+            reconciled_operation_counts[operation_id] += count
     if source_names and not records:
         alerts.append(_alert("reconciliation_unavailable", "Curated rows have provenance but no append-only ingest log was supplied.", severity="warning", next_step="Run with --ingest-log before relying on a dashboard."))
 
@@ -194,14 +274,15 @@ def _operations_checks(
             age_hours = (now - latest).total_seconds() / 3600
             if age_hours > source["freshness_sla_hours"]:
                 alerts.append(_alert("stale_source", f"{source_id} is {age_hours:.1f} hours old; SLA is {source['freshness_sla_hours']} hours.", owner=owner, next_step="Refresh the source or label/withhold dependent values."))
-        if source_id in source_names and not ok:
+        if source_id in required_operation_ids and not ok:
             alerts.append(_alert("source_curated_mismatch", f"Curated rows cite {source_id}, but no successful ingest-log record exists.", owner=owner, next_step="Restore the matching ingest record or rebuild from a logged source release."))
-        if ok and source_id in source_names:
+        curated_count = reconciled_operation_counts.get(source_id)
+        if ok and curated_count:
             expected = ok[-1].get("curated_row_count")
             if expected is None:
                 alerts.append(_alert("reconciliation_unavailable", f"{source_id} has no curated_row_count in its latest successful ingest record.", owner=owner, severity="warning", next_step="Record the transformed row count at ingest, then rerun the gate."))
-            elif int(expected) != curated_counts[source_id]:
-                alerts.append(_alert("source_curated_mismatch", f"{source_id} logged {expected} curated rows but the artifact contains {curated_counts[source_id]}.", owner=owner, next_step="Rebuild from the logged release or correct the append-only ingest record."))
+            elif int(expected) != curated_count:
+                alerts.append(_alert("source_curated_mismatch", f"{source_id} logged {expected} curated rows but the artifact contains {curated_count} mapped row(s).", owner=owner, next_step="Rebuild from the logged release or correct the append-only ingest record."))
     return alerts
 
 
