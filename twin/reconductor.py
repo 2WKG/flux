@@ -1,120 +1,97 @@
-"""Deterministic reconductoring intervention artifacts.
-
-This module deliberately does not import :mod:`twin.dlr`: reconductoring is a
-physical conductor replacement, not a weather-adjusted operating rating.  The
-separate artifact prevents a proposed conductor from being presented as DLR.
-"""
+"""Static reconductoring calculations using the shared scoring contract."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from enum import StrEnum
+from collections.abc import Mapping
+from math import isfinite
+from numbers import Real
+
+from pipelines.line_upgrade_contracts import ReconductorIntervention, UnavailableReason
+
+KM_PER_MILE = 1.609344
+TERMINAL_UPGRADE_MULTIPLIER = 1.15
 
 
-class ReconductorStatus(StrEnum):
-    READY = "ready"
-    UNAVAILABLE = "unavailable"
+def reconductor_multiplier(material: str, kcmil: int | None) -> float:
+    """Return the spec-08 static rating multiplier for the existing conductor."""
+    normalized = material.strip().upper()
+    if normalized == "ACSR":
+        return 1.8 if kcmil is None or kcmil <= 795 else 1.6
+    if normalized in {"ACSS", "ACCC"}:
+        return 1.2
+    raise ValueError("material must be ACSR, ACSS, or ACCC")
 
 
-class ReconductorUnavailableReason(StrEnum):
-    MISSING_BASELINE_RATING = "missing_baseline_rating"
-    MISSING_PROPOSED_RATING = "missing_proposed_rating"
-    NON_INCREASING_RATING = "non_increasing_rating"
-    MISSING_CONDUCTOR = "missing_conductor"
+def reconductor_uplift_mw(rate_a_mw: float, material: str, kcmil: int | None) -> float:
+    """Compute static-rating uplift; no weather/DLR calculation is involved."""
+    if not _positive(rate_a_mw):
+        raise ValueError("rate_a_mw must be a finite positive number")
+    return float(rate_a_mw) * (reconductor_multiplier(material, kcmil) - 1.0)
 
 
-@dataclass(frozen=True)
-class Rating:
-    """A thermal rating and the assumptions required to interpret it."""
+def reconductor_cost_usd(
+    length_km: float, base_kv: float, costs: Mapping[object, object]
+) -> float:
+    """Apply a sourced per-mile voltage cost plus the terminal-upgrade factor.
 
-    mw: float
-    conductor: str
-    unit: str = "MW"
-    source: str = "fixture"
-    assumption: str = "static thermal rating"
-
-
-@dataclass(frozen=True)
-class ReconductorArtifact:
-    """A completed conductor-replacement proposal, never a DLR result."""
-
-    intervention_type: str
-    status: ReconductorStatus
-    baseline: Rating
-    proposed: Rating
-    scenario_id: str
-    uplift_mw: float
-    source: str
-    assumption: str
-
-
-@dataclass(frozen=True)
-class UnavailableReconductorArtifact:
-    """A failed proposal with a machine-readable reason and no uplift."""
-
-    intervention_type: str
-    status: ReconductorStatus
-    scenario_id: str
-    reason: ReconductorUnavailableReason
-
-
-def build_reconductor_artifact(
-    *,
-    scenario_id: str,
-    baseline: Rating | None,
-    proposed: Rating | None,
-    source: str,
-    assumption: str,
-) -> ReconductorArtifact | UnavailableReconductorArtifact:
-    """Build a deterministic reconductoring result or explicit unavailable state.
-
-    Ratings are intentionally supplied rather than calculated from weather.  A
-    replacement must increase the static rating; otherwise it is unavailable
-    rather than an invented zero-benefit intervention.
+    ``costs`` is the voltage mapping from ``refa_costs.yaml``. Each entry must
+    provide a positive ``value`` and a non-empty ``source``.
     """
+    if not _nonnegative(length_km) or not _positive(base_kv):
+        raise ValueError("length_km must be finite/non-negative and base_kv positive")
+    voltage = int(float(base_kv))
+    entry = costs.get(str(voltage), costs.get(voltage))
+    if not isinstance(entry, Mapping):
+        raise TypeError(f"no reconductoring cost for {base_kv:g} kV")
+    value, source = entry.get("value"), entry.get("source")
+    if not _positive(value) or not isinstance(source, str) or not source.strip():
+        raise ValueError("cost entries require a positive value and source")
+    return float(length_km) / KM_PER_MILE * float(value) * TERMINAL_UPGRADE_MULTIPLIER
 
-    if baseline is None:
-        return _unavailable(
-            scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING
-        )
-    if proposed is None:
-        return _unavailable(
-            scenario_id, ReconductorUnavailableReason.MISSING_PROPOSED_RATING
-        )
-    if not baseline.conductor or not proposed.conductor:
-        return _unavailable(scenario_id, ReconductorUnavailableReason.MISSING_CONDUCTOR)
-    if (
-        baseline.unit != "MW"
-        or proposed.unit != "MW"
-        or baseline.mw <= 0
-        or proposed.mw <= 0
-    ):
-        return _unavailable(
-            scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING
-        )
-    if proposed.mw <= baseline.mw:
-        return _unavailable(
-            scenario_id, ReconductorUnavailableReason.NON_INCREASING_RATING
-        )
 
-    return ReconductorArtifact(
-        intervention_type="reconductor",
-        status=ReconductorStatus.READY,
-        baseline=baseline,
-        proposed=proposed,
-        scenario_id=scenario_id,
-        uplift_mw=proposed.mw - baseline.mw,
-        source=source,
-        assumption=assumption,
+def build_reconductor_intervention(
+    *,
+    rate_a_mw: float | None,
+    material: str | None,
+    kcmil: int | None,
+    length_km: float | None,
+    base_kv: float | None,
+    costs: Mapping[object, object],
+) -> ReconductorIntervention | UnavailableReason:
+    """Return a consumable reconductoring intervention or its canonical reason."""
+    if rate_a_mw is None or not _positive(rate_a_mw):
+        return UnavailableReason.NO_RATING
+    if not material or not material.strip():
+        return UnavailableReason.NO_CONDUCTOR
+    try:
+        uplift_mw = reconductor_uplift_mw(rate_a_mw, material, kcmil)
+    except ValueError:
+        return UnavailableReason.NO_CONDUCTOR
+    try:
+        cost_usd = reconductor_cost_usd(length_km, base_kv, costs)
+    except (TypeError, ValueError):
+        return UnavailableReason.COST_UNKNOWN
+    return ReconductorIntervention(
+        uplift_mw=uplift_mw,
+        cost_usd=cost_usd,
+        conductor_material=material,
+        conductor_kcmil=kcmil,
     )
 
 
-def _unavailable(
-    scenario_id: str, reason: ReconductorUnavailableReason
-) -> UnavailableReconductorArtifact:
-    return UnavailableReconductorArtifact(
-        intervention_type="reconductor",
-        status=ReconductorStatus.UNAVAILABLE,
-        scenario_id=scenario_id,
-        reason=reason,
+def _positive(value: object) -> bool:
+    return (
+        isinstance(value, Real)
+        and not isinstance(value, bool)
+        and isfinite(float(value))
+        and float(value) > 0.0
+    )
+
+
+def _nonnegative(value: object) -> bool:
+    return (
+        isinstance(value, Real)
+        and not isinstance(value, bool)
+        and isfinite(float(value))
+        and float(value) >= 0.0
     )

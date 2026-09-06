@@ -1,65 +1,62 @@
+import pytest
+
+from pipelines.line_upgrade_contracts import ReconductorIntervention, UnavailableReason
 from twin.reconductor import (
-    Rating,
-    ReconductorArtifact,
-    ReconductorStatus,
-    ReconductorUnavailableReason,
-    UnavailableReconductorArtifact,
-    build_reconductor_artifact,
+    build_reconductor_intervention,
+    reconductor_cost_usd,
+    reconductor_multiplier,
+    reconductor_uplift_mw,
 )
 
+COSTS = {
+    "138": {"value": 900_000.0, "source": "fixture"},
+    "230": {"value": 1_300_000.0, "source": "fixture"},
+}
 
-def _rating(mw: float, conductor: str = "ACSR") -> Rating:
-    return Rating(mw=mw, conductor=conductor, source="fixture-v1")
+
+def test_reconductoring_uses_the_specified_multiplier_table():
+    assert reconductor_multiplier("ACSR", 795) == 1.8
+    assert reconductor_multiplier("ACSR", 954) == 1.6
+    assert reconductor_multiplier("ACSS", 795) == 1.2
+    assert reconductor_uplift_mw(100.0, "ACSR", 795) == 80.0
 
 
-def test_reconductoring_records_baseline_proposal_and_provenance():
-    artifact = build_reconductor_artifact(
-        scenario_id="summer-peak",
-        baseline=_rating(100.0, "ACSR"),
-        proposed=_rating(145.0, "ACSS"),
-        source="engineering-estimate-v1",
-        assumption="same voltage and ambient design point",
+def test_reconductoring_cost_includes_sourced_per_mile_cost_and_terminals():
+    assert reconductor_cost_usd(1.609344, 230.0, COSTS) == 1_495_000.0
+
+
+def test_reconductoring_returns_the_shared_scoring_contract():
+    intervention = build_reconductor_intervention(
+        rate_a_mw=100.0,
+        material="ACSR",
+        kcmil=795,
+        length_km=1.609344,
+        base_kv=230.0,
+        costs=COSTS,
     )
 
-    assert isinstance(artifact, ReconductorArtifact)
-    assert artifact.intervention_type == "reconductor"
-    assert artifact.status is ReconductorStatus.READY
-    assert artifact.uplift_mw == 45.0
-    assert artifact.baseline.conductor == "ACSR"
-    assert artifact.proposed.conductor == "ACSS"
-    assert artifact.baseline.unit == artifact.proposed.unit == "MW"
+    assert isinstance(intervention, ReconductorIntervention)
+    assert intervention.uplift_mw == 80.0
+    assert intervention.cost_usd == 1_495_000.0
 
 
-def test_reconductoring_can_never_be_labeled_dlr():
-    artifact = build_reconductor_artifact(
-        scenario_id="summer-peak",
-        baseline=_rating(100.0),
-        proposed=_rating(145.0, "ACSS"),
-        source="fixture-v1",
-        assumption="design rating",
-    )
+@pytest.mark.parametrize(
+    ("kwargs", "reason"),
+    [
+        ({"rate_a_mw": None}, UnavailableReason.NO_RATING),
+        ({"material": None}, UnavailableReason.NO_CONDUCTOR),
+        ({"costs": {}}, UnavailableReason.COST_UNKNOWN),
+    ],
+)
+def test_missing_prerequisites_return_shared_unavailable_reasons(kwargs, reason):
+    inputs = {
+        "rate_a_mw": 100.0,
+        "material": "ACSR",
+        "kcmil": 795,
+        "length_km": 1.0,
+        "base_kv": 230.0,
+        "costs": COSTS,
+    }
+    inputs.update(kwargs)
 
-    assert artifact.intervention_type != "dlr"
-    assert not hasattr(artifact, "weather")
-
-
-def test_missing_or_invalid_prerequisites_return_explicit_unavailable():
-    missing = build_reconductor_artifact(
-        scenario_id="summer-peak",
-        baseline=None,
-        proposed=_rating(145.0, "ACSS"),
-        source="fixture-v1",
-        assumption="design rating",
-    )
-    unchanged = build_reconductor_artifact(
-        scenario_id="summer-peak",
-        baseline=_rating(145.0),
-        proposed=_rating(145.0, "ACSS"),
-        source="fixture-v1",
-        assumption="design rating",
-    )
-
-    assert isinstance(missing, UnavailableReconductorArtifact)
-    assert missing.status is ReconductorStatus.UNAVAILABLE
-    assert missing.reason is ReconductorUnavailableReason.MISSING_BASELINE_RATING
-    assert unchanged.reason is ReconductorUnavailableReason.NON_INCREASING_RATING
+    assert build_reconductor_intervention(**inputs) is reason
