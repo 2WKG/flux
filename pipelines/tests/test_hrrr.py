@@ -19,9 +19,7 @@ def _manifest(path, end="2021-02-11T01Z"):
     path.write_text(
         json.dumps(
             {
-                "fixed_contract_windows": {
-                    "uri_2021": f"2021-02-11T00Z..{end}"
-                },
+                "fixed_contract_windows": {"uri_2021": f"2021-02-11T00Z..{end}"},
                 "reproducible_manifest_rule": "f00 fields and f01 initialized one hour earlier for APCP and FRZR",
             }
         )
@@ -348,7 +346,9 @@ def test_loader_rolls_back_weather_when_source_run_write_fails(monkeypatch, tmp_
         con.close()
 
 
-def test_loader_parallel_path_orders_writes_and_reuses_verified_cache(monkeypatch, tmp_path):
+def test_loader_parallel_path_orders_writes_and_reuses_verified_cache(
+    monkeypatch, tmp_path
+):
     """The public loader, rather than its scheduler alone, owns these guarantees."""
     manifest = tmp_path / "manifest.json"
     _manifest(manifest, "2021-02-11T03Z")
@@ -384,14 +384,36 @@ def test_loader_parallel_path_orders_writes_and_reuses_verified_cache(monkeypatc
                 "bytes": len(content),
             }
 
-        values = {"UGRD": 3.0, "VGRD": 4.0, "GUST": 8.0, "TMP": 280.0, "APCP": 2.0, "FRZR": 0.5}
+        values = {
+            "UGRD": 3.0,
+            "VGRD": 4.0,
+            "GUST": 8.0,
+            "TMP": 280.0,
+            "APCP": 2.0,
+            "FRZR": 0.5,
+        }
         monkeypatch.setattr(hrrr, "_fetch_message", fetch)
         monkeypatch.setattr(
             hrrr,
             "_decode",
             lambda path: hrrr.GribMessage(
-                np.array([[next(value for key, value in values.items() if key in path.read_text())]]),
-                np.array([[1.0]]), np.array([[1.0]]), {}, datetime.now(UTC), datetime.now(UTC), 0,
+                np.array(
+                    [
+                        [
+                            next(
+                                value
+                                for key, value in values.items()
+                                if key in path.read_text()
+                            )
+                        ]
+                    ]
+                ),
+                np.array([[1.0]]),
+                np.array([[1.0]]),
+                {},
+                datetime.now(UTC),
+                datetime.now(UTC),
+                0,
             ),
         )
         monkeypatch.setattr(hrrr, "_validate_message", lambda *_args, **_kwargs: None)
@@ -406,7 +428,8 @@ def test_loader_parallel_path_orders_writes_and_reuses_verified_cache(monkeypatc
         hrrr,
         "_write_prepared_hrrr_hour",
         lambda connection, prepared, selected: (
-            written.append(prepared.valid) or original_write(connection, prepared, selected)
+            written.append(prepared.valid)
+            or original_write(connection, prepared, selected)
         ),
     )
     try:
@@ -425,14 +448,20 @@ def test_loader_parallel_path_orders_writes_and_reuses_verified_cache(monkeypatc
         # Existing content-addressed subsets and receipts bypass all HTTP fetches.
         assert hrrr.load_hrrr_window(con, "uri_2021", workers=1) == 3
         assert calls == []
-        assert con.execute(
-            "SELECT county_fips, ts, wind_ms, gust_ms, temp_c, ice_mm, precip_mm, source_ref "
-            "FROM weather_hourly ORDER BY ts"
-        ).fetchall() == serial_rows
-        assert con.execute(
-            "SELECT valid_ts, analysis_init, accumulation_init, analysis_fields_json, accumulation_fields_json "
-            "FROM weather_source_runs ORDER BY valid_ts"
-        ).fetchall() == serial_runs
+        assert (
+            con.execute(
+                "SELECT county_fips, ts, wind_ms, gust_ms, temp_c, ice_mm, precip_mm, source_ref "
+                "FROM weather_hourly ORDER BY ts"
+            ).fetchall()
+            == serial_rows
+        )
+        assert (
+            con.execute(
+                "SELECT valid_ts, analysis_init, accumulation_init, analysis_fields_json, accumulation_fields_json "
+                "FROM weather_source_runs ORDER BY valid_ts"
+            ).fetchall()
+            == serial_runs
+        )
     finally:
         con.close()
 
@@ -455,21 +484,42 @@ def test_loader_cancels_queued_hours_after_prepare_failure(monkeypatch, tmp_path
         if ".t01z." in url:
             raise RuntimeError("bad hour")
         path = tmp_path / field.replace(":", "_")
-        return path, {"url": url, "field": field, "range": [1, 2], "etag": "e", "sha256": "a", "bytes": 2}
+        return path, {
+            "url": url,
+            "field": field,
+            "range": [1, 2],
+            "etag": "e",
+            "sha256": "a",
+            "bytes": 2,
+        }
 
     monkeypatch.setattr(hrrr, "_fetch_message", fetch)
     monkeypatch.setattr(
-        hrrr, "_decode", lambda _path: hrrr.GribMessage(np.array([[1.0]]), np.array([[1.0]]), np.array([[1.0]]), {}, datetime.now(UTC), datetime.now(UTC), 0)
+        hrrr,
+        "_decode",
+        lambda _path: hrrr.GribMessage(
+            np.array([[1.0]]),
+            np.array([[1.0]]),
+            np.array([[1.0]]),
+            {},
+            datetime.now(UTC),
+            datetime.now(UTC),
+            0,
+        ),
     )
     monkeypatch.setattr(hrrr, "_validate_message", lambda *_args, **_kwargs: None)
     try:
         with pytest.raises(RuntimeError, match="bad hour"):
             hrrr.load_hrrr_window(con, "uri_2021", workers=2)
-        assert all(".t02z." not in url and ".t03z." not in url for url, _field in attempted)
+        assert all(
+            ".t02z." not in url and ".t03z." not in url for url, _field in attempted
+        )
         # A concurrently completed first hour may commit before the failure is
         # observed, but no later hour is submitted or partially paired.
         weather_rows = con.execute("SELECT count(*) FROM weather_hourly").fetchone()[0]
-        source_runs = con.execute("SELECT count(*) FROM weather_source_runs").fetchone()[0]
+        source_runs = con.execute(
+            "SELECT count(*) FROM weather_source_runs"
+        ).fetchone()[0]
         assert weather_rows in (0, 1)
         assert source_runs == weather_rows
     finally:

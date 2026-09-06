@@ -416,9 +416,7 @@ def bounded_ordered_prepare(
 ) -> int:
     """Prepare disjoint hours concurrently and commit them in declared order."""
     workers = (
-        int(os.environ.get("HRRR_PREPARE_WORKERS", "1"))
-        if workers is None
-        else workers
+        int(os.environ.get("HRRR_PREPARE_WORKERS", "1")) if workers is None else workers
     )
     if workers < 1:
         raise ValueError("HRRR_PREPARE_WORKERS must be positive")
