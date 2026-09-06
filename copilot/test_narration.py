@@ -32,12 +32,18 @@ def _cite(*, hits: list[RetrievalHit] | None = None) -> CiteData:
         if hits is not None
         else [
             RetrievalHit(
+                content_kind="source",
+                date="2026-01-01",
                 doc="mn-rule.pdf",
+                locator="p. 4",
+                provenance={"retrieved_at": "2026-01-02T03:04:05Z"},
+                source="https://example.test/mn-rule.pdf",
                 title="Minnesota rule",
                 page=4,
                 chunk_id="mn-rule-p4-c1",
                 score=1.0,
                 text="Exact source excerpt.",
+                version="2026-01-01",
             )
         ],
     )
@@ -54,6 +60,14 @@ def test_citation_narration_preserves_exact_hit_and_retrieval_provenance() -> No
     assert narration.provenance == tuple(result.provenance)
     assert narration.evidence["hits"][0]["doc"] == "mn-rule.pdf"
     assert narration.evidence["hits"][0]["page"] == 4
+    assert narration.evidence["hits"][0]["content_kind"] == "source"
+    assert narration.evidence["hits"][0]["date"] == "2026-01-01"
+    assert narration.evidence["hits"][0]["locator"] == "p. 4"
+    assert narration.evidence["hits"][0]["provenance"] == {
+        "retrieved_at": "2026-01-02T03:04:05Z"
+    }
+    assert narration.evidence["hits"][0]["source"] == "https://example.test/mn-rule.pdf"
+    assert narration.evidence["hits"][0]["version"] == "2026-01-01"
     assert narration.limitations == ("Evidence source kind: retrieval.",)
 
 
