@@ -1,0 +1,22 @@
+{
+  "retrieved_at": "2026-09-06T04:37:05Z",
+  "provider": "Federal Emergency Management Agency",
+  "source_url": "https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip",
+  "vintage": "National Risk Index v1.20",
+  "license_access": "U.S. government public data",
+  "files": {
+    "NRI_Table_Counties.zip": {
+      "bytes": 24966535,
+      "sha256": "b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072"
+    }
+  },
+  "validation": {
+    "loader": "pipelines.nri.load_nri",
+    "scope": "TX",
+    "texas_counties_loaded": 254,
+    "missing_population": 0,
+    "missing_nri_score": 0,
+    "result": "passed"
+  },
+  "uncertainty": "NRI is county screening context, not site-specific engineering analysis or a power-system model."
+}
