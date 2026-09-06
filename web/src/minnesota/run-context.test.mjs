@@ -59,18 +59,8 @@ test("both RunIdentity fields guard against stale asynchronous results", () => {
   );
 });
 
-test("a compare request names the absent server contract without deriving an aggregate effect", () => {
-  const comparison = mn.unavailableMinnesotaComparison(
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-    mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-  );
-  assert.deepEqual(comparison, {
-    kind: "unavailable",
-    code: "mn_server_compare_contract_missing",
-    baseline: mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-    candidate: mn.MINNESOTA_BASELINE_RUN_CONTEXT,
-    message: "No server comparison contract supplies a Minnesota aggregate baseline, candidate, or effect.",
-  });
-  assert.equal("delta" in comparison, false);
-  assert.equal("value" in comparison, false);
+test("the run context provides no browser-side comparison or metric calculation", () => {
+  assert.equal("unavailableMinnesotaComparison" in mn, false);
+  assert.equal("delta" in mn.MINNESOTA_BASELINE_RUN_CONTEXT, false);
+  assert.equal("metric_value" in mn.MINNESOTA_BASELINE_RUN_CONTEXT, false);
 });
