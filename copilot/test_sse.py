@@ -703,7 +703,11 @@ def test_done_reports_unverified_findings_only_when_unverified() -> None:
         stream.done(verified=True, unverified_citations=["[d p.1]"])
     with pytest.raises(ValueError, match="verified answer cannot carry"):
         stream.done(verified=True, reason="regulatory_claim_without_cite")
-    with pytest.raises(ValueError, match="must not contain empty strings"):
+    with pytest.raises(ValueError, match="unverified_numbers must not contain"):
+        stream.done(verified=False, unverified_numbers=[""])
+    with pytest.raises(ValueError, match="unverified_numbers must not contain"):
+        stream.done(verified=False, unverified_numbers=["999", ""])
+    with pytest.raises(ValueError, match="unverified_citations must not contain"):
         stream.done(verified=False, unverified_citations=[""])
 
     done = stream.done(
