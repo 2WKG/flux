@@ -546,3 +546,46 @@ def test_eaglei_covered_window_expects_fifteen_minute_cadence() -> None:
     )
     with pytest.raises(validator.ValidationError, match="15-minute cadence"):
         validator.validate_bundle(hourly)
+
+
+def test_uncovered_window_may_not_record_a_gap_as_zero() -> None:
+    """An EAGLE-I gap is never a measured zero, in either direction."""
+    candidate = copy.deepcopy(bundle())
+    candidate["event"]["disposition"] = "candidate_only"
+    record = candidate["records"][0]
+    record["disposition"] = "candidate_only"
+    record["matched_coverage_decision"] = "unavailable"
+    record["outage"]["coverage"] = "UncoveredLabel"
+    record["label"].update(
+        {
+            "status": "UncoveredLabel",
+            "observed_outage_customers": None,
+            "customer_denominator": {"status": "unavailable", "value": None},
+            "outage_rate": None,
+            "positive": None,
+        }
+    )
+    validator.validate_bundle(candidate)
+
+    zeroed = copy.deepcopy(candidate)
+    zeroed["records"][0]["label"]["observed_outage_customers"] = 0
+    with pytest.raises(validator.ValidationError, match="gap_recorded_as_zero"):
+        validator.validate_bundle(zeroed)
+
+    # ... and the same holds when only the label carries the uncovered status.
+    label_only = copy.deepcopy(candidate)
+    label_only["records"][0]["outage"]["coverage"] = "uncovered"
+    label_only["records"][0]["label"]["observed_outage_customers"] = 0
+    with pytest.raises(validator.ValidationError, match="gap_recorded_as_zero"):
+        validator.validate_bundle(label_only)
+
+
+def test_exactly_six_hours_but_off_grid_is_still_refused() -> None:
+    """A 6h span that is off the 00/06/12/18Z grid is not a valid window."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["window_start_utc"] = "2022-09-28T15:00:00Z"
+    candidate["records"][0]["window_end_utc"] = "2022-09-28T21:00:00Z"
+    with pytest.raises(validator.ValidationError, match="schema violation"):
+        validator.validate_bundle(candidate)
+    with pytest.raises(validator.ValidationError, match="aligned to"):
+        validator.validate_bundle_rules(candidate)

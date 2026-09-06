@@ -69,7 +69,9 @@ An accepted record needs `weather.coverage="covered"`,
 `outage.coverage="covered"`, `matched_coverage_decision="matched"`, and
 provenance receipt references. An EAGLE-I gap is exactly
 `outage.coverage="UncoveredLabel"`; it is never a zero outage. Such a row
-cannot have `disposition="accepted"` or a computed/accepted label.
+cannot have `disposition="accepted"` or a computed/accepted label, and its
+`observed_outage_customers` must be **null**: an uncovered window has no
+measured count, so a `0` there is refused by name as `gap_recorded_as_zero`.
 
 `covered` is a completeness claim, not merely a nonempty interval. For each
 selected county-window, record `expected_samples`, `observed_samples`, and
