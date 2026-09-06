@@ -1,0 +1,223 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "ice-freezing-rain",
+  "event": {
+    "event_id": "mn-2019-04-10-ice",
+    "parent_system_id": "upper_midwest_2019-04-10_cyclone",
+    "primary_hazard": "ice_storm",
+    "secondary_hazards": [
+      "blizzard",
+      "heavy_snow",
+      "strong_wind"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "ncei:2019:139802:840941"
+    ],
+    "context_window": {
+      "start_utc": "2019-04-08T00:00:00Z",
+      "end_utc": "2019-04-15T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-04-10T21:00:00Z",
+      "end_utc": "2019-04-11T21:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-04-11T21:00:00Z",
+      "end_utc": "2019-04-15T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI episode 139802/event 840941 reports an Ice Storm in the Jackson forecast zone; the NWS Sioux Falls archive documents regional freezing rain, icing, and power outages.",
+    "exclusions": [],
+    "uncertainties": [
+      "NCEI CZ_TYPE=Z record: NWS zone MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the report is county-wide in extent; coverage is refused on temporal grounds, not spatial ones.",
+      "The NCEI Jackson report is a narrative event report, not a county time series, and its interval covers only 3 of the canonical window's 6 hours (2019-04-10T21:00:00Z onward), so it does not establish full county-window observed weather coverage.",
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
+      "No native customer denominator is available."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2019_c20260323",
+      "provider": "NOAA NCEI Storm Events Database",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz; Last-Modified 2026-03-23T17:10:48Z",
+      "retrieved_at_utc": "2026-09-06T07:18:49Z",
+      "license_or_access": "NOAA public-data access; no file-specific license asserted by the directory response.",
+      "raw_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+      "filtered_sha256": "e14355cf010b144584b0b3cc0792fa528daa9fd80e3cd27f0683284b29415d13",
+      "bytes": 11602648,
+      "etag": "\"b10ad8-64db41dbdd866\"",
+      "units": "NCEI local begin/end times; ice accumulation in inches.",
+      "timezone_conversion": "CST-6: [2019-04-10T21:00:00Z, 2019-04-11T21:00:00Z).",
+      "filters": "EVENT_ID=840941; EPISODE_ID=139802; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+      "grid_index_mapping": "No grid index; NCEI zone 090 JACKSON.",
+      "gaps": [
+        "Raw gzip and canonical filtered row remain outside Git."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "nws_fsd_20190410_ice",
+      "provider": "National Weather Service Sioux Falls",
+      "url": "https://www.weather.gov/fsd/20190411-BlizzardIcestorm-CWA",
+      "release": "April 10-12th, 2019 Blizzard and Ice Storm archive page",
+      "retrieved_at_utc": "2026-09-06T07:13:00Z",
+      "license_or_access": "U.S. National Weather Service public web archive; page terms not separately captured.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Ice accumulation in inches; narrative outage context.",
+      "timezone_conversion": "No timestamp used for canonical window.",
+      "filters": "Archive ice amounts and southwest Minnesota context.",
+      "grid_index_mapping": "No grid index.",
+      "gaps": [
+        "Regional narrative is not county outage-label evidence; raw page capture unavailable."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:01:01.530120Z",
+      "license_or_access": "CC BY 4.0 https://creativecommons.org/licenses/by/4.0/",
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1102778792,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documents UTC.",
+      "filters": "Minnesota; FIPS 27063; UTC half-open [2019-04-10T18:00:00Z,2019-04-11T00:00:00Z); exhaustive annual stream.",
+      "grid_index_mapping": "County FIPS 27063; no grid index.",
+      "gaps": [
+        "Qualified exhaustive annual scan found 0 of 24 expected 15-minute observations; this is UncoveredLabel, never zero.",
+        "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
+        "No total_customers field; no population proxy."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547885",
+        "source_file": "eaglei_outages_2019.csv",
+        "source_file_id": 42547885,
+        "source_file_bytes": 1102778792,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+        "raw_artifact_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+        "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2019-04-10-ice-27063-20190410180000_eaglei_2019_20190410T180000_20190411T000000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2019-04-10-ice-27063-20190410t1800z",
+      "county_fips": "27063",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2019-04-10-ice-replay",
+      "window_start_utc": "2019-04-10T18:00:00Z",
+      "window_end_utc": "2019-04-11T00:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2019_c20260323",
+        "nws_fsd_20190410_ice",
+        "eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "NCEI zone event is retained as candidate context. MNZ090 is 1:1 with Jackson County 27063 in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the refusal is temporal: the report interval covers 3 of the window's 6 hours and is not a county time series."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2019-42547885-mn-2019-04-10-ice-27063-20190410180000-20190410t180000-20190411t000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2019-04-10T18:00:00Z",
+          "2019-04-10T18:15:00Z",
+          "2019-04-10T18:30:00Z",
+          "2019-04-10T18:45:00Z",
+          "2019-04-10T19:00:00Z",
+          "2019-04-10T19:15:00Z",
+          "2019-04-10T19:30:00Z",
+          "2019-04-10T19:45:00Z",
+          "2019-04-10T20:00:00Z",
+          "2019-04-10T20:15:00Z",
+          "2019-04-10T20:30:00Z",
+          "2019-04-10T20:45:00Z",
+          "2019-04-10T21:00:00Z",
+          "2019-04-10T21:15:00Z",
+          "2019-04-10T21:30:00Z",
+          "2019-04-10T21:45:00Z",
+          "2019-04-10T22:00:00Z",
+          "2019-04-10T22:15:00Z",
+          "2019-04-10T22:30:00Z",
+          "2019-04-10T22:45:00Z",
+          "2019-04-10T23:00:00Z",
+          "2019-04-10T23:15:00Z",
+          "2019-04-10T23:30:00Z",
+          "2019-04-10T23:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

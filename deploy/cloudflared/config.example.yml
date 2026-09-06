@@ -10,13 +10,22 @@ tunnel: flux-demo
 credentials-file: C:\Users\<USER>\.cloudflared\<TUNNEL-UUID>.json
 
 ingress:
+  # The read-only FastAPI path surface. Cloudflared evaluates ingress in order,
+  # so this must precede the static fallback -- which is exactly why it may not be
+  # wider than the same-origin forward behind it. There is ONE definition of the
+  # public path surface: the GET half of `PROXIED` in `web/server.mjs`, exported as
+  # `INGRESS_PATH_PATTERN`. The `path:` line below must be that string verbatim;
+  # `web/test/ingress-allowlist.test.mjs` reads this file and fails when it drifts.
+  # Regenerate with:
+  #   node -e 'import("./web/server.mjs").then(m=>console.log(m.INGRESS_PATH_PATTERN))'
+  # Cloudflared routes by path, not method; FastAPI rejects unsupported methods.
+  - hostname: bouncepulse.com
+    path: ^/(api/v1/grid/layers/[^/]+|api/v1/grid/asset-placements|assets/flux-grid/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)|health|layers/[^/]+|scenarios|scenarios/[^/]+)$
+    service: http://127.0.0.1:8000
+
   # The built static demo (web/server.mjs serving web/dist/).
   - hostname: bouncepulse.com
     service: http://127.0.0.1:4173
-
-  # The FastAPI copilot is deliberately NOT routed. Adding a rule here makes
-  # /ask and /health public; do not add one without verifying that service
-  # first. See the route-ownership table in the runbook.
 
   # Required catch-all.
   - service: http_status:404

@@ -1,0 +1,32 @@
+{
+  "receipt_id": "nws_zone_county_correlation_bp05mr24",
+  "provider": "NOAA National Weather Service",
+  "url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx",
+  "release": "bp05mr24 (2024-03-05 public forecast zone / county correlation)",
+  "retrieved_at_utc": "2026-09-06T00:00:00Z",
+  "license_or_access": "Public NOAA/NWS access; U.S. Government work, no license asserted by the provider.",
+  "raw_sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e",
+  "filtered_sha256": "d805f69ef20bcf4c506bf68e6127e04902695a8b11a6cc485838f5f0d5b2a106",
+  "bytes": 339683,
+  "etag": null,
+  "units": "One row per (public forecast zone polygon, county) correlation pair; no measured quantity.",
+  "timezone_conversion": "None; the file carries no timestamps. The TIME_ZONE column is a static county attribute and is not used.",
+  "filters": "None. All 4793 correlation rows are retained verbatim and in source order, so a bundle in a state the corpus has not used yet is decided by the file rather than refused for its absence.",
+  "grid_index_mapping": "No gridded index used. FIPS is the five-digit county FIPS; STATE_ZONE is the NWS zone id (e.g. MN060).",
+  "gaps": [],
+  "capture_method": "https_get_full_file_retained_verbatim_with_header_comment",
+  "verification": {
+    "sha256_computed_from_response_body": true,
+    "decoded_field_identity_checked": true,
+    "row_count_checked": true,
+    "notes": "HTTP 200, Content-Length 339683 bytes, sha256 recomputed from the response body. The eleven pipe-delimited columns (STATE|ZONE|CWA|NAME|STATE_ZONE|COUNTY|FIPS|TIME_ZONE|FE_AREA|LAT|LON) were checked field-for-field against the NWS Zone-County Correlation File page (https://www.weather.gov/gis/ZoneCounty). 4793 non-empty rows parsed, all eleven columns present in every row, and every retained line byte-compared against its source line."
+  },
+  "files": {
+    "filtered": {
+      "url": "docs/data/event-baseline/controls-metadata/nws-zone-county-correlation/bp05mr24.psv",
+      "bytes": 335117,
+      "sha256": "d805f69ef20bcf4c506bf68e6127e04902695a8b11a6cc485838f5f0d5b2a106"
+    }
+  },
+  "uncertainty": "The slice is a single dated release (2024-03-05). NWS zone geometry changes over time, so reports from earlier years (the corpus spans 2018-2024) are correlated against the 2024 zone definitions. Earlier releases were not retrieved, so whether any zone used here changed county membership during that span is unverified."
+}

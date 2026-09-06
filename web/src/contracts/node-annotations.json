@@ -1,0 +1,20 @@
+{
+  "$id": "flux://layers/node-annotations",
+  "binding_receipt_absent": "receipt_table_absent",
+  "binding_receipt_missing": "receipt_missing",
+  "description": "Vocabularies for GET /layers/buses node annotations. Generated from pipelines/labels.py by uv run --extra dev python scripts/ci/export_tool_contracts.py",
+  "field_provenance_tokens": [
+    "source_backed",
+    "synthetic",
+    "derived",
+    "unavailable",
+    "broken_reference"
+  ],
+  "node_roles": [
+    "both",
+    "consumer",
+    "producer",
+    "transmission"
+  ],
+  "synthetic_topology_label": "synthetic (ACTIVSg2000)"
+}
