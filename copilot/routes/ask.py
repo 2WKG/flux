@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Iterable
@@ -11,7 +12,7 @@ from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from copilot.runtime import NarrationProvider, ToolTurn, run_turn
+from copilot.runtime import AsyncNarrationProvider, ToolTurn, stream_turn
 from copilot.sse import CopilotEventStream, SseEvent
 
 router = APIRouter(tags=["ask"])
@@ -68,9 +69,9 @@ class AskRequest(BaseModel):
 class AskBackend(Protocol):
     """A deployment-injected local tool plan; this transport calls no provider."""
 
-    provider: NarrationProvider | None
+    provider: AsyncNarrationProvider | None
 
-    def turn(self, payload: AskRequest) -> ToolTurn: ...
+    async def turn(self, payload: AskRequest) -> ToolTurn: ...
 
 
 def _unavailable_events(message: str) -> tuple[SseEvent, ...]:
@@ -95,6 +96,38 @@ def _encoded_events(events: Iterable[SseEvent]) -> AsyncIterator[ServerSentEvent
             )
 
     return iterator()
+
+
+def _encoded_event(event: SseEvent) -> ServerSentEvent:
+    return ServerSentEvent(
+        event=event.event,
+        id=str(event.seq),
+        data=json.dumps(dict(event.data), ensure_ascii=False, separators=(",", ":")),
+    )
+
+
+async def _stream_backend(
+    backend: AskBackend, payload: AskRequest
+) -> AsyncIterator[ServerSentEvent]:
+    """Start the SSE lifecycle before local work so ping/disconnect stay live."""
+
+    stream = CopilotEventStream()
+    yield _encoded_event(stream.start())
+    try:
+        turn = await backend.turn(payload)
+    except asyncio.CancelledError:
+        raise
+    except Exception:  # noqa: BLE001 - do not disclose local backend failures.
+        yield _encoded_event(
+            stream.error(
+                "tool_error", "The local Copilot backend failed.", retryable=False
+            )
+        )
+        return
+    async for event in stream_turn(
+        backend.provider, turn, stream=stream, include_lifecycle=False
+    ):
+        yield _encoded_event(event)
 
 
 def _heartbeat() -> ServerSentEvent:
@@ -131,10 +164,11 @@ def ask(
     backend = getattr(request.app.state, "ask_backend", None)
     if backend is None:
         events = _unavailable_events("The local Copilot backend is not configured.")
+        content = _encoded_events(events)
     else:
-        events = run_turn(backend.provider, backend.turn(payload))
+        content = _stream_backend(backend, payload)
     return EventSourceResponse(
-        _encoded_events(events),
+        content,
         headers={"X-Flux-Attempt-Id": payload.attempt_id},
         ping=HEARTBEAT_SECONDS,
         ping_message_factory=_heartbeat,

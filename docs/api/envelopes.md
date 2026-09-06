@@ -58,6 +58,12 @@ configured backend may inject a provider after it has supplied local tool
 evidence; an absent, failed, or cancelled provider becomes the documented SSE
 terminal rather than a fabricated answer.
 
+The injected backend turn and provider text iterator are cooperative async
+boundaries. They begin only after the lifecycle event is sent, so the transport
+can emit keepalives and propagate a client disconnect to them. A backend or
+provider failure at that live phase is one safe SSE terminal; it cannot change
+an already-started stream into an HTTP error envelope.
+
 The client supplies a 16–128 character URL-safe `attempt_id`; accepted streams
 echo it in `X-Flux-Attempt-Id`. Replay storage is not implemented, so a valid
 `Last-Event-ID` resume is rejected as unavailable before a stream begins and a
