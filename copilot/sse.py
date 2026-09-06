@@ -16,6 +16,37 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 
+_TERMINAL_FAILURES = {
+    "disconnect": (
+        "cancelled",
+        "The answer attempt was cancelled before it completed.",
+        True,
+    ),
+    "timeout": (
+        "deadline",
+        "The answer could not finish within the request deadline.",
+        True,
+    ),
+    "provider": (
+        "upstream_error",
+        "The answer provider is unavailable.",
+        True,
+    ),
+    "refusal": (
+        "refusal",
+        "The answer provider declined this request.",
+        False,
+    ),
+    "iteration_limit": (
+        "deadline",
+        "The answer reached its iteration limit.",
+        False,
+    ),
+}
+
+_TOOL_ERROR_CODES = frozenset({"timeout", "invalid_input", "unavailable", "tool_error"})
+_MAX_TOOL_ERROR_MESSAGE_CHARS = 1024
+
 
 class StreamStateError(RuntimeError):
     """An event would violate an answer attempt's lifecycle."""
@@ -38,12 +69,14 @@ class SseEvent:
 
 
 class CopilotEventStream:
-    """Build the lifecycle and successful tool events for one answer attempt.
+    """Build the lifecycle and tool events for one answer attempt.
 
     ``start`` must be the first application event.  Tool results bind to an
-    earlier call id and use the same tool name.  ``done`` is the only success
-    terminal event and closes the stream permanently.  Failure terminals are
-    intentionally implemented by the failure-path unit.
+    earlier call id and use the same tool name; failed tool results are
+    non-terminal and allow the stream to continue.  ``done`` is the only
+    success terminal event and closes the stream permanently.  Named failure
+    methods emit only fixed, user-safe terminal errors; callers must not
+    expose their caught provider exception text in stream data.
     """
 
     def __init__(self) -> None:
@@ -84,14 +117,7 @@ class CopilotEventStream:
         elapsed_ms: int,
     ) -> SseEvent:
         """Emit the successful outcome for one previously emitted tool call."""
-        self._require_active()
-        expected_tool = self._pending_calls.get(call_id)
-        if expected_tool is None:
-            raise StreamStateError(f"tool result {call_id!r} has no pending tool call")
-        if tool != expected_tool:
-            raise StreamStateError(
-                f"tool result {call_id!r} names {tool!r}, expected {expected_tool!r}"
-            )
+        self._validate_tool_call(call_id, tool)
         if elapsed_ms < 0:
             raise ValueError("elapsed_ms must be non-negative")
         event = self._event(
@@ -101,6 +127,45 @@ class CopilotEventStream:
                 "tool": tool,
                 "ok": True,
                 "result": dict(result),
+                "elapsed_ms": elapsed_ms,
+            },
+        )
+        del self._pending_calls[call_id]
+        return event
+
+    def failed_tool_result(
+        self,
+        call_id: str,
+        tool: str,
+        code: str,
+        message: str,
+        *,
+        elapsed_ms: int,
+    ) -> SseEvent:
+        """Emit a failed outcome for one previously emitted tool call.
+
+        The stream remains active and can accept further tool calls or done().
+        Codes are a small fixed vocabulary and messages are bounded so callers
+        cannot turn a tool error into an unbounded exception transport.
+        """
+        self._validate_tool_call(call_id, tool)
+        # Bound the caller-supplied fields before consuming the pending call so a
+        # rejected payload leaves the call settleable with a valid one.
+        if code not in _TOOL_ERROR_CODES:
+            raise ValueError(f"unsupported tool error code: {code!r}")
+        if not message or len(message) > _MAX_TOOL_ERROR_MESSAGE_CHARS:
+            raise ValueError(
+                f"tool error message must be 1..{_MAX_TOOL_ERROR_MESSAGE_CHARS} characters"
+            )
+        if elapsed_ms < 0:
+            raise ValueError("elapsed_ms must be non-negative")
+        event = self._event(
+            "tool_result",
+            {
+                "call_id": call_id,
+                "tool": tool,
+                "ok": False,
+                "error": {"code": code, "message": message},
                 "elapsed_ms": elapsed_ms,
             },
         )
@@ -133,6 +198,37 @@ class CopilotEventStream:
         self._terminal = True
         return event
 
+    def disconnected(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after a client disconnect without leaking ``cause``."""
+        return self._failure("disconnect", cause)
+
+    def timed_out(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after its deadline without leaking ``cause``."""
+        return self._failure("timeout", cause)
+
+    def provider_failed(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after an upstream failure without leaking ``cause``."""
+        return self._failure("provider", cause)
+
+    def refused(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after a provider refusal without leaking ``cause``."""
+        return self._failure("refusal", cause)
+
+    def iteration_limit_reached(self, cause: BaseException | None = None) -> SseEvent:
+        """End an active stream after exhausting its budget; both limits use deadline."""
+        return self._failure("iteration_limit", cause)
+
+    def _validate_tool_call(self, call_id: str, tool: str) -> None:
+        """Validate a pending tool call without leaking details."""
+        self._require_active()
+        expected_tool = self._pending_calls.get(call_id)
+        if expected_tool is None:
+            raise StreamStateError(f"tool result {call_id!r} has no pending tool call")
+        if tool != expected_tool:
+            raise StreamStateError(
+                f"tool result {call_id!r} names {tool!r}, expected {expected_tool!r}"
+            )
+
     def _require_active(self) -> None:
         if not self._started:
             raise StreamStateError(
@@ -140,6 +236,25 @@ class CopilotEventStream:
             )
         if self._terminal:
             raise StreamStateError("no application event may follow a terminal event")
+
+    def _failure(self, kind: str, cause: BaseException | None) -> SseEvent:
+        """Emit a fixed terminal error and intentionally discard raw failure detail."""
+        self._require_active()
+        del cause
+        code, message, retryable = _TERMINAL_FAILURES[kind]
+        event = self._event(
+            "error",
+            {
+                "status": "failed",
+                "error": {
+                    "code": code,
+                    "message": message,
+                    "retryable": retryable,
+                },
+            },
+        )
+        self._terminal = True
+        return event
 
     def _event(self, event: str, data: Mapping[str, Any]) -> SseEvent:
         seq = self._next_seq
