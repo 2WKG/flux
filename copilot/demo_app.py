@@ -14,6 +14,7 @@ from copilot.config import load_settings
 from copilot.demo.data import create_demo_data_router
 from copilot.demo.model import create_demo_model_router
 from copilot.demo.runtime import build_demo_ask_backend
+from copilot.interactive_routes import create_interactive_router
 
 
 _settings = load_settings()
@@ -43,4 +44,7 @@ app.include_router(
 )
 app.include_router(
     create_demo_model_router(duckdb_path=_settings.duckdb_path, case_path=_case_path)
+)
+app.include_router(
+    create_interactive_router(duckdb_path=_settings.duckdb_path, case_path=_case_path)
 )
