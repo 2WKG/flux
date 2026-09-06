@@ -73,7 +73,9 @@ def _unavailable(reason: str, *, artifact: str = ARTIFACT) -> UnavailableError:
         "schema_mismatch": "The Minnesota aggregate persistence schema is incompatible.",
         "query_failed": "The Minnesota aggregate artifact could not be read.",
     }
-    return UnavailableError(messages[reason], details={"artifact": artifact, "reason": reason})
+    return UnavailableError(
+        messages[reason], details={"artifact": artifact, "reason": reason}
+    )
 
 
 def _connect(settings: Settings) -> duckdb.DuckDBPyConnection:
@@ -111,7 +113,11 @@ def _string(value: object, *, label: str) -> str:
 
 
 def _finite_number(value: object, *, label: str) -> float:
-    if not isinstance(value, int | float) or isinstance(value, bool) or not math.isfinite(value):
+    if (
+        not isinstance(value, int | float)
+        or isinstance(value, bool)
+        or not math.isfinite(value)
+    ):
         raise _PersistedInvalid(f"{label} must be a finite number")
     return float(value)
 
@@ -122,8 +128,10 @@ def _string_list(value: object, *, label: str) -> list[str]:
             value = json.loads(value)
         except json.JSONDecodeError as exc:
             raise _PersistedInvalid(f"{label} is not JSON") from exc
-    if not isinstance(value, list) or not value or not all(
-        isinstance(item, str) and item for item in value
+    if (
+        not isinstance(value, list)
+        or not value
+        or not all(isinstance(item, str) and item for item in value)
     ):
         raise _PersistedInvalid(f"{label} must be a non-empty string array")
     return value
@@ -137,21 +145,31 @@ def _aggregate_manifest(value: object) -> dict[str, Any]:
         raise _PersistedInvalid("aggregate_manifest.model_mode is invalid")
     if manifest.get("allocation_status") != "unavailable":
         raise _PersistedInvalid("aggregate_manifest.allocation_status is invalid")
-    _string(manifest.get("allocation_limit"), label="aggregate_manifest.allocation_limit")
+    _string(
+        manifest.get("allocation_limit"), label="aggregate_manifest.allocation_limit"
+    )
     sources = manifest.get("sources")
     if not isinstance(sources, list) or not sources:
         raise _PersistedInvalid("aggregate_manifest.sources must be non-empty")
     source_ids: set[str] = set()
     for index, source in enumerate(sources):
-        source_object = _json_object(source, label=f"aggregate_manifest.sources[{index}]")
-        source_ids.add(_string(source_object.get("id"), label=f"aggregate_manifest.sources[{index}].id"))
+        source_object = _json_object(
+            source, label=f"aggregate_manifest.sources[{index}]"
+        )
+        source_ids.add(
+            _string(
+                source_object.get("id"), label=f"aggregate_manifest.sources[{index}].id"
+            )
+        )
     if source_ids != {
         "tiger_counties_2024",
         "mngeo_service_areas_2026",
         "eia860_2024",
         "eia930_balance_2024_h1",
     }:
-        raise _PersistedInvalid("aggregate_manifest.sources does not name the accepted inputs")
+        raise _PersistedInvalid(
+            "aggregate_manifest.sources does not name the accepted inputs"
+        )
     return manifest
 
 
@@ -164,10 +182,22 @@ def _stress_metric(
     context: object,
 ) -> dict[str, Any]:
     stress_context = _json_object(context, label="stress_context")
-    required_strings = ("source_label", "time_basis", "window_start_utc", "window_end_utc", "window_peak_hour_utc")
+    required_strings = (
+        "source_label",
+        "time_basis",
+        "window_start_utc",
+        "window_end_utc",
+        "window_peak_hour_utc",
+    )
     for key in required_strings:
         _string(stress_context.get(key), label=f"stress_context.{key}")
-    for key in ("window_peak_demand_mw", "scored_hours", "min_index", "mean_index", "p95_index"):
+    for key in (
+        "window_peak_demand_mw",
+        "scored_hours",
+        "min_index",
+        "mean_index",
+        "p95_index",
+    ):
         _finite_number(stress_context.get(key), label=f"stress_context.{key}")
     return {
         "metric_name": _string(metric_name, label="metric_name"),
@@ -178,7 +208,9 @@ def _stress_metric(
     }
 
 
-def _identity(value: object, *, artifact_id: str, input_manifest_sha256: object) -> dict[str, str]:
+def _identity(
+    value: object, *, artifact_id: str, input_manifest_sha256: object
+) -> dict[str, str]:
     identity = _json_object(value, label="identity_json")
     expected = {
         "artifact_kind": "model_result",
@@ -186,11 +218,21 @@ def _identity(value: object, *, artifact_id: str, input_manifest_sha256: object)
         "model_mode": "aggregate",
         "source_identity": SOURCE_IDENTITY,
     }
-    if any(identity.get(key) != expected_value for key, expected_value in expected.items()):
-        raise _PersistedInvalid("identity_json does not name the accepted aggregate result")
-    source_version = _string(identity.get("source_version"), label="identity_json.source_version")
-    content_sha256 = _string(identity.get("content_sha256"), label="identity_json.content_sha256")
-    if len(content_sha256) != 64 or any(char not in "0123456789abcdef" for char in content_sha256):
+    if any(
+        identity.get(key) != expected_value for key, expected_value in expected.items()
+    ):
+        raise _PersistedInvalid(
+            "identity_json does not name the accepted aggregate result"
+        )
+    source_version = _string(
+        identity.get("source_version"), label="identity_json.source_version"
+    )
+    content_sha256 = _string(
+        identity.get("content_sha256"), label="identity_json.content_sha256"
+    )
+    if len(content_sha256) != 64 or any(
+        char not in "0123456789abcdef" for char in content_sha256
+    ):
         raise _PersistedInvalid("identity_json.content_sha256 is invalid")
     if input_manifest_sha256 != content_sha256:
         raise _PersistedInvalid("input_manifest_sha256 does not match identity_json")
@@ -225,11 +267,19 @@ def _provenance(rows: list[tuple[object, ...]]) -> list[dict[str, Any]]:
             {
                 "source_name": _string(source_name, label="provenance.source_name"),
                 "source_ref": _string(source_ref, label="provenance.source_ref"),
-                "source_version": _string(source_version, label="provenance.source_version"),
-                "retrieved_at": retrieved_at.replace(tzinfo=UTC).isoformat().replace("+00:00", "Z"),
-                "license_or_terms": _string(license_or_terms, label="provenance.license_or_terms"),
+                "source_version": _string(
+                    source_version, label="provenance.source_version"
+                ),
+                "retrieved_at": retrieved_at.replace(tzinfo=UTC)
+                .isoformat()
+                .replace("+00:00", "Z"),
+                "license_or_terms": _string(
+                    license_or_terms, label="provenance.license_or_terms"
+                ),
                 "source_record_id": source_record_id,
-                "content_sha256": _string(content_sha256, label="provenance.content_sha256"),
+                "content_sha256": _string(
+                    content_sha256, label="provenance.content_sha256"
+                ),
                 "is_derived": is_derived,
             }
         )
@@ -289,7 +339,11 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
             raise _PersistedInvalid("selected manifest is not available aggregate mode")
         if limitations_json != persisted_limitations:
             raise _PersistedInvalid("selected limitations changed")
-        if base_mva is not None or solver_version is not None or converter_version is not None:
+        if (
+            base_mva is not None
+            or solver_version is not None
+            or converter_version is not None
+        ):
             raise _PersistedInvalid("aggregate solver fields must be null")
         identity = _identity(
             identity_json,
@@ -307,13 +361,16 @@ def resolve_minnesota_aggregate(settings: Settings) -> dict[str, Any]:
         )
         if (
             score_metric != stress_metric["metric_name"]
-            or _finite_number(score_value, label="score_value") != stress_metric["metric_value"]
+            or _finite_number(score_value, label="score_value")
+            != stress_metric["metric_value"]
             or score_unit != stress_metric["unit"]
         ):
             raise _PersistedInvalid("score result does not match the model metric")
         return {
             "artifact_id": _string(artifact_id, label="artifact_id"),
-            "artifact_contract_version": _string(contract_version, label="contract_version"),
+            "artifact_contract_version": _string(
+                contract_version, label="contract_version"
+            ),
             "artifact_identity": identity,
             "model_mode": "aggregate",
             "availability": "available",

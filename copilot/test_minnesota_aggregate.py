@@ -38,13 +38,16 @@ def _components() -> dict[str, object]:
             "allocation_limit": "No reviewed BA-to-service-area allocation crosswalk is available.",
             "sources": [
                 {"id": "tiger_counties_2024", "url": "https://example.invalid/tiger"},
-                {"id": "mngeo_service_areas_2026", "url": "https://example.invalid/mngeo"},
+                {
+                    "id": "mngeo_service_areas_2026",
+                    "url": "https://example.invalid/mngeo",
+                },
                 {"id": "eia860_2024", "url": "https://example.invalid/eia860"},
                 {
                     "id": "eia930_balance_2024_h1",
                     "url": "https://example.invalid/eia930",
                     "file_sha256": {"miso_ba_context_2024_h1.csv": SHA256},
-                }
+                },
             ],
         },
         "stress_context": {
@@ -102,7 +105,9 @@ def _insert_artifact(
                 json.dumps(["mn:source_manifest:0000000000000000"]),
             ],
         )
-        for ordinal, source_name in enumerate(("gate0-a", "gate0-b", "gate0-c", "gate0-d")):
+        for ordinal, source_name in enumerate(
+            ("gate0-a", "gate0-b", "gate0-c", "gate0-d")
+        ):
             con.execute(
                 "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
@@ -156,7 +161,9 @@ def _details(response) -> dict[str, str]:  # type: ignore[no-untyped-def]
     return response.json()["error"]["details"]
 
 
-def test_aggregate_route_serves_the_persisted_aggregate_artifact(tmp_path: Path) -> None:
+def test_aggregate_route_serves_the_persisted_aggregate_artifact(
+    tmp_path: Path,
+) -> None:
     database = tmp_path / "aggregate.duckdb"
     _insert_artifact(database)
 
@@ -186,7 +193,9 @@ def test_aggregate_route_serves_the_persisted_aggregate_artifact(tmp_path: Path)
         **_components()["stress_context"],
     }
     assert len(body["provenance"]) == 4
-    assert body["limitations"] == ["It is not a transmission-flow or outage simulation."]
+    assert body["limitations"] == [
+        "It is not a transmission-flow or outage simulation."
+    ]
     assert body["prohibited_claims"] == _components()["prohibited_claims"]
     assert body["base_mva"] is None
     assert body["solver_version"] is None
@@ -198,7 +207,10 @@ def test_aggregate_route_refuses_missing_or_ambiguous_identity(tmp_path: Path) -
     _insert_artifact(missing_database, source_identity="other_aggregate")
     missing = _client(missing_database).get("/minnesota/aggregate")
     assert missing.status_code == 503
-    assert _details(missing) == {"artifact": "mn_artifact_manifests", "reason": "missing_identity"}
+    assert _details(missing) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "missing_identity",
+    }
 
     ambiguous_database = tmp_path / "ambiguous.duckdb"
     _insert_artifact(ambiguous_database)
@@ -209,7 +221,10 @@ def test_aggregate_route_refuses_missing_or_ambiguous_identity(tmp_path: Path) -
     )
     ambiguous = _client(ambiguous_database).get("/minnesota/aggregate")
     assert ambiguous.status_code == 503
-    assert _details(ambiguous) == {"artifact": "mn_artifact_manifests", "reason": "ambiguous_identity"}
+    assert _details(ambiguous) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "ambiguous_identity",
+    }
 
 
 def test_aggregate_route_refuses_incomplete_persisted_artifact(tmp_path: Path) -> None:
