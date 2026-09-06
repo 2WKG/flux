@@ -366,3 +366,33 @@ def persisted_lines_database(
             )
     finally:
         con.close()
+
+
+def persisted_read_route_database(
+    path: Path,
+    *,
+    site_id: int = 1,
+    line_id: int = 10,
+    scenario_id: str = DEFAULT_SCENARIO,
+    region: str = "mn",
+) -> None:
+    """One real-DDL database that serves every persisted read route.
+
+    Both halves come from the real contracts - ``pipelines.db.ensure_schema``
+    for the legacy grid tables and ``ensure_minnesota_schema`` for the ``mn_*``
+    namespace - so a column or constraint change in either fails the suites
+    that use it rather than leaving a hand-typed shadow schema green.
+    """
+
+    con = connect(path)
+    try:
+        ensure_minnesota_schema(con)
+        _seed_county(con)
+        _seed_buses(con)
+        add_site_candidate(con, site_id=site_id)
+        add_site_score(con, site_id=site_id, scenario_id=scenario_id)
+        add_site_score_manifest(con, site_id=site_id, scenario_id=scenario_id)
+        add_line(con, line_id)
+        add_line_ranking(con, line_id, scenario_id=scenario_id, region=region)
+    finally:
+        con.close()
