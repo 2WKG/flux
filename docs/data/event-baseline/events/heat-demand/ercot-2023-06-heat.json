@@ -19,7 +19,7 @@
       "start_utc": "2023-07-20T00:00:00Z",
       "end_utc": "2023-07-23T00:00:00Z"
     },
-    "disposition": "candidate_only",
+    "disposition": "shortfall",
     "selection_basis": "EIA documents late-June and July 2023 Texas heat and ERCOT record hourly demand. The BA observation is demand context only; it is not a county outage label.",
     "exclusions": [
       "Canonical EAGLE-I slice must be reacquired with fixed source feasibility tooling",
@@ -27,7 +27,8 @@
     ],
     "uncertainties": [
       "County weather coverage and outage coverage unresolved",
-      "BA demand cannot establish county outage or causality"
+      "BA demand cannot establish county outage or causality",
+      "Definitive EAGLE-I acquisition is incomplete for the selected county window; retained as an explicit coverage shortfall."
     ],
     "source_event_ids": [
       "ercot-2023-06-heat"
@@ -100,7 +101,7 @@
       "scenario_id": "ercot-2023-06-heat-replay",
       "window_start_utc": "2023-07-19T00:00:00Z",
       "window_end_utc": "2023-07-19T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [
         "eia-ercot-202307",

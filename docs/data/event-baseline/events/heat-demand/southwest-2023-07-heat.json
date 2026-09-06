@@ -19,7 +19,7 @@
       "start_utc": "2023-08-01T00:00:00Z",
       "end_utc": "2023-08-04T00:00:00Z"
     },
-    "disposition": "candidate_only",
+    "disposition": "shortfall",
     "selection_basis": "NOAA NCEI reports July 2023 heat waves and record temperatures in parts of the Southwest. This candidate requires county-specific weather and outage evidence before acceptance.",
     "exclusions": [
       "Canonical EAGLE-I slice must be acquired with fixed source feasibility tooling",
@@ -27,7 +27,8 @@
     ],
     "uncertainties": [
       "County weather coverage and outage coverage unresolved",
-      "Regional climate summary is not county-grid evidence"
+      "Regional climate summary is not county-grid evidence",
+      "Definitive EAGLE-I acquisition is incomplete for the selected county window; retained as an explicit coverage shortfall."
     ],
     "source_event_ids": [
       "southwest-2023-07-heat"
@@ -99,7 +100,7 @@
       "scenario_id": "southwest-2023-07-heat-replay",
       "window_start_utc": "2023-07-27T00:00:00Z",
       "window_end_utc": "2023-07-27T06:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [
         "ncei-usclimate-202307",
