@@ -1,6 +1,7 @@
 data/raw/
 data/duck/*.duckdb
 data/parquet/
+data/graph/
 .venv/
 node_modules/
 web/node_modules/
