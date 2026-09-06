@@ -1,4 +1,10 @@
-"""Route-free, injected runtime for the ordered Copilot SSE contract."""
+"""Route-free, injected runtime for the ordered Copilot SSE contract.
+
+``run_turn`` is synchronous and returns the whole event tuple: it is a
+fixture-grade driver for the emitter contract, not the streaming ``/ask``
+loop.  A route that must deliver ``text`` incrementally (and propagate task
+cancellation) needs a generator built on the same emitter.
+"""
 
 from __future__ import annotations
 
@@ -6,10 +12,12 @@ import asyncio
 from asyncio import CancelledError
 from collections.abc import AsyncIterator, Iterable, Mapping
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from copilot.narration import GroundedNarration
 from copilot.sse import CopilotEventStream, SseEvent
+from copilot.tools.schemas import RetrievalHit, UnavailableCode
+from copilot.verify import verify
 
 
 class NarrationProvider(Protocol):
@@ -19,7 +27,7 @@ class NarrationProvider(Protocol):
 
 
 class AsyncNarrationProvider(Protocol):
-    """Cooperative provider used by the HTTP stream path."""
+    """Cooperative provider used by the HTTP streaming transport."""
 
     def text(self, narration: GroundedNarration) -> AsyncIterator[str]: ...
 
@@ -28,9 +36,36 @@ class AsyncNarrationProvider(Protocol):
 class ToolTurn:
     call_id: str
     tool: str
-    input: dict[str, object]
+    input: Mapping[str, object]
     narration: GroundedNarration
     elapsed_ms: int = 0
+
+
+# A tool's ``unavailable.reason`` is tool-authored text that may name files or
+# internals.  It stays server-side; the wire carries a fixed code and message.
+_TOOL_FAILURES: dict[UnavailableCode, tuple[str, str]] = {
+    "artifact_unavailable": (
+        "unavailable",
+        "A required data artifact is not available.",
+    ),
+    "invalid_prerequisite": (
+        "tool_error",
+        "The tool could not validate its inputs or prerequisites.",
+    ),
+    "unsupported_request": (
+        "invalid_input",
+        "The tool does not support this request.",
+    ),
+    "insufficient_evidence": (
+        "tool_error",
+        "The tool found no evidence for this request.",
+    ),
+}
+_TOOL_UNAVAILABLE_MESSAGE = (
+    "A required tool result is unavailable, so no answer was produced."
+)
+_NO_PROVIDER_MESSAGE = "No model provider is configured."
+_EMPTY_ANSWER_MESSAGE = "The model produced no answer."
 
 
 def run_turn(
@@ -39,50 +74,69 @@ def run_turn(
     """Build an ordered stream without calling a network provider itself."""
     stream = CopilotEventStream()
     events = [stream.start(), stream.tool_call(turn.call_id, turn.tool, turn.input)]
-    if turn.narration.status == "unavailable":
+    narration = turn.narration
+    if narration.status == "unavailable":
+        unavailable = narration.unavailable
+        if unavailable is None:  # pragma: no cover - GroundedNarration forbids it
+            raise ValueError("unavailable narration carries no unavailable reason")
+        code, message = _TOOL_FAILURES[unavailable.code]
+        events.append(
+            stream.failed_tool_result(
+                turn.call_id, turn.tool, code, message, elapsed_ms=turn.elapsed_ms
+            )
+        )
         events.append(
             stream.error(
                 "unavailable",
-                turn.narration.text,
-                retryable=turn.narration.unavailable.retryable,
+                _TOOL_UNAVAILABLE_MESSAGE,
+                retryable=unavailable.retryable,
             )
         )
         return tuple(events)
+
+    evidence = _thaw_mapping(narration.evidence)
     events.append(
         stream.tool_result(
-            turn.call_id,
-            turn.tool,
-            _json_ready(turn.narration.evidence),
-            elapsed_ms=turn.elapsed_ms,
+            turn.call_id, turn.tool, evidence, elapsed_ms=turn.elapsed_ms
         )
     )
-    for index, hit in enumerate(turn.narration.citations, 1):
+    for index, hit in enumerate(narration.citations, 1):
         events.append(
-            stream.citation(f"{turn.call_id}:cite:{index}", hit.model_dump(mode="json"))
+            stream.citation(f"{turn.call_id}:cite:{index}", _citation_payload(hit))
         )
     if provider is None:
         events.append(
-            stream.error(
-                "unavailable", "No model provider is configured.", retryable=False
-            )
+            stream.error("unavailable", _NO_PROVIDER_MESSAGE, retryable=False)
         )
         return tuple(events)
+
+    # Only the provider call is guarded: the emitter's own contract errors below
+    # are programming errors and must not be relabelled as provider failures.
     try:
-        for delta in provider.text(turn.narration):
-            events.append(stream.text(delta))
-    except CancelledError:
+        deltas = [delta for delta in provider.text(narration) if delta]
+    except CancelledError as exc:
+        events.append(stream.disconnected(exc))
+        return tuple(events)
+    except Exception as exc:  # noqa: BLE001 - provider exceptions become fixed terminals.
+        events.append(stream.provider_failed(exc))
+        return tuple(events)
+    if not deltas:
         events.append(
-            stream.error("cancelled", "The answer was cancelled.", retryable=True)
+            stream.error("upstream_error", _EMPTY_ANSWER_MESSAGE, retryable=True)
         )
         return tuple(events)
-    except Exception:  # noqa: BLE001 - provider exceptions must become safe SSE terminals.
-        events.append(
-            stream.error(
-                "upstream_error", "The model provider failed.", retryable=False
-            )
+
+    for delta in deltas:
+        events.append(stream.text(delta))
+    report = verify("".join(deltas), [evidence], narration.citations)
+    events.append(
+        stream.done(
+            verified=report.verified,
+            unverified_numbers=report.unverified_numbers,
+            unverified_citations=report.unverified_citations,
+            reason=report.reason,
         )
-        return tuple(events)
-    events.append(stream.done(verified=True))
+    )
     return tuple(events)
 
 
@@ -93,58 +147,72 @@ async def stream_turn(
     stream: CopilotEventStream | None = None,
     include_lifecycle: bool = True,
 ) -> AsyncIterator[SseEvent]:
-    """Yield a turn as it runs, leaving transport heartbeats unblocked.
+    """Yield one turn through the same safe emitter contract as ``run_turn``.
 
-    ``run_turn`` remains the synchronous deterministic test adapter. HTTP
-    transports use this cooperative iterator: a deployment provider must yield
-    asynchronously, so the event loop can send heartbeats and propagate a
-    disconnect without pretending that an arbitrary worker thread was stopped.
+    The HTTP route uses cooperative injected boundaries: provider deltas are
+    yielded as they arrive, permitting heartbeat and disconnect tasks to run.
+    A real response-task cancellation is re-raised after iterator cleanup; a
+    provider-raised cancellation remains the documented terminal event.
     """
 
     active = stream or CopilotEventStream()
     if include_lifecycle:
         yield active.start()
     yield active.tool_call(turn.call_id, turn.tool, turn.input)
-    if turn.narration.status == "unavailable":
+    narration = turn.narration
+    if narration.status == "unavailable":
+        unavailable = narration.unavailable
+        if unavailable is None:  # pragma: no cover - GroundedNarration forbids it
+            raise ValueError("unavailable narration carries no unavailable reason")
+        code, message = _TOOL_FAILURES[unavailable.code]
+        yield active.failed_tool_result(
+            turn.call_id, turn.tool, code, message, elapsed_ms=turn.elapsed_ms
+        )
         yield active.error(
             "unavailable",
-            turn.narration.text,
-            retryable=turn.narration.unavailable.retryable,
-        )
-        return
-    yield active.tool_result(
-        turn.call_id,
-        turn.tool,
-        _json_ready(turn.narration.evidence),
-        elapsed_ms=turn.elapsed_ms,
-    )
-    for index, hit in enumerate(turn.narration.citations, 1):
-        yield active.citation(
-            f"{turn.call_id}:cite:{index}", hit.model_dump(mode="json")
-        )
-    if provider is None:
-        yield active.error(
-            "unavailable", "No model provider is configured.", retryable=False
+            _TOOL_UNAVAILABLE_MESSAGE,
+            retryable=unavailable.retryable,
         )
         return
 
+    evidence = _thaw_mapping(narration.evidence)
+    yield active.tool_result(
+        turn.call_id, turn.tool, evidence, elapsed_ms=turn.elapsed_ms
+    )
+    for index, hit in enumerate(narration.citations, 1):
+        yield active.citation(f"{turn.call_id}:cite:{index}", _citation_payload(hit))
+    if provider is None:
+        yield active.error("unavailable", _NO_PROVIDER_MESSAGE, retryable=False)
+        return
+
     iterator: AsyncIterator[str] | None = None
+    deltas: list[str] = []
     try:
-        iterator = provider.text(turn.narration)
+        iterator = provider.text(narration)
         async for delta in iterator:
-            yield active.text(delta)
-    except CancelledError:
+            if delta:
+                deltas.append(delta)
+                yield active.text(delta)
+    except CancelledError as exc:
         if asyncio.current_task() is not None and asyncio.current_task().cancelling():
             await _close_iterator(iterator)
             raise
-        yield active.error("cancelled", "The answer was cancelled.", retryable=True)
+        yield active.disconnected(exc)
         return
-    except Exception:  # noqa: BLE001 - provider setup must become a safe terminal.
-        yield active.error(
-            "upstream_error", "The model provider failed.", retryable=False
-        )
+    except Exception as exc:  # noqa: BLE001 - provider exceptions become fixed terminals.
+        yield active.provider_failed(exc)
         return
-    yield active.done(verified=True)
+    if not deltas:
+        yield active.error("upstream_error", _EMPTY_ANSWER_MESSAGE, retryable=True)
+        return
+
+    report = verify("".join(deltas), [evidence], narration.citations)
+    yield active.done(
+        verified=report.verified,
+        unverified_numbers=report.unverified_numbers,
+        unverified_citations=report.unverified_citations,
+        reason=report.reason,
+    )
 
 
 async def _close_iterator(iterator: AsyncIterator[str] | None) -> None:
@@ -156,23 +224,30 @@ async def _close_iterator(iterator: AsyncIterator[str] | None) -> None:
             return
 
 
-def _json_ready(value: object) -> dict[str, object]:
-    """Copy immutable narration evidence into a JSON-native event payload.
+def _citation_payload(hit: RetrievalHit) -> dict[str, Any]:
+    """Map a ``cite`` hit onto the documented citation wire fields only."""
+    return {
+        "doc": hit.doc,
+        "title": hit.title,
+        "page": hit.page,
+        "chunk_id": hit.chunk_id,
+        "locator": hit.locator,
+        "excerpt": hit.text,
+        "url": hit.source,
+    }
 
-    Narration freezes its accepted evidence so provider code cannot mutate it.
-    ``json.dumps`` deliberately does not serialize ``MappingProxyType``, so the
-    runtime copies mappings and tuples only at the SSE boundary.  Values that
-    are not containers remain subject to the stream's eager JSON validation.
-    """
 
-    if not isinstance(value, Mapping):
-        raise TypeError("narration evidence must be a mapping")
-    return {str(key): _json_value(item) for key, item in value.items()}
+def _thaw_mapping(value: Mapping[str, object]) -> dict[str, Any]:
+    thawed = _thaw(value)
+    if not isinstance(thawed, dict):  # pragma: no cover - Mapping input by type
+        raise TypeError("evidence must be a mapping")
+    return thawed
 
 
-def _json_value(value: object) -> object:
+def _thaw(value: object) -> object:
+    """Recursively turn frozen evidence (proxies, tuples) into JSON-ready values."""
     if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
+        return {str(key): _thaw(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
-        return [_json_value(item) for item in value]
+        return [_thaw(item) for item in value]
     return value

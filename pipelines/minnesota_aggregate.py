@@ -11,7 +11,8 @@ Two kinds of digest appear in the manifest and they are not interchangeable:
   repository can recompute it because the upstream files are not committed; it
   is a recorded claim, not something a test verifies.
 * ``file_sha256`` maps each committed evidence file written by this builder to
-  the SHA-256 of its bytes.  Tests recompute and assert these.
+  the SHA-256 of its canonical LF content.  Tests recompute and assert these, so
+  the digest must not depend on whether the checkout materialised CRLF or LF.
 """
 
 from __future__ import annotations
@@ -57,11 +58,23 @@ CONTEXT_VALUE_COLUMNS = [
 
 
 def _sha256(path: Path) -> str:
+    """Hash an upstream artifact by its exact bytes. Use only for binary releases."""
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _text_sha256(path: Path) -> str:
+    """Hash a Git-tracked text artifact by its canonical LF content.
+
+    The evidence CSVs this builder writes are tracked text, so a Windows checkout
+    materialises them with CRLF and a Linux one with LF. Hashing raw bytes would
+    pin a digest that only reproduces on the platform that generated it; the LF
+    form is the canonical index content and matches on both.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _eia860_capacity(
@@ -297,8 +310,8 @@ def build_aggregate_evidence(
                 ),
                 "geography_limit": "Plants without exactly one containing county remain unassigned or ambiguous; no nearest-county assignment is applied.",
                 "file_sha256": {
-                    paths[CAPACITY_FILE].name: _sha256(paths[CAPACITY_FILE]),
-                    paths[UNASSIGNED_FILE].name: _sha256(paths[UNASSIGNED_FILE]),
+                    paths[CAPACITY_FILE].name: _text_sha256(paths[CAPACITY_FILE]),
+                    paths[UNASSIGNED_FILE].name: _text_sha256(paths[UNASSIGNED_FILE]),
                 },
             },
             {
@@ -312,7 +325,7 @@ def build_aggregate_evidence(
                 "rows": len(miso),
                 "time_basis": "UTC end of hour",
                 "file_sha256": {
-                    paths[CONTEXT_FILE].name: _sha256(paths[CONTEXT_FILE]),
+                    paths[CONTEXT_FILE].name: _text_sha256(paths[CONTEXT_FILE]),
                 },
             },
         ],

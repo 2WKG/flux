@@ -37,7 +37,17 @@ COMMITTED_FILES = (CAPACITY_FILE, UNASSIGNED_FILE, CONTEXT_FILE)
 
 
 def _sha256(path: Path) -> str:
+    """Exact bytes: only for the upstream binary releases the manifest records."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _text_sha256(path: Path) -> str:
+    """Canonical LF content, matching how the builder digests committed CSVs.
+
+    Hashing raw bytes here would assert a digest that only reproduces on the
+    platform whose checkout wrote it: CRLF on Windows, LF on the Linux runner.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _committed_manifest() -> dict:
@@ -73,7 +83,7 @@ def test_committed_manifest_file_digests_match_committed_evidence_bytes():
     assert set(pinned) == set(COMMITTED_FILES)
     for name, digest in pinned.items():
         assert SHA256_HEX.fullmatch(digest), name
-        assert digest == _sha256(INPUTS / name), name
+        assert digest == _text_sha256(INPUTS / name), name
 
 
 def test_committed_evidence_is_a_fixed_point_of_the_builder_writer(tmp_path: Path):
@@ -282,7 +292,7 @@ def test_build_aggregate_evidence_end_to_end_on_synthetic_sources(
     }
     assert set(pinned) == set(COMMITTED_FILES)
     for name, digest in pinned.items():
-        assert digest == _sha256(output_dir / name), name
+        assert digest == _text_sha256(output_dir / name), name
     capacity_lines = (output_dir / CAPACITY_FILE).read_text().splitlines()
     assert capacity_lines == [
         "county_fips,plant_count,summer_capacity_mw",

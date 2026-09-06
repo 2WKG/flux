@@ -21,6 +21,8 @@ No P0 Uri or Beryl calibration is available. The report fails closed because req
 
 `data/sources/activsg2000.json` (SHA-256 `da8335a0b2c73792574207a8999293c932a1885f7dd71c7c394c71b2d75920ed`) records: A.B. Birchfield et al., Grid Structural Characteristics as Validation Criteria for Synthetic Networks, IEEE Transactions on Power Systems, 2017, doi:10.1109/TPWRS.2016.2616385. ACTIVSg2000 is a synthetic Texas test case. It is not ERCOT topology and supplies no SCADA, nodal telemetry, ratings, restricted data, or real-world asset mapping.
 
+Every SHA-256 above is of the LF-canonical content of the tracked file, not of the working-tree bytes; reproduce with `git cat-file -p HEAD:<path> | shasum -a 256`.
+
 ## Per-result limits
 
 ### Winter Storm Uri (`uri_2021`)

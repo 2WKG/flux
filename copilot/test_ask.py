@@ -371,8 +371,8 @@ def test_ask_converts_an_injected_provider_failure_to_one_safe_terminal(
     ]
     assert events[-1][2]["error"] == {
         "code": "upstream_error",
-        "message": "The model provider failed.",
-        "retryable": False,
+        "message": "The answer provider is unavailable.",
+        "retryable": True,
     }
 
 
@@ -391,7 +391,7 @@ def test_ask_converts_provider_cancellation_to_one_retryable_terminal(
     assert [seq for seq, _, _ in events] == [1, 2, 3, 4]
     assert events[-1][2]["error"] == {
         "code": "cancelled",
-        "message": "The answer was cancelled.",
+        "message": "The answer attempt was cancelled before it completed.",
         "retryable": True,
     }
 
