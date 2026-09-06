@@ -5,6 +5,7 @@ data/parquet/
 node_modules/
 web/node_modules/
 web/dist/
+web/dist-harness/
 __pycache__/
 *.pyc
 .env

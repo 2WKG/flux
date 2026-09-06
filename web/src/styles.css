@@ -23,18 +23,11 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px }
 code { font-family: 'DM Mono'; color: #8be2ff; overflow-wrap: anywhere }
 
-nav { height: 52px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line) }
-.brand { display: flex; gap: 12px; align-items: center }
-.brand b { letter-spacing: .15em; color: #69d6ff }
-.brand span, .live { color: #a8bfd2; font-size: .8rem }
-.live { display: flex; align-items: center; gap: 8px }
-.live i { width: 8px; height: 8px; border-radius: 50%; background: var(--low); box-shadow: 0 0 12px var(--low) }
+/* The former nav/brand/live bar is gone: the shell header owns the title and the source label. */
 .ghost { border: 1px solid #315673; padding: 8px 12px; border-radius: 6px; transition: background .18s, border-color .18s }
 .ghost:hover { background: #12293d; border-color: #4b7c9e }
 
-header { max-width: 860px; padding: 54px 0 26px }
-h1 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); line-height: 1.03; letter-spacing: -.055em; margin: 9px 0 20px }
-header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
+.pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
 .eyebrow { color: var(--accent); font: 700 .7rem 'DM Mono', monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
 
 /* Comparison rail — every option visible at once, so the judge never has to remember a number. */
@@ -57,7 +50,6 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .card.selected .meter i { background: linear-gradient(90deg, var(--accent), var(--mid)) }
 .card-foot { color: var(--dim); font-size: .74rem; line-height: 1.5 }
 
-.workspace { display: grid; grid-template-columns: 1.65fr .85fr; gap: 16px }
 .map, aside > div, .pipeline { border: 1px solid #234962; background: var(--panel); border-radius: 12px }
 .map { padding: 18px; display: flex; flex-direction: column }
 .map-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
@@ -149,12 +141,10 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 @media (max-width: 980px) {
   main { padding: 18px }
   .rail { grid-template-columns: 1fr }
-  .workspace { grid-template-columns: 1fr }
   .pipeline { display: block }
   .map-head { flex-direction: column }
 }
 @media (max-width: 500px) {
-  h1 { font-size: 2.5rem }
   .outcome > strong { font-size: 3.6rem }
   .stats { grid-template-columns: 1fr }
 }
