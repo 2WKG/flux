@@ -1,0 +1,61 @@
+{
+  "allocation_limit": "No reviewed complete, non-overlapping BA-to-service-area crosswalk is available; MISO BA values are not allocated to Minnesota geography.",
+  "allocation_status": "unavailable",
+  "format": "flux-minnesota-aggregate-v1",
+  "model_mode": "aggregate",
+  "retrieved_at": "2026-09-06T02:11:00Z",
+  "sources": [
+    {
+      "crs": "EPSG:4269",
+      "filter": "STATEFP == '27'",
+      "id": "tiger_counties_2024",
+      "rows": 87,
+      "sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b",
+      "units": {
+        "ALAND": "m2",
+        "AWATER": "m2"
+      },
+      "url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"
+    },
+    {
+      "crs": "EPSG:26915",
+      "id": "mngeo_service_areas_2026",
+      "limit": "retail service-area geometry; not a BA map, bus map, or allocation crosswalk",
+      "rows": 181,
+      "sha256": "c9f62422fc96666445a8ae5de4364ed8e23f6e47808b8a0f75753f81f0bb8497",
+      "url": "https://operations.gis.data.mn.gov/api/publicdownload/download/518/util_eusa.gpkg"
+    },
+    {
+      "assigned_plant_count": 836,
+      "assigned_summer_capacity_mw": 18211.529999999995,
+      "county_capacity_file": "mn_county_plant_capacity_2024.csv",
+      "county_capacity_rows": 73,
+      "filter": "Plant/Generator State == 'MN'; Operable generators",
+      "geography_limit": "Plants without exactly one containing county remain unassigned or ambiguous; no nearest-county assignment is applied.",
+      "id": "eia860_2024",
+      "sha256": "0aaae04812cd4ab87a3e346bdf93848a3cc15053fd4dc2a4cf82d2aeac95f12b",
+      "unassigned_capacity_file": "mn_unassigned_plant_capacity_2024.csv",
+      "unassigned_plant_count": 1,
+      "unassigned_summer_capacity_mw": 1.0,
+      "units": {
+        "summer_capacity_mw": "MW"
+      },
+      "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip"
+    },
+    {
+      "context_file": "miso_ba_context_2024_h1.csv",
+      "filter": "Balancing Authority == 'MISO'",
+      "id": "eia930_balance_2024_h1",
+      "label": "MISO balancing authority (not Minnesota demand)",
+      "rows": 4368,
+      "sha256": "26768c495c3ba987e29d79df2e40d4e741f9dbcff086f53c12ff774465756a10",
+      "time_basis": "UTC end of hour",
+      "units": {
+        "demand": "MW",
+        "interchange": "MW",
+        "net_generation": "MW"
+      },
+      "url": "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jan_Jun.csv"
+    }
+  ]
+}
