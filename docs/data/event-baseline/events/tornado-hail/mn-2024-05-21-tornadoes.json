@@ -70,6 +70,49 @@
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2024-53581661-20240521t180000-20240522t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/53581661",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:12:05.278049Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "filtered_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa",
+      "bytes": 1444846424,
+      "etag": "\"2498b3dd20136a26a66b6e80856b0ca8-2\"",
+      "units": {
+        "customers_out": "customers",
+        "run_start_time": "UTC"
+      },
+      "timezone_conversion": "none; EAGLE-I documentation states UTC",
+      "filters": {
+        "county_fips": [
+          "27091"
+        ],
+        "states": [
+          "Minnesota"
+        ],
+        "window": "UTC half-open"
+      },
+      "grid_index_mapping": null,
+      "gaps": "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel.",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:53581661",
+        "source_file": "eaglei_outages_2024.csv",
+        "source_file_id": 53581661,
+        "source_file_bytes": 1444846424,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+        "raw_artifact_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+        "source_sidecar_sha256": "5028a35040bd6fcc42ace3e920267ffbb7985d02b4816eb93ab7398942d01024",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2024-05-21-tornadoes-27091-20240521180000_eaglei_2024_20240521T180000_20240522T000000.csv",
+        "filtered_artifact_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa"
+      }
     }
   ],
   "records": [
@@ -80,7 +123,7 @@
       "scenario_id": "mn-2024-05-21-tornadoes-replay",
       "window_start_utc": "2024-05-21T18:00:00Z",
       "window_end_utc": "2024-05-22T00:00:00Z",
-      "disposition": "candidate_only",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
@@ -109,11 +152,38 @@
       },
       "outage": {
         "coverage": "UncoveredLabel",
-        "source_receipt_ids": [],
-        "notes": "No EAGLE-I range result retained; not zero.",
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "source_receipt_ids": [
+          "eaglei-2024-53581661-20240521t180000-20240522t000000"
+        ],
+        "notes": "Qualified exhaustive annual EAGLE-I scan found 0 of 24 expected 15-minute observations for FIPS 27091. Missing intervals are unknown, not zero customers; coverage is insufficient for a matched outage label.",
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2024-05-21T18:00:00Z",
+          "2024-05-21T18:15:00Z",
+          "2024-05-21T18:30:00Z",
+          "2024-05-21T18:45:00Z",
+          "2024-05-21T19:00:00Z",
+          "2024-05-21T19:15:00Z",
+          "2024-05-21T19:30:00Z",
+          "2024-05-21T19:45:00Z",
+          "2024-05-21T20:00:00Z",
+          "2024-05-21T20:15:00Z",
+          "2024-05-21T20:30:00Z",
+          "2024-05-21T20:45:00Z",
+          "2024-05-21T21:00:00Z",
+          "2024-05-21T21:15:00Z",
+          "2024-05-21T21:30:00Z",
+          "2024-05-21T21:45:00Z",
+          "2024-05-21T22:00:00Z",
+          "2024-05-21T22:15:00Z",
+          "2024-05-21T22:30:00Z",
+          "2024-05-21T22:45:00Z",
+          "2024-05-21T23:00:00Z",
+          "2024-05-21T23:15:00Z",
+          "2024-05-21T23:30:00Z",
+          "2024-05-21T23:45:00Z"
+        ],
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
         "event_report": null
