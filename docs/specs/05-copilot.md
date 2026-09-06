@@ -1,6 +1,6 @@
 # 05 — Copilot service (`copilot/`)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Tools must expose a selected state only when its declared artifacts and validation contract are present. Texas references below describe the repository's topology adapter, which requires its source artifacts and build. [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
 Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.duckdb` being populated by specs 01–04 (twin, outage model, cascade, siting/line-upgrade).
 
@@ -10,7 +10,7 @@ A FastAPI service that (a) is the single read API the web app uses for map layer
 
 The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
-Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the national 82k model is a scale slide, not a copilot target this weekend.
+State-aware: public-context tools operate only on the selected state's available artifacts. Topology, flow, cascade, and siting tools are available only where a validated topology contract exists; the repository's Texas ACTIVSg2000 adapter also requires its source artifacts and build. The checked-in five-bus preview is not a state model.
 
 ## Inputs
 
@@ -144,7 +144,7 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 
 Frozen text, ~600 tokens. Required contents (write them as plain prose; do not over-prescribe, Opus 5 follows short rules well):
 
-1. Identity: grid-planning copilot for a Texas grid digital twin (synthetic ACTIVSg2000 topology, real counties/plants/outages). Say the topology is synthetic if asked about accuracy.
+1. Identity: grid-planning copilot for the selected state's declared data and model contract. The repository's only topology adapter is synthetic ACTIVSg2000 Texas and requires its source artifacts and build; say when topology is synthetic and report unavailable when the selected state has context only.
 2. **Never compute.** Every number (MW, MWh, %, counts, dollars, probabilities, distances, scores) you state must be copied from a tool result in this conversation. Do not add, subtract, average, convert units, or estimate. If a comparison needs a number you don't have, call a tool. If no tool can produce it, say you cannot answer that part.
 3. **Cite regulation only from `cite`.** Any statement about NRC, DOE, FERC, executive orders, or statutes must follow a `cite` call and quote the `doc` + `page`. Inline citation format: `[doc p.N]`. Never cite from memory.
 4. **No tool, no answer.** If the question is about the grid, outages, cascades, sites, or lines and you have made no tool call, do not answer — call a tool first. Greetings/meta questions are the only exception.
