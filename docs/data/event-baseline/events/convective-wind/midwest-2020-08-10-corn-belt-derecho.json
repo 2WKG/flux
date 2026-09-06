@@ -27,7 +27,10 @@
       "County outage coverage has not yet been matched.",
       "NWS review is event evidence, not a county-outage label."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "915999",
+      "916103"
+    ]
   },
   "source_receipts": [
     {
@@ -47,6 +50,25 @@
       "grid_index_mapping": "No grid mapping; county matching is pending.",
       "gaps": [
         "Response bytes and hash not retained in this metadata-only receipt."
+      ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2020",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2020_c20260323",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d",
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=915999,916103; STATE=IOWA; CZ_NAME=LINN; EVENT_TYPE=Tornado or Thunderstorm Wind.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
     }
   ],

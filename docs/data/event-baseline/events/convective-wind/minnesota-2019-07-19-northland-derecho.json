@@ -27,7 +27,10 @@
       "Event timing and county source IDs require NCEI verification.",
       "No matched county outage evidence yet."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "843853",
+      "843854"
+    ]
   },
   "source_receipts": [
     {
@@ -47,6 +50,25 @@
       "grid_index_mapping": "No grid mapping.",
       "gaps": [
         "Detailed event record and coverage receipt are pending."
+      ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2019",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2019_c20260323",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=843853,843854; STATE=MINNESOTA; CZ_NAME=PINE; EVENT_TYPE=Thunderstorm Wind.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
     }
   ],
