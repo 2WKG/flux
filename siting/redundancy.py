@@ -139,8 +139,11 @@ def score_redundancy(
 
 
 def _unavailable_result(
-    target: Any, evidence: dict[str, Any], reason: str, *, branch_count: int) -> dict[str, Any]:
-    evidence.update({"status": "unavailable", "reason": reason, "active_branch_count": branch_count})
+    target: Any, evidence: dict[str, Any], reason: str, *, branch_count: int
+) -> dict[str, Any]:
+    evidence.update(
+        {"status": "unavailable", "reason": reason, "active_branch_count": branch_count}
+    )
     return {
         "bus_id": target,
         "score": 0.0,
@@ -172,7 +175,11 @@ def _graph_from_net(net: Any) -> tuple[nx.MultiGraph, list[dict[str, Any]]]:
             _field(
                 row,
                 "branch_id",
-                _field(row, "element_id", _field(row, "flux_element_id", _field(row, "id", position))),
+                _field(
+                    row,
+                    "element_id",
+                    _field(row, "flux_element_id", _field(row, "id", position)),
+                ),
             )
         )
         kind = str(_field(row, "kind", _field(row, "element_type", "line")))
@@ -195,7 +202,11 @@ def _branch_rows(net: Any) -> Iterable[Any]:
     if explicit is not None:
         yield from _rows(explicit)
         return
-    for table_name, kind in (("line", "line"), ("impedance", "impedance"), ("trafo", "trafo")):
+    for table_name, kind in (
+        ("line", "line"),
+        ("impedance", "impedance"),
+        ("trafo", "trafo"),
+    ):
         table = _value(net, table_name, None)
         for index, row in _indexed_rows(table):
             if _field(row, "id", None) is None:
@@ -210,8 +221,14 @@ def _source_buses(net: Any) -> set[Any]:
     else:
         # The cascade contract defines only ext_grid as grid forming.  A
         # generator's capacity does not make it an alternative source here.
-        tables = ("ext_grid",) if _value(net, "flux_element_lookup", None) is not None else ("ext_grid", "gen", "sgen")
-        rows = (row for name in tables for _, row in _indexed_rows(_value(net, name, None)))
+        tables = (
+            ("ext_grid",)
+            if _value(net, "flux_element_lookup", None) is not None
+            else ("ext_grid", "gen", "sgen")
+        )
+        rows = (
+            row for name in tables for _, row in _indexed_rows(_value(net, name, None))
+        )
     return {
         _normalise_bus_id(bus)
         for row in rows
@@ -220,12 +237,15 @@ def _source_buses(net: Any) -> set[Any]:
     }
 
 
-def _topology_components(graph: nx.MultiGraph, target: Any, sources: set[Any]) -> dict[str, Any]:
+def _topology_components(
+    graph: nx.MultiGraph, target: Any, sources: set[Any]
+) -> dict[str, Any]:
     distances = sorted(
         [
             (distance, source)
             for source in sources
-            if source in graph and (distance := _shortest_distance(graph, target, source)) is not None
+            if source in graph
+            and (distance := _shortest_distance(graph, target, source)) is not None
         ],
         key=lambda item: (item[0], _sort_key(item[1])),
     )
@@ -254,14 +274,20 @@ def _contingency_state(
 
         edits = (outage(branch["id"]),)
         component = next(
-            (item for item in island_primitives(net, edits) if _reported_bus_id(net, target) in item["bus_ids"]),
+            (
+                item
+                for item in island_primitives(net, edits)
+                if _reported_bus_id(net, target) in item["bus_ids"]
+            ),
             None,
         )
         cascade = run_cascade(net, edits)
         state = _topology_components_after_edit(graph, branch, target, sources)
         if component is not None:
             state["source_reachable"] = bool(component["has_grid_forming_source"])
-            state["reachable_source_count"] = int(bool(component["has_grid_forming_source"]))
+            state["reachable_source_count"] = int(
+                bool(component["has_grid_forming_source"])
+            )
         return state, {
             "lost_load_mw": cascade["lost_load_mw"],
             "served_load_mw": cascade["served_load_mw"],
@@ -288,7 +314,9 @@ def _shortest_distance(graph: nx.MultiGraph, start: Any, end: Any) -> int | None
         return None
 
 
-def _edge_disjoint_to_sources(graph: nx.MultiGraph, start: Any, sources: Iterable[Any]) -> int:
+def _edge_disjoint_to_sources(
+    graph: nx.MultiGraph, start: Any, sources: Iterable[Any]
+) -> int:
     # Convert each parallel branch to a distinct intermediate node.  A plain
     # Graph would incorrectly collapse parallel circuits into one edge.
     split = nx.Graph()
@@ -317,8 +345,12 @@ def _edge_disjoint_to_sources(graph: nx.MultiGraph, start: Any, sources: Iterabl
 def _contingency_impact(base: dict[str, Any], state: dict[str, Any]) -> float:
     if not state["source_reachable"]:
         return 10_000.0
-    distance_increase = max(0, (state["nearest_source_hops"] or 0) - (base["nearest_source_hops"] or 0))
-    source_loss = max(0, base["reachable_source_count"] - state["reachable_source_count"])
+    distance_increase = max(
+        0, (state["nearest_source_hops"] or 0) - (base["nearest_source_hops"] or 0)
+    )
+    source_loss = max(
+        0, base["reachable_source_count"] - state["reachable_source_count"]
+    )
     path_loss = max(0, base["edge_disjoint_paths"] - state["edge_disjoint_paths"])
     return 1_000.0 * path_loss + 100.0 * source_loss + distance_increase
 
@@ -353,11 +385,19 @@ def _synthetic_topology(net: Any) -> bool:
 
 
 def _value(value: Any, name: str, default: Any) -> Any:
-    return value.get(name, default) if isinstance(value, Mapping) else getattr(value, name, default)
+    return (
+        value.get(name, default)
+        if isinstance(value, Mapping)
+        else getattr(value, name, default)
+    )
 
 
 def _field(row: Any, name: str, default: Any) -> Any:
-    return row.get(name, default) if isinstance(row, Mapping) else getattr(row, name, default)
+    return (
+        row.get(name, default)
+        if isinstance(row, Mapping)
+        else getattr(row, name, default)
+    )
 
 
 def _mapping(row: Any) -> dict[str, Any]:

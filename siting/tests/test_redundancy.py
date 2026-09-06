@@ -21,7 +21,9 @@ def _toy_net() -> SimpleNamespace:
     )
 
 
-def test_n_minus_one_retains_an_alternative_source_and_names_worst_contingency() -> None:
+def test_n_minus_one_retains_an_alternative_source_and_names_worst_contingency() -> (
+    None
+):
     result = score_redundancy(_toy_net(), "load")
 
     assert result["evidence"]["status"] == "available"
@@ -44,7 +46,15 @@ def test_contingencies_are_bounded_by_highest_dptf_then_stable_branch_id() -> No
 
 def test_contingency_bound_never_exceeds_twenty() -> None:
     net = SimpleNamespace(
-        branches=[{"id": str(index), "from_bus": "load", "to_bus": f"source_{index}", "dptf": index} for index in range(25)],
+        branches=[
+            {
+                "id": str(index),
+                "from_bus": "load",
+                "to_bus": f"source_{index}",
+                "dptf": index,
+            }
+            for index in range(25)
+        ],
         sources=[{"bus": f"source_{index}"} for index in range(25)],
     )
 
@@ -108,12 +118,24 @@ def test_flux_network_uses_immutable_outage_and_cascade_adapters(tmp_path) -> No
 
     path = tmp_path / "toy.duckdb"
     with duckdb.connect(str(path)) as con:
-        con.execute("CREATE TABLE buses(bus_id BIGINT, name TEXT, base_kv DOUBLE, lon DOUBLE, lat DOUBLE, county_fips TEXT)")
-        con.execute("CREATE TABLE lines(line_id BIGINT, from_bus BIGINT, to_bus BIGINT, base_kv DOUBLE, r_pu DOUBLE, x_pu DOUBLE, rate_a_mw DOUBLE, length_km DOUBLE, is_transformer BOOLEAN)")
-        con.execute("CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT, fuel TEXT, pmax_mw DOUBLE)")
-        con.execute("CREATE TABLE loads(load_id BIGINT, bus_id BIGINT, p_mw_nominal DOUBLE)")
-        con.execute("INSERT INTO buses VALUES (10, 'source', 110, -97, 30, '48001'), (20, 'consumer', 110, -97.1, 30.1, '48001')")
-        con.execute("INSERT INTO lines VALUES (1, 10, 20, 110, 0.01, 0.1, 100, 1, false)")
+        con.execute(
+            "CREATE TABLE buses(bus_id BIGINT, name TEXT, base_kv DOUBLE, lon DOUBLE, lat DOUBLE, county_fips TEXT)"
+        )
+        con.execute(
+            "CREATE TABLE lines(line_id BIGINT, from_bus BIGINT, to_bus BIGINT, base_kv DOUBLE, r_pu DOUBLE, x_pu DOUBLE, rate_a_mw DOUBLE, length_km DOUBLE, is_transformer BOOLEAN)"
+        )
+        con.execute(
+            "CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT, fuel TEXT, pmax_mw DOUBLE)"
+        )
+        con.execute(
+            "CREATE TABLE loads(load_id BIGINT, bus_id BIGINT, p_mw_nominal DOUBLE)"
+        )
+        con.execute(
+            "INSERT INTO buses VALUES (10, 'source', 110, -97, 30, '48001'), (20, 'consumer', 110, -97.1, 30.1, '48001')"
+        )
+        con.execute(
+            "INSERT INTO lines VALUES (1, 10, 20, 110, 0.01, 0.1, 100, 1, false)"
+        )
         con.execute("INSERT INTO gens VALUES (1, 10, 'gas', 100)")
         con.execute("INSERT INTO loads VALUES (1, 20, 10)")
 
