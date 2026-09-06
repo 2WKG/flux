@@ -1,0 +1,26 @@
+{
+  "format": "flux:3d-archetype-source:v1",
+  "archetype_id": "residential_neighborhood",
+  "author_orientation": "-Z forward, Y up, right-handed",
+  "pivot": "ground_center",
+  "bounds_m": {"min": [-90, 0, -90], "max": [90, 16, 90]},
+  "materials": [
+    {"name": "MAT_STATUS", "base_color": "neutral_gray", "runtime_tinted": true},
+    {"name": "MAT_ROOF", "base_color": "neutral_roof", "runtime_tinted": false},
+    {"name": "MAT_ROAD", "base_color": "neutral_asphalt", "runtime_tinted": false}
+  ],
+  "nodes": [
+    {"name": "BLOCK_GROUND", "primitive": "box", "position_m": [0, 0.1, 0], "size_m": [180, 0.2, 180], "material": "MAT_ROAD"},
+    {"name": "MAIN_STREET", "primitive": "box", "position_m": [0, 0.25, 0], "size_m": [16, 0.1, 180], "material": "MAT_ROAD"},
+    {"name": "HOUSE_CLUSTER_NW", "primitive": "house_cluster", "position_m": [-48, 4, -45], "size_m": [56, 8, 56], "material": "MAT_STATUS"},
+    {"name": "HOUSE_CLUSTER_NE", "primitive": "house_cluster", "position_m": [48, 4, -45], "size_m": [56, 8, 56], "material": "MAT_STATUS"},
+    {"name": "HOUSE_CLUSTER_SW", "primitive": "house_cluster", "position_m": [-48, 4, 45], "size_m": [56, 8, 56], "material": "MAT_STATUS"},
+    {"name": "HOUSE_CLUSTER_SE", "primitive": "house_cluster", "position_m": [48, 4, 45], "size_m": [56, 8, 56], "material": "MAT_STATUS"},
+    {"name": "CONN_MV_FEED_0", "primitive": "empty", "position_m": [72, 0, 48]}
+  ],
+  "lods": {
+    "lod0": "four low-poly house clusters, streets, and roof detail",
+    "lod1": "four house-cluster masses with roads",
+    "lod2": "four recognisable residential masses and feeder attachment"
+  }
+}
