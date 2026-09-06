@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 from pathlib import Path
 
 import duckdb
@@ -12,6 +15,22 @@ from pydantic import ValidationError
 from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
+
+# Run in a subprocess so the failure is the one an operator sees: `copilot/app.py`
+# builds the app at module import, so a bad DUCKDB_PATH fails before any request.
+_IMPORT_PROBE = """
+import traceback
+
+from copilot.config import ConfigError
+
+try:
+    import copilot.app  # noqa: F401
+except ConfigError as error:
+    print("NAMED", type(error).__name__, error)
+    print("TRACEBACK", traceback.format_exc().replace(chr(10), " | "))
+else:
+    print("NO ERROR")
+"""
 
 
 def _fixture_database(path: Path, *, with_corpus: bool = True) -> None:
@@ -35,9 +54,17 @@ def test_settings_leave_the_model_unconfigured_when_copilot_model_is_unset(
     ("configured_path", "expected_error"),
     [
         ("", "non-empty local file path"),
+        ("   ", "non-empty local file path"),
         (".", "name a file, not a directory"),
-        (":memory:", "non-empty local file path"),
-        ("motherduck://token=private-db-token", "non-empty local file path"),
+        (":memory:", "not a DuckDB connection target"),
+        ("md:my_db", "not a DuckDB connection target"),
+        ("md:", "not a DuckDB connection target"),
+        ("md:?motherduck_token=private-db-token", "not a DuckDB connection target"),
+        ("ducklake:x", "not a DuckDB connection target"),
+        ("ducklake:metadata.ducklake", "not a DuckDB connection target"),
+        ("motherduck://token=private-db-token", "not a DuckDB connection target"),
+        ("http://host/private-db-token.duckdb", "not a DuckDB connection target"),
+        ("s3://bucket/grid.duckdb", "not a DuckDB connection target"),
     ],
 )
 def test_settings_reject_invalid_database_locations_without_exposing_input(
@@ -51,6 +78,84 @@ def test_settings_reject_invalid_database_locations_without_exposing_input(
         Settings(_env_file=None)
 
     assert "private-db-token" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [
+        Path("motherduck://token=private-db-token"),
+        Path("md:my_db"),
+        Path(":memory:"),
+        Path("ducklake:metadata.ducklake"),
+    ],
+)
+def test_settings_reject_connection_targets_passed_as_paths(
+    configured_path: Path,
+) -> None:
+    """Every in-repo call site passes a ``Path``, which normalises away ``://``."""
+    with pytest.raises(
+        ValidationError, match="not a DuckDB connection target"
+    ) as error:
+        Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert "private-db-token" not in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    ["grid.duckdb", "data/duck/grid.duckdb", "/tmp/flux/grid.duckdb"],
+)
+def test_settings_accept_ordinary_local_database_paths(configured_path: str) -> None:
+    assert Settings(_env_file=None, duckdb_path=configured_path).duckdb_path == Path(
+        configured_path
+    )
+
+
+def test_settings_normalise_surrounding_whitespace_in_the_database_path() -> None:
+    settings = Settings(_env_file=None, duckdb_path="  data/duck/grid.duckdb  ")
+
+    assert settings.duckdb_path == Path("data/duck/grid.duckdb")
+
+
+def test_settings_validate_the_database_path_without_opening_a_connection(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Validation is syntactic: a connection here would be a network side effect."""
+
+    def refuse(*args: object, **kwargs: object) -> None:
+        raise AssertionError("validation must not open a DuckDB connection")
+
+    monkeypatch.setattr(duckdb, "connect", refuse)
+
+    assert Settings(
+        _env_file=None, duckdb_path=tmp_path / "grid.duckdb"
+    ).duckdb_path == (tmp_path / "grid.duckdb")
+
+    with pytest.raises(ValidationError, match="not a DuckDB connection target"):
+        Settings(_env_file=None, duckdb_path="md:my_db")
+
+
+def test_bad_configuration_at_import_raises_a_named_error_without_the_value() -> None:
+    """`copilot/app.py` builds the app at import; operators must not get a traceback."""
+    result = subprocess.run(
+        [sys.executable, "-c", _IMPORT_PROBE],
+        capture_output=True,
+        text=True,
+        env={
+            **os.environ,
+            "DUCKDB_PATH": "md:private-db-token",
+            "PYTHONPATH": os.getcwd(),
+        },
+        check=False,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "NAMED ConfigError" in result.stdout
+    assert "duckdb_path" in result.stdout
+    assert "not a DuckDB connection target" in result.stdout
+    assert "private-db-token" not in result.stdout
+    assert "private-db-token" not in result.stderr
+    assert "pydantic" not in result.stdout
 
 
 def test_settings_accepts_a_missing_local_database_for_unavailable_health_state(

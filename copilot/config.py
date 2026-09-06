@@ -4,8 +4,25 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class ConfigError(RuntimeError):
+    """Raised when local configuration is unusable, naming the offending fields.
+
+    Carries field names only.  Values are never included: ``Settings`` sets
+    ``hide_input_in_errors=True`` so that a rejected ``DUCKDB_PATH`` (which can
+    carry a token) is not echoed into a traceback, a log, or a terminal.
+    """
+
+    def __init__(self, fields: tuple[str, ...], reasons: tuple[str, ...]) -> None:
+        self.fields = fields
+        self.reasons = reasons
+        joined = "; ".join(
+            f"{field}: {reason}" for field, reason in zip(fields, reasons)
+        )
+        super().__init__(f"Invalid Flux configuration -> {joined}")
 
 
 class Settings(BaseSettings):
@@ -29,11 +46,23 @@ class Settings(BaseSettings):
         valid artifact is reported as the documented unavailable health state.
         """
         value_text = str(value).strip()
-        if not value_text or "://" in value_text or value_text.lower() == ":memory:":
+        if not value_text:
             raise ValueError("DUCKDB_PATH must be a non-empty local file path")
 
+        # DuckDB reads remote and virtual databases from targets whose first path
+        # segment carries a colon: MotherDuck's `md:<db>`, `ducklake:<catalog>`,
+        # the in-memory `:memory:`, and any `scheme://host/...` URL.  A `Path`
+        # normalises `motherduck://x` to `motherduck:/x`, so the check is on the
+        # segment rather than on the `://` spelling.  Opening any of them would
+        # take this read-only local service off the filesystem and onto a network.
+        if ":" in value_text.split("/", 1)[0]:
+            raise ValueError(
+                "DUCKDB_PATH must be a local file path, not a DuckDB connection "
+                "target (md:, ducklake:, :memory:, or scheme://)"
+            )
+
         path = Path(value_text)
-        if path == Path(".") or path.is_dir():
+        if path.is_dir():
             raise ValueError("DUCKDB_PATH must name a file, not a directory")
         return path
 
@@ -45,3 +74,23 @@ class Settings(BaseSettings):
             and self.anthropic_api_key
             and self.anthropic_api_key.get_secret_value()
         )
+
+
+def load_settings(**overrides: object) -> Settings:
+    """Build ``Settings``, turning a validation failure into a named ``ConfigError``.
+
+    The pydantic ``ValidationError`` is the right thing to raise from a field
+    validator, but at the application boundary it reaches an operator as a raw
+    traceback out of module import.  This converts it to one loud, named line
+    that says which fields are wrong and why, and never what they were set to.
+    """
+    try:
+        return Settings(**overrides)  # type: ignore[arg-type]
+    except ValidationError as error:
+        fields: list[str] = []
+        reasons: list[str] = []
+        for detail in error.errors():
+            location = detail.get("loc") or ("<settings>",)
+            fields.append(".".join(str(part) for part in location))
+            reasons.append(str(detail.get("msg", "invalid value")))
+        raise ConfigError(tuple(fields), tuple(reasons)) from None
