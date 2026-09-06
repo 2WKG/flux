@@ -343,6 +343,33 @@ test("malformed aggregate coverage is a named refusal, never a TypeError", () =>
 
 });
 
+test("no adaptation this module can return permits topology rendering", () => {
+  // Gate 0 §2 keeps topology scenes disabled, and there is no topology variant
+  // to construct -- so the check is over everything reachable: both accept
+  // kinds and a refusal from each of the three entry points.
+  const reachable = [
+    adaptBoundPlacement(binding()),
+    adaptBoundPlacement(binding({ render_mode: "catalog_preview" })),
+    adaptAggregateCoverage(aggregateManifest()),
+    adaptAggregateCoverage(null),
+    adaptLayerToScene(collection()),
+    adaptLayerToScene(collection({ crs: undefined })),
+  ];
+  // Every kind the module can currently produce is represented above, so a new
+  // kind cannot quietly skip this assertion.
+  assert.deepEqual(
+    [...new Set(reachable.map((adaptation) => adaptation.kind))].sort(),
+    ["aggregate_coverage", "bound_placement", "rejected"],
+  );
+  for (const adaptation of reachable) {
+    assert.equal(
+      allowsTopologyRendering(adaptation),
+      false,
+      `${adaptation.kind}/${adaptation.reason ?? ""}`,
+    );
+  }
+});
+
 /** Every [number, number] pair reachable in the value, under any key name. */
 function coordinatePairsIn(value) {
   const found = [];

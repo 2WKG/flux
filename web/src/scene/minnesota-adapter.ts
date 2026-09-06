@@ -398,8 +398,23 @@ export function adaptAggregateCoverage(coverage: unknown): SceneAdaptation {
   };
 }
 
+/**
+ * The adaptation kinds that may drive a topology scene: lines, towers, flows.
+ *
+ * Empty while Gate 0 holds (`docs/design/minnesota-gate-0-approval.md:45-46`),
+ * and this list is the seam the `10-minnesota-demo.md` network decision gate
+ * would open: a topology variant would join `SceneAdaptation` and its kind
+ * would be listed here. Until then nothing this module can return is in the
+ * set -- including `bound_placement`, which is one point and only one point,
+ * and `aggregate_coverage`, which carries `renderableGeometry: false`.
+ *
+ * Keeping it a lookup over `kind` rather than a bare `return false` keeps the
+ * predicate falsifiable: adding a reachable kind here turns the assertions in
+ * `minnesota-adapter.test.mjs` red instead of passing silently.
+ */
+const TOPOLOGY_RENDERING_KINDS: readonly SceneAdaptation["kind"][] = [];
+
 /** True when the adaptation may drive a topology scene: lines, towers, flows. */
 export function allowsTopologyRendering(adaptation: SceneAdaptation): boolean {
-  void adaptation;
-  return false;
+  return TOPOLOGY_RENDERING_KINDS.includes(adaptation.kind);
 }
