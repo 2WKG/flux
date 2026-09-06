@@ -19,3 +19,5 @@ graphify-out/graph.html
 data/eda-report.json
 data/eda-summary.md
 data/demo/*.local.json
+# Local 3D asset deliveries; the contract forbids committing binaries
+build/
