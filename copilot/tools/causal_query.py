@@ -37,6 +37,15 @@ _ARTIFACT_SCHEMA_PATH = _REPO_ROOT / "docs" / "causal-evidence-artifact.schema.j
 # CLAUDE.md: ``[UNVERIFIED]`` claims remain unresolved, so they can never be
 # served as identifying assumptions or supporting evidence.
 UNVERIFIED_TAG = "[UNVERIFIED"
+# Artifacts are small JSON documents; anything larger is refused before it is
+# read so a runaway file can neither exhaust memory nor overflow the decoder.
+MAX_ARTIFACT_BYTES = 2 * 1024 * 1024
+# ``CausalData.assumptions`` is unbounded on the frozen wire model
+# (``copilot/tools/schemas.py``), so the reader bounds it at the read boundary
+# with the same limits ``docs/causal-evidence-artifact.schema.json`` declares.
+MAX_TEXT_LIST_ITEMS = 50
+MAX_TEXT_LIST_ITEM_LENGTH = 1024
+MAX_ESTIMAND_LENGTH = 256
 _default_reader: CausalArtifactReader | None = None
 
 
@@ -104,9 +113,17 @@ class CausalArtifactReader:
                 "unsupported_request", "Causal query selection is not registered."
             )
         try:
+            size = registration.path.stat().st_size
+            if size > MAX_ARTIFACT_BYTES:
+                return unavailable_output(
+                    "artifact_unavailable",
+                    "Causal evidence artifact exceeds the size cap "
+                    f"({size} > {MAX_ARTIFACT_BYTES} bytes).",
+                )
             artifact = _load_json_object(registration.path)
-        except (OSError, TypeError, ValueError) as error:
-            # ``json.JSONDecodeError`` and ``UnicodeDecodeError`` are ValueErrors.
+        except (OSError, TypeError, ValueError, RecursionError) as error:
+            # ``json.JSONDecodeError`` and ``UnicodeDecodeError`` are ValueErrors;
+            # deeply nested documents overflow the decoder with RecursionError.
             return unavailable_output(
                 "artifact_unavailable",
                 f"Causal evidence artifact is unavailable ({type(error).__name__}).",
@@ -190,22 +207,29 @@ def _unavailable_for_validation(validation: ValidationResult) -> UnavailableOutp
 
 
 def _carries_unverified_claim(artifact: Mapping[str, Any]) -> bool:
-    """True when any model-facing assumption or evidence text is ``[UNVERIFIED]``."""
+    """True when any string anywhere in the artifact is tagged ``[UNVERIFIED``.
 
-    estimate = _mapping(artifact.get("estimate"))
-    texts: list[Any] = [
-        *_sequence(artifact.get("assumptions")),
-        *_sequence(estimate.get("caveats")),
-        *(
-            _mapping(item).get("evidence")
-            for item in _sequence(artifact.get("diagnostics"))
-        ),
-        *(
-            _mapping(item).get("coverage")
-            for item in _sequence(artifact.get("sources"))
-        ),
-    ]
-    return any(isinstance(text, str) and UNVERIFIED_TAG in text for text in texts)
+    Every text field of the artifact can reach the model (question definitions,
+    population, source names, estimand, evidence, caveats, ...), so the guard
+    walks every string leaf rather than an allow-list of fields.
+    """
+
+    return any(UNVERIFIED_TAG in text for text in _string_leaves(artifact))
+
+
+def _string_leaves(document: object) -> Iterable[str]:
+    """Yield every string value (and key) in a JSON document, iteratively."""
+
+    stack: list[object] = [document]
+    while stack:
+        value = stack.pop()
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, Mapping):
+            stack.extend(value.keys())
+            stack.extend(value.values())
+        elif isinstance(value, list):
+            stack.extend(value)
 
 
 def evidence_from_artifact(artifact: Mapping[str, Any]) -> CausalEvidence:
@@ -266,7 +290,9 @@ def _available_response(
         interval=[lower, upper],
         evidence_rows=[
             {
-                "estimand": _required_text(estimate, "estimand"),
+                "estimand": _required_text(
+                    estimate, "estimand", max_length=MAX_ESTIMAND_LENGTH
+                ),
                 "effect": effect,
                 "interval": [lower, upper],
                 "confidence_level": _required_number(estimate, "confidence_level"),
@@ -299,16 +325,24 @@ def _sequence(value: object) -> Iterable[Any]:
 
 
 def _text_list(value: object) -> list[str]:
-    items = _sequence(value)
+    items = list(_sequence(value))
     if not all(isinstance(item, str) for item in items):
         raise TypeError("causal artifact text lists must contain only strings")
-    return list(items)
+    if len(items) > MAX_TEXT_LIST_ITEMS:
+        raise ValueError("causal artifact text list exceeds the item bound")
+    if any(len(item) > MAX_TEXT_LIST_ITEM_LENGTH for item in items):
+        raise ValueError("causal artifact text list item exceeds the length bound")
+    return items
 
 
-def _required_text(document: Mapping[str, Any], key: str) -> str:
+def _required_text(
+    document: Mapping[str, Any], key: str, *, max_length: int | None = None
+) -> str:
     value = document.get(key)
     if not isinstance(value, str) or not value:
         raise ValueError(f"missing required causal artifact text field: {key}")
+    if max_length is not None and len(value) > max_length:
+        raise ValueError(f"causal artifact text field exceeds its bound: {key}")
     return value
 
 

@@ -8,6 +8,7 @@ import pytest
 
 import copilot.tools.causal_query as causal_query_module
 from copilot.tools.causal_query import (
+    MAX_ARTIFACT_BYTES,
     CausalArtifactReader,
     RegisteredCausalArtifact,
     causal_query,
@@ -191,6 +192,39 @@ def test_non_utf8_artifact_bytes_are_unavailable_not_raised(tmp_path: Path) -> N
     assert "UnicodeDecodeError" in result.unavailable.reason
 
 
+def test_deeply_nested_artifact_is_unavailable_not_raised(tmp_path: Path) -> None:
+    # json.loads raises RecursionError (a RuntimeError, not a ValueError) here.
+    depth = 100_000
+    path = tmp_path / "effect.json"
+    path.write_text(
+        '{"artifact_version": "1.0.0", "a": ' + "[" * depth + "]" * depth + "}",
+        encoding="utf-8",
+    )
+    assert path.stat().st_size < MAX_ARTIFACT_BYTES
+
+    result = _reader(path).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "artifact_unavailable"
+    assert "RecursionError" in result.unavailable.reason
+
+
+def test_oversize_artifact_is_refused_before_it_is_read(tmp_path: Path) -> None:
+    path = tmp_path / "effect.json"
+    # Valid JSON (trailing whitespace is legal) that would be AVAILABLE if read.
+    document = json.dumps(_artifact())
+    path.write_text(
+        document + " " * (MAX_ARTIFACT_BYTES + 1 - len(document)), encoding="utf-8"
+    )
+    assert path.stat().st_size == MAX_ARTIFACT_BYTES + 1
+
+    result = _reader(path).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "artifact_unavailable"
+    assert "size cap" in result.unavailable.reason
+
+
 def test_schema_invalid_but_semantically_estimable_artifact_is_malformed(
     tmp_path: Path,
 ) -> None:
@@ -220,10 +254,48 @@ def _over_long_citation_locator(artifact: dict) -> None:
     artifact["citations"][0]["locator"] = "y" * 2049
 
 
+def _fifty_one_assumptions(artifact: dict) -> None:
+    artifact["assumptions"] = [f"assumption {index}" for index in range(51)]
+
+
+def _over_long_assumption(artifact: dict) -> None:
+    artifact["assumptions"] = ["a" * 1025]
+
+
+def _fifty_one_caveats(artifact: dict) -> None:
+    artifact["estimate"]["caveats"] = [f"caveat {index}" for index in range(51)]
+
+
+def _over_long_caveat(artifact: dict) -> None:
+    artifact["estimate"]["caveats"] = ["c" * 1025]
+
+
+def _over_long_estimand(artifact: dict) -> None:
+    artifact["estimate"]["estimand"] = "e" * 257
+
+
 @pytest.mark.parametrize(
     "mutate",
-    [_fifty_one_sources, _over_long_source_name, _over_long_citation_locator],
-    ids=["51-sources", "600-char-name", "2049-char-locator"],
+    [
+        _fifty_one_sources,
+        _over_long_source_name,
+        _over_long_citation_locator,
+        _fifty_one_assumptions,
+        _over_long_assumption,
+        _fifty_one_caveats,
+        _over_long_caveat,
+        _over_long_estimand,
+    ],
+    ids=[
+        "51-sources",
+        "600-char-name",
+        "2049-char-locator",
+        "51-assumptions",
+        "1025-char-assumption",
+        "51-caveats",
+        "1025-char-caveat",
+        "257-char-estimand",
+    ],
 )
 def test_schema_gate_mirrors_the_wire_contract_bounds(tmp_path: Path, mutate) -> None:
     artifact = _artifact()
@@ -235,6 +307,28 @@ def test_schema_gate_mirrors_the_wire_contract_bounds(tmp_path: Path, mutate) ->
     assert result.status == "unavailable"
     assert result.unavailable.code == "insufficient_evidence"
     assert "malformed" in result.unavailable.reason
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        # 200 x 100 KB = 20 MB of assumption text (also over the file size cap).
+        lambda artifact: artifact.update(assumptions=["a" * 100_000] * 200),
+        lambda artifact: artifact["estimate"].update(estimand="e" * 100_000),
+    ],
+    ids=["20MB-assumptions", "100KB-estimand"],
+)
+def test_unbounded_text_is_never_served_available(tmp_path: Path, mutate) -> None:
+    artifact = _artifact()
+    mutate(artifact)
+    path = _write(tmp_path / "effect.json", artifact)
+
+    result = _reader(path).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code in {"artifact_unavailable", "insufficient_evidence"}
+    assert not hasattr(result, "assumptions")
+    assert not hasattr(result, "evidence_rows")
 
 
 class _PermissiveValidator:
@@ -260,8 +354,23 @@ def _blank_artifact_id(artifact: dict) -> None:
         (_over_long_source_name, "ValidationError"),
         (_missing_effect, "TypeError"),
         (_blank_artifact_id, "ValueError"),
+        # ``CausalData.assumptions`` is unbounded on the frozen wire model, so
+        # these bounds must hold at the read boundary even past a loose schema.
+        (_fifty_one_assumptions, "ValueError"),
+        (_over_long_assumption, "ValueError"),
+        (_over_long_caveat, "ValueError"),
+        (_over_long_estimand, "ValueError"),
     ],
-    ids=["pydantic-too-long", "pydantic-string-too-long", "type-error", "value-error"],
+    ids=[
+        "pydantic-too-long",
+        "pydantic-string-too-long",
+        "type-error",
+        "value-error",
+        "read-bound-51-assumptions",
+        "read-bound-1025-char-assumption",
+        "read-bound-1025-char-caveat",
+        "read-bound-257-char-estimand",
+    ],
 )
 def test_contract_skew_never_raises(tmp_path: Path, mutate, cause: str) -> None:
     artifact = _artifact()
@@ -311,8 +420,46 @@ def test_citations_must_resolve_to_a_declared_source(tmp_path: Path, dangle) -> 
         lambda artifact: artifact["diagnostics"][0].update(
             evidence="[UNVERIFIED] balance table"
         ),
+        lambda artifact: artifact["sources"][0].update(
+            coverage="[UNVERIFIED] 2019-2023"
+        ),
+        lambda artifact: artifact["sources"][0].update(name="[UNVERIFIED] source"),
+        lambda artifact: artifact["question"]["treatment"].update(
+            definition="[UNVERIFIED] line hardening completed"
+        ),
+        lambda artifact: artifact["question"]["outcome"].update(
+            name="[UNVERIFIED] outage duration"
+        ),
+        lambda artifact: artifact["question"]["target_population"].update(
+            description="[UNVERIFIED] test population"
+        ),
+        lambda artifact: artifact["question"]["target_population"].update(
+            geography="[UNVERIFIED] test geography"
+        ),
+        lambda artifact: artifact["estimate"].update(estimand="[UNVERIFIED] ATE"),
+        lambda artifact: artifact["estimate"]["evidence"][0].update(
+            locator="[UNVERIFIED] table-1#row-7"
+        ),
+        lambda artifact: artifact["citations"][0].update(
+            locator="[UNVERIFIED] table-1#row-7"
+        ),
+        lambda artifact: artifact["sample"].update(period="[UNVERIFIED] test period"),
     ],
-    ids=["assumption", "caveat", "diagnostic-evidence"],
+    ids=[
+        "assumption",
+        "caveat",
+        "diagnostic-evidence",
+        "source-coverage",
+        "source-name",
+        "treatment-definition",
+        "outcome-name",
+        "target-population-description",
+        "target-population-geography",
+        "estimand",
+        "estimate-evidence-locator",
+        "citation-locator",
+        "sample-period",
+    ],
 )
 def test_unverified_claims_are_not_served_as_evidence(tmp_path: Path, tag) -> None:
     artifact = _artifact()
@@ -383,6 +530,10 @@ def test_public_tool_plumbs_its_arguments_to_the_registered_binding(
     # Distinct from every other fixture so a hard-coded assumptions list is caught.
     artifact["assumptions"] = ["parallel trends"]
     artifact["estimate"]["caveats"] = ["underpowered: n_treated < 15"]
+    # Distinct numbers too, so a hard-coded effect / confidence_level is caught.
+    artifact["estimate"]["effect"] = -2.25
+    artifact["estimate"]["interval"] = {"lower": -3.0, "upper": -1.5}
+    artifact["estimate"]["confidence_level"] = 0.9
     path = _write(tmp_path / "effect.json", artifact)
     configure_causal_artifacts(
         (RegisteredCausalArtifact(_request(), path, "observed"),)
@@ -390,8 +541,12 @@ def test_public_tool_plumbs_its_arguments_to_the_registered_binding(
 
     result = causal_query("effect", treatment="hardening_saidi")
     assert result.status == "available"
-    assert result.answer_numbers == {"effect": 1.5}
+    assert result.answer_numbers == {"effect": -2.25}
+    assert result.interval == [-3.0, -1.5]
     assert result.assumptions == ["parallel trends", "underpowered: n_treated < 15"]
+    assert result.evidence_rows[0]["effect"] == -2.25
+    assert result.evidence_rows[0]["interval"] == [-3.0, -1.5]
+    assert result.evidence_rows[0]["confidence_level"] == 0.9
     assert result.provenance[0].source_kind == "observed"
 
     other_treatment = causal_query("effect", treatment="firm_generation_100mw")
