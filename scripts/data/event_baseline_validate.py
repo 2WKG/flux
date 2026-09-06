@@ -8,10 +8,24 @@ cross-field reality contracts a JSON Schema cannot express.
 
 from __future__ import annotations
 
+import sys
+
+# This validator needs the interpreter pinned by pyproject.toml (>=3.12,<3.13):
+# `datetime.UTC` below is 3.11+, so an older interpreter would otherwise die on a
+# bare ImportError that reads like a bundle failure. Fail loudly, with its own
+# exit code, so an environment problem is never mistaken for a validation red.
+if sys.version_info < (3, 12):  # noqa: UP036 - the point is to catch older runtimes
+    sys.stderr.write(
+        "INTERPRETER event_baseline_validate.py requires Python >=3.12 "
+        f"(pyproject.toml requires-python); got {sys.version.split()[0]}. "
+        "This is an environment failure, not a bundle validation failure. "
+        "Run `uv run python scripts/data/event_baseline_validate.py ...`.\n"
+    )
+    raise SystemExit(2)
+
 import argparse
 import json
 import re
-import sys
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -266,6 +280,14 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
     if outage_coverage == "UncoveredLabel" and status != "UncoveredLabel":
         raise ValidationError(
             f"{where}: EAGLE-I gap requires label.status=UncoveredLabel"
+        )
+    if (
+        outage_coverage == "UncoveredLabel" or status == "UncoveredLabel"
+    ) and observed is not None:
+        raise ValidationError(
+            f"{where}: gap_recorded_as_zero — an uncovered window has no measured "
+            f"outage count, so observed_outage_customers must be null, not "
+            f"{observed!r}"
         )
     if status == "computed":
         if (
