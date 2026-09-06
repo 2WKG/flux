@@ -80,9 +80,10 @@ class InteractiveService:
             saved = self._edits.get(payload.edit_hash)
             if saved is None:
                 raise NotFoundError("The requested interactive edit is not available.")
-            if (saved.scenario_id, saved.hour, saved.element_ids) != (
+            if (saved.scenario_id, saved.hour, saved.seed, saved.element_ids) != (
                 payload.scenario_id,
                 payload.hour,
+                payload.seed,
                 tuple(payload.element_ids),
             ):
                 raise InvalidInputError("Cascade inputs do not match the immutable edit hash.")
