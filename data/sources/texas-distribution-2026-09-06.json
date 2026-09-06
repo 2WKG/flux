@@ -1,0 +1,153 @@
+{
+  "capture_method": "ArcGIS REST GET /query per layer: one where=1=1&returnCountOnly=true&f=json count, then one where=1=1&outFields=*&returnGeometry=true&f=json feature request with outSR omitted so the service answers in its own CRS",
+  "coverage": [
+    {
+      "asset_class": "distribution_feeder",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Primary distribution feeders in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "cable",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Underground and overhead distribution cable in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "substation",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Distribution substations in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "transformer",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Distribution transformers in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "distribution_equipment",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Distribution switching, protection and regulation devices in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "support",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Distribution supports in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    },
+    {
+      "asset_class": "pole",
+      "denominator_basis": "unknown",
+      "denominator_count": null,
+      "observed_count": 0,
+      "reason": "Distribution poles in Texas. Owner-held critical energy infrastructure; no public machine-readable Texas source was found. Owners and their written request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json. The count is unknown, not zero.",
+      "scope_id": "us-tx:distribution",
+      "source_scope": "Owner-published Texas electric service-area boundaries retrieved for owner attribution only; they contain no distribution asset geometry, so this class has no observed asset and no denominator.",
+      "status": "unavailable",
+      "unavailable_count": null,
+      "unknown_count": null
+    }
+  ],
+  "files": {
+    "us-tx-distribution.json": {
+      "bytes": 8066,
+      "note": "data/physical-inventory/ is gitignored bulk output; regenerate with the command in capture_method",
+      "path": "data/physical-inventory/us-tx-distribution.json",
+      "sha256": "47bf157153d3d4bbe4ebb459f4b7e63c70b9c8f45fbc67a9b58ed38a8a068f7f",
+      "tracked": false
+    }
+  },
+  "license_access": "Publisher terms as recorded per source in data/sources/texas-distribution-source-authority-ledger-v1.json",
+  "provider": "Three Texas electric utility owners publishing their own service-area layers",
+  "retrieved_at": "2026-09-06T13:54:19+00:00",
+  "source_url": [
+    "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/UTILITIESCOMMUNICATION_austin_energy_service_area/FeatureServer/0",
+    "https://services.arcgis.com/yHSU3Q4NlapEfzn5/arcgis/rest/services/New_Braunfels_Utilities_Service_Boundaries/FeatureServer/0",
+    "https://services6.arcgis.com/wHtOhDQeUxQY5fQy/arcgis/rest/services/Electric_Distribution/FeatureServer/90"
+  ],
+  "sources": [
+    {
+      "assets_created": 0,
+      "content_sha256": "77d6c8a2f3d5c27418aee1e9867e39e32825b1a5da3fdfd1a49ba373f8018b6b",
+      "declared_count": 1,
+      "features_reconciled_to_declared_count": true,
+      "layer_url": "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/UTILITIESCOMMUNICATION_austin_energy_service_area/FeatureServer/0",
+      "native_crs": "EPSG:2277",
+      "response_bytes": 70875,
+      "returned_features": 1,
+      "source_id": "austin-energy-electric-service-area"
+    },
+    {
+      "assets_created": 0,
+      "content_sha256": "bcee2ca4f437e32d3a6571edca8d90995e06f31c6a93c4cd97f05c4230a0d486",
+      "declared_count": 1,
+      "features_reconciled_to_declared_count": true,
+      "layer_url": "https://services.arcgis.com/yHSU3Q4NlapEfzn5/arcgis/rest/services/New_Braunfels_Utilities_Service_Boundaries/FeatureServer/0",
+      "native_crs": "EPSG:2278",
+      "response_bytes": 68349,
+      "returned_features": 1,
+      "source_id": "new-braunfels-utilities-electric-service-boundary"
+    },
+    {
+      "assets_created": 0,
+      "content_sha256": "5050e24f4a2002b41d1e34abb224e1505b699e3d2668683a81bd8c36bf561c86",
+      "declared_count": 42,
+      "features_reconciled_to_declared_count": true,
+      "layer_url": "https://services6.arcgis.com/wHtOhDQeUxQY5fQy/arcgis/rest/services/Electric_Distribution/FeatureServer/90",
+      "native_crs": "EPSG:2276",
+      "response_bytes": 302796,
+      "returned_features": 42,
+      "source_id": "granbury-electric-distribution-provider-areas"
+    }
+  ],
+  "uncertainty": "Texas distribution geometry is owner-held and largely not public. Every distribution class here is unavailable with a null denominator, which is an unknown count and never zero. The retrieved service-area boundaries are owner footprints and were deliberately not converted into feeders, cables, devices, supports or service connections. Owner request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json.",
+  "verification": {
+    "artifact_content_sha256": "12f06be1a289ea8ae42077a1b8bcf7578b77a78f252852b3df30176648d2b257",
+    "artifact_validated_by": "pipelines.physical_inventory.validate_artifact",
+    "connectivity_edges_created": 0,
+    "coverage_rows": 7,
+    "observed_assets": 0,
+    "result": "passed",
+    "terminals_created": 0,
+    "unavailable_coverage_rows": 7
+  },
+  "vintage": "Live hosted feature services; no publisher declares a version string"
+}

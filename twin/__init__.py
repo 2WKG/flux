@@ -1,46 +1,39 @@
-"""Grid-twin physics modules for synthetic topology only."""
+"""Grid-twin physics modules."""
 
-from twin.build import cached_base_network, model_geometry
-from twin.cascade import (
-    add_unit,
-    balance_report,
-    control_room_payload,
-    feasibility_report,
-    immutable_scenario_net,
-    placement_counterfactual,
-    rank_candidate_placements,
-    redundancy_report,
-    run_cascade,
-    scenario_identity,
-    texas_stress_preset,
-)
+from twin.build import build_network, network_summary
+from twin.cascade import island_primitives, run_cascade
 from twin.contracts import (
-    SYNTHETIC_TOPOLOGY_LABEL,
-    SimulationCancelledError,
+    GridEdit,
     SimulationError,
     SimulationInputError,
     SimulationSolveError,
     SimulationUnavailableError,
 )
+from twin.edits import (
+    add_generator,
+    add_line,
+    add_load,
+    apply_edits,
+    edit_hash,
+    outage,
+    remove,
+)
 
 __all__ = [
-    "SYNTHETIC_TOPOLOGY_LABEL",
-    "SimulationCancelledError",
+    "GridEdit",
     "SimulationError",
     "SimulationInputError",
     "SimulationSolveError",
     "SimulationUnavailableError",
-    "add_unit",
-    "balance_report",
-    "cached_base_network",
-    "control_room_payload",
-    "feasibility_report",
-    "immutable_scenario_net",
-    "model_geometry",
-    "placement_counterfactual",
-    "rank_candidate_placements",
-    "redundancy_report",
+    "add_generator",
+    "add_line",
+    "add_load",
+    "apply_edits",
+    "build_network",
+    "edit_hash",
+    "island_primitives",
+    "network_summary",
+    "outage",
+    "remove",
     "run_cascade",
-    "scenario_identity",
-    "texas_stress_preset",
 ]
