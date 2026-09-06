@@ -80,6 +80,17 @@
       "source_of_shape"
     ],
     "licence": "Every delivered model must state a licence that permits redistribution in this repository. A model derived from a third-party asset must name that asset and its licence in source_of_shape.",
+    "sourceKit": {
+      "root": "data/3d/assets/<archetype_id>/",
+      "committed": [
+        "<archetype_id>.scene.json",
+        "<archetype_id>.preview.svg",
+        "<archetype_id>.meta.json"
+      ],
+      "definition": "The required deliverables above are asset-pipeline outputs and are not in this repository. What an archetype author commits is the source kit: the scene source the GLB is exported from, the 512 px preview source the PNG is rendered from, and the meta file itself. A meta file must name the pipeline outputs under export.pipeline_outputs, never as a committed path.",
+      "checkedBy": "scripts/validate_asset_source.py and tests/test_asset_sources.py walk every directory under the root and validate each kit against the catalog row named by the directory.",
+      "renderedBy": "SVG to PNG and scene to GLB are the asset pipeline's work items (2WKG-374 Minnesota, 2WKG-320 Texas). No code on master performs either step."
+    },
     "storage": "Binary model files are not committed to Git. They are produced and stored per the asset-pipeline work item (2WKG-374 Minnesota / 2WKG-320 Texas); this contract governs their shape, not their hosting."
   },
   "crossProjectReuse": {
