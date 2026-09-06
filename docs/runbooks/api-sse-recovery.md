@@ -61,6 +61,19 @@ evidence. It is no longer current: 2WKG-300 settled the runtime contract as
 static assets only and removed the route, so the same request now returns the
 SPA shell.
 
+For every local rehearsal, run the repeatable contract check before presenting:
+
+```bash
+npm --prefix web run test:rehearsal
+```
+
+It starts the checked-in static origin on an ephemeral loopback port, verifies
+the shell and served bundle, checks each scenario balance, and asserts that the
+origin neither returns a demo API payload nor impersonates an SSE endpoint.
+Use `npm --prefix web run test:static-demo` for the built bundle's no-request
+and fixture-embedding contract. Neither command tests the public tunnel or a
+deployed API.
+
 ## Local recovery order
 
 1. Build and start the static origin as above. Verify `/` and
