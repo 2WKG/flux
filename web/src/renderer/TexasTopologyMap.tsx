@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LayersList } from "@deck.gl/core";
 import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
-import Map from "react-map-gl/maplibre";
+import Map, { NavigationControl } from "react-map-gl/maplibre";
 import { OFFLINE_BASEMAP_STYLE } from "./basemap";
 import { DeckOverlay } from "./DeckOverlay";
 import { loadFluxGridPlacements, type AssetPlacementBounds } from "../data/flux-grid-assets";
@@ -118,8 +118,9 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
       getRadius: 3, radiusUnits: "pixels", getFillColor: [96, 165, 250, 210], pickable: true }),
   ], [assets, buses, generators, lines, loads, zoom]);
   if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
-  return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"}>
+  return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"} data-visual-lod={zoom >= 17 ? "lod0" : zoom >= 15 ? "lod1" : zoom >= 12 ? "lod2" : "symbol"}>
     <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onMove={(event) => setZoom(event.viewState.zoom)} onError={(event) => setError(event.error.message)}>
+      <NavigationControl position="top-right" showCompass />
       <DeckOverlay layers={layers} />
     </Map>
     <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>

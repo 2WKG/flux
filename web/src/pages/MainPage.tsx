@@ -20,7 +20,6 @@ import { FailureState } from "../failure-states/FailureState";
 import { fromClientState } from "../failure-states/adapters";
 import type { FailureStateInput } from "../failure-states/types";
 import { Inspector } from "../inspector/Inspector";
-import type { InspectorAsset } from "../inspector/types";
 import { LayerControls } from "../layers/LayerControls";
 import { descriptorsFor } from "../layers/descriptor-adapter";
 import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "../layers/registry";
@@ -29,7 +28,6 @@ import { legendForLayer } from "../layers/legend";
 import { applyFilters, suppressesUncertainty, uncertainSuppressions } from "../layers/filters";
 import { createReadApiClient } from "../data/client-state";
 import { loadRegistryDataStatuses } from "../data/layer-status";
-import { loadScenarioAsset } from "../data/scenario-asset";
 import { runAsk } from "../data/ask-stream";
 import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
@@ -333,10 +331,6 @@ export function App() {
   // reason there is none. Nothing here falls back to a plausible value.
   const [dataStatuses, setDataStatuses] = useState<Readonly<Record<string, DataStatus>>>({});
   const [visibleLayerIds, setVisibleLayerIds] = useState<readonly string[]>([]);
-  const [inspectorAsset, setInspectorAsset] = useState<InspectorAsset>({
-    status: "unavailable", artifactLabel: "unavailable",
-    message: "The scenario read route has not answered yet.",
-  });
   const [apiFailure, setApiFailure] = useState<FailureStateInput | null>({
     kind: "loading",
     message: "Checking the evidence API for this scene.",
@@ -413,15 +407,6 @@ export function App() {
       .catch(() => undefined);
     return () => controller.abort();
   }, []);
-
-  // The inspector reads the scenario the shell has selected.
-  useEffect(() => {
-    const controller = new AbortController();
-    loadScenarioAsset(selected, READ_CLIENT, { signal: controller.signal })
-      .then((asset) => setInspectorAsset(asset))
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [selected]);
 
   // One probe decides what the dock is allowed to claim about itself. A health
   // route that does not answer is a named failure state, never a quiet default.
