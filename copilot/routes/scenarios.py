@@ -25,7 +25,7 @@ from pydantic import BaseModel, ConfigDict
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
-from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL, SyntheticTopologyLabel
 
 router = APIRouter(tags=["scenarios"])
 
@@ -64,7 +64,7 @@ class ScenarioProvenance(BaseModel):
     source_retrieved_at: datetime | None
     fixture_batch_id: str
     source_kind: Literal["fixture", "simulated"] | None
-    topology: Literal["synthetic (ACTIVSg2000)"] | None
+    topology: SyntheticTopologyLabel | None
 
 
 class ScenarioRow(BaseModel):
@@ -111,9 +111,7 @@ def _as_utc(value: object) -> datetime | None:
 
 def _derive_labels(
     source_name: str, source_ref: str
-) -> tuple[
-    Literal["fixture", "simulated"] | None, Literal["synthetic (ACTIVSg2000)"] | None
-]:
+) -> tuple[Literal["fixture", "simulated"] | None, SyntheticTopologyLabel | None]:
     if source_name.startswith(_FIXTURE_PREFIX):
         return "fixture", None
     haystack = f"{source_name} {source_ref}".casefold()
