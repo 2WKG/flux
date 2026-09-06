@@ -1,0 +1,98 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "nontropical-wind",
+  "event": {
+    "event_id": "il-2022-04-14-high-wind",
+    "parent_system_id": "sys-2022-04-14-great-lakes-low",
+    "primary_hazard": "non-tropical high wind",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2022-04-14T00:00:00Z",
+      "end_utc": "2022-04-16T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-04-14T12:00:00Z",
+      "end_utc": "2022-04-15T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-04-15T00:00:00Z",
+      "end_utc": "2022-04-16T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS Chicago annual summary identifies strong non-thunderstorm winds with isolated damage on April 14.",
+    "uncertainties": [
+      "Outside initial Minnesota focus; no matched coverage evidence."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-lot-annual-2022",
+      "provider": "NOAA National Weather Service Chicago",
+      "url": "https://www.weather.gov/lot/Annual2022",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:10:57Z",
+      "license_or_access": "Public NWS annual summary; no file-level license asserted.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Narrative summary.",
+      "timezone_conversion": "No source timestamp conversion asserted.",
+      "filters": "Candidate discovery only.",
+      "grid_index_mapping": "No grid mapping.",
+      "gaps": [
+        "Detailed event/coverage receipts pending."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "il-2022-04-14-high-wind-17031-1200",
+      "county_fips": "17031",
+      "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
+      "scenario_id": "il-2022-04-14-high-wind-replay",
+      "window_start_utc": "2022-04-14T12:00:00Z",
+      "window_end_utc": "2022-04-14T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "notes": "No retained HRRR receipt.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "notes": "No EAGLE-I result retained; not zero.",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": []
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      },
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": []
+    }
+  ]
+}
