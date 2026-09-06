@@ -200,6 +200,26 @@ at its largest generator bus (verified: `pp.create_ext_grid(net, bus)` on the is
 `rundcpp` serve the island and `res_ext_grid` reports one row per slack), and only then is
 `rundcpp` called.
 
+### `twin/toy_cascade.py` — the explainer's teaching solve (NOT the product solver)
+
+`web/src/pages/ExplainerPage.tsx` teaches this loop on a five-bus network small enough to check by
+hand. That teaching solve lives in `twin/toy_cascade.py`, on the server, next to this module and
+deliberately independent of it: no pandapower, no DuckDB, no weather, no county or critical-load
+attribution, five hand-picked reactances and ratings. It exists so a reader can follow the
+arithmetic, and it must **not** be reused as the product's screening model — `twin/cascade.py` is
+the do-operator for everything real.
+
+| Item | Where |
+|---|---|
+| Teaching solve | `twin/toy_cascade.py` (`run_toy_cascade`, `solve_toy_dc`, `toy_cascade_trace`) |
+| Frozen trace | `data/explainer/toy-cascade-trace.json`, written by `scripts/export_toy_cascade_trace.py` |
+| Read route | `GET /explainer/toy-cascade` (`copilot/routes/explainer.py`) serves those exact bytes; a missing artifact is `unavailable`, never an empty success |
+| Drift guard | `twin/tests/test_toy_cascade.py` re-solves and fails if the committed artifact is not what the server produces; `traceHash` digests the stages |
+| Browser | replays the trace only. `web/src/pages/explainerBoundary.test.mjs` fails if a solver shape reappears in the page or its trace module |
+
+The page's route entry in `web/src/router/index.ts` carries a `truthNote` that names
+`twin/toy_cascade.py`; `explainerBoundary.test.mjs` fails if the note and the page disagree.
+
 ## Interfaces
 
 ```python
