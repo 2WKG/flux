@@ -1,0 +1,37 @@
+{
+  "archetype_id": "residential_neighborhood",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Residential neighborhood",
+  "category": "load",
+  "source_scene": "residential_neighborhood.scene.json",
+  "export": {
+    "container": "glb",
+    "specification": "glTF 2.0",
+    "model_file": "residential_neighborhood.glb",
+    "preview_file": "residential_neighborhood.preview.png",
+    "preview_source": "residential_neighborhood.preview.svg",
+    "preview_pixels": 512,
+    "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
+  },
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {"length": 180, "width": 180},
+  "connectors": [{"name": "CONN_MV_FEED_0", "role": "MV_FEED", "position_m": [72, 0, 48]}],
+  "material_slots": [{
+    "name": "MAT_STATUS",
+    "default": "neutral",
+    "runtime_tinted": true,
+    "allowed_labels": ["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]
+  }],
+  "triangles": {"lod0": 36000, "lod1": 13000, "lod2": 3600},
+  "author": "Flux team",
+  "license": "MIT",
+  "source_of_shape": "Original generic Flux residential-block procedural archetype; it depicts no real homes, population, customers, ownership, or Minnesota placement.",
+  "limit": "A repeating residential block provides generic scale and texture only. It asserts no census population, household count, customer count, ownership, capacity, or Minnesota placement identity."
+}
