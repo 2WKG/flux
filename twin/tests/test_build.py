@@ -4,7 +4,12 @@ import duckdb
 import pandapower as pp
 import pytest
 
-from twin.build import _resolve_geometry_element, attach_current_bus_coordinates, build_network, network_summary
+from twin.build import (
+    _resolve_geometry_element,
+    attach_current_bus_coordinates,
+    build_network,
+    network_summary,
+)
 from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationUnavailableError
 
 
