@@ -170,9 +170,41 @@ replace an answer, tool value, citation, or success state.
 ## Completion, heartbeats, and reconnect
 
 Every attempt emits exactly one terminal event: one `done` or one `error`,
-never both. No application event may follow it. If cancellation or connection
-loss prevents delivery of a terminal event, the client marks the attempt
-incomplete, not completed. Servers should stop work promptly on disconnect.
+never both. No application event may follow it. Servers should stop work
+promptly on disconnect.
+
+**Normative — a terminal-less stream is `request_failed`.** If the stream closes
+(EOF, abort, or connection loss) with neither a terminal `done` nor a terminal
+`error`, the server has broken this contract, and the client marks the attempt
+**failed**, not completed and not merely incomplete. The client emits the frozen
+UI token `request_failed` — never `unavailable`, which is reserved for a cause
+the server itself declared — carrying the named code
+`stream_ended_without_terminal` so the surface shows which failure it is rather
+than a bare sentence. The client never fabricates the terminal event it did not
+receive: any text already delivered is retained as incomplete. Decided as OQ-1
+in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)
+on 2026-09-06. The rule and its reducer landed in
+`web/src/ask/run-state/reducer.ts` (the `stream_closed` action) and
+`web/src/failure-states/adapters.ts` (`fromStreamClose`); **no transport
+dispatches it yet.** The live SSE reader closes its stream at
+`web/src/data/transport.ts:226-228` with no reducer attached, so today a
+terminal-less stream still leaves the run in `active`. Wiring that close to
+`stream_closed` is follow-up **FU-4** in
+[`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md),
+and it is done when the chat dock mounts the run reducer (PR #252).
+
+**Which side owns a terminal-less close.** The rule above holds when the
+*server* walks away: an EOF or a connection loss with the client still
+listening is the server breaking its one-terminal-per-attempt contract, and the
+client is entitled to declare `request_failed`. A close the *client* caused is
+different: on a user Stop the browser aborts the request, and
+`copilot/routes/ask.py:117-119` re-raises `asyncio.CancelledError` without
+emitting a terminal, because there is no longer a reader to receive one. Under
+the rule as written that abort reads as "Request failed" rather than the
+stopped-on-purpose copy. The client cannot tell the two apart on its own —
+only a terminal `error` with code `cancelled` may report a confirmed
+cancellation — so the server should emit that terminal before re-raising:
+follow-up **FU-5**, server-side, not changed here.
 
 While active and otherwise silent for 15 seconds, a server should send a
 comment heartbeat:

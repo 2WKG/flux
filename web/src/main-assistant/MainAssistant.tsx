@@ -13,7 +13,6 @@ import { ChatDock, type ChatDockProps, type ChatError, type ChatStatus } from ".
 import { RunTrace } from "../ask/run-state/RunTrace";
 import type { RunIdentity, RunState, ToolResultEvent } from "../ask/run-state/types";
 import { sceneActionFromResult, type ReceivedSceneAction } from "../interactive/AgentSimulationAdapter";
-import "./main-assistant.css";
 
 export interface MainAssistantProps {
   /**

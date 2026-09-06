@@ -22,8 +22,8 @@ bundle are recorded in `splits/audit.json.receipt` and
 ## Status: insufficient_corpus
 
 `splits/audit.json` reports `"status": "insufficient_corpus"`, not `pass`. The
-bundle corpus in the tree today holds 40 bundles with **0 accepted
-county-window records** — 23 `candidate_only` and 17 `shortfall` — so all three
+bundle corpus in the tree today holds 58 bundles with **0 accepted
+county-window records** — 46 `candidate_only` and 12 `shortfall` — so all three
 splits are empty.
 An audit whose every leakage check is a collision detector cannot demonstrate
 anything on a corpus with no collisions, so the split generator refuses (exit
@@ -35,9 +35,8 @@ rows, at least one non-singleton group, and three non-empty splits; it lives in
 
 The manifests in [`splits/`](splits/) are still written, so the state is
 inspectable, but they are **not** a defensible held-out split and must not be
-used as one. They will be regenerated, and the status is expected to reach
-`pass`, once the remaining event-bundle PRs (#237, #238, #241, #243) land and
-the corpus carries accepted records again.
+used as one. They will be regenerated when the committed corpus carries enough
+validated accepted records to satisfy the declared split requirements.
 
 Nothing downstream reads a frozen catalog: every generator above reads the
 bundles under `--events-dir` at generation time, so a bundle downgraded from

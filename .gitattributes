@@ -11,3 +11,7 @@
 # data/artifacts/physical_inventory/manifest-<release>.json and re-hashed by
 # tests/test_physical_inventory_acceptance.py.
 *.gz binary
+
+# NumPy weight archives are zip streams: never line-ending normalised, because
+# the artifact records their SHA-256 (models/jepa writes both together).
+*.npz binary

@@ -103,9 +103,23 @@ export async function runAsk(
 
   const decoder = new TextDecoder();
   let buffer = "";
+  let closeReason: "eof" | "network" = "eof";
   try {
     for (;;) {
-      const chunk = await connection.data.reader.read();
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await connection.data.reader.read();
+      } catch (error) {
+        // A caller-directed abort is intentional cancellation, not a stream
+        // failure. The caller retains the rejected promise in that case.
+        if (options.signal?.aborted) throw error;
+
+        // Browser idle timeouts and broken sockets reject read() after the
+        // stream was accepted instead of yielding EOF. Route that path through
+        // the same single closure action as ordinary EOF.
+        closeReason = "network";
+        break;
+      }
       if (chunk.done) break;
       buffer += decoder.decode(chunk.value, { stream: true });
       const { frames, rest } = splitFrames(buffer);
@@ -124,8 +138,6 @@ export async function runAsk(
     connection.data.close();
   }
 
-  if (state.terminal === undefined) {
-    dispatch({ type: "malformed", identity, message: NO_TERMINAL_EVENT_MESSAGE });
-  }
+  dispatch({ type: "stream_closed", identity, reason: closeReason });
   return { state };
 }
