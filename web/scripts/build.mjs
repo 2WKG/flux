@@ -16,6 +16,9 @@ const html = process.env.FLUX_WEB_HTML ? path.resolve(process.env.FLUX_WEB_HTML)
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "assets"), { recursive: true });
 await cp(html, path.join(dist, "index.html"));
+// Runtime files placed under web/public are same-origin static assets. Copy
+// them before bundling so the production origin serves /assets/flux-grid/ too.
+await cp(path.join(webRoot, "public"), dist, { recursive: true, force: true });
 
 const result = await build({
   entryPoints: [entry],
