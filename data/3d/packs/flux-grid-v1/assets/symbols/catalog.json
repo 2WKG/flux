@@ -1,0 +1,179 @@
+{
+  "schemaVersion": 1,
+  "contractId": "flux:3d-asset-archetypes:v1",
+  "purpose": "Category identity pictograms for overview maps",
+  "semanticRule": "These neutral white glyphs identify archetype categories only. They encode no operational status, measured value, confidence, source label, capacity, charge state, retirement state, or placement identity. Status labels and any status markers are separate runtime data.",
+  "coordinateSystem": "SVG viewBox 0 0 24 24; white stroke #ffffff; stroke-width 2; round caps and joins; transparent background",
+  "provenance": "Lucide source nodes extracted without geometry changes except fixed battery polarity additions; original shapes composed for Flux. No letter-only glyphs or verification checkmarks.",
+  "sprite": {
+    "columns": 6,
+    "rows": 3,
+    "maplibreBase": "symbols/flux-grid",
+    "deckAtlas": "symbols/flux-grid@2x.png",
+    "deckMapping": "symbols/deck-icon-mapping.json"
+  },
+  "entries": [
+    {
+      "id": "transmission_line_segment",
+      "semantic_name": "Transmission towers and line segments",
+      "category": "network",
+      "mark": "Lattice transmission tower",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/transmission_line_segment.svg"
+    },
+    {
+      "id": "substation_transformer_yard",
+      "semantic_name": "Substation and transformer yard",
+      "category": "network",
+      "mark": "Transformer cabinet with twin bushings",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/substation_transformer_yard.svg"
+    },
+    {
+      "id": "military_base",
+      "semantic_name": "Military base",
+      "category": "critical_load",
+      "mark": "Shield",
+      "source": "Lucide shield, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/military_base.svg"
+    },
+    {
+      "id": "hospital",
+      "semantic_name": "Hospital",
+      "category": "critical_load",
+      "mark": "Standalone medical cross",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/hospital.svg"
+    },
+    {
+      "id": "water_treatment_plant",
+      "semantic_name": "Water treatment plant",
+      "category": "critical_load",
+      "mark": "Water droplet",
+      "source": "Lucide droplet, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/water_treatment_plant.svg"
+    },
+    {
+      "id": "coal_plant_retiring_site",
+      "semantic_name": "Coal plant and retiring plant site",
+      "category": "generation",
+      "mark": "Twin stack power plant",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/coal_plant_retiring_site.svg"
+    },
+    {
+      "id": "nuclear_smr_module",
+      "semantic_name": "New nuclear and SMR module",
+      "category": "generation",
+      "mark": "Atom",
+      "source": "Lucide atom, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/nuclear_smr_module.svg"
+    },
+    {
+      "id": "data_center_campus",
+      "semantic_name": "Data center campus",
+      "category": "load",
+      "mark": "Server rack",
+      "source": "Lucide server, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/data_center_campus.svg"
+    },
+    {
+      "id": "residential_neighborhood",
+      "semantic_name": "Residential neighborhood",
+      "category": "load",
+      "mark": "Two houses",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/residential_neighborhood.svg"
+    },
+    {
+      "id": "commercial_buildings",
+      "semantic_name": "Commercial buildings",
+      "category": "load",
+      "mark": "Office blocks",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/commercial_buildings.svg"
+    },
+    {
+      "id": "factory_industrial_facility",
+      "semantic_name": "Factory and industrial facility",
+      "category": "load",
+      "mark": "Sawtooth factory",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/factory_industrial_facility.svg"
+    },
+    {
+      "id": "natural_gas_plant",
+      "semantic_name": "Natural-gas power plant",
+      "category": "generation",
+      "mark": "Gas flame",
+      "source": "Lucide flame, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/natural_gas_plant.svg"
+    },
+    {
+      "id": "wind_turbine",
+      "semantic_name": "Wind turbines",
+      "category": "generation",
+      "mark": "Three bladed wind turbine on mast",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/wind_turbine.svg"
+    },
+    {
+      "id": "solar_array",
+      "semantic_name": "Solar arrays",
+      "category": "generation",
+      "mark": "Gridded solar panel with sun",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/solar_array.svg"
+    },
+    {
+      "id": "battery_storage",
+      "semantic_name": "Battery storage",
+      "category": "storage",
+      "mark": "Battery with fixed polarity terminals",
+      "source": "Lucide battery, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/battery_storage.svg"
+    },
+    {
+      "id": "warehouse_logistics_center",
+      "semantic_name": "Warehouse and logistics center",
+      "category": "load",
+      "mark": "Warehouse with broad loading door",
+      "source": "Original Flux category pictogram geometry",
+      "license": "CC0-1.0",
+      "svg": "svg/warehouse_logistics_center.svg"
+    },
+    {
+      "id": "ev_charging_station",
+      "semantic_name": "EV charging station",
+      "category": "load",
+      "mark": "Electrical plug with lightning",
+      "source": "Lucide plug-zap, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/ev_charging_station.svg"
+    },
+    {
+      "id": "school_emergency_services",
+      "semantic_name": "School and emergency-services building",
+      "category": "critical_load",
+      "mark": "School building with central clock tower",
+      "source": "Lucide school, lucide-react 0.545.0",
+      "license": "ISC AND MIT",
+      "svg": "svg/school_emergency_services.svg"
+    }
+  ]
+}

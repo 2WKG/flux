@@ -21,12 +21,21 @@ class AssemblyError(PhysicalInventoryError):
 
 
 def canonical_state_id(geography_id: str) -> str:
-    """Resolve a documented state-qualified producer geography to its state key."""
-    if geography_id.startswith("us-") and len(geography_id) == 5:
+    """Resolve a documented state-qualified producer geography to its state key.
+
+    Refuses any other geography rather than defaulting to the input string: an
+    unrecognised producer geography must not become a state key by accident.
+    """
+    if re.fullmatch(r"[a-z]{2}", geography_id):
+        return geography_id
+    if re.fullmatch(r"us-[a-z]{2}", geography_id):
         return geography_id[3:]
     if re.fullmatch(r"[a-z]{2}:.+", geography_id):
         return geography_id[:2]
-    return geography_id
+    raise AssemblyError(
+        f"geography_id {geography_id!r} does not resolve to a state key; "
+        "use 'us-<state>' or '<state>:<scope>'"
+    )
 
 
 def assemble_artifacts(
