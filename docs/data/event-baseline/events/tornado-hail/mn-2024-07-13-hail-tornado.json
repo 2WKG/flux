@@ -28,7 +28,11 @@
       "Preliminary event material requires NCEI source IDs.",
       "No matched county outage evidence yet."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "1204575",
+      "1208467",
+      "1200955"
+    ]
   },
   "source_receipts": [
     {
@@ -48,6 +52,25 @@
       "grid_index_mapping": "No grid mapping.",
       "gaps": [
         "Coverage receipt pending."
+      ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2024",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2024_c20260728",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c",
+      "filtered_sha256": null,
+      "bytes": 12693243,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=1204575,1208467,1200955; STATE=MINNESOTA; CZ_NAME=RICE; EVENT_TYPE=Tornado or Hail.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
       ]
     }
   ],

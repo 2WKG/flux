@@ -29,7 +29,10 @@
       "Mixed hazards require parent-system grouping.",
       "No matched county coverage yet."
     ],
-    "source_event_ids": []
+    "source_event_ids": [
+      "1042825",
+      "1042829"
+    ]
   },
   "source_receipts": [
     {
@@ -50,6 +53,25 @@
       "gaps": [
         "NCEI source IDs and coverage receipts pending."
       ]
+    },
+    {
+      "receipt_id": "ncei-stormevents-2022",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625",
+      "retrieved_at_utc": "2026-09-06T07:17:05Z",
+      "license_or_access": "Public NCEI dataset; no file-level SPDX license asserted.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": null,
+      "bytes": 11817849,
+      "etag": null,
+      "units": "Storm Events detail reports in source units.",
+      "timezone_conversion": "Storm Events detail timestamps are local; CST-6 zone values were converted to UTC with daylight-saving time where applicable.",
+      "filters": "EVENT_ID=1042825,1042829; STATE=MINNESOTA; CZ_NAME=MAHNOMEN; EVENT_TYPE=Thunderstorm Wind or Tornado.",
+      "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
+      "gaps": [
+        "The report establishes an event occurrence and interval but does not supply a weather time series."
+      ]
     }
   ],
   "records": [
@@ -58,21 +80,34 @@
       "county_fips": "27087",
       "boundary_vintage": "TIGER/Line 2024 pending county crosswalk verification",
       "scenario_id": "mn-2022-06-24-northern-plains-replay",
-      "window_start_utc": "2022-06-24T00:00:00Z",
-      "window_end_utc": "2022-06-24T06:00:00Z",
+      "window_start_utc": "2022-06-25T00:00:00Z",
+      "window_end_utc": "2022-06-25T06:00:00Z",
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [],
       "weather": {
         "coverage": "uncovered",
-        "source_receipt_ids": [],
-        "notes": "No retained HRRR receipt.",
+        "source_receipt_ids": [
+          "ncei-stormevents-2022"
+        ],
+        "notes": "NCEI county event report 1042829 intersects this canonical window; no sampled weather time series is asserted.",
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {
+          "source_event_ids": [
+            "1042829"
+          ],
+          "source_window": {
+            "start_utc": "2022-06-25T01:16:00Z",
+            "end_utc": "2022-06-25T01:23:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "MN Mahnomen County",
+          "limitations": "County tornado report establishes a path occurrence only; it is not countywide damage or a time series."
+        }
       },
       "outage": {
         "coverage": "UncoveredLabel",
