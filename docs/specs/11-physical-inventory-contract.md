@@ -63,3 +63,14 @@ read API owns pagination, viewport filtering, and response envelopes; it reads
 these tables without changing their truth labels. Renderers consume the API
 payload. No consumer may promote a fixture/synthetic artifact, unknown
 coverage, unavailable geometry, or absent terminal edge into a real-grid claim.
+
+## State-release composition
+
+`pipelines.assemble_physical_inventory` joins validated partial artifacts into a
+new state release, such as `tx:physical-inventory:1.1.0`. It recognizes the
+documented `us-tx` producer alias as `tx`, retains sorted input content SHA-256
+values as `input_artifact_sha256s`, and preserves each coverage row without
+rolling counts into a completeness claim. Exact duplicate sources may be
+deduplicated, as may identical coverage rows; conflicting source IDs,
+duplicate physical identities, and conflicting class/scope coverage rows fail
+assembly.
