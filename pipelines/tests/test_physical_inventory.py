@@ -97,3 +97,14 @@ def test_rejects_missing_asset_coverage_overcount_and_unproven_derived_geometry(
     artifact["content_sha256"] = artifact_sha256(artifact)
     with pytest.raises(PhysicalInventoryError, match="derivation method"):
         validate_artifact(artifact)
+
+
+def test_accepts_registered_esri_source_crs_and_rejects_unknown_authority_code() -> None:
+    artifact = _artifact()
+    artifact["assets"][0]["geometry_crs"] = "ESRI:103705"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    assert validate_artifact(artifact) is artifact
+    artifact["assets"][0]["geometry_crs"] = "ESRI:999999999"
+    artifact["content_sha256"] = artifact_sha256(artifact)
+    with pytest.raises(PhysicalInventoryError, match="not a registered CRS"):
+        validate_artifact(artifact)
