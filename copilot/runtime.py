@@ -68,5 +68,12 @@ def run_turn(
             stream.error("cancelled", "The answer was cancelled.", retryable=True)
         )
         return tuple(events)
+    except Exception:  # noqa: BLE001 - provider exceptions must become safe SSE terminals.
+        events.append(
+            stream.error(
+                "upstream_error", "The model provider failed.", retryable=False
+            )
+        )
+        return tuple(events)
     events.append(stream.done(verified=True))
     return tuple(events)

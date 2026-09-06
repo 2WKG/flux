@@ -16,6 +16,11 @@ class CancelledProvider:
         raise CancelledError
 
 
+class FailingProvider:
+    def text(self, narration):
+        raise RuntimeError("provider failed")
+
+
 def _turn():
     result = CiteData(
         status="available",
@@ -77,3 +82,16 @@ def test_cancelled_provider_emits_cancelled_terminal():
     events = run_turn(CancelledProvider(), _turn())
     assert events[-1].event == "error"
     assert events[-1].data["error"]["code"] == "cancelled"
+
+
+def test_provider_failure_emits_one_ordered_error_terminal():
+    events = run_turn(FailingProvider(), _turn())
+    assert [event.event for event in events] == [
+        "lifecycle",
+        "tool_call",
+        "tool_result",
+        "citation",
+        "error",
+    ]
+    assert [event.seq for event in events] == list(range(1, 6))
+    assert events[-1].data["error"]["code"] == "upstream_error"
