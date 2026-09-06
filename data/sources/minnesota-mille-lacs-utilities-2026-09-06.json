@@ -1,0 +1,67 @@
+{
+  "retrieved_at": "2026-09-06T07:05:03Z",
+  "provider": "Mille Lacs County, Minnesota \u2014 County GIS",
+  "source_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer",
+  "source_version": "ArcGIS MapServer currentVersion 11.3, queried 2026-09-06",
+  "selection": "Two layers of the public Utilities MapServer were queried with where=1=1 (no spatial or attribute filter), outFields=* and returnGeometry=true, in the service's native spatial reference (ESRI:103705). Layer 1 (Gas Pipelines) is out of scope and was not captured. No clipping, reprojection, or attribute pruning was applied to the captured response bytes.",
+  "capture_method": "curl -sS '<source_url>' -o <path>; the committed files are the unmodified HTTP response bodies for the layer_query_url values below.",
+  "license_access": "The MapServer publishes no reusable license. The service-level copyrightText is 'Mille Lacs County MN' (both layers' layer-level copyrightText is empty). Retain that attribution and verify terms with Mille Lacs County GIS before redistribution.",
+  "layers": {
+    "2": {
+      "name": "Transmission Lines",
+      "source_id": "mille_lacs_county_utilities_mapserver_2026:transmission-lines-layer-2",
+      "layer_query_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+      "count_query_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&returnCountOnly=true&f=json",
+      "geometry_type": "esriGeometryPolyline",
+      "file": "data/physical-inventory/minnesota/mille-lacs-county/v1/lines.arcgis.json",
+      "raw_bytes": 22526,
+      "raw_sha256": "f8ca26cb493124c72dacefba9c282a79280cbf44926474102ea3c3943b55a583"
+    },
+    "0": {
+      "name": "Substations",
+      "source_id": "mille_lacs_county_utilities_mapserver_2026:substations-layer-0",
+      "layer_query_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+      "count_query_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&returnCountOnly=true&f=json",
+      "geometry_type": "esriGeometryPoint",
+      "file": "data/physical-inventory/minnesota/mille-lacs-county/v1/substations.arcgis.json",
+      "raw_bytes": 3704,
+      "raw_sha256": "57fb1a4267b8b657da4bcf0bc7d12251b19d396396237f4eacc7bd24218b9481"
+    }
+  },
+  "artifact": {
+    "path": "data/physical-inventory/minnesota/mille-lacs-county/v1/physical-inventory.json",
+    "artifact_id": "mn:mille-lacs-county:physical-inventory:1.0.0",
+    "builder": "pipelines.minnesota_mille_lacs_physical_inventory.build_artifact",
+    "bytes": 40584,
+    "file_sha256": "b9e1ea0f90b05495eaf004c1f82e24e08d27622533ea11ee73ff046b014c5959",
+    "content_sha256": "b72432b7a2647ee9ce4267e9686c3e245cfa650aa8ad8be33f0cc32124f6ba47"
+  },
+  "verification": {
+    "verified_at": "2026-09-06T07:51:37Z",
+    "method": "Both layer_query_url values were re-fetched from the live service and compared byte-for-byte with the committed capture files; both count_query_url values were fetched to confirm the captures are complete for the queried layers.",
+    "live_return_count_only": {
+      "2": 31,
+      "0": 11
+    },
+    "captured_feature_counts": {
+      "2": 31,
+      "0": 11
+    },
+    "live_bytes_match_committed_capture": {
+      "2": true,
+      "0": true
+    },
+    "native_spatial_reference": {
+      "wkid": 103705,
+      "latestWkid": 103705
+    },
+    "result": "passed"
+  },
+  "coverage": {
+    "status": "partial",
+    "denominator_count": null,
+    "reason": "The service publishes no authoritative count of in-scope transmission lines or substations, so the returned feature counts are observations, not denominators. Scope is Mille Lacs County only; this is not countywide utility completeness and not a Minnesota statewide inventory."
+  },
+  "connectivity": "No terminals and no connectivity edges were created. The source supplies geometry and attributes only; the artifact leaves both arrays empty rather than inferring electrical topology.",
+  "uncertainty": "Positional precision is unpublished in the queried layer metadata, so geometry_precision_m is null on every asset. maxRecordCount for this service is 1000 and both captures are far below it, so no exceededTransferLimit truncation applies to these captures."
+}

@@ -1,4 +1,5 @@
 import type { ArtifactRef, CompareInterventionsInput, RetrievalHit, ScenarioId } from "../../contracts/copilot-tools";
+import type { AssetStatus } from "../../labels";
 
 /**
  * The citation frame this component renders.
@@ -38,14 +39,33 @@ export interface ResultNumber {
   citationChunkId: string;
 }
 
-/** Frozen UI truth labels. The adapter passes the server/input status through unchanged. */
-export type ResultAvailability =
-  | "source_supported"
-  | "source_screened"
-  | "hypothetical"
-  | "synthetic"
-  | "unavailable"
-  | "request_failed";
+/**
+ * Frozen UI truth labels. The adapter passes the server/input status through
+ * unchanged. The six tokens are owned once by `src/labels.ts`; this name is an
+ * alias for the result surface and never restates the list.
+ */
+export type ResultAvailability = AssetStatus;
+
+/**
+ * The artifact-provenance axis, which is NOT the UI status vocabulary above.
+ * `docs/design/minnesota-gate-0-approval.md:51-66` freezes two separate layers:
+ * artifact provenance is `source_backed · synthetic · unavailable`, while the UI
+ * status is the six tokens of `src/labels.ts`. `docs/design/texas-demo-narrative-ia.md:77-82`
+ * says the same ("Artifact provenance remains a separate three-value layer").
+ *
+ * So `source_backed` here is correct and must not be "fixed" to `source_supported`:
+ * `src/labels.ts` says there is no `source_backed` *status* token, which is a claim
+ * about the other axis. `src/status-vocabulary.test.mjs` pins both halves.
+ */
+export type ArtifactTruthLabel = "source_backed" | "synthetic" | "unavailable";
+
+type AssertTrue<T extends true> = T;
+type Equals<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false;
+
+/** The frozen three-value axis. Renaming a member fails `tsc --noEmit` here. */
+type _ArtifactAxisIsFrozen = AssertTrue<Equals<ArtifactTruthLabel, "source_backed" | "synthetic" | "unavailable">>;
+/** `source_backed` is on the provenance axis only; it is never a UI status token. */
+type _SourceBackedIsNotAStatus = AssertTrue<Equals<Extract<ArtifactTruthLabel, AssetStatus>, "synthetic" | "unavailable">>;
 
 export interface ResultStatus {
   availability: ResultAvailability;
@@ -70,7 +90,8 @@ export interface ResultSceneAction {
   revision: string;
   label: string;
   source: "server" | "fixture";
-  geometry: "source_backed" | "synthetic" | "unavailable";
+  /** Artifact provenance, not UI status. See `ArtifactTruthLabel` above. */
+  geometry: ArtifactTruthLabel;
   /** Present only for the server-supported comparison tool. */
   comparison?: CompareInterventionsInput;
 }
