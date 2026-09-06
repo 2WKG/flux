@@ -41,11 +41,10 @@ and its extracted runtime manifest hashes to
 This release evidence is distinct from the historical source-only `archive.json`
 and `manifest.json`, whose unpublished binary pins remain unchanged.
 
-The receipt verifies the downloaded ZIP and its extracted runtime manifest. It
-does **not** establish that pre-existing files under the same-origin
-`/assets/flux-grid/` path match that release: current GLB bytes require a
-canonical asset repair and per-file validation before they can be called the
-published release's installed assets.
+The receipt verifies the downloaded ZIP and its extracted runtime manifest.
+The canonical asset repair separately validated all 54 installed same-origin
+`/assets/flux-grid/` GLBs byte-for-byte against that release's manifest; the
+receipt does not add any geography or placement authorization.
 
 No geography, server response, accepted placement or application scene is added.
 

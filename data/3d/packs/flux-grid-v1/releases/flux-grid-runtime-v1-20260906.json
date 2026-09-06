@@ -21,11 +21,11 @@
     "build": "Generated externally from this tracked procedural Blender pipeline using the frozen source contract.",
     "audit": "Independent external pack audit passed all 18 archetypes, 54 GLBs, metadata, LOD budgets, transforms, connectors, and 18 512px previews.",
     "placement_boundary": "The release contains reusable geometry only. It never authorizes Minnesota placement: rendering requires an accepted server artifact with independently accepted geography, provenance, and placement evidence.",
-    "same_origin_install_boundary": "This receipt verifies the published ZIP and its extracted runtime manifest. It does not verify that pre-existing same-origin installed GLBs match that release: a canonical asset repair must validate each installed GLB against canonical bytes before that claim is made."
+    "same_origin_install_boundary": "This receipt verifies the published ZIP and its extracted runtime manifest. The canonical asset repair separately validated all 54 installed same-origin GLBs byte-for-byte against that release's manifest; that validation does not authorize geography or placement."
   },
   "license": {
     "model_license": "CC0-1.0",
     "scope": "All 18 generated asset metadata records declare CC0-1.0; per-asset source-of-shape provenance is carried by the runtime manifest."
   },
-  "release_procedure": "Publication was read back from the named GitHub release: the exact asset URL served 5,321,737 bytes whose SHA-256 equals archive_sha256, and the extracted runtime manifest equals runtime_manifest_sha256. Install only after verifying the archive and release receipt; do not treat existing same-origin GLBs as matching this release until the canonical asset repair validates them. The static build serves validated installed bytes at the same-origin runtime_base_url."
+  "release_procedure": "Publication was read back from the named GitHub release: the exact asset URL served 5,321,737 bytes whose SHA-256 equals archive_sha256, and the extracted runtime manifest equals runtime_manifest_sha256. Install only after verifying the archive and release receipt. The canonical asset repair validated all 54 installed same-origin GLBs against that release's manifest; the static build serves those validated bytes at the same-origin runtime_base_url."
 }
