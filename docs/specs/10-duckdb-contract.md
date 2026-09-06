@@ -138,18 +138,30 @@ Scores retain `metric`, `score_components`, `model_mode`, `input_artifact_ids`, 
 `regulatory_label`. They are hypothetical model comparisons unless supporting evidence
 says otherwise and never become permitability, construction-readiness, or legal claims.
 
-## API and Copilot availability envelopes
+## Artifact availability on a tool result
 
-An available API or Copilot tool result has `availability="available"`, nonempty
-common-envelope `provenance`, `model_mode`, `limitations`, and `artifact_id`. Every
-number or model claim links through `field_provenance` to a source or model artifact.
+**Scope (D-1).** This section describes the **tool-result payload** — the artifact-availability
+shape a Copilot tool returns and that the HTTP layer carries *inside* a successful response body.
+It is **not** the HTTP envelope. The HTTP contract is owned by
+[`../api/envelopes.md`](../api/envelopes.md) and implemented in `copilot/api/envelope.py`, and the
+two disagree in a way that only one of them can win: `FailureEnvelope` is
+`ConfigDict(extra="forbid", frozen=True)` (`copilot/api/envelope.py:35`, `:63-67`), so an HTTP body
+**cannot** carry `availability`, `next_step`, a top-level `code`, `provenance`, or `limitations`,
+and `FailureCode` (`:24-29`) is exactly four values — `unavailable`, `invalid_input`, `not_found`,
+`internal_error`. There is deliberately no HTTP success envelope; success payloads are unwrapped.
+Read the paragraphs below as governing the payload, and `envelopes.md` as governing the wire.
 
-An unavailable result has exactly these top-level fields: `availability="unavailable"`,
-`status`, `code`, `message`, `next_step`, `artifact_id=null`, `model_mode=null`,
-`provenance=[]`, and `limitations`. It contains no invented result fields or numeric
-defaults. A missing source, corpus, configured provider, required model input, or
-unaccepted topology gate uses this envelope. Copilot reports the tool's envelope; it
-does not compute a replacement result.
+An available tool result has `availability="available"`, nonempty payload-level `provenance`,
+`model_mode`, `limitations`, and `artifact_id`. Every number or model claim links through
+`field_provenance` to a source or model artifact.
+
+An unavailable tool result has exactly these top-level payload fields:
+`availability="unavailable"`, `status`, `code`, `message`, `next_step`, `artifact_id=null`,
+`model_mode=null`, `provenance=[]`, and `limitations`. It contains no invented result fields or
+numeric defaults. A missing source, corpus, configured provider, required model input, or
+unaccepted topology gate uses this shape. Copilot reports the tool's result; it does not compute a
+replacement. When such a condition reaches the HTTP boundary it is raised as an `UnavailableError`
+and leaves as the 503 failure envelope `envelopes.md` defines, with the cause in `details.reason`.
 
 An unavailable artifact persisted for audit/rebuild still has its deterministic
 `artifact_id`, `availability="unavailable"`, and `model_mode="not_applicable"`; it has

@@ -12,9 +12,25 @@
 
 Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
 Source pitch: `docs/pitch/hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas").
-Every other spec in this directory conforms to the shared contract restated here. If a downstream
-spec disagrees with this file on a table name, column name, tool signature, or scenario ID, this
-file wins and the downstream spec is wrong.
+Every other spec in this directory conforms to the shared contract restated here.
+
+**Authority lattice (D-0).** Four documents used to claim the top of it in four different ways
+(`CLAUDE.md`, this file, `README.md`, `10-minnesota-demo.md`, `10-duckdb-contract.md`). One order
+now, highest first, and `CLAUDE.md` states the same one:
+
+1. **Executable source, migrations, generated wiring, and tests** are the fact. Where prose and
+   code disagree, the code wins and the prose is corrected with the change.
+   [`spec-code-reconciliation.md`](spec-code-reconciliation.md) is the standing ledger of the known
+   disagreements and how each was resolved.
+2. **[`10-minnesota-demo.md`](10-minnesota-demo.md) and
+   [`10-duckdb-contract.md`](10-duckdb-contract.md), inside what they explicitly supersede** —
+   Minnesota geography, scenarios, model mode, the storage/identity contract, and demo acceptance
+   language.
+3. **This file** for the rest of the shared technical contract: table names, column names, tool
+   signatures, scenario IDs, and the route inventory in §4.2. It wins over specs 01–09 and over
+   the design and build documents, and it is not limited to the four items the previous wording
+   listed.
+4. **Downstream feature specs (01–09), design documents, and runbooks.**
 
 ---
 
@@ -123,6 +139,16 @@ run for a scenario is seed 0 with no forced outages.
 | `forecast_72h` | forecast | run time | +72h | "Next 72 hours" live-look layer. Weather from NWS/HRRR forecast if reachable, else a synthetic winter-front designed to look like a forecast. Labelled honestly. |
 
 Exact `beryl_2024` / `helene_2024` windows are set by spec 01; the above are the defaults if 01 is silent.
+
+**Legacy scope note (D-5).** These four scenario IDs and the ERCOT/ACTIVSg2000 run order in §4.2
+below are the **legacy Texas path**, which [`README.md`](README.md) already declares superseded by
+[`10-minnesota-demo.md`](10-minnesota-demo.md) as *planning* authority. They stay here, unchanged,
+because they are what the code runs: `BUILT_LAYERS = frozenset({"buses"})`
+(`copilot/routes/layers.py:44`) serves the Texas `buses` table,
+`SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"` (`layers.py:59`, `scenarios.py:32`) is the
+only topology label any route emits, and **no `mn_*` read route exists**. Minnesota supersedes
+these as *plan*; it does not yet supersede them as *behaviour*. Do not present either as the
+other.
 
 ### 2.4 Copilot tools (shared contract — exact signatures)
 
@@ -259,13 +285,12 @@ list. No `/api/` prefix. Map data comes through one `GET /layers/{name}` endpoin
 ```
 GET  /health                                   → {ok, duckdb_path, tables, corpus_chunks, dense, model}
 GET  /scenarios                                → [{scenario_id, name, kind, ts_start, ts_end, hours, has_cascade, has_predictions}]
+GET  /scenarios/{scenario_id}                  → the same row shape for one scenario, unwrapped; unknown id is a `not_found` 404 failure envelope (`copilot/routes/scenarios.py:248`)
 GET  /layers/{name}?scenario_id=&hour=&run_id=&unit_mw=&tech=&res=
        name ∈ {buses, lines, gens, counties, critical_loads, outage_risk, cascade, sites,
                line_upgrades, storm, national_hex, eaglei}          (GeoJSON / Arrow IPC / JSON — see 05)
-POST /cascade      {element_ids, scenario_id, hour}   → run_cascade(...) dict
 GET  /cascade?scenario_id=&run_id=                    → one qualified persisted cascade_runs run, unwrapped {run_id, scenario_id, artifact_id, model_mode, geography_id, hours:[{hour, lost_load_mw (MW), …}], provenance:[…], limitations:[…], source_kind, topology, attributes} (05 §Routes, 2WKG-170)
 POST /site-score   {site_id, unit_mw, scenario_id}    → one persisted site_scores row, unwrapped {site_id, …, artifact_id, model_mode, limitations, source_kind, topology, provenance} — model metadata joined from mn_artifact_manifests, not from site_scores (05 §Routes, 2WKG-172)
-POST /predict      {county_fips, scenario_id, horizon_h?} → predict_outage(...) dict
 GET  /predictions?scenario_id=&county_fips=&model_kind=&limit=1000 → bare array of qualified persisted prediction rows, filtered in SQL before LIMIT (05 §Routes, 2WKG-104)
 GET  /lines/top?region=&tech=any&limit=50&offset=0    → one bounded deterministic page of the persisted line-upgrade ranking as the top_lines dict; limit is capped at TOP_LINES_MAX_LIMIT (50) and the frozen tool input top_lines(region, tech, n) stays unpaginated (05 §Routes, 2WKG-172)
 POST /compare      {scenario_id, intervention_ids}    → compare_interventions(...) dict + evidence/comparison_status; persisted deltas only, never derived (05 §Routes, A8, 2WKG-173)
@@ -273,16 +298,28 @@ GET  /elements/critical?region=&n=10&offset=0         → top_critical_elements(
 POST /ask          {attempt_id, question, context?, history?} → v1 text/event-stream (see docs/research/sse-event-schema.md)
 ```
 
+This list is the **eleven routes `copilot/app.py` actually mounts**, regenerated from
+`app.openapi()['paths']` and cross-checked against the `@router` decorators and
+`copilot/test_read_route_contracts.py:95-250`. Two previously listed routes, `POST /cascade` and
+`POST /predict`, **do not exist in any form on `master`** and are removed rather than marked
+planned: `GET /cascade` (`copilot/routes/predictions.py:445`) and `GET /predictions`
+(`copilot/routes/predictions.py:248`) are the persisted-artifact reads that replaced them, and
+nothing computes a cascade or a prediction inside a request. `GET /scenarios/{scenario_id}` was
+implemented and never documented here.
+
 The additive Minnesota `GET` routes are persisted-artifact reads with unwrapped
 payloads (only failures carry the envelope). `GET /cascade` selects a persisted cascade
 only when its model result is validated, its manifest is available with
 `model_mode: "topology"`, and its nonempty provenance and limitations are present; it
 labels the topology from the persisted provenance (synthetic ACTIVSg2000 or fixture) and
-never starts a cascade calculation. `POST /cascade` retains the compute-route contract
-above. `GET /predictions` returns only persisted predictions whose evaluation is
+never starts a cascade calculation. Nothing computes a cascade inside a request: the compute route
+that used to be described here was never implemented (D-3). `GET /predictions` returns only
+persisted predictions whose evaluation is
 qualified; absent or unqualified artifacts are unavailable rather than an empty success.
 
-Python entry points (owning spec's CLI wins; this list is the run order):
+Python entry points (owning spec's CLI wins; this list is the run order). This is the **legacy
+Texas run order** in the sense of the D-5 note in §2.3: it is what the repository can actually
+execute today, and `10-minnesota-demo.md` supersedes it as plan, not as behaviour.
 
 ```
 uv run python -m pipelines.run_all --texas                                         # 01 [name pinned here; 01 may rename]
@@ -297,6 +334,53 @@ uv run python -m causal.fit                                                     
 uv run uvicorn copilot.app:app --port 8000                                          # 05
 pnpm --dir web dev                                                                  # 06
 ```
+
+### 4.3 Truth vocabularies — two axes, not one (D-7)
+
+The repository carries **two** frozen label vocabularies at two different layers, and they are
+complementary, not competing. `docs/design/minnesota-gate-0-approval.md:51-66` froze both; this
+section names them so a reader of either one alone cannot mistake it for the other.
+
+| Axis | Owner on `master` | Values | Answers |
+|---|---|---|---|
+| **UI status** (`AssetStatus`) | `web/src/labels.ts:13-22` (`ASSET_STATUS_TOKENS`) | `source_supported` · `source_screened` · `hypothetical` · `synthetic` · `unavailable` · `request_failed` | what the browser renders *about a result*; every token is bound to a real server field by the narrative-IA status table |
+| **Artifact truth label** | `data/sources/minnesota-accepted-artifact-inventory.json` `truth_labels`, consumed by `pipelines/minnesota_asset_binding.py:275-292` | `source_backed` · `synthetic` · `unavailable` | what a piece of *evidence is*, at the inventory/binding layer |
+
+Consequences, all of them checkable:
+
+- `web/src/labels.ts:5-6` says "there is no `source_backed` token anywhere in the vocabulary". That
+  is true **of the UI-status axis only**. `web/src/ask/results/types.ts:73`
+  (`geometry: "source_backed" | "synthetic" | "unavailable"`) is the artifact axis, correctly
+  spelled, and must not be "fixed" to `source_supported`.
+- The 3D contract's `MAT_STATUS` slot binds exactly the **UI** set
+  (`data/3d/asset-archetypes-v1.json` `statusMaterials.allowedLabels`).
+- `illustrative` is **not** in either frozen set (`minnesota-gate-0-approval.md:68-79`), yet it is
+  still shipped in the inventory JSON's `truth_labels` and used as the negative case by six
+  pipeline tests. Removing it is a data-and-test change, tracked as a follow-up, not a doc edit.
+- The two axes **contradict at the binding seam**:
+  `pipelines/tests/test_minnesota_asset_binding.py:53` binds `truth_label: "source_backed"` while
+  `:208-216` asserts `source_supported` is *rejected*. That is a real behavioural question about
+  which axis the binder speaks, and it is filed as its own bug, not resolved here.
+
+### 4.4 `request_failed` is a display token with an open cause set (D-8)
+
+`request_failed` (UI axis, above) is the token the browser renders; it is **not** a cause. Three
+vocabularies sit under it, and no document previously said so:
+
+| Layer | Vocabulary | Where |
+|---|---|---|
+| HTTP failure code (closed, four values) | `unavailable` · `invalid_input` · `not_found` · `internal_error` | `copilot/api/envelope.py:24-29`; see [`../api/envelopes.md`](../api/envelopes.md) |
+| Server per-route cause | `details.reason` — seven for `/layers` (`copilot/routes/layers.py:98-112`), ~20 more named in spec 05; **all of them are `unavailable`, none is `request_failed`** | route modules |
+| Browser cause (open, eleven values) | `FailureKind` = `loading` · `empty` · `partial` · `unavailable` · `malformed` · `version_mismatch` · `network_failure` · `cancelled` · `timeout` · `oversized` · `failed` | `web/src/failure-states/types.ts:24-35`; bound to the frozen tokens at `:42-54` — seven collapse to `request_failed`, `unavailable` maps to itself, and `loading`/`empty`/`partial` map to `null` because they are not request outcomes |
+
+The SSE terminal-error set is the one place the docs and the code already agree, in the same order:
+`docs/research/sse-event-schema.md:126-127` = `web/src/chat/ChatDock.tsx:24-33` =
+`web/src/failure-states/adapters.ts:38-46` = `web/src/ask/run-state/types.ts:72-81`.
+
+**Open question — see [`spec-code-reconciliation.md`](spec-code-reconciliation.md) OQ-1.** Whether
+"a stream that ended without a terminal event is `request_failed`, not `unavailable`"
+(`docs/design/texas-demo-narrative-ia.md:98`) is normative is undecided; nothing implements it
+today.
 
 ---
 
@@ -464,7 +548,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
 - **A2 — one Python environment.** There is exactly one `pyproject.toml`, at the repo root (uv, Python 3.12). Spec 05's `copilot/pyproject.toml` is withdrawn; `copilot/` is a package inside the root env.
 - **A3 — `site_candidates.kind` enum is the contract's:** `coal_retired | coal_retiring | nuclear_existing | doe_federal | dod`. Spec 05's assumed `federal | defense` values map to `doe_federal | dod`. Texas has no INL/ORR/SRS/Paducah, so `doe_federal` holds only Pantex (flagged) in the Texas-first demo.
 - **A4 — additive tables accepted:** `line_upgrade_detail(...)` (spec 08, per-line card fields) and `corpus_chunks(...)` (spec 05, retrieval chunks, written at ingest time only). Spec 01's ingest runbook must create both.
-- **A5 — additive copilot surface accepted:** routes `POST /predict`, `GET /health`; layer names `eaglei`, `storm`, `national_hex`; `score_site` return adds `critical_loads_protected` and `regulatory_path`. The six tool signatures in the contract are unchanged.
+- **A5 — additive copilot surface accepted:** routes `GET /health` (and a compute-style predict route, **never implemented** — see D-3 in [`spec-code-reconciliation.md`](spec-code-reconciliation.md); the persisted read `GET /predictions` is what exists); layer names `eaglei`, `storm`, `national_hex`; `score_site` return adds `critical_loads_protected` and `regulatory_path`. The six tool signatures in the contract are unchanged.
 - **A6 — `tripped_element_ids_json` entries are objects** `{element_id, stage, cause}`, not bare strings (spec 03); every consumer (05, 06) parses them as objects.
 - **A7 — cascade solver default (rewritten after the 03/04 fact-check, `docs/specs/verification/03-04.md`):** pandapower `rundcpp` is the default and the only solver in scope, run hourly with **no stride** (spec 03). Measured: warm `pp.rundcpp` is 9–14 ms per solve, so a 168-hour `uri_2021` replay is ~6–12 s with plain pandapower. Budgets unchanged: 120 s per scenario, 10 s per copilot `run_cascade` call. lightsim2grid is **stretch-only and currently incompatible**: `init_from_pandapower` raises "Unsupported element (Impedance)" on this case (847 branches import as `net.impedance`); `solver="lightsim"` raises `NotImplementedError` until that is fixed.
 - **A9 — storage engine is DuckDB (closes the open `[DECISION]`).** `data/duck/grid.duckdb` is the
