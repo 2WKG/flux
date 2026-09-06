@@ -43,8 +43,9 @@ metadata, and the archive/version limitation. It must keep coverage
 `partial_stale_public_overlay`; it cannot construct substation points or
 connectivity from `SUB_1`/`SUB_2` values.
 
-The inventory contract can use the ledger's coverage rows directly: all unknown
-or unavailable physical classes retain a null denominator and null counts. The
-sole numeric connectivity observation is zero accepted source-backed edges,
-which is a record of this audit's accepted artifact set, not a claim that the
+The inventory contract must map this ledger's source-decision rows to its
+canonical class names (`line`, `generation`, `distribution_feeder`, and
+`terminal`) before ingestion. All unknown or unavailable physical classes
+retain a null denominator and null counts. The audit accepted zero
+source-backed edges; that is an artifact-set observation, not a claim that the
 Texas grid has zero connections.

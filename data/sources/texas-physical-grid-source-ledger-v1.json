@@ -125,7 +125,7 @@
   ],
   "coverage_rows": [
     {
-      "class_id": "generation_plant",
+      "class_id": "generation",
       "scope": "Texas, EIA Form 860 final annual survey selection",
       "source_id": "eia-860-2024-final",
       "denominator": null,
@@ -136,7 +136,7 @@
       "reason": "The authoritative source is available but this ledger deliberately owns no generation artifact; generation_inventory owns exact source acquisition and normalization."
     },
     {
-      "class_id": "transmission_line_segment",
+      "class_id": "line",
       "scope": "Texas",
       "source_id": "hifld-us-transmission-lines-2024-archive",
       "denominator": null,
@@ -158,7 +158,7 @@
       "reason": "The identified Texas source endpoint requires a token at audit time and is 2017 vintage. No public current statewide authoritative substation acquisition was verified."
     },
     {
-      "class_id": "distribution_line_or_device",
+      "class_id": "distribution_feeder",
       "scope": "Texas",
       "source_id": null,
       "denominator": null,
@@ -169,15 +169,15 @@
       "reason": "No public, statewide, authoritative, machine-readable distribution geometry/device source was verified. Utility service-area boundaries do not fill this gap."
     },
     {
-      "class_id": "real_electrical_connectivity",
+      "class_id": "terminal",
       "scope": "Texas",
       "source_id": null,
       "denominator": null,
-      "known_count": 0,
+      "known_count": null,
       "unknown_count": null,
       "unavailable_count": null,
       "status": "unavailable",
-      "reason": "No audited source supplies identified terminals and edge relations. HIFLD endpoint names and synthetic ACTIVSg2000 topology are expressly insufficient."
+      "reason": "No audited source supplies identified terminals and edge relations. HIFLD endpoint names and synthetic ACTIVSg2000 topology are expressly insufficient; accepted_source_backed_edge_count is 0 for this audit, which is not a physical-asset count."
     }
   ]
 }
