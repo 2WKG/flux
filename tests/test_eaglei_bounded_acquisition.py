@@ -206,6 +206,7 @@ def run_bounded(
         states={"Minnesota"},
         fips={"27137"},
         cache_dir=cache_dir,
+        allow_full_download=False,
         max_bytes=max_bytes,
         session=source,
     )
@@ -242,7 +243,12 @@ def test_bounded_acquisition_returns_the_requested_window(
     assert detail["reported_timestamp_min"] == start.strftime("%Y-%m-%d %H:%M:%S")
     assert (
         detail["coverage_by_county"]["27137"]["coverage_state"]
-        == "complete_15_min_observation"
+        == "not_assessed_from_bounded_range"
+    )
+    assert detail["coverage_by_county"]["27137"]["availability"] == "Unknown"
+    assert (
+        detail["coverage_by_county"]["27137"]["observed_intervals_in_retrieved_rows"]
+        == 4
     )
     assert detail["coverage_by_county"]["27137"]["expected_intervals_at_15_min"] == 4
 
@@ -267,7 +273,7 @@ def test_a_source_that_ignores_range_is_refused_not_downloaded_whole(
         run_bounded(source, tmp_path, monkeypatch)
 
 
-def test_full_download_is_opt_in_and_named_in_the_receipt(
+def test_default_acquisition_streams_the_complete_source_and_names_it_in_the_receipt(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: bytes
 ) -> None:
     source = FakeSource(body)
@@ -295,13 +301,105 @@ def test_full_download_is_opt_in_and_named_in_the_receipt(
         states={"Minnesota"},
         fips={"27137"},
         cache_dir=tmp_path,
-        allow_full_download=True,
         session=source,
     )
 
     assert streamed == [len(body)]
     assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
     assert result["receipt"]["bytes"] == len(body)
+
+
+def test_default_exhaustive_acquisition_handles_fips_major_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The default must not binary-search a locally sorted, globally reset CSV."""
+    lines = [HEADER]
+    for fips, county, state in (
+        ("06001", "Alameda", "California"),
+        ("27137", "St Louis", "Minnesota"),
+    ):
+        for index in range(100):
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            lines.append(f"{fips},{county},{state},{index},{stamp},123\n")
+    body = "".join(lines).encode()
+    source = FakeSource(body)
+    streamed: list[int] = []
+
+    class StreamResponse:
+        status_code = 200
+        headers: ClassVar[dict[str, str]] = {"ETag": SOURCE_ETAG}
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def iter_content(self, chunk_size: int):
+            streamed.append(len(body))
+            yield body
+
+    monkeypatch.setattr(eaglei.requests, "get", lambda *a, **k: StreamResponse())
+    start = BASE + timedelta(minutes=15 * 50)
+    result = eaglei.acquire(
+        event_id="fips-major-default",
+        year=2024,
+        start=start,
+        end=start + timedelta(hours=1),
+        states={"Minnesota"},
+        fips={"27137"},
+        cache_dir=tmp_path,
+        session=source,
+    )
+
+    assert streamed == [len(body)]
+    assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
+    assert result["eaglei"]["filtered_rows"] == 4
+    assert (
+        result["eaglei"]["coverage_by_county"]["27137"]["coverage_state"]
+        == "complete_15_min_observation"
+    )
+
+
+def test_bounded_fips_major_false_zero_never_claims_source_absence(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An explicit range probe may miss FIPS-major rows but must remain unknown."""
+    lines = [HEADER]
+    for fips, county, state in (
+        ("06001", "Alameda", "California"),
+        ("27137", "St Louis", "Minnesota"),
+    ):
+        for index in range(SAMPLES):
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+            lines.append(f"{fips},{county},{state},{index % 10},{stamp},123\n")
+    source = FakeSource("".join(lines).encode())
+    start = BASE + timedelta(minutes=15 * WINDOW_INDEX)
+    result = eaglei.acquire(
+        event_id="fips-major-bounded",
+        year=2024,
+        start=start,
+        end=start + timedelta(hours=1),
+        states={"Minnesota"},
+        fips={"27137"},
+        cache_dir=tmp_path,
+        allow_full_download=False,
+        max_bytes=2_000_000,
+        session=source,
+    )
+
+    detail = result["eaglei"]
+    assert detail["filtered_rows"] == 0  # reproduces the unsafe probe's false zero
+    assert detail["acquisition_complete"] is False
+    assert detail["coverage_summary"] == "Unknown"
+    assert detail["coverage_by_county"]["27137"] == {
+        "availability": "Unknown",
+        "coverage_state": "not_assessed_from_bounded_range",
+        "observed_intervals_in_retrieved_rows": 0,
+        "expected_intervals_at_15_min": 4,
+    }
+    assert "UncoveredLabel" not in result["receipt"]["gaps"]
 
 
 def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -312,10 +410,7 @@ def test_bounded_receipt_validates_against_the_event_baseline_receipt_schema(
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["receipt_id"].islower()
     assert isinstance(result["receipt"]["gaps"], list)
-    assert (
-        "the full annual file was not streamed"
-        in result["receipt"]["verification"]["notes"]
-    )
+    assert "the full annual file was not streamed" in result["receipt"]["verification"]["notes"]
 
 
 def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
@@ -345,28 +440,18 @@ def test_exhaustive_receipt_validates_against_the_event_baseline_receipt_schema(
     jsonschema.validate(result["receipt"], receipt_schema())
     assert result["receipt"]["license_or_access"].startswith("CC BY 4.0")
     assert result["receipt"]["capture_method"] == "exhaustive_annual_stream"
-    assert (
-        result["receipt"]["verification"]["sha256_computed_from_response_body"] is True
-    )
+    assert result["receipt"]["verification"]["sha256_computed_from_response_body"] is True
 
 
 def test_the_receipt_object_carries_no_fields_the_schema_forbids(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, body: bytes
 ) -> None:
-    """The published schema is where the receipt's field set is decided.
-
-    2WKG-461 made ``capture_method``, ``verification``, ``files`` and
-    ``uncertainty`` **required members of the receipt**, converging it on the
-    #199 convention, so they belong inside ``receipt`` and not beside it.
-    ``additionalProperties: false`` then means the receipt may carry those and
-    nothing else.
-    """
+    """The published schema is the receipt's single field definition."""
     result = run_bounded(FakeSource(body), tmp_path, monkeypatch)
-    published = receipt_schema()
 
-    assert set(result["receipt"]) <= set(published["properties"])
-    assert set(published["required"]) <= set(result["receipt"])
-    for field in ("capture_method", "verification", "files", "uncertainty"):
-        assert field in result["receipt"], field
+    schema = receipt_schema()
+    assert set(result["receipt"]) <= set(schema["properties"])
+    assert set(schema["required"]).issubset(result["receipt"])
+    assert result["receipt"]["capture_method"]
     assert "capture_method" not in result
     assert "verification" not in result
