@@ -50,6 +50,42 @@
       "gaps": [
         "Raw gzip and canonical filtered row remain outside Git."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20221212t180000-20221213t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:14:20.676242Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC.",
+      "filters": "Minnesota; FIPS 27105; UTC half-open [2022-12-12T18:00:00Z,2022-12-13T00:00:00Z); exhaustive annual stream.",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Qualified exhaustive annual scan found 0 of 24 expected 15-minute observations; this is UncoveredLabel, never zero.",
+        "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
+        "No customer denominator; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-12-12-ice-27105-20221212180000_eaglei_2022_20221212T180000_20221213T000000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      }
     }
   ],
   "records": [
@@ -63,7 +99,8 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "ncei_stormevents_2022_c20260625_dec"
+        "ncei_stormevents_2022_c20260625_dec",
+        "eaglei-2022-42547897-20221212t180000-20221213t000000"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
@@ -96,12 +133,39 @@
         "coverage": "UncoveredLabel",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20221212t180000-20221213t000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2022-12-12T18:00:00Z",
+          "2022-12-12T18:15:00Z",
+          "2022-12-12T18:30:00Z",
+          "2022-12-12T18:45:00Z",
+          "2022-12-12T19:00:00Z",
+          "2022-12-12T19:15:00Z",
+          "2022-12-12T19:30:00Z",
+          "2022-12-12T19:45:00Z",
+          "2022-12-12T20:00:00Z",
+          "2022-12-12T20:15:00Z",
+          "2022-12-12T20:30:00Z",
+          "2022-12-12T20:45:00Z",
+          "2022-12-12T21:00:00Z",
+          "2022-12-12T21:15:00Z",
+          "2022-12-12T21:30:00Z",
+          "2022-12-12T21:45:00Z",
+          "2022-12-12T22:00:00Z",
+          "2022-12-12T22:15:00Z",
+          "2022-12-12T22:30:00Z",
+          "2022-12-12T22:45:00Z",
+          "2022-12-12T23:00:00Z",
+          "2022-12-12T23:15:00Z",
+          "2022-12-12T23:30:00Z",
+          "2022-12-12T23:45:00Z"
+        ],
         "event_report": null,
-        "notes": "No retained EAGLE-I county extraction; coverage remains UncoveredLabel rather than zero."
+        "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
