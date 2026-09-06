@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
+from pathlib import Path, PureWindowsPath
 
 from pydantic import Field, SecretStr, ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -59,13 +59,28 @@ class Settings(BaseSettings):
         #
         # A Windows absolute path (`C:\flux\grid.duckdb`) has the same leading
         # colon, so it is admitted only where it really is one: on Windows,
-        # where `Path.is_absolute()` resolves the drive letter.  On POSIX
-        # `Path("Z:/x.duckdb")` is relative, and admitting it would have the
-        # service open a directory literally named `Z:`.  The connection-target
+        # where the drive letter makes the value absolute.  `PureWindowsPath`
+        # is asked that question directly instead of the ambient `Path`, so the
+        # branch is testable off Windows and identical on it.  On POSIX
+        # `Z:/x.duckdb` is relative, and admitting it would have the service
+        # open a directory literally named `Z:`.  The connection-target
         # spellings above carry no drive letter, so they stay relative — and
         # therefore refused — on Windows too.
+        #
+        # A UNC / network share (`\\server\share\grid.duckdb`, or its `//` form)
+        # has no colon at all, so it slips past the segment check while being
+        # exactly the off-the-filesystem target this guard exists to refuse.
+        # It is named separately so the operator sees why it was rejected.
+        if PureWindowsPath(value_text).drive.startswith("\\\\"):
+            raise ValueError(
+                "duckdb_path_network_target: DUCKDB_PATH must be a local file "
+                "path, not a UNC network share"
+            )
+
         looks_like_connection_target = ":" in value_text.split("/", 1)[0]
-        is_windows_absolute_path = os.name == "nt" and Path(value_text).is_absolute()
+        is_windows_absolute_path = (
+            os.name == "nt" and PureWindowsPath(value_text).is_absolute()
+        )
         if looks_like_connection_target and not is_windows_absolute_path:
             raise ValueError(
                 "DUCKDB_PATH must be a local file path, not a DuckDB connection "
