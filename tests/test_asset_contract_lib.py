@@ -209,3 +209,150 @@ def test_png_bytes_writes_a_decodable_image():
     assert raw[:8] == b"\x89PNG\r\n\x1a\n"
     assert int.from_bytes(raw[16:20], "big") == 4
     assert raw[25] == 2
+
+
+def _conformant_meta(catalog, archetype_id, renderer):
+    """A minimal delivery metadata built from the catalog, for rule-by-rule probes."""
+    from scripts.asset_contract_lib import (
+        catalog_entry,
+        expected_material,
+        expected_transform,
+    )
+
+    entry = catalog_entry(catalog, archetype_id)
+    meta = {
+        "archetype_id": entry["id"],
+        "contract_id": catalog["contractId"],
+        "semantic_name": entry["semantic_name"],
+        "category": entry["category"],
+        "minnesota_issue": entry.get("minnesota_issue"),
+        "catalog_limit": entry.get("limit"),
+        "container": catalog["runtime"]["container"],
+        "model_filename": f"{archetype_id}.glb",
+        "preview_filename": f"{archetype_id}.preview.png",
+        "preview_size_px": preview_pixels(catalog),
+        "transform": expected_transform(catalog),
+        "footprint_m": entry["footprint_m"],
+        "connectors": entry["connectors"],
+        "lod_triangle_budget": entry["lod_triangles"],
+        "triangles_lod0": None,
+        "triangles_lod1": None,
+        "triangles_lod2": None,
+        "material_slots": expected_material(catalog),
+        "author": "Flux hackathon team",
+        "license": "CC0-1.0",
+        "source_of_shape": "Original neutral archetype.",
+        "minnesota_context": {
+            "render_mode": "catalog_preview",
+            "truth_label": "unavailable",
+            "disclosure": "Catalogue preview — not Minnesota infrastructure yet.",
+        },
+        "export_recipe": {
+            "required_outputs": [
+                f"{archetype_id}.glb",
+                f"{archetype_id}.preview.png",
+            ],
+            "preview_renderer": renderer,
+            "model_producer": None,
+            "binary_policy": "No .glb is produced by this change.",
+        },
+    }
+    return meta
+
+
+@pytest.fixture
+def synthetic(catalog):
+    return _conformant_meta(catalog, "hospital", "scripts/asset_contract_lib.py")
+
+
+def test_validate_export_meta_accepts_a_catalog_shaped_delivery(catalog, synthetic):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    assert validate_export_meta(synthetic, catalog, "hospital") == []
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "expected"),
+    [
+        ("archetype_id", "bogus", "archetype_id does not match"),
+        ("contract_id", "flux:bogus:v9", "contract_id does not match"),
+        ("category", "not_a_category", "category does not match"),
+        ("container", "obj", "container must be the catalog runtime container"),
+        ("model_filename", "other.glb", "model_filename must be"),
+        ("preview_size_px", 256, "preview_size_px must be"),
+        ("license", "  ", "license and source_of_shape are required"),
+        ("catalog_limit", "no caveat", "catalog_limit must repeat"),
+        ("minnesota_issue", "2WKG-000", "minnesota_issue must match"),
+        ("transform", {}, "transform must match"),
+        ("material_slots", [], "neutral status slot"),
+        ("connectors", ["HV_MAGIC"], "is not in the shared vocabulary"),
+        ("triangles_lod0", 999999, "exceeds the contract ceiling"),
+        ("lod_triangle_budget", {"lod0": 1}, "lod_triangle_budget does not match"),
+    ],
+)
+def test_validate_export_meta_reports_each_broken_rule(
+    catalog, synthetic, key, value, expected
+):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    synthetic[key] = value
+    errors = validate_export_meta(synthetic, catalog, "hospital")
+    assert any(expected in error for error in errors), errors
+
+
+def test_validate_export_meta_reports_a_missing_contract_field(catalog, synthetic):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    del synthetic["author"]
+    assert any(
+        "missing the contract field author" in error
+        for error in validate_export_meta(synthetic, catalog, "hospital")
+    )
+
+
+def test_validate_export_meta_reports_a_broken_export_recipe(catalog, synthetic):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    synthetic["export_recipe"]["preview_renderer"] = "scripts/does_not_exist.py"
+    assert any(
+        "is not a file in this repository" in error
+        for error in validate_export_meta(synthetic, catalog, "hospital")
+    )
+
+
+def test_validate_export_meta_reports_a_retired_or_unknown_label(catalog, synthetic):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    synthetic["minnesota_context"]["disclosure"] = (
+        "Illustrative preview — not Minnesota infrastructure."
+    )
+    assert any(
+        "a label the catalog retires" in error
+        for error in validate_export_meta(synthetic, catalog, "hospital")
+    )
+    synthetic["minnesota_context"]["truth_label"] = "invented"
+    assert any(
+        "allowedLabels" in error
+        for error in validate_export_meta(synthetic, catalog, "hospital")
+    )
+
+
+def test_validate_export_meta_reports_an_inverted_disclosure(catalog, synthetic):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    synthetic["minnesota_context"]["disclosure"] = "This IS a real Minnesota hospital."
+    assert any(
+        "not Minnesota infrastructure" in error
+        for error in validate_export_meta(synthetic, catalog, "hospital")
+    )
+
+
+def test_validate_export_meta_reports_a_non_object_and_a_missing_archetype(catalog):
+    from scripts.asset_contract_lib import validate_export_meta
+
+    assert validate_export_meta(None, catalog, "hospital") == [
+        "metadata is not a JSON object"
+    ]
+    assert validate_export_meta({}, {"archetypes": []}, "hospital") == [
+        "hospital is missing from the shared catalog"
+    ]
