@@ -1613,17 +1613,92 @@
     },
     "SqlInput": {
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "parameters": {},
+            "query": {
+              "type": "string"
+            },
+            "template_id": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "properties": {
+            "parameters": {},
+            "query": {
+              "type": "null"
+            },
+            "template_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "template_id"
+          ]
+        }
+      ],
       "properties": {
+        "parameters": {
+          "description": "Bound values for positional placeholders in a deployment-owned template.",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "maxItems": 25,
+          "title": "Parameters",
+          "type": "array"
+        },
         "query": {
-          "maxLength": 5000,
-          "minLength": 1,
-          "title": "Query",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Legacy free-form SQL; unavailable when a template registry is configured.",
+          "title": "Query"
+        },
+        "template_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Named query advertised by the deployment's approved-template registry.",
+          "title": "Template Id"
         }
       },
-      "required": [
-        "query"
-      ],
       "title": "SqlInput",
       "type": "object"
     },

@@ -3,6 +3,16 @@
 The output deliberately contains county geography and plant-capacity context
 beside a *MISO balancing-authority* time series.  It has no electrical network
 and never allocates BA demand to Minnesota counties or service areas.
+
+Two kinds of digest appear in the manifest and they are not interchangeable:
+
+* ``upstream_sha256_unverified_offline`` is the SHA-256 of the upstream release
+  file as downloaded by the author at ``retrieved_at``.  Nothing in this
+  repository can recompute it because the upstream files are not committed; it
+  is a recorded claim, not something a test verifies.
+* ``file_sha256`` maps each committed evidence file written by this builder to
+  the SHA-256 of its canonical LF content.  Tests recompute and assert these, so
+  the digest must not depend on whether the checkout materialised CRLF or LF.
 """
 
 from __future__ import annotations
@@ -18,14 +28,53 @@ import pandas as pd
 
 FORMAT = "flux-minnesota-aggregate-v1"
 MISO_LABEL = "MISO balancing authority (not Minnesota demand)"
+UPSTREAM_SHA_KEY = "upstream_sha256_unverified_offline"
+UPSTREAM_CHECKSUM_STATUS = (
+    "upstream_sha256_unverified_offline values are digests of the author's "
+    "downloads at retrieved_at; the upstream files are not committed, so they "
+    "cannot be re-verified from this repository. file_sha256 values pin the "
+    "committed evidence files and are verified by tests."
+)
+COUNTY_COVERAGE_NOTE = (
+    "county_capacity_rows counts counties with at least one assigned operable "
+    "plant. A county absent from the county capacity file appears in "
+    "counties_without_assigned_plants; absence is not a zero-capacity claim and "
+    "not an unavailable value, it means this source assigned no plant there."
+)
+CAPACITY_FILE = "mn_county_plant_capacity_2024.csv"
+UNASSIGNED_FILE = "mn_unassigned_plant_capacity_2024.csv"
+CONTEXT_FILE = "miso_ba_context_2024_h1.csv"
+MANIFEST_FILE = "minnesota_aggregate_manifest_v1.json"
+CAPACITY_FLOAT_FORMAT = "%.3f"
+UNASSIGNED_FLOAT_FORMAT = "%.6f"
+CAPACITY_DECIMALS = 3
+CONTEXT_TIME_COLUMN = "UTC Time at End of Hour"
+CONTEXT_VALUE_COLUMNS = [
+    "Demand (MW)",
+    "Demand (MW) (Adjusted)",
+    "Net Generation (MW)",
+    "Total Interchange (MW)",
+]
 
 
 def _sha256(path: Path) -> str:
+    """Hash an upstream artifact by its exact bytes. Use only for binary releases."""
     digest = hashlib.sha256()
     with path.open("rb") as stream:
         for block in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(block)
     return digest.hexdigest()
+
+
+def _text_sha256(path: Path) -> str:
+    """Hash a Git-tracked text artifact by its canonical LF content.
+
+    The evidence CSVs this builder writes are tracked text, so a Windows checkout
+    materialises them with CRLF and a Linux one with LF. Hashing raw bytes would
+    pin a digest that only reproduces on the platform that generated it; the LF
+    form is the canonical index content and matches on both.
+    """
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def _eia860_capacity(
@@ -105,39 +154,76 @@ def _eia860_capacity(
 
 def _miso_context(path: Path) -> pd.DataFrame:
     source = pd.read_csv(path)
-    required = {
-        "Balancing Authority",
-        "UTC Time at End of Hour",
-        "Demand (MW)",
-        "Demand (MW) (Adjusted)",
-        "Net Generation (MW)",
-        "Total Interchange (MW)",
-    }
+    required = {"Balancing Authority", CONTEXT_TIME_COLUMN, *CONTEXT_VALUE_COLUMNS}
     missing = required - set(source.columns)
     if missing:
         raise ValueError(f"EIA-930 source is missing columns: {sorted(missing)!r}")
     result = (
         source.loc[source["Balancing Authority"].eq("MISO")]
-        .loc[
-            :,
-            [
-                "UTC Time at End of Hour",
-                "Demand (MW)",
-                "Demand (MW) (Adjusted)",
-                "Net Generation (MW)",
-                "Total Interchange (MW)",
-            ],
-        ]
+        .loc[:, [CONTEXT_TIME_COLUMN, *CONTEXT_VALUE_COLUMNS]]
         .copy()
     )
-    result["UTC Time at End of Hour"] = pd.to_datetime(
-        result["UTC Time at End of Hour"], utc=True, errors="coerce"
+    result[CONTEXT_TIME_COLUMN] = pd.to_datetime(
+        result[CONTEXT_TIME_COLUMN], utc=True, errors="coerce"
     )
-    if result.empty or result["UTC Time at End of Hour"].isna().any():
+    if result.empty or result[CONTEXT_TIME_COLUMN].isna().any():
         raise ValueError("EIA-930 MISO rows require parseable UTC timestamps")
-    if result["UTC Time at End of Hour"].duplicated().any():
+    if result[CONTEXT_TIME_COLUMN].duplicated().any():
         raise ValueError("EIA-930 MISO rows repeat a UTC hour")
-    return result.sort_values("UTC Time at End of Hour", kind="stable")
+    return result.sort_values(CONTEXT_TIME_COLUMN, kind="stable")
+
+
+def write_evidence_files(
+    *,
+    capacity: pd.DataFrame,
+    unassigned_capacity: pd.DataFrame,
+    miso: pd.DataFrame,
+    output_dir: Path,
+) -> dict[str, Path]:
+    """Write the three evidence CSVs with the builder's fixed number formats.
+
+    This is the only place the committed evidence bytes are produced, so a
+    test can reload the committed files, write them again through this
+    function, and require byte identity.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    paths = {
+        CAPACITY_FILE: output_dir / CAPACITY_FILE,
+        UNASSIGNED_FILE: output_dir / UNASSIGNED_FILE,
+        CONTEXT_FILE: output_dir / CONTEXT_FILE,
+    }
+    capacity.to_csv(
+        paths[CAPACITY_FILE], index=False, float_format=CAPACITY_FLOAT_FORMAT
+    )
+    unassigned_capacity.to_csv(
+        paths[UNASSIGNED_FILE], index=False, float_format=UNASSIGNED_FLOAT_FORMAT
+    )
+    miso.to_csv(paths[CONTEXT_FILE], index=False)
+    return paths
+
+
+def load_evidence_files(
+    input_dir: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    """Reload committed evidence files with the dtypes the builder writes."""
+    capacity = pd.read_csv(
+        input_dir / CAPACITY_FILE,
+        dtype={"county_fips": str, "plant_count": "int64", "summer_capacity_mw": float},
+    )
+    unassigned_capacity = pd.read_csv(
+        input_dir / UNASSIGNED_FILE,
+        dtype={
+            "plant_code": "int64",
+            "plant_name": str,
+            "Latitude": float,
+            "Longitude": float,
+            "summer_capacity_mw": float,
+            "geography_status": str,
+        },
+    )
+    miso = pd.read_csv(input_dir / CONTEXT_FILE)
+    miso[CONTEXT_TIME_COLUMN] = pd.to_datetime(miso[CONTEXT_TIME_COLUMN], utc=True)
+    return capacity, unassigned_capacity, miso
 
 
 def build_aggregate_evidence(
@@ -165,14 +251,15 @@ def build_aggregate_evidence(
     capacity, unassigned_capacity = _eia860_capacity(eia860_zip, counties)
     miso = _miso_context(eia930_csv)
 
-    capacity_path = output_dir / "mn_county_plant_capacity_2024.csv"
-    unassigned_capacity_path = output_dir / "mn_unassigned_plant_capacity_2024.csv"
-    miso_path = output_dir / "miso_ba_context_2024_h1.csv"
-    capacity.to_csv(capacity_path, index=False, float_format="%.3f")
-    unassigned_capacity.to_csv(
-        unassigned_capacity_path, index=False, float_format="%.6f"
+    paths = write_evidence_files(
+        capacity=capacity,
+        unassigned_capacity=unassigned_capacity,
+        miso=miso,
+        output_dir=output_dir,
     )
-    miso.to_csv(miso_path, index=False)
+    counties_without_plants = sorted(
+        set(counties["GEOID"].astype(str)) - set(capacity["county_fips"].astype(str))
+    )
     manifest = {
         "format": FORMAT,
         "retrieved_at": retrieved_at,
@@ -182,11 +269,12 @@ def build_aggregate_evidence(
             "No reviewed complete, non-overlapping BA-to-service-area crosswalk is "
             "available; MISO BA values are not allocated to Minnesota geography."
         ),
+        "upstream_checksum_status": UPSTREAM_CHECKSUM_STATUS,
         "sources": [
             {
                 "id": "tiger_counties_2024",
                 "url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
-                "sha256": _sha256(counties_zip),
+                UPSTREAM_SHA_KEY: _sha256(counties_zip),
                 "filter": "STATEFP == '27'",
                 "crs": str(counties.crs),
                 "units": {"ALAND": "m2", "AWATER": "m2"},
@@ -195,7 +283,7 @@ def build_aggregate_evidence(
             {
                 "id": "mngeo_service_areas_2026",
                 "url": "https://operations.gis.data.mn.gov/api/publicdownload/download/518/util_eusa.gpkg",
-                "sha256": _sha256(service_areas_gpkg),
+                UPSTREAM_SHA_KEY: _sha256(service_areas_gpkg),
                 "crs": str(service_areas.crs),
                 "rows": len(service_areas),
                 "limit": "retail service-area geometry; not a BA map, bus map, or allocation crosswalk",
@@ -203,36 +291,46 @@ def build_aggregate_evidence(
             {
                 "id": "eia860_2024",
                 "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip",
-                "sha256": _sha256(eia860_zip),
+                UPSTREAM_SHA_KEY: _sha256(eia860_zip),
                 "filter": "Plant/Generator State == 'MN'; Operable generators",
                 "units": {"summer_capacity_mw": "MW"},
-                "county_capacity_file": capacity_path.name,
+                "county_capacity_file": paths[CAPACITY_FILE].name,
                 "county_capacity_rows": len(capacity),
+                "counties_without_assigned_plants": counties_without_plants,
+                "county_coverage_note": COUNTY_COVERAGE_NOTE,
                 "assigned_plant_count": int(capacity["plant_count"].sum()),
-                "assigned_summer_capacity_mw": float(
-                    capacity["summer_capacity_mw"].sum()
+                "assigned_summer_capacity_mw": round(
+                    float(capacity["summer_capacity_mw"].sum()), CAPACITY_DECIMALS
                 ),
-                "unassigned_capacity_file": unassigned_capacity_path.name,
+                "unassigned_capacity_file": paths[UNASSIGNED_FILE].name,
                 "unassigned_plant_count": len(unassigned_capacity),
-                "unassigned_summer_capacity_mw": float(
-                    unassigned_capacity["summer_capacity_mw"].sum()
+                "unassigned_summer_capacity_mw": round(
+                    float(unassigned_capacity["summer_capacity_mw"].sum()),
+                    CAPACITY_DECIMALS,
                 ),
                 "geography_limit": "Plants without exactly one containing county remain unassigned or ambiguous; no nearest-county assignment is applied.",
+                "file_sha256": {
+                    paths[CAPACITY_FILE].name: _text_sha256(paths[CAPACITY_FILE]),
+                    paths[UNASSIGNED_FILE].name: _text_sha256(paths[UNASSIGNED_FILE]),
+                },
             },
             {
                 "id": "eia930_balance_2024_h1",
                 "url": "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jan_Jun.csv",
-                "sha256": _sha256(eia930_csv),
+                UPSTREAM_SHA_KEY: _sha256(eia930_csv),
                 "filter": "Balancing Authority == 'MISO'",
                 "label": MISO_LABEL,
                 "units": {"demand": "MW", "net_generation": "MW", "interchange": "MW"},
-                "context_file": miso_path.name,
+                "context_file": paths[CONTEXT_FILE].name,
                 "rows": len(miso),
                 "time_basis": "UTC end of hour",
+                "file_sha256": {
+                    paths[CONTEXT_FILE].name: _text_sha256(paths[CONTEXT_FILE]),
+                },
             },
         ],
     }
-    (output_dir / "minnesota_aggregate_manifest_v1.json").write_text(
+    (output_dir / MANIFEST_FILE).write_text(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return manifest
