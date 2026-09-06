@@ -19,15 +19,17 @@
       "start_utc": "2022-09-11T00:00:00Z",
       "end_utc": "2022-09-13T00:00:00Z"
     },
-    "disposition": "accepted",
-    "selection_basis": "NCEI CAZ016 Excessive Heat report intersects the canonical Sacramento County window; exhaustive EAGLE-I annual scan has complete 24/24 county observations.",
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI documents an Excessive Heat report for CAZ016 during the candidate period, and the exhaustive EAGLE-I annual scan has complete 24/24 Sacramento County observations. The retained sources do not establish county containment for the weather report.",
     "exclusions": [
       "Avoidance actions are not observed controlled shedding",
-      "BA load is context only"
+      "BA load is context only",
+      "No retained CAZ016-to-Sacramento County containment artifact"
     ],
     "uncertainties": [
       "Customer denominator unavailable",
-      "No causal attribution between heat, demand, and county outage values"
+      "No causal attribution between heat, demand, and county outage values",
+      "The NCEI zone report cannot establish Sacramento County weather coverage without containment evidence"
     ],
     "source_event_ids": [
       "caiso-2022-09-heat",
@@ -137,7 +139,7 @@
       "scenario_id": "caiso-2022-09-heat-replay",
       "window_start_utc": "2022-09-07T00:00:00Z",
       "window_end_utc": "2022-09-07T06:00:00Z",
-      "disposition": "accepted",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
         "eia-caiso-202209",
@@ -180,28 +182,17 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
         "source_receipt_ids": [
           "ncei-stormevents-2022-details"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "ncei-stormevents:1057556"
-          ],
-          "source_window": {
-            "start_utc": "2022-09-04T18:00:00Z",
-            "end_utc": "2022-09-10T03:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "CAZ016 Central Sacramento Valley",
-          "limitations": "The NCEI report is scoped to an NWS zone rather than Sacramento County; a zone-to-county intersection artifact is not retained."
-        },
-        "notes": "NCEI Excessive Heat zone report intersects the canonical UTC window; it supplies observed weather event evidence only."
+        "event_report": null,
+        "notes": "NCEI CAZ016 is candidate context only: no retained CAZ016-to-Sacramento County containment artifact establishes county weather coverage."
       },
       "outage": {
         "coverage": "covered",
@@ -216,7 +207,7 @@
         "event_report": null,
         "notes": "Complete 24/24 native 15-minute observations."
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",

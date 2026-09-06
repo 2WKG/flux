@@ -19,15 +19,17 @@
       "start_utc": "2021-06-30T00:00:00Z",
       "end_utc": "2021-07-02T00:00:00Z"
     },
-    "disposition": "accepted",
-    "selection_basis": "NOAA Climate.gov documents four days of record Pacific Northwest heat; EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window.",
+    "disposition": "candidate_only",
+    "selection_basis": "NOAA documents the Pacific Northwest heat episode and EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window. The retained sources do not establish OR006-to-Multnomah County containment for accepted weather coverage.",
     "exclusions": [
       "County-grid HRRR weather receipt pending",
-      "No controlled shedding assertion"
+      "No controlled shedding assertion",
+      "No retained OR006-to-Multnomah County containment artifact"
     ],
     "uncertainties": [
       "EIA balancing-authority load is context, not a county outage label",
-      "Customer denominator unavailable"
+      "Customer denominator unavailable",
+      "The NCEI zone report cannot establish Multnomah County weather coverage without containment evidence"
     ],
     "source_event_ids": [
       "pnw-2021-06-heat",
@@ -135,7 +137,7 @@
       "scenario_id": "pnw-2021-06-heat-replay",
       "window_start_utc": "2021-06-29T00:00:00Z",
       "window_end_utc": "2021-06-29T06:00:00Z",
-      "disposition": "accepted",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
         "climategov-pnw-2021",
@@ -178,28 +180,17 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
         "source_receipt_ids": [
           "ncei-stormevents-2021-961302"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": {
-          "source_event_ids": [
-            "ncei-stormevents:961302"
-          ],
-          "source_window": {
-            "start_utc": "2021-06-26T20:00:00Z",
-            "end_utc": "2021-06-30T02:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "OR006 Greater Portland Metro Area mapped to Multnomah County FIPS 41051",
-          "limitations": "NCEI records an NWS zone report, not a sampled county time series; county mapping uses the archived historical crosswalk."
-        },
-        "notes": "Observed NCEI Excessive Heat report interval intersects the canonical county window."
+        "event_report": null,
+        "notes": "NCEI OR006 is candidate context only: no retained OR006-to-Multnomah County containment artifact establishes county weather coverage."
       },
       "outage": {
         "coverage": "covered",
@@ -214,7 +205,7 @@
         "event_report": null,
         "notes": "Complete 24/24 native 15-minute observations."
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
