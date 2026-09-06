@@ -39,6 +39,9 @@ await build({
       import { ChatDock } from "./chat/ChatDock";
       import { EMPTY_SCENE_CONTEXT } from "./chat/ask-contract";
       import { TERMINAL_ERROR_CODES } from "./ask/run-state/types";
+      import { App } from "./pages/MainPage";
+      import { ExplainerPage } from "./pages/ExplainerPage";
+      import { MinnesotaControlRoom } from "./minnesota/MinnesotaControlRoom";
       export { ASSET_STATUS_TOKENS, STATUS_COPY, TERMINAL_ERROR_CODES };
       export const renderInspector = (status) =>
         renderToStaticMarkup(createElement(Inspector, { asset: { status, artifactLabel: status, name: "Probe", kind: "Facility" } }));
@@ -49,6 +52,11 @@ await build({
           contextRevision: "r1", context: EMPTY_SCENE_CONTEXT, attemptId: "a1",
           sourceLabel: "Fixture demo", sourceStatus: status, status: "idle",
         }));
+      export const renderMainPage = () => renderToStaticMarkup(createElement(App));
+      export const renderExplainerPage = () => renderToStaticMarkup(createElement(ExplainerPage));
+      export const renderMinnesotaPage = () => renderToStaticMarkup(createElement(MinnesotaControlRoom, {
+        search: "", location: { pathname: "/minnesota", hash: "" },
+      }));
     `,
     resolveDir: here.pathname,
     loader: "tsx",
@@ -141,6 +149,41 @@ test("the chat dock renders the owner's copy", () => {
   for (const status of ASSET_STATUS_TOKENS) {
     const rendered = textOf(surface.renderChatDock(status));
     assert.ok(rendered.includes(`Truth: ${STATUS_COPY[status]}`), `the dock did not render ${STATUS_COPY[status]}`);
+    for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
+  }
+});
+
+test("main, explainer, and Minnesota surfaces retain their declared status boundaries", () => {
+  const main = surface.renderMainPage();
+  const explainer = surface.renderExplainerPage();
+  const minnesota = surface.renderMinnesotaPage();
+
+  // The fixture screen is a synthetic result and must carry the same exact
+  // display copy that every other status surface imports from STATUS_COPY.
+  assert.match(main, /<main data-source-status="synthetic">/);
+  assert.ok(textOf(main).includes(STATUS_COPY.synthetic));
+  assert.match(main, /five-bus preview .*not Minnesota data/);
+
+  // The explainer makes no model-result claim. Its page-level source status
+  // and its unavailable result are both explicit rather than inferred from
+  // explanatory prose.
+  assert.match(explainer, /<main data-source-status="unavailable">/);
+  assert.match(explainer, /data-request-state="unavailable"/);
+  assert.match(explainer, /data-request-status="unavailable"/);
+  assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
+  assert.match(explainer, /Nothing on this page is model output/);
+
+  // Minnesota has aggregate metadata only. It intentionally has no source
+  // result status on the page root; its primary contract is the explicit
+  // unavailable FailureState for the missing server read surface.
+  assert.match(minnesota, /data-scene-mode="aggregate"/);
+  assert.match(minnesota, /data-request-state="unavailable"/);
+  assert.match(minnesota, /data-request-status="unavailable"/);
+  assert.ok(textOf(minnesota).includes(STATUS_COPY.unavailable));
+  assert.match(minnesota, /No server read contract currently supplies a Minnesota aggregate result/);
+  assert.doesNotMatch(minnesota, /ACTIVSg2000|five-bus|line loading|cascade/i);
+
+  for (const rendered of [main, explainer, minnesota]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
 });
