@@ -55,11 +55,14 @@ class _Provider:
         yield "Grounded local answer."
 
 
+PROVIDER_FAILURE_CANARY = "provider secret must not reach the stream"
+
+
 class _FailingProvider:
     async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
         if False:
             yield "unreachable"
-        raise RuntimeError("provider secret must not reach the stream")
+        raise RuntimeError(PROVIDER_FAILURE_CANARY)
 
 
 class _CitationLineageProvider(_Provider):
@@ -172,7 +175,10 @@ class _CitationBackend:
 class _UnavailableCitationBackend:
     """A retrieval boundary that explicitly has no admissible evidence."""
 
-    provider = None
+    def __init__(self) -> None:
+        # A real provider, so an "unavailable" terminal cannot be explained by
+        # the unconfigured-provider path in ``runtime.stream_turn``.
+        self.provider = _Provider()
 
     async def turn(self, payload: AskRequest) -> ToolTurn:
         return ToolTurn(
@@ -381,9 +387,18 @@ def test_ask_rejects_sql_writes_and_over_limit_tool_inputs_without_db_mutation(
     database = tmp_path / "ask.duckdb"
     _database(database)
     before = database.read_bytes()
+    # DuckDB resolves a relative ``COPY ... TO`` target against the process CWD,
+    # so both destinations have to be watched for the assertions to be able to
+    # fail: the absolute one under ``tmp_path`` and the relative one in the CWD.
+    absolute_target = tmp_path / "must-not-exist.csv"
+    relative_name = "must-not-exist-relative.csv"
+    relative_target = Path.cwd() / relative_name
+    assert not absolute_target.exists()
+    assert not relative_target.exists()
 
     for query in (
-        "COPY (SELECT id FROM mn_summary) TO 'must-not-exist.csv'",
+        f"COPY (SELECT id FROM mn_summary) TO '{absolute_target}'",
+        f"COPY (SELECT id FROM mn_summary) TO '{relative_name}'",
         "SELECT id FROM mn_summary " + ("x" * 5_000),
     ):
         provider = _Provider()
@@ -404,7 +419,8 @@ def test_ask_rejects_sql_writes_and_over_limit_tool_inputs_without_db_mutation(
         assert events[-1][2]["error"]["code"] == "unavailable"
         assert provider.evidence == []
         assert database.read_bytes() == before
-    assert not (tmp_path / "must-not-exist.csv").exists()
+        assert not absolute_target.exists()
+        assert not relative_target.exists()
 
 
 def test_ask_preserves_citation_lineage_and_marks_uncited_regulatory_text(
@@ -444,30 +460,80 @@ def test_ask_failure_modes_are_explicit_and_terminal_once(tmp_path: Path) -> Non
     """Provider, retrieval, database, and tool failures do not fabricate text."""
     database = tmp_path / "ask.duckdb"
     _database(database)
+    before = database.read_bytes()
+    tool_unavailable = {
+        "code": "unavailable",
+        "message": "A required tool result is unavailable, so no answer was produced.",
+        "retryable": False,
+    }
     cases = (
-        ("provider", _SqlBackend(database, _FailingProvider()), "upstream_error"),
-        ("retrieval", _UnavailableCitationBackend(), "unavailable"),
+        (
+            "provider",
+            _SqlBackend(database, _FailingProvider()),
+            None,
+            {
+                "code": "upstream_error",
+                "message": "The answer provider is unavailable.",
+                "retryable": True,
+            },
+        ),
+        (
+            "retrieval",
+            _UnavailableCitationBackend(),
+            {
+                "code": "tool_error",
+                "message": "The tool found no evidence for this request.",
+            },
+            tool_unavailable,
+        ),
         (
             "database",
             _SqlBackend(tmp_path / "missing.duckdb", _Provider()),
-            "unavailable",
+            {
+                "code": "unavailable",
+                "message": "A required data artifact is not available.",
+            },
+            tool_unavailable,
         ),
         (
             "tool",
-            _SqlBackend(database, _Provider(), query="DROP TABLE mn_summary"),
-            "unavailable",
+            # ``rows`` is a real table, so only the guard - not DuckDB - can
+            # keep this DROP from mutating the fixture database.
+            _SqlBackend(database, _Provider(), query="DROP TABLE rows"),
+            {
+                "code": "invalid_input",
+                "message": "The tool does not support this request.",
+            },
+            tool_unavailable,
         ),
     )
 
-    for _, backend, expected_code in cases:
-        events = _events(_client(database, backend).post("/ask", json=_body()))
+    for _, backend, expected_tool_error, expected_terminal in cases:
+        response = _client(database, backend).post("/ask", json=_body())
+        events = _events(response)
         names = [event for _, event, _ in events]
         assert names[0] == "lifecycle"
         assert names[-1] == "error"
         assert names.count("error") == 1
         assert names.count("done") == 0
         assert "text" not in names
-        assert events[-1][2]["error"]["code"] == expected_code
+        assert events[-1][2]["error"] == expected_terminal
+        if expected_tool_error is None:
+            assert events[2][2]["ok"] is True
+        else:
+            assert events[2][2]["ok"] is False
+            assert events[2][2]["error"] == expected_tool_error
+        # The raised failure text must reach neither the body nor the headers.
+        assert PROVIDER_FAILURE_CANARY not in response.text
+        assert PROVIDER_FAILURE_CANARY not in json.dumps(dict(response.headers))
+        # The rejected DROP must leave the fixture database byte-identical.
+        assert database.read_bytes() == before
+
+    con = duckdb.connect(str(database), read_only=True)
+    try:
+        assert con.execute("SELECT count(*) FROM mn_summary").fetchone() == (1,)
+    finally:
+        con.close()
 
 
 def test_ask_reports_unconfigured_provider_after_real_tool_result(
