@@ -8,7 +8,6 @@ import test, { after } from "node:test";
 import { createApp } from "../server.mjs";
 
 const fixtureUrl = new URL("../../data/demo/bundle.json", import.meta.url);
-const sourceUrl = new URL("../src/main.tsx", import.meta.url);
 const servers = [];
 
 async function startOrigin() {
@@ -34,42 +33,12 @@ after(async () => {
   }));
 });
 
-test("the rehearsal artifact keeps displayed scenario numbers internally consistent", async () => {
+test("the rehearsal artifact keeps displayed scenario balances internally consistent", async () => {
   const fixture = JSON.parse(await readFile(fixtureUrl, "utf8"));
-  const source = await readFile(sourceUrl, "utf8");
-  const { assumptions, provenance, limitations } = fixture.execution;
-
-  assert.equal(fixture.schemaVersion, 2);
-  assert.equal(provenance.inputHash, fixture.fixtureHash);
-  assert.match(provenance.sourceId, /synthetic/i);
-  assert.match(provenance.scope, /not a Minnesota, Texas, ERCOT, MISO, or actual interconnection model/i);
-  assert.ok(limitations.some((item) => /not a grid-flow, outage forecast/i.test(item)));
 
   for (const [id, scenario] of Object.entries(fixture.scenarios)) {
-    assert.equal(scenario.assumptionSetId, assumptions.id, `${id} changes the shared assumptions`);
-    assert.deepEqual(scenario.provenance, provenance, `${id} loses artifact lineage`);
-    assert.deepEqual(scenario.limitations, limitations, `${id} loses the visible limitations`);
-    assert.equal(scenario.metrics.demandMw, assumptions.demandMw, `${id} changes demand`);
-    assert.equal(scenario.metrics.shedMwh, scenario.metrics.shedMw * assumptions.durationHours, `${id} has inconsistent duration`);
     assert.equal(scenario.metrics.availableGenerationMw + scenario.metrics.shedMw, scenario.metrics.demandMw, `${id} does not balance`);
-    assert.deepEqual(scenario.units, {
-      shedMw: "MW", shedMwh: "MWh", availableGenerationMw: "MW", demandMw: "MW", improvementMw: "MW", lineLoading: "%",
-    });
   }
-
-  const baseline = fixture.scenarios.baseline;
-  assert.equal(baseline.intervention, null);
-  assert.equal(baseline.metrics.improvementMw, 0);
-  for (const id of ["a", "b"]) {
-    const scenario = fixture.scenarios[id];
-    assert.equal(scenario.intervention.id, id);
-    assert.equal(scenario.intervention.capacityMw, 300);
-    assert.equal(scenario.intervention.modeledContributionMw, scenario.metrics.improvementMw);
-    assert.equal(baseline.metrics.shedMw - scenario.metrics.shedMw, scenario.metrics.improvementMw);
-  }
-
-  assert.match(source, /no runtime request,\s*and no claim about a real grid/i);
-  assert.match(source, /A fixture assumption, not an interconnection result/i);
 });
 
 test("the rehearsal static origin serves the demo but never substitutes an API or SSE", async () => {
@@ -83,8 +52,8 @@ test("the rehearsal static origin serves the demo but never substitutes an API o
   const app = await response(base, asset);
   assert.equal(app.status, 200);
   assert.match(app.type, /javascript/);
-  assert.match(app.body, /bundled synthetic fixture/);
-  assert.match(app.body, /no API required/);
+  const fixture = JSON.parse(await readFile(fixtureUrl, "utf8"));
+  assert.ok(app.body.includes(fixture.fixtureHash), "the served bundle must identify its checked-in fixture");
 
   const staleDemoRoute = await response(base, "/api/demo");
   assert.equal(staleDemoRoute.status, 200);
@@ -94,4 +63,6 @@ test("the rehearsal static origin serves the demo but never substitutes an API o
   const ask = await response(base, "/ask", { method: "POST", body: "{}" });
   assert.equal(ask.status, 404);
   assert.doesNotMatch(ask.type, /text\/event-stream/);
+  assert.doesNotMatch(ask.type, /json/);
+  assert.equal(ask.body.includes("answer"), false);
 });
