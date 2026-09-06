@@ -1,0 +1,141 @@
+{
+  "audit_version": "controls-eaglei-capture-audit/v1",
+  "captured_at_utc": "2026-09-06T07:14:30Z",
+  "predeclaration": {
+    "plan_committed_at_utc": "2026-09-06T07:13:34Z",
+    "capture_committed_at_utc": "2026-09-06T07:15:18Z",
+    "claim": "The preselection plan and both candidate manifests were committed before the EAGLE-I capture recorded here ran at captured_at_utc and before that capture was committed. Recording the times here keeps the ordering readable after a squash merge, which would otherwise destroy the only evidence of it.",
+    "verify": "git log --format='%H %cI %s' -- docs/data/event-baseline/events/controls/preselection-plan.yaml"
+  },
+  "selection_artifact_sha256": {
+    "docs/data/event-baseline/events/controls/preselection-plan.yaml": "0e835a326d44f28a0591749cd26a82b962312e72fb3919d3aee43832ca5c48bc",
+    "docs/data/event-baseline/controls-metadata/controls-candidate-manifest.json": "d06b7ddad76755a7d234d8154157c7f315b46b1233e8166193753a14102dd1ca",
+    "docs/data/event-baseline/controls-metadata/diagnostic-near-miss-candidates.json": "a2094d81405e38c7f93802ec800bd88bda4a732534fc802396d78d8b5896892b",
+    "docs/data/event-baseline/events/controls/calendar-control-mn-2021-autumn-01.json": "9ae81a1a9376c67ff4f86981477fac3d81eab5a986a05b293d393b16ff566821",
+    "docs/data/event-baseline/events/controls/calendar-control-mn-2021-spring-01.json": "6a59c56552d76d6347db9780bd578e999f6aed7673ceba2a4dd61618ff9de0d8",
+    "docs/data/event-baseline/events/controls/calendar-control-mn-2021-summer-01.json": "3ea65a421ec13216f6a875b90c933640cbaaf058d7155cbda7d865a7e7eb093d",
+    "docs/data/event-baseline/events/controls/calendar-control-mn-2022-autumn-01.json": "41f8fab8f2ff84714a0eed3f736962fedcc81f4e413f4a1666ec7a94658fb7af",
+    "docs/data/event-baseline/events/controls/calendar-control-mn-2022-spring-01.json": "6537f7a1ffbf8b728954167ffdbc57b2d210238ab4b272de4f2a023a589c24b8"
+  },
+  "acquisition": {
+    "tool": "scripts/event_baseline/acquire_eaglei.py",
+    "source": "ORNL EAGLE-I via Figshare, DOI 10.6084/m9.figshare.24237376.v4",
+    "source_time_basis": "run_start_time is UTC; no conversion",
+    "absence_rule": "missing rows are UncoveredLabel, never zero",
+    "storage": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ - the filtered slice CSV and its receipt JSON for every capture below, committed byte-for-byte so the digests verify. Each receipt is the extractor's verbatim output, so its own filtered_artifact field still names the machine-local path it was written to."
+  },
+  "calendar_controls": [
+    {
+      "candidate_id": "ctrl-calendar-2021-04-07",
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-04-07_eaglei_2021_20210407T000000_20210407T060000.receipt.json",
+      "receipt_id": "eaglei-2021-42547891-20210407T000000-20210407T060000",
+      "observed_intervals": 24,
+      "expected_intervals": 24,
+      "coverage": "complete_15_min_observation",
+      "filtered_sha256": "a91e6d2773d4062548631a7fb92c28ed96359ab05e95fa7ff209ea1caf576cb1",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-04-07_eaglei_2021_20210407T000000_20210407T060000.csv",
+      "filtered_artifact_sha256_recomputed": "a91e6d2773d4062548631a7fb92c28ed96359ab05e95fa7ff209ea1caf576cb1"
+    },
+    {
+      "candidate_id": "ctrl-calendar-2021-08-07",
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-08-07_eaglei_2021_20210807T000000_20210807T060000.receipt.json",
+      "receipt_id": "eaglei-2021-42547891-20210807T000000-20210807T060000",
+      "observed_intervals": 20,
+      "expected_intervals": 24,
+      "coverage": "partial_15_min_observation",
+      "filtered_sha256": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-08-07_eaglei_2021_20210807T000000_20210807T060000.csv",
+      "filtered_artifact_sha256_recomputed": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f"
+    },
+    {
+      "candidate_id": "ctrl-calendar-2021-10-07",
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-10-07_eaglei_2021_20211007T000000_20211007T060000.receipt.json",
+      "receipt_id": "eaglei-2021-42547891-20211007T000000-20211007T060000",
+      "observed_intervals": 5,
+      "expected_intervals": 24,
+      "coverage": "partial_15_min_observation",
+      "filtered_sha256": "dcef194c53187fc1233279a987735ea4c6434310a3ff747d7cfe94c66f8d090e",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2021-10-07_eaglei_2021_20211007T000000_20211007T060000.csv",
+      "filtered_artifact_sha256_recomputed": "dcef194c53187fc1233279a987735ea4c6434310a3ff747d7cfe94c66f8d090e"
+    },
+    {
+      "candidate_id": "ctrl-calendar-2022-03-07",
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2022-03-07_eaglei_2022_20220307T000000_20220307T060000.receipt.json",
+      "receipt_id": "eaglei-2022-42547897-20220307T000000-20220307T060000",
+      "observed_intervals": 24,
+      "expected_intervals": 24,
+      "coverage": "complete_15_min_observation",
+      "filtered_sha256": "14ca3ec956d5397069e8fb1e05fa5628b2684f0d8aac5c13add5f9f34115d86d",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2022-03-07_eaglei_2022_20220307T000000_20220307T060000.csv",
+      "filtered_artifact_sha256_recomputed": "14ca3ec956d5397069e8fb1e05fa5628b2684f0d8aac5c13add5f9f34115d86d"
+    },
+    {
+      "candidate_id": "ctrl-calendar-2022-10-07",
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2022-10-07_eaglei_2022_20221007T000000_20221007T060000.receipt.json",
+      "receipt_id": "eaglei-2022-42547897-20221007T000000-20221007T060000",
+      "observed_intervals": 13,
+      "expected_intervals": 24,
+      "coverage": "partial_15_min_observation",
+      "filtered_sha256": "7f4fe3214a0d566c8deaf9e7d74be47d62aba939af74facd05a09c6c47ee7999",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/ctrl-calendar-2022-10-07_eaglei_2022_20221007T000000_20221007T060000.csv",
+      "filtered_artifact_sha256_recomputed": "7f4fe3214a0d566c8deaf9e7d74be47d62aba939af74facd05a09c6c47ee7999"
+    }
+  ],
+  "diagnostic_near_misses": [
+    {
+      "candidate_id": "near-miss-mn-2021-06-11-nobles-wind",
+      "coverage": "UncoveredLabel",
+      "observed_intervals": 0,
+      "expected_intervals": 24,
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-06-11-nobles-wind_eaglei_2021_20210611T120000_20210611T180000.receipt.json",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-06-11-nobles-wind_eaglei_2021_20210611T120000_20210611T180000.csv",
+      "filtered_artifact_sha256_recomputed": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+    },
+    {
+      "candidate_id": "near-miss-mn-2021-06-16-nobles-hail",
+      "coverage": "UncoveredLabel",
+      "observed_intervals": 0,
+      "expected_intervals": 24,
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-06-16-nobles-hail_eaglei_2021_20210616T180000_20210617T000000.receipt.json",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-06-16-nobles-hail_eaglei_2021_20210616T180000_20210617T000000.csv",
+      "filtered_artifact_sha256_recomputed": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+    },
+    {
+      "candidate_id": "near-miss-mn-2021-08-24-murray-hail",
+      "coverage": "acquisition_error",
+      "observed_intervals": null,
+      "expected_intervals": 24,
+      "receipt_path": null,
+      "gap": "Range extractor encountered a blank customers_out value while computing summary; no coverage conclusion is made. The partial filtered slice is committed; no receipt JSON was written because the extractor aborted before summarising.",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-08-24-murray-hail_eaglei_2021_20210824T120000_20210824T180000.csv",
+      "filtered_artifact_sha256_recomputed": "1210c39070ecfea4f0342a1c093c3b9ddb700d05c83305bb16283af8e42fdab3"
+    },
+    {
+      "candidate_id": "near-miss-mn-2021-09-17-jackson-wind",
+      "coverage": "UncoveredLabel",
+      "observed_intervals": 0,
+      "expected_intervals": 24,
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-09-17-jackson-wind_eaglei_2021_20210917T000000_20210917T060000.receipt.json",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-09-17-jackson-wind_eaglei_2021_20210917T000000_20210917T060000.csv",
+      "filtered_artifact_sha256_recomputed": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "window_caveat": "Captured for 2021-09-17T00:00-06:00Z, the window this candidate carried before the CST-6 correction. The bundle's county window is now 06:00-12:00Z (NCEI 985545 is 00:40 CST-6 = 06:40Z), so this capture does not describe it."
+    },
+    {
+      "candidate_id": "near-miss-mn-2021-10-10-grant-wind",
+      "coverage": "UncoveredLabel",
+      "observed_intervals": 0,
+      "expected_intervals": 24,
+      "receipt_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-10-10-grant-wind_eaglei_2021_20211010T000000_20211010T060000.receipt.json",
+      "filtered_artifact_path": "docs/data/event-baseline/controls-metadata/eaglei-receipts/near-miss-mn-2021-10-10-grant-wind_eaglei_2021_20211010T000000_20211010T060000.csv",
+      "filtered_artifact_sha256_recomputed": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+    }
+  ],
+  "interpretation": "These results are post-selection source-availability evidence. They do not alter candidate order or turn diagnostic candidates into low-outage controls. Calendar controls with complete outage samples remain candidate-only because matching observed weather coverage and final boundary/catalog provenance have not been captured.",
+  "superseded_selection_artifacts": {
+    "mn-calendar-controls-2021-2022.json": {
+      "sha256_at_capture": "ca6a42aee446b173ec7447bc05037a134d90cc1f5dd5647cbe5bbe7f8042bd99",
+      "note": "The pre-split calendar blob was deleted when the controls were split into one bundle per candidate. The digest is retained only as the record of what was frozen at capture time; the file is not in the tree, and the five calendar-control-mn-*.json bundles hashed above replace it."
+    }
+  },
+  "superseded_by": "These are the bounded range captures made at selection time. The exhaustive full-annual scans that each bundle now carries as its own eaglei-* source receipt are the authoritative outage evidence; this audit remains the record of the earlier capture and of the predeclaration ordering."
+}
