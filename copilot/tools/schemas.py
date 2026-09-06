@@ -128,7 +128,33 @@ class TopLinesInput(ContractModel):
     ] = 10
 
 
+_SQL_INPUT_XOR_SCHEMA = {
+    "oneOf": [
+        {
+            "properties": {
+                "query": {"type": "string"},
+                "template_id": {"type": "null"},
+            },
+            "required": ["query", "template_id"],
+        },
+        {
+            "properties": {
+                "query": {"type": "null"},
+                "template_id": {"type": "string"},
+            },
+            "required": ["query", "template_id"],
+        },
+    ]
+}
+
+
 class SqlInput(ContractModel):
+    # The strict model-facing schema requires both declared keys.  Its ``oneOf``
+    # then permits exactly one non-null value, matching the runtime validator.
+    model_config = ConfigDict(
+        extra="forbid", strict=True, json_schema_extra=_SQL_INPUT_XOR_SCHEMA
+    )
+
     query: Annotated[
         str | None,
         Field(
