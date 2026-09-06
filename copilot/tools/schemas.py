@@ -258,7 +258,8 @@ class InteractiveCascadeInput(ContractModel):
     scenario_id: Literal["interactive"] = "interactive"
     hour: Literal[0] = 0
     edit_hash: Annotated[
-        str | None, Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")
+        str | None,
+        Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$"),
     ] = None
     seed: Literal[0] = 0
 
@@ -269,7 +270,8 @@ class BalanceInput(ContractModel):
     hour: Literal[0] = 0
     seed: Literal[0] = 0
     edit_hash: Annotated[
-        str | None, Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")
+        str | None,
+        Field(default=None, min_length=16, max_length=64, pattern=r"^[a-f0-9]+$"),
     ] = None
 
 

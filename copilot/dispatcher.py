@@ -63,13 +63,17 @@ class ToolCallingProvider(Protocol):
     ) -> ToolCall | AssistantText: ...
 
 
-ToolHandler = Callable[[BaseModel, Mapping[str, object]], Awaitable[Mapping[str, object]]]
+ToolHandler = Callable[
+    [BaseModel, Mapping[str, object]], Awaitable[Mapping[str, object]]
+]
 
 
 class ToolDispatcher:
     """Closed registry with a bounded provider-controlled execution loop."""
 
-    def __init__(self, handlers: Mapping[str, ToolHandler], *, max_turns: int = MAX_TOOL_TURNS) -> None:
+    def __init__(
+        self, handlers: Mapping[str, ToolHandler], *, max_turns: int = MAX_TOOL_TURNS
+    ) -> None:
         expected = {item.name for item in TOOL_REGISTRY}
         supplied = set(handlers)
         if supplied != expected:
@@ -114,7 +118,9 @@ class ToolDispatcher:
             results.append(result)
         raise ValueError("provider exceeded the bounded tool-call loop")
 
-    async def _execute(self, call: ToolCall, context: Mapping[str, object]) -> ToolResult:
+    async def _execute(
+        self, call: ToolCall, context: Mapping[str, object]
+    ) -> ToolResult:
         try:
             payload = validate_tool_input(call.name, dict(call.arguments))
         except (ValidationError, ValueError) as exc:
@@ -128,7 +134,10 @@ class ToolDispatcher:
         except ValidationError as exc:
             raise TypeError(f"tool {call.name!r} returned an invalid result") from exc
         output = validated.model_dump(mode="json")
-        if call.name in {"scenario_edit", "cascade"} and output["status"] == "available":
+        if (
+            call.name in {"scenario_edit", "cascade"}
+            and output["status"] == "available"
+        ):
             output["scene_action"] = _scene_action(call, output)
         return ToolResult(
             call.call_id,
@@ -179,7 +188,9 @@ def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
     rather than guessing from the question or making a network call.
     """
 
-    async def unavailable(_: BaseModel, __: Mapping[str, object]) -> Mapping[str, object]:
+    async def unavailable(
+        _: BaseModel, __: Mapping[str, object]
+    ) -> Mapping[str, object]:
         return unavailable_output(
             "unsupported_request",
             "This deployment has not registered that tool implementation.",
@@ -203,7 +214,9 @@ def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
         )
         return _interactive_output(response)
 
-    async def cascade(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+    async def cascade(
+        payload: BaseModel, _: Mapping[str, object]
+    ) -> Mapping[str, object]:
         from copilot.interactive_routes import CascadeRequest
 
         value = InteractiveCascadeInput.model_validate(payload)
@@ -212,14 +225,18 @@ def interactive_tool_handlers(service: object) -> dict[str, ToolHandler]:
         )
         return _interactive_output(response)
 
-    async def balance(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+    async def balance(
+        payload: BaseModel, _: Mapping[str, object]
+    ) -> Mapping[str, object]:
         value = BalanceInput.model_validate(payload)
         response = await service.balance(  # type: ignore[attr-defined]
             **value.model_dump()
         )
         return _interactive_output(response)
 
-    async def redundancy(payload: BaseModel, _: Mapping[str, object]) -> Mapping[str, object]:
+    async def redundancy(
+        payload: BaseModel, _: Mapping[str, object]
+    ) -> Mapping[str, object]:
         value = RedundancyInput.model_validate(payload)
         response = await service.redundancy(  # type: ignore[attr-defined]
             **value.model_dump()

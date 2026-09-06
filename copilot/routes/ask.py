@@ -142,7 +142,9 @@ async def _stream_dispatcher(
     stream = CopilotEventStream()
     yield _encoded_event(stream.start())
     context = (
-        payload.context.model_dump(exclude_none=True) if payload.context is not None else {}
+        payload.context.model_dump(exclude_none=True)
+        if payload.context is not None
+        else {}
     )
     history = tuple(item.model_dump() for item in payload.history)
     try:
@@ -156,7 +158,9 @@ async def _stream_dispatcher(
         raise
     except ValueError:
         yield _encoded_event(
-            stream.error("tool_error", "The requested tool action was invalid.", retryable=False)
+            stream.error(
+                "tool_error", "The requested tool action was invalid.", retryable=False
+            )
         )
         return
     except Exception:  # noqa: BLE001 - provider/handler internals stay server-side.
@@ -164,11 +168,11 @@ async def _stream_dispatcher(
         return
 
     for result in results:
-        yield _encoded_event(stream.tool_call(result.call_id, result.name, result.arguments))
         yield _encoded_event(
-            stream.tool_result(
-                result.call_id, result.name, result.result, elapsed_ms=0
-            )
+            stream.tool_call(result.call_id, result.name, result.arguments)
+        )
+        yield _encoded_event(
+            stream.tool_result(result.call_id, result.name, result.result, elapsed_ms=0)
         )
     yield _encoded_event(stream.text(answer))
     report = verify(answer, (result.result for result in results), ())

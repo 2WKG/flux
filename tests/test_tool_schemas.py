@@ -509,38 +509,38 @@ def test_all_tool_outputs_keep_documented_payloads_top_level() -> None:
             "assumptions",
         },
         "top_critical_elements": {"region", "n", "scenario_ids", "elements", "partial"},
-            "causal_query": {
+        "causal_query": {
             "answer_numbers",
             "method",
             "assumptions",
             "interval",
-                "evidence_rows",
-            },
-            "scenario_edit": {
-                "model_fidelity",
-                "network_provenance",
-                "limitations",
-                "data",
-            },
-            "cascade": {
-                "model_fidelity",
-                "network_provenance",
-                "limitations",
-                "data",
-            },
-            "balance": {
-                "model_fidelity",
-                "network_provenance",
-                "limitations",
-                "data",
-            },
-            "redundancy": {
-                "model_fidelity",
-                "network_provenance",
-                "limitations",
-                "data",
-            },
-        }
+            "evidence_rows",
+        },
+        "scenario_edit": {
+            "model_fidelity",
+            "network_provenance",
+            "limitations",
+            "data",
+        },
+        "cascade": {
+            "model_fidelity",
+            "network_provenance",
+            "limitations",
+            "data",
+        },
+        "balance": {
+            "model_fidelity",
+            "network_provenance",
+            "limitations",
+            "data",
+        },
+        "redundancy": {
+            "model_fidelity",
+            "network_provenance",
+            "limitations",
+            "data",
+        },
+    }
     for definition in TOOL_REGISTRY:
         fields = definition.output_model[0].model_fields
         assert expected[definition.name] <= set(fields)
