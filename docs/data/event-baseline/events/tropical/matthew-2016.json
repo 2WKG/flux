@@ -53,7 +53,14 @@
       "grid_index_mapping": "County FIPS only; no physical-grid mapping",
       "gaps": [
         "No downloaded advisory artifact hash retained in this candidate-only receipt."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "ncei-matthew-2016-details",
@@ -72,7 +79,14 @@
       "grid_index_mapping": "NCEI zone FLZ141 covers coastal Flagler; no physical-grid mapping",
       "gaps": [
         "Forecast zone does not establish countywide weather conditions."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-matthew-2016-12035-1218z",
@@ -106,7 +120,14 @@
         "source_sidecar_sha256": "d951000a916d0a136c0a0412ce4c67c880663b350398c619437edf1e65692a50",
         "filtered_artifact_uri": "approved-storage://event-baseline/matthew-2016-12035-20161007120000_eaglei_2016_20161007T120000_20161007T180000.csv",
         "filtered_artifact_sha256": "3a8fc207f718f6db796ab58bbf57ca9df3242e5bd236bd3cad9b24bbc8eb291f"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -207,7 +228,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

@@ -24,7 +24,9 @@
     },
     "disposition": "candidate_only",
     "selection_basis": "PG&E's CPUC-hosted post-event report states it began de-energizing at 2021-08-17 17:00 PDT, identifies Shasta among counties with de-energized time-places, and reports a Shasta weather-station maximum gust. This is planned de-energization evidence only.",
-    "exclusions": ["No complete county six-hour weather series has been collected."],
+    "exclusions": [
+      "No complete county six-hour weather series has been collected."
+    ],
     "uncertainties": [
       "The report-wide 17:00 PDT start is not a Shasta-specific activation; Appendix B lists individual Shasta circuit starts later that evening.",
       "The reported maximum gust is a county-scope station summary, not a complete six-hour county weather series.",
@@ -51,9 +53,56 @@
         "HTTP HEAD returned Content-Length and Last-Modified but no ETag.",
         "PDF is retained in ignored data/raw/psps, not Git.",
         "No matched weather time series or EAGLE-I outage label receipt is present."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
-    {"receipt_id":"eaglei-psps-2021-shasta","provider":"ORNL EAGLE-I via Figshare","url":"https://ndownloader.figshare.com/files/42547891","release":"10.6084/m9.figshare.24237376.v4","retrieved_at_utc":"2026-09-06T08:09:15.270858Z","license_or_access":"CC BY 4.0","raw_sha256":"e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319","filtered_sha256":"235aca59b6028b4da809881d5d74c8ea569f3020d75e47f1334668bcd659f93a","bytes":1141058232,"etag":"\"758b4cd635a45214d34da5de08b484d9-2\"","units":"customers_out: customers; run_start_time: UTC","timezone_conversion":"none; EAGLE-I documentation states run_start_time is UTC","filters":"California FIPS 06089 [2021-08-18T00:00Z,06:00Z)","grid_index_mapping":"none","gaps":["Customer denominator unavailable."],"acquisition":{"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547891","source_file":"eaglei_outages_2021.csv","source_file_id":42547891,"source_file_bytes":1141058232,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2021.csv","raw_artifact_sha256":"e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json","source_sidecar_sha256":"8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d","filtered_artifact_uri":"data/raw/event-baseline/ca-2021-08-17-pge-psps-06089-20210818000000_eaglei_2021_20210818T000000_20210818T060000.csv","filtered_artifact_sha256":"235aca59b6028b4da809881d5d74c8ea569f3020d75e47f1334668bcd659f93a"}}
+    {
+      "receipt_id": "eaglei-psps-2021-shasta",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:09:15.270858Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "235aca59b6028b4da809881d5d74c8ea569f3020d75e47f1334668bcd659f93a",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "California FIPS 06089 [2021-08-18T00:00Z,06:00Z)",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Customer denominator unavailable."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2021-08-17-pge-psps-06089-20210818000000_eaglei_2021_20210818T000000_20210818T060000.csv",
+        "filtered_artifact_sha256": "235aca59b6028b4da809881d5d74c8ea569f3020d75e47f1334668bcd659f93a"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
   ],
   "records": [
     {
@@ -66,7 +115,8 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "cpuc-pge-2021-08-17-19-pdf", "eaglei-psps-2021-shasta"
+        "cpuc-pge-2021-08-17-19-pdf",
+        "eaglei-psps-2021-shasta"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
@@ -99,7 +149,9 @@
         "coverage": "covered",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-psps-2021-shasta"],
+        "source_receipt_ids": [
+          "eaglei-psps-2021-shasta"
+        ],
         "expected_samples": 24,
         "observed_samples": 24,
         "missing_timestamps": [],
@@ -116,7 +168,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

@@ -50,7 +50,14 @@
       "grid_index_mapping": "none",
       "gaps": [
         "Incident record is event evidence, not verified utility damage or outage causation."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-kincade",
@@ -85,7 +92,14 @@
         "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
         "filtered_artifact_uri": "data/raw/event-baseline/ca-2019-kincade-06097-20191024000000_eaglei_2019_20191024T000000_20191024T060000.csv",
         "filtered_artifact_sha256": "3a57966ff01a0795026a0e208854bfa27890fd12b0263610806cbcb2183984d4"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -104,9 +118,38 @@
       ],
       "source_evidence_status": "available",
       "source_row_keys": [
-        "eaglei-kincade:06097|2019-10-24 00:00:00", "eaglei-kincade:06097|2019-10-24 00:15:00", "eaglei-kincade:06097|2019-10-24 00:30:00", "eaglei-kincade:06097|2019-10-24 00:45:00", "eaglei-kincade:06097|2019-10-24 01:00:00", "eaglei-kincade:06097|2019-10-24 01:15:00", "eaglei-kincade:06097|2019-10-24 01:30:00", "eaglei-kincade:06097|2019-10-24 01:45:00", "eaglei-kincade:06097|2019-10-24 02:00:00", "eaglei-kincade:06097|2019-10-24 02:15:00", "eaglei-kincade:06097|2019-10-24 02:30:00", "eaglei-kincade:06097|2019-10-24 02:45:00", "eaglei-kincade:06097|2019-10-24 03:00:00", "eaglei-kincade:06097|2019-10-24 03:15:00", "eaglei-kincade:06097|2019-10-24 03:30:00", "eaglei-kincade:06097|2019-10-24 03:45:00", "eaglei-kincade:06097|2019-10-24 04:00:00", "eaglei-kincade:06097|2019-10-24 04:15:00", "eaglei-kincade:06097|2019-10-24 04:30:00", "eaglei-kincade:06097|2019-10-24 05:00:00", "eaglei-kincade:06097|2019-10-24 05:15:00", "eaglei-kincade:06097|2019-10-24 05:30:00", "eaglei-kincade:06097|2019-10-24 05:45:00"
+        "eaglei-kincade:06097|2019-10-24 00:00:00",
+        "eaglei-kincade:06097|2019-10-24 00:15:00",
+        "eaglei-kincade:06097|2019-10-24 00:30:00",
+        "eaglei-kincade:06097|2019-10-24 00:45:00",
+        "eaglei-kincade:06097|2019-10-24 01:00:00",
+        "eaglei-kincade:06097|2019-10-24 01:15:00",
+        "eaglei-kincade:06097|2019-10-24 01:30:00",
+        "eaglei-kincade:06097|2019-10-24 01:45:00",
+        "eaglei-kincade:06097|2019-10-24 02:00:00",
+        "eaglei-kincade:06097|2019-10-24 02:15:00",
+        "eaglei-kincade:06097|2019-10-24 02:30:00",
+        "eaglei-kincade:06097|2019-10-24 02:45:00",
+        "eaglei-kincade:06097|2019-10-24 03:00:00",
+        "eaglei-kincade:06097|2019-10-24 03:15:00",
+        "eaglei-kincade:06097|2019-10-24 03:30:00",
+        "eaglei-kincade:06097|2019-10-24 03:45:00",
+        "eaglei-kincade:06097|2019-10-24 04:00:00",
+        "eaglei-kincade:06097|2019-10-24 04:15:00",
+        "eaglei-kincade:06097|2019-10-24 04:30:00",
+        "eaglei-kincade:06097|2019-10-24 05:00:00",
+        "eaglei-kincade:06097|2019-10-24 05:15:00",
+        "eaglei-kincade:06097|2019-10-24 05:30:00",
+        "eaglei-kincade:06097|2019-10-24 05:45:00"
       ],
-      "source_slices": [{"receipt_id": "eaglei-kincade", "county_fips": "06097", "start_utc": "2019-10-24T00:00:00Z", "end_utc": "2019-10-24T06:00:00Z"}],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-kincade",
+          "county_fips": "06097",
+          "start_utc": "2019-10-24T00:00:00Z",
+          "end_utc": "2019-10-24T06:00:00Z"
+        }
+      ],
       "weather": {
         "coverage": "covered",
         "evidence_kind": "authoritative_event_report",
@@ -140,7 +183,9 @@
         ],
         "expected_samples": 24,
         "observed_samples": 23,
-        "missing_timestamps": ["2019-10-24T04:45:00Z"],
+        "missing_timestamps": [
+          "2019-10-24T04:45:00Z"
+        ],
         "event_report": null,
         "notes": "Complete annual-source scan found 23 valid customer-out values of 24; blank 04:45Z is an explicit quality gap, never zero."
       },
@@ -154,7 +199,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

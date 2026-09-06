@@ -55,7 +55,14 @@
         "No EAGLE-I slice receipt yet",
         "No county outage label from BA demand",
         "Mutable web response was recaptured; current byte hash retained in approved raw storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "bytes": 1199752423,
@@ -91,7 +98,14 @@
         "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
         "filtered_artifact_uri": "data/raw/event-baseline/ercot-2023-06-heat_eaglei_2023_20230719T000000_20230719T060000.csv",
         "filtered_artifact_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -159,7 +173,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

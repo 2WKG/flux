@@ -51,7 +51,14 @@
       "grid_index_mapping": "not applicable; station evidence is candidate discovery only",
       "gaps": [
         "Does not establish county-grid weather coverage"
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000",
@@ -83,7 +90,14 @@
         "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2021-06-heat-27053-20210605000000_eaglei_2021_20210605T000000_20210605T060000.csv",
         "filtered_artifact_sha256": "17fa34a2c29a028f76fc0034432915cd18ad52ef6e292185422cb2a5f469e104"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -171,7 +185,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

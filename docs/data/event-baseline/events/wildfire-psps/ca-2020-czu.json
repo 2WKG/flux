@@ -47,7 +47,14 @@
       "grid_index_mapping": "none",
       "gaps": [
         "Event interval is retained conservatively pending an authoritative hourly incident feed."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-czu",
@@ -64,8 +71,31 @@
       "timezone_conversion": "none; source documents UTC",
       "filters": "California, FIPS 06087, six-hour window",
       "grid_index_mapping": "none",
-      "gaps": ["Customer denominator unavailable."],
-      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547894","source_file":"eaglei_outages_2020.csv","source_file_id":42547894,"source_file_bytes":1170699724,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv","raw_artifact_sha256":"2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json","source_sidecar_sha256":"6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9","filtered_artifact_uri":"data/raw/event-baseline/ca-2020-czu-06087-20200819000000_eaglei_2020_20200819T000000_20200819T060000.csv","filtered_artifact_sha256":"91d035b2ce1eb8e1809d362d81b1ea29c61a73f0ea074cc39964e3ffbc29f37a"}
+      "gaps": [
+        "Customer denominator unavailable."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547894",
+        "source_file": "eaglei_outages_2020.csv",
+        "source_file_id": 42547894,
+        "source_file_bytes": 1170699724,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+        "raw_artifact_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+        "source_sidecar_sha256": "6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2020-czu-06087-20200819000000_eaglei_2020_20200819T000000_20200819T060000.csv",
+        "filtered_artifact_sha256": "91d035b2ce1eb8e1809d362d81b1ea29c61a73f0ea074cc39964e3ffbc29f37a"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -102,7 +132,9 @@
         "coverage": "covered",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-czu"],
+        "source_receipt_ids": [
+          "eaglei-czu"
+        ],
         "expected_samples": 24,
         "observed_samples": 24,
         "missing_timestamps": [],
@@ -119,7 +151,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

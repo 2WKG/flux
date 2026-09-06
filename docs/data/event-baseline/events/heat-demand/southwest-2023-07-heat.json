@@ -53,7 +53,14 @@
       "gaps": [
         "Not county-grid weather coverage",
         "No EAGLE-I slice receipt yet"
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "bytes": 1199752423,
@@ -89,7 +96,14 @@
         "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
         "filtered_artifact_uri": "data/raw/event-baseline/southwest-2023-07-heat-04013-20230727000000_eaglei_2023_20230727T000000_20230727T060000.csv",
         "filtered_artifact_sha256": "17ba3d85b6cb7724f911fe969aa97cd75fac5c4d06586c398137f66c28d22dbc"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -160,7 +174,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

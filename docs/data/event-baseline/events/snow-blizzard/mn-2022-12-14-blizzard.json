@@ -46,13 +46,20 @@
       "bytes": 11817849,
       "etag": null,
       "units": "Storm Events local standard-time event interval and hazard classification.",
-      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 1071492 maps 14-DEC-22 01:00–16:00 to [2022-12-14T07:00:00Z,2022-12-14T22:00:00Z).",
+      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 1071492 maps 14-DEC-22 01:00\u201316:00 to [2022-12-14T07:00:00Z,2022-12-14T22:00:00Z).",
       "filters": "STATE=MINNESOTA; EPISODE_ID=176346; EVENT_ID in (1071492,1071529); CZ_NAME in (CENTRAL ST. LOUIS,SOUTHERN ST. LOUIS / CARLTON).",
       "grid_index_mapping": "No grid index used; forecast-zone report retained.",
       "gaps": [
         "Filtered selection: data/raw/event-baseline/weather-or-context/171d614ee0b03a4c9b12089dc53ceb1e6f5324f18b260d9690a4b29e8d98e0da.json; 6429 bytes; serializer Python csv.DictReader over gzip then json.dumps(rows, sort_keys=True, separators=(',', ':')) plus newline UTF-8.",
         "Selected EVENT_ID values: 1071492, 1071529. Raw annual file is in approved ignored storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2022-42547897-20221214t180000z-20221215t000000z",
@@ -88,7 +95,14 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-12-14-blizzard-27137-20221214180000_eaglei_2022_20221214T180000_20221215T000000.csv",
         "filtered_artifact_sha256": "e1787ef395f3c868421b06efe94905cc7d3fdacc4efa81cf9a32a5915c3c83e6"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -175,7 +189,7 @@
         "observed_samples": 24,
         "missing_timestamps": [],
         "event_report": null,
-        "notes": "Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 15–357."
+        "notes": "Definitive exhaustive annual EAGLE-I receipt: 24/24 valid 15-minute observations, zero duplicates or invalid rows; customers_out range 15\u2013357."
       },
       "matched_coverage_decision": "matched",
       "label": {
@@ -187,7 +201,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

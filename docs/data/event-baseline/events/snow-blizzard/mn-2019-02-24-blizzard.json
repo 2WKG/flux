@@ -48,12 +48,19 @@
       "bytes": 11602648,
       "etag": null,
       "units": "Storm Events local standard-time event interval and hazard classification.",
-      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 803577 maps 24-FEB-19 09:00–18:00 to [2019-02-24T15:00:00Z,2019-02-25T00:00:00Z).",
+      "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 803577 maps 24-FEB-19 09:00\u201318:00 to [2019-02-24T15:00:00Z,2019-02-25T00:00:00Z).",
       "filters": "STATE=MINNESOTA; EPISODE_ID=133446; EVENT_ID=803577; CZ_NAME=DAKOTA.",
       "grid_index_mapping": "No grid index; forecast zone MNZ070 retained.",
       "gaps": [
         "Raw annual file is in approved ignored storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2019-42547885-mn-2019-02-24-blizzard-27037-20190224120000-20190224t120000-20190224t180000",
@@ -88,7 +95,14 @@
         "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2019-02-24-blizzard-27037-20190224120000_eaglei_2019_20190224T120000_20190224T180000.csv",
         "filtered_artifact_sha256": "dc3f5829a9a9e2a299540bd88570b28d9fa354b7c88bca9e47efa3bbf1f58ba2"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -188,7 +202,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

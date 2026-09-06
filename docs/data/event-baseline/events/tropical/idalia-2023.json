@@ -27,13 +27,14 @@
       "start_utc": "2023-08-31T00:00:00Z",
       "end_utc": "2023-09-03T00:00:00Z"
     },
-    "disposition": "accepted",
+    "disposition": "shortfall",
     "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record, retaining coastal and inland scope.",
     "exclusions": [
       "Texas Uri and Beryl are not recataloged as new events."
     ],
     "uncertainties": [
-      "NHC advisory scope is system/weather evidence, not county outage evidence."
+      "NHC advisory scope is system/weather evidence, not county outage evidence.",
+      "The retained EAGLE-I six-hour slice begins off the canonical 00/06/12/18 UTC label grid; it is source evidence only until a complete aligned slice is acquired."
     ]
   },
   "source_receipts": [
@@ -54,7 +55,14 @@
       "grid_index_mapping": "County FIPS only; no physical-grid mapping",
       "gaps": [
         "EAGLE-I receipt and matched-coverage decision pending."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "ncei-idalia-2023-details",
@@ -73,7 +81,14 @@
       "grid_index_mapping": "NCEI zone FLZ128 partially covers FIPS 12123; no physical-grid mapping",
       "gaps": [
         "Forecast zone does not establish countywide weather conditions."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-idalia-2023-12123-0915z",
@@ -107,18 +122,25 @@
         "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
         "filtered_artifact_uri": "approved-storage://event-baseline/idalia-2023-12123-20230830090000_eaglei_2023_20230830T090000_20230830T150000.csv",
         "filtered_artifact_sha256": "b5b4bd4811a4f442e224a60f0e45ef85286544099fb81c341218ac2afb8d8392"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
     {
-      "record_id": "idalia-2023-12123-2023-08-30t09z",
+      "record_id": "idalia-2023-12123-2023-08-30t06z",
       "county_fips": "12123",
       "boundary_vintage": "Census 2024 county-equivalent FIPS",
       "scenario_id": "idalia-2023-replay",
-      "window_start_utc": "2023-08-30T09:00:00Z",
-      "window_end_utc": "2023-08-30T15:00:00Z",
-      "disposition": "accepted",
+      "window_start_utc": "2023-08-30T06:00:00Z",
+      "window_end_utc": "2023-08-30T12:00:00Z",
+      "disposition": "shortfall",
       "mode": "replay",
       "provenance_receipt_ids": [
         "nhc-idalia-2023-archive",
@@ -161,7 +183,7 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
+        "coverage": "uncovered",
         "source_receipt_ids": [
           "nhc-idalia-2023-archive",
           "ncei-idalia-2023-details"
@@ -169,46 +191,36 @@
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "NCEI Hurricane Idalia Coastal Taylor zone report intersects the canonical window; zone scope is not countywide.",
-        "evidence_kind": "authoritative_event_report",
-        "observation_kind": "observed",
-        "event_report": {
-          "source_event_ids": [
-            "ncei:1131846"
-          ],
-          "source_window": {
-            "start_utc": "2023-08-30T09:45:00Z",
-            "end_utc": "2023-08-30T13:00:00Z"
-          },
-          "spatial_scope": "zone",
-          "scope_identifier": "FLZ128",
-          "limitations": "Coastal Taylor forecast zone partially covers FIPS 12123 and is not a countywide observation."
-        }
+        "notes": "Original source evidence is retained in the event window, receipts, and source-row keys; no complete canonical aligned label slice has been acquired.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
       },
       "outage": {
-        "coverage": "covered",
+        "coverage": "uncovered",
         "source_receipt_ids": [
           "eaglei-idalia-2023-12123-0915z"
         ],
-        "expected_samples": 24,
-        "observed_samples": 24,
+        "expected_samples": null,
+        "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "Exhaustive annual scan returned all 24 expected 15-minute observations for FIPS 12123.",
-        "evidence_kind": "time_series_or_grid",
-        "observation_kind": "observed",
+        "notes": "Original source evidence is retained in the event window, receipts, and source-row keys; no complete canonical aligned label slice has been acquired.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
         "event_report": null
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "not_matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
-        "observed_outage_customers": 11196,
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

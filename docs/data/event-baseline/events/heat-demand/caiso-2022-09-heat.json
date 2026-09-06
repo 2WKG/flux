@@ -54,7 +54,14 @@
         "No county-grid weather extraction",
         "No county outage label from BA demand",
         "Mutable web response was recaptured; current byte hash retained in approved raw storage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "ncei-stormevents-2022-details",
@@ -73,7 +80,14 @@
       "grid_index_mapping": "not applicable; authoritative NWS zone report, not gridded weather",
       "gaps": [
         "Zone CAZ016 is not a county boundary; no stored zone-to-county intersection artifact"
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2022-42547897-caiso-2022-09-heat-06067-20220907000000",
@@ -105,7 +119,14 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/caiso-2022-09-heat-06067-20220907000000_eaglei_2022_20220907T000000_20220907T060000.csv",
         "filtered_artifact_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -205,7 +226,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

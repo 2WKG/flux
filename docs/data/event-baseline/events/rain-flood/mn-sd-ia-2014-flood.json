@@ -52,7 +52,14 @@
       "gaps": [
         "No durable raw bytes were obtained because the source rejected this retrieval.",
         "Regional hydrologic evidence does not prove county weather or outage coverage."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-2014-42547717-20140616t000000-20140616t060000",
@@ -88,7 +95,14 @@
         "source_sidecar_sha256": "6ec43cce89ac4315d5565ac1b82ba90bde750db258414a09f3d1bc6054a6614c",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-sd-ia-2014-flood-27137-20140616000000_eaglei_2014_20140616T000000_20140616T060000.csv",
         "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
-      }
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -169,7 +183,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

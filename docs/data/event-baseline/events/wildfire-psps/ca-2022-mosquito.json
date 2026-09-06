@@ -45,8 +45,31 @@
       "timezone_conversion": "none; source documents UTC",
       "filters": "California, FIPS 06061, six-hour window",
       "grid_index_mapping": "none",
-      "gaps": ["Customer denominator unavailable."],
-      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547897","source_file":"eaglei_outages_2022.csv","source_file_id":42547897,"source_file_bytes":1187596176,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2022.csv","raw_artifact_sha256":"ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json","source_sidecar_sha256":"23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08","filtered_artifact_uri":"data/raw/event-baseline/ca-2022-mosquito-06061-20220908000000_eaglei_2022_20220908T000000_20220908T060000.csv","filtered_artifact_sha256":"8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a"}
+      "gaps": [
+        "Customer denominator unavailable."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2022-mosquito-06061-20220908000000_eaglei_2022_20220908T000000_20220908T060000.csv",
+        "filtered_artifact_sha256": "8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -69,7 +92,9 @@
         "coverage": "covered",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-mosquito"],
+        "source_receipt_ids": [
+          "eaglei-mosquito"
+        ],
         "expected_samples": 24,
         "observed_samples": 24,
         "missing_timestamps": [],
@@ -80,7 +105,9 @@
         "coverage": "covered",
         "evidence_kind": "time_series_or_grid",
         "observation_kind": "observed",
-        "source_receipt_ids": ["eaglei-mosquito"],
+        "source_receipt_ids": [
+          "eaglei-mosquito"
+        ],
         "expected_samples": 24,
         "observed_samples": 24,
         "missing_timestamps": [],
@@ -97,7 +124,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
