@@ -662,6 +662,14 @@ def validate_bundle_rules(bundle: dict[str, Any], source: str = "bundle") -> Non
                     raise ValidationError(
                         f"{prefix}.{coverage_name}: report evidence requires county or zone scope"
                     )
+                if (
+                    coverage_name == "weather"
+                    and coverage["coverage"] == "covered"
+                    and report["spatial_scope"] != "county"
+                ):
+                    raise ValidationError(
+                        f"{prefix}.weather: covered weather requires a county-scoped report"
+                    )
                 report_start, report_end = _window(
                     report.get("source_window"),
                     f"{prefix}.{coverage_name}.event_report.source_window",
