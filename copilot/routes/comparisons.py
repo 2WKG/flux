@@ -179,18 +179,25 @@ def _provenance(
     return provenance
 
 
-def _score_rows(
-    con: duckdb.DuckDBPyConnection, *, geography_id: str
+def _comparison_score_rows(
+    con: duckdb.DuckDBPyConnection,
+    *,
+    scenario_id: str,
+    intervention_ids: list[str],
 ) -> list[tuple[object, ...]]:
+    placeholders = ", ".join("?" for _ in intervention_ids)
     return con.execute(
-        """SELECT m.artifact_id, m.availability, m.model_mode, m.limitations_json,
+        f"""SELECT m.artifact_id, m.availability, m.model_mode, m.limitations_json,
                   s.metric, s.score_value, s.score_unit, s.score_components_json,
                   s.regulatory_label
              FROM mn_artifact_manifests AS m
              JOIN mn_score_results AS s USING (artifact_id)
-             WHERE m.artifact_kind='score' AND m.geography_id=?
+             WHERE m.artifact_kind='score' AND m.geography_id='mn'
+               AND json_extract_string(s.score_components_json, '$.scenario_id')=?
+               AND json_extract_string(s.score_components_json, '$.intervention_id')
+                   IN ({placeholders})
              ORDER BY m.artifact_id ASC""",
-        [geography_id],
+        [scenario_id, *intervention_ids],
     ).fetchall()
 
 
@@ -244,7 +251,11 @@ def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
         missing = _missing_tables(con)
         if missing:
             raise _unavailable("missing", artifact=missing[0])
-        rows = _score_rows(con, geography_id="mn")
+        rows = _comparison_score_rows(
+            con,
+            scenario_id=payload.scenario_id,
+            intervention_ids=payload.intervention_ids,
+        )
         selected: dict[str, dict[str, Any]] = {}
         unsupported = False
         for row in rows:
