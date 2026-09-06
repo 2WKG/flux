@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from asyncio import CancelledError
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
@@ -45,7 +45,7 @@ def run_turn(
         stream.tool_result(
             turn.call_id,
             turn.tool,
-            dict(turn.narration.evidence),
+            _json_ready(turn.narration.evidence),
             elapsed_ms=turn.elapsed_ms,
         )
     )
@@ -77,3 +77,25 @@ def run_turn(
         return tuple(events)
     events.append(stream.done(verified=True))
     return tuple(events)
+
+
+def _json_ready(value: object) -> dict[str, object]:
+    """Copy immutable narration evidence into a JSON-native event payload.
+
+    Narration freezes its accepted evidence so provider code cannot mutate it.
+    ``json.dumps`` deliberately does not serialize ``MappingProxyType``, so the
+    runtime copies mappings and tuples only at the SSE boundary.  Values that
+    are not containers remain subject to the stream's eager JSON validation.
+    """
+
+    if not isinstance(value, Mapping):
+        raise TypeError("narration evidence must be a mapping")
+    return {str(key): _json_value(item) for key, item in value.items()}
+
+
+def _json_value(value: object) -> object:
+    if isinstance(value, Mapping):
+        return {str(key): _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_value(item) for item in value]
+    return value
