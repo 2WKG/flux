@@ -22,7 +22,12 @@ from copilot.retrieval.search import SparseIndex, retrieve
 from copilot.routes.ask import HEARTBEAT_SECONDS, AskRequest, _heartbeat
 from copilot.routes.interventions import SiteScoreRequest, read_site
 from copilot.runtime import AsyncNarrationProvider, ToolTurn
-from copilot.tools.schemas import ArtifactRef, CiteData, RetrievalHit
+from copilot.tools.schemas import (
+    ArtifactRef,
+    CiteData,
+    RetrievalHit,
+    unavailable_output,
+)
 from copilot.tools.sql import ApprovedMinnesotaView, MinnesotaSqlExecutor
 
 ATTEMPT = "attempt_0123456789"
@@ -51,11 +56,26 @@ class _Provider:
         yield "Grounded local answer."
 
 
+PROVIDER_FAILURE_CANARY = "provider secret must not reach the stream"
+
+
 class _FailingProvider:
     async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
         if False:
             yield "unreachable"
-        raise RuntimeError("provider secret must not reach the stream")
+        raise RuntimeError(PROVIDER_FAILURE_CANARY)
+
+
+class _CitationLineageProvider(_Provider):
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
+        self.evidence.append(narration.evidence)
+        yield "The stored fixture supports this statement [mn-regulation p.3]."
+
+
+class _UncitedRegulatoryProvider(_Provider):
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
+        self.evidence.append(narration.evidence)
+        yield "The NRC requires a review."
 
 
 class _CancelledProvider:
@@ -66,9 +86,16 @@ class _CancelledProvider:
 
 
 class _SqlBackend:
-    def __init__(self, path: Path, provider: _Provider | None) -> None:
+    def __init__(
+        self,
+        path: Path,
+        provider: _Provider | None,
+        *,
+        query: str = "SELECT id, label FROM mn_summary",
+    ) -> None:
         self.path = path
         self.provider = provider
+        self.query = query
 
     async def turn(self, payload: AskRequest) -> ToolTurn:
         view = ApprovedMinnesotaView(
@@ -82,13 +109,11 @@ class _SqlBackend:
                 ),
             ),
         )
-        result = await MinnesotaSqlExecutor(self.path, [view]).execute(
-            "SELECT id, label FROM mn_summary"
-        )
+        result = await MinnesotaSqlExecutor(self.path, [view]).execute(self.query)
         return ToolTurn(
             "ask-sql",
             "sql",
-            {"query": "SELECT id, label FROM mn_summary"},
+            {"query": self.query},
             narrate("sql", result),
         )
 
@@ -145,6 +170,28 @@ class _CitationBackend:
             "cite",
             {"query": payload.question, "k": 1},
             narrate("cite", result),
+        )
+
+
+class _UnavailableCitationBackend:
+    """A retrieval boundary that explicitly has no admissible evidence."""
+
+    def __init__(self) -> None:
+        # A real provider, so an "unavailable" terminal cannot be explained by
+        # the unconfigured-provider path in ``runtime.stream_turn``.
+        self.provider = _Provider()
+
+    async def turn(self, payload: AskRequest) -> ToolTurn:
+        return ToolTurn(
+            "ask-cite-unavailable",
+            "cite",
+            {"query": payload.question, "k": 1},
+            narrate(
+                "cite",
+                unavailable_output(
+                    "insufficient_evidence", "fixture corpus has no hit"
+                ),
+            ),
         )
 
 
@@ -324,6 +371,162 @@ def test_ask_streams_real_retrieval_citation_and_score_evidence(tmp_path: Path) 
     score_events = _events(score_response)
     assert score_events[2][2]["result"]["safety_score"] == 10.0
     assert score_provider.evidence[0]["grid_value_score"] == 2.0
+
+
+def test_ask_rejects_sql_writes_and_over_limit_tool_inputs_without_db_mutation(
+    tmp_path: Path,
+) -> None:
+    """The real route cannot turn a tool input into a DuckDB side effect."""
+    database = tmp_path / "ask.duckdb"
+    _database(database)
+    before = database.read_bytes()
+    # DuckDB resolves a relative ``COPY ... TO`` target against the process CWD,
+    # so both destinations have to be watched for the assertions to be able to
+    # fail: the absolute one under ``tmp_path`` and the relative one in the CWD.
+    absolute_target = tmp_path / "must-not-exist.csv"
+    relative_name = "must-not-exist-relative.csv"
+    relative_target = Path.cwd() / relative_name
+    assert not absolute_target.exists()
+    assert not relative_target.exists()
+
+    for query in (
+        f"COPY (SELECT id FROM mn_summary) TO '{absolute_target}'",
+        f"COPY (SELECT id FROM mn_summary) TO '{relative_name}'",
+        "SELECT id FROM mn_summary " + ("x" * 5_000),
+    ):
+        provider = _Provider()
+        events = _events(
+            _client(database, _SqlBackend(database, provider, query=query)).post(
+                "/ask", json=_body()
+            )
+        )
+
+        assert [event for _, event, _ in events] == [
+            "lifecycle",
+            "tool_call",
+            "tool_result",
+            "error",
+        ]
+        assert events[2][2]["ok"] is False
+        assert events[2][2]["error"]["code"] == "invalid_input"
+        assert events[-1][2]["error"]["code"] == "unavailable"
+        assert provider.evidence == []
+        assert database.read_bytes() == before
+        assert not absolute_target.exists()
+        assert not relative_target.exists()
+
+
+def test_ask_preserves_citation_lineage_and_marks_uncited_regulatory_text(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "ask.duckdb"
+    _database(database)
+
+    citation_provider = _CitationLineageProvider()
+    citation_events = _events(
+        _client(database, _CitationBackend(citation_provider)).post(
+            "/ask", json=_body("What does the fixture regulation say?")
+        )
+    )
+    citation = citation_events[3][2]
+    assert citation_events[-1][2]["verified"] is True
+    hit = citation_provider.evidence[0]["hits"][0]
+    assert citation["citation_id"] == "ask-cite:cite:1"
+    assert {key: citation[key] for key in ("doc", "title", "page", "chunk_id")} == {
+        key: hit[key] for key in ("doc", "title", "page", "chunk_id")
+    }
+    assert citation["locator"] == hit["locator"]
+    assert citation["excerpt"] == hit["text"]
+    assert citation["url"] == hit["source"]
+
+    uncited_events = _events(
+        _client(database, _ScoreBackend(database, _UncitedRegulatoryProvider())).post(
+            "/ask", json=_body()
+        )
+    )
+    done = uncited_events[-1][2]
+    assert done["verified"] is False
+    assert done["reason"] == "regulatory_claim_without_cite"
+
+
+def test_ask_failure_modes_are_explicit_and_terminal_once(tmp_path: Path) -> None:
+    """Provider, retrieval, database, and tool failures do not fabricate text."""
+    database = tmp_path / "ask.duckdb"
+    _database(database)
+    before = database.read_bytes()
+    tool_unavailable = {
+        "code": "unavailable",
+        "message": "A required tool result is unavailable, so no answer was produced.",
+        "retryable": False,
+    }
+    cases = (
+        (
+            "provider",
+            _SqlBackend(database, _FailingProvider()),
+            None,
+            {
+                "code": "upstream_error",
+                "message": "The answer provider is unavailable.",
+                "retryable": True,
+            },
+        ),
+        (
+            "retrieval",
+            _UnavailableCitationBackend(),
+            {
+                "code": "tool_error",
+                "message": "The tool found no evidence for this request.",
+            },
+            tool_unavailable,
+        ),
+        (
+            "database",
+            _SqlBackend(tmp_path / "missing.duckdb", _Provider()),
+            {
+                "code": "unavailable",
+                "message": "A required data artifact is not available.",
+            },
+            tool_unavailable,
+        ),
+        (
+            "tool",
+            # ``rows`` is a real table, so only the guard - not DuckDB - can
+            # keep this DROP from mutating the fixture database.
+            _SqlBackend(database, _Provider(), query="DROP TABLE rows"),
+            {
+                "code": "invalid_input",
+                "message": "The tool does not support this request.",
+            },
+            tool_unavailable,
+        ),
+    )
+
+    for _, backend, expected_tool_error, expected_terminal in cases:
+        response = _client(database, backend).post("/ask", json=_body())
+        events = _events(response)
+        names = [event for _, event, _ in events]
+        assert names[0] == "lifecycle"
+        assert names[-1] == "error"
+        assert names.count("error") == 1
+        assert names.count("done") == 0
+        assert "text" not in names
+        assert events[-1][2]["error"] == expected_terminal
+        if expected_tool_error is None:
+            assert events[2][2]["ok"] is True
+        else:
+            assert events[2][2]["ok"] is False
+            assert events[2][2]["error"] == expected_tool_error
+        # The raised failure text must reach neither the body nor the headers.
+        assert PROVIDER_FAILURE_CANARY not in response.text
+        assert PROVIDER_FAILURE_CANARY not in json.dumps(dict(response.headers))
+        # The rejected DROP must leave the fixture database byte-identical.
+        assert database.read_bytes() == before
+
+    con = duckdb.connect(str(database), read_only=True)
+    try:
+        assert con.execute("SELECT count(*) FROM mn_summary").fetchone() == (1,)
+    finally:
+        con.close()
 
 
 def test_ask_reports_unconfigured_provider_after_real_tool_result(
