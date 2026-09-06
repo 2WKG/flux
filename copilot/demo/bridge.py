@@ -13,6 +13,13 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+#: The closed set of demo tool names.  It is a type, not a free string, so a
+#: rename on either side of the bridge is a type error rather than a runtime
+#: miss.  These are demo-planning intents; they are deliberately **not**
+#: ``copilot/tools/schemas.py`` ``TOOL_REGISTRY`` entries -- see the module
+#: docstring and 2WKG-437.
+DemoToolName = Literal["cascade", "forecast", "scenario", "availability", "inventory"]
+
 
 class DemoCapability(BaseModel):
     """One user-visible capability with its truth label and limitations."""
@@ -64,5 +71,5 @@ class DemoToolBridge(Protocol):
     async def capabilities(self) -> tuple[DemoCapability, ...]: ...
 
     async def execute(
-        self, tool: str, arguments: Mapping[str, object]
+        self, tool: DemoToolName, arguments: Mapping[str, object]
     ) -> DemoToolResult: ...
