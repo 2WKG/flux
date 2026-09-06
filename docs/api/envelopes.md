@@ -35,7 +35,7 @@
 ## Rules
 
 - **Unavailable is never an empty success.** A missing or unbuilt artifact raises rather than returning `[]`, `null`, or zeros.
-- **Not found vs unavailable:** target does not exist → `not_found`; target exists but its artifact is not built → `unavailable`. **Correction:** `GET /layers/national_hex` when not built returns a `not_found` 404 failure envelope (spec 06 §"Data loading"/`national_hex`: the client hides the toggle with a "not built" tooltip off the 404), not 503.
+- **Not found vs unavailable:** target does not exist → `not_found`; target exists but its artifact is not built → `unavailable`. `GET /layers/national_hex` when not built is the second case: `copilot/routes/layers.py:236-237` raises `_unavailable("not_built", …)`, so it is a **503 `unavailable` envelope carrying `details.reason: "not_built"`** — never a 404. (A "Correction" note here previously asserted the opposite; it was wrong about the code and is removed. D-2.) `BUILT_LAYERS = frozenset({"buses"})` (`layers.py:44`), so eleven of the twelve documented layers answer this way.
 - `partial` stays inside the route payload where spec 00 §4.2 puts it (`GET /elements/critical` returns `{"partial": true}` in its body); the envelope does not carry it.
 - Every response carries `X-Request-ID` (stamped by middleware in `install_error_handlers`); a client-supplied header value is reused.
 - Every response carries `X-Flux-Api-Version: v1`. This is response metadata, not a success envelope; success payload bodies remain exactly the route payloads specified by specs 00 and 05.
