@@ -117,15 +117,16 @@ the FastAPI envelope below.
 
 ## Optional API (copilot)
 
-`copilot.app:app` is a FastAPI app with four routers on master
-(`copilot/app.py`): `GET /health`; `GET /layers/{name}`; `POST /site-score` and
-`POST /compare` (persisted site scores, JSON body); `GET /scenarios` and
-`GET /scenarios/{id}`. `POST /ask` and SSE are specification only
-(`docs/specs/05-copilot.md`); any unmatched path — `/ask` included — answers
-`404` with the shared envelope (`error.code` `not_found`, "No route matches the
-request path."). A `GET` on the two POST routes is a plain FastAPI `405`
-(`{"detail":"Method Not Allowed"}`, not the envelope). The API is not required
-by the static demo, reads DuckDB read-only, and never creates a database.
+`copilot.app:app` is a FastAPI app with the nine registered local routes listed
+by `copilot/test_api_route_inventory.py`: `GET /health`; `GET /layers/{name}`;
+`POST /site-score` and `POST /compare` (persisted site scores, JSON body);
+`GET /scenarios` and `GET /scenarios/{id}`; `GET /predictions`; `GET /cascade`;
+and `POST /ask`. The default `/ask` backend is deliberately unconfigured: it
+returns a local SSE `lifecycle` event followed by an explicit `unavailable`
+terminal, with no provider or network call. A `GET` on the POST routes is a
+plain FastAPI `405` (`{"detail":"Method Not Allowed"}`, not the envelope). The
+API is not required by the static demo, reads DuckDB read-only, and never creates
+a database.
 
 ### First-time setup
 
@@ -184,8 +185,21 @@ curl -s http://localhost:8000/layers/lines | uv run python -c "import sys,json; 
 # Expected: unavailable {'artifact': 'lines', 'reason': 'not_built'}   (documented layer, only `buses` is implemented)
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8000/layers/bogus
 # Expected: 404   (error.code not_found, details {"layer":"bogus"})
-curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8000/ask
-# Expected: 404   (no such route; envelope error.code not_found)
+curl -sS -iN -X POST http://localhost:8000/ask \
+  -H 'content-type: application/json' \
+  -d '{"attempt_id":"local_startup_0001","question":"What evidence is available?"}'
+# Expected: 200 text/event-stream; X-Flux-Attempt-Id: local_startup_0001;
+#           lifecycle seq 1 followed by error seq 2 with code "unavailable".
+# This proves only the injected local transport boundary, not a configured
+# provider, real topology, or a live external SSE route.
+
+The default unconfigured app produces that `200` SSE response. A valid
+`Last-Event-ID` resume is different: replay storage is not implemented, so it
+is rejected **before** streaming as a `503` JSON unavailable envelope and has
+no `X-Flux-Attempt-Id` acknowledgement. A configured backend whose provider is
+missing also uses `200` SSE, after it has emitted its local tool evidence; that
+is a deployment-injected state and is not established by this fresh-checkout
+smoke test.
 
 curl -s -X POST http://localhost:8000/site-score -H "content-type: application/json" -d '{"site_id":"s1","unit_mw":300,"scenario_id":"baseline"}' | uv run python -c "import sys,json; d=json.load(sys.stdin); print(d['status'], d['error']['details'])"
 # Expected: unavailable {'artifact': 'database', 'reason': 'missing'}
@@ -197,8 +211,10 @@ curl -s -o /dev/null -w "%{http_code}\n" -X POST http://localhost:8000/compare -
 
 With a schema-2.0.0 database at `DUCKDB_PATH` (built by `pipelines/build.py`, or
 an empty one from `pipelines.db.connect(path)`), `/health` returns `200` with the
-unwrapped success body and `/scenarios` returns a bare array. Run these in a
-**second terminal** while uvicorn is running.
+unwrapped success body and `/scenarios` returns a bare array. The separate
+clean-checkout fixture-preparation prerequisite remains tracked by 2WKG-418;
+this runbook does not treat a schema-only database as fixture-data success.
+Run these in a **second terminal** while uvicorn is running.
 
 ```bash
 curl -s http://localhost:8000/health | uv run python -c "import sys,json; d=json.load(sys.stdin); print(d['ok'], d['duckdb_path'], len(d['tables']), d['model']['status'])"
@@ -273,13 +289,36 @@ curl -s -w "\n%{http_code}\n" http://localhost:8000/health
 | `/layers/<name>` returns 503 `not_built` | A documented layer whose artifact is not implemented yet; only `buses` is. |
 | `POST /site-score` returns 404 `not_found` with a database present | No persisted `site_scores` row for that `site_id`/`unit_mw`/`scenario_id`; the API never fabricates a score. |
 | `GET /site-score` or `GET /compare` returns 405 | Those routes are POST with a JSON body; see `copilot/routes/interventions.py`. |
-| `POST /ask` (or any unknown path) returns 404 `not_found` | Not implemented on master; spec only. |
+| `POST /ask` emits `lifecycle` then SSE `error` code `unavailable` | The local app has no injected backend. This is expected; no provider is contacted. |
+| An unknown path returns 404 `not_found` | Only the nine routes listed above are registered. |
 
-## Verified on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
+## Current local API handoff verification
+
+The updated route inventory and `/ask` statements above were checked without
+starting the static demo, contacting a provider, or using an external route on
+master `560dc7fcec6a543198749b3fcf54edb98f4e95d5` (PR #124 plus the already
+merged local Ask implementation). A local FastAPI `TestClient` trace used
+`attempt_id: "local_startup_0001"` and found:
+
+- The default app (no injected backend) returns `200 text/event-stream`, echoes
+  `X-Flux-Attempt-Id: local_startup_0001`, then sends `lifecycle` sequence 1
+  and `error` sequence 2 with code `unavailable`.
+- An injected backend with local evidence but no provider remains `200` SSE;
+  it sends its tool events before the explicit unavailable terminal.
+- A valid `Last-Event-ID: 1` request is a pre-stream `503` JSON unavailable
+  response and has no attempt acknowledgement because replay storage is absent.
+
+`uv run --extra dev pytest -q copilot/test_api_route_inventory.py
+copilot/test_ask.py` passed 14 tests for the registered inventory and local SSE
+contract. This verification does not provide the separate 2WKG-418 fixture
+preparation path or any live HTTPS/tunnel/provider evidence.
+
+## Historical verification on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
 
 macOS (Darwin 25.6.0), Node v26.0.0, npm 11.12.1, uv 0.11.16, `uv run python`
-3.12.13, no `python` on `PATH` (`python3` is 3.9.6). Every command above was run
-in this order; outputs are verbatim.
+3.12.13, no `python` on `PATH` (`python3` is 3.9.6). The following original
+startup commands were run in this order; outputs are verbatim. They predate the
+current `/predictions`, `/cascade`, and `/ask` route inventory.
 
 ```
 $ uv sync --frozen --extra dev                                  rc=0

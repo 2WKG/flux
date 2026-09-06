@@ -41,14 +41,15 @@ is no checked-in environment file or wrapper that overrides it.
 | local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified; reads `data/demo/bundle.json` on every request. The built client does not call it. |
 | `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
 | optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
-| optional `POST /ask` (SSE) | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
+| optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
-The FastAPI paths and port are a future contract in
-`docs/specs/00-overview.md` and `docs/specs/05-copilot.md`; they are not evidence
-of a running API. Those specs name `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`,
-`DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the checked-in static
-server. The tunnel's own environment-variable names are unknown because its
-configuration is not available in the repository.
+The FastAPI paths are implemented for local use but are not evidence of a
+running API or a public mapping. `POST /ask` starts only the injected local SSE
+transport; without an injected backend it reports unavailable and it does not
+contact a provider. The specifications name `ANTHROPIC_API_KEY`,
+`VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
+checked-in static server. The tunnel's own environment-variable names are
+unknown because its configuration is not available in the repository.
 
 ## Start and verify the static origin
 
