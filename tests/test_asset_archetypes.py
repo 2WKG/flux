@@ -48,8 +48,7 @@ def _tracked_model_files() -> list[str]:
 def _expected_runtime_model_files(catalog: dict) -> list[str]:
     """Derive the complete checked-in Flux grid pack from catalog identities."""
     return sorted(
-        "web/public/assets/flux-grid/"
-        f"{archetype_id}/{archetype_id}{lod_suffix}.glb"
+        f"web/public/assets/flux-grid/{archetype_id}/{archetype_id}{lod_suffix}.glb"
         for archetype_id in (entry["id"] for entry in catalog["archetypes"])
         for lod_suffix in ("", ".lod1", ".lod2")
     )
