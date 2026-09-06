@@ -61,6 +61,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .map, aside > div, .pipeline { border: 1px solid #234962; background: var(--panel); border-radius: 12px }
 .map { padding: 18px; display: flex; flex-direction: column }
 .map-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
+.map-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
 .hint { margin: 6px 0 0; color: var(--dim); font-size: .78rem }
 .toggle { display: flex; border: 1px solid #2b5170; border-radius: 8px; overflow: hidden }
 .toggle button { padding: 8px 13px; font-size: .78rem; font-weight: 700; color: #a8c4d8; transition: background .18s, color .18s }
