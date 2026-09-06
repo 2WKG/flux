@@ -387,3 +387,85 @@ def test_cli_writes_an_error_envelope_instead_of_a_traceback(
     report = json.loads(report_path.read_text(encoding="utf-8"))
     assert report["validation"]["passed"] is False
     assert any(expected_error in error for error in report["validation"]["errors"])
+
+
+HRRR_ID = "noaa-hrrr-scenario-weather"
+
+
+def _write(path: Path, payload) -> Path:
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
+
+
+def test_unavailable_record_cannot_publish_an_artifact_checksum() -> None:
+    """A record that says nothing was retrieved cannot hash what it did not retrieve."""
+    inventory = copy.deepcopy(_inventory())
+    record = _record(inventory, HRRR_ID)
+    record["status"] = "unavailable"
+    record["checked_in_receipt"] = None
+    record["ingestion_timestamp"] = None
+    assert any(artifact.get("immutable_id") for artifact in record["artifacts"])
+
+    errors = inventory_module.validate_inventory(inventory)
+
+    assert any("immutable artifact identifier" in error for error in errors), errors
+    assert not any(
+        "immutable artifact identifier" in error
+        for error in inventory_module.validate_inventory(_inventory())
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected"),
+    [
+        (
+            lambda record, tmp: record.update(
+                feasibility_evidence="data/sources/does-not-exist.json"
+            ),
+            "feasibility_evidence is missing",
+        ),
+        (
+            lambda record, tmp: record.update(
+                feasibility_evidence=str(_write(tmp / "e.json", {"status": "ingested"}))
+            ),
+            "must declare status",
+        ),
+        (
+            lambda record, tmp: record.update(
+                feasibility_evidence=str(_write(tmp / "e.json", ["not-an-object"]))
+            ),
+            "must declare status",
+        ),
+    ],
+)
+def test_feasibility_evidence_must_exist_and_keep_disclaiming_ingest(
+    tmp_path: Path, mutate, expected: str
+) -> None:
+    """Feasibility evidence may outlive a real run, but only as what it is."""
+    inventory = copy.deepcopy(_inventory())
+    record = _record(inventory, HRRR_ID)
+    assert inventory_module.build_report(inventory, tmp_path)["validation"]["passed"]
+    mutate(record, tmp_path)
+
+    report = inventory_module.build_report(inventory, tmp_path)
+
+    assert not report["validation"]["passed"]
+    assert any(expected in error for error in report["validation"]["errors"]), report[
+        "validation"
+    ]["errors"]
+
+
+def test_hrrr_record_does_not_deny_the_loader_this_clone_now_has() -> None:
+    """The merged receipt must not assert an absence the repository contradicts."""
+    loader_source = (REPO_ROOT / "pipelines" / "hrrr.py").read_text(encoding="utf-8")
+    assert "def load_hrrr_window(" in loader_source
+    assert "def build_county_index(" in loader_source
+
+    record = _record(_inventory(), HRRR_ID)
+
+    for denial in (
+        "has no HRRR",
+        "no HRRR county-grid index",
+        "loader, GRIB transform",
+    ):
+        assert denial not in record["reason"], record["reason"]
