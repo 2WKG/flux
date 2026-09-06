@@ -1,17 +1,12 @@
-import { useId } from "react";
+import { useEffect, useId } from "react";
+import { isAssetStatus, type AssetStatus } from "../labels";
 import "./layer-controls.css";
 
-/** Values frozen for source-truth UI. Unknown input fails closed as unavailable. */
-export const SOURCE_STATUSES = [
-  "source_supported",
-  "source_screened",
-  "hypothetical",
-  "synthetic",
-  "unavailable",
-  "request_failed",
-] as const;
-
-export type SourceStatus = (typeof SOURCE_STATUSES)[number];
+/**
+ * The vocabulary is owned by `../labels.ts` and imported, never restated here.
+ * `SourceStatus` is this component's local name for that same union.
+ */
+export type SourceStatus = AssetStatus;
 export type LayerCategory = "topology" | "facilities" | "flows" | "events" | "proposals" | "provenance";
 export type EvidenceClass = "observed" | "proxy" | "modeled" | "fixture" | "stale" | "malformed" | "unavailable";
 
@@ -35,7 +30,11 @@ export interface LayerDescriptor {
   readonly sourceStatus: unknown;
   readonly evidenceClass: EvidenceClass;
   readonly evidence?: LayerEvidence;
-  /** A parent must provide this to permit a visibility request. */
+  /**
+   * A parent must provide this to permit a visibility request. `unavailable` and
+   * `request_failed` carry no evidence of their own, so the producer's named reason
+   * is the only channel this component has: it is required, never substituted.
+   */
   readonly visibility: { readonly enabled: true } | { readonly enabled: false; readonly reason: string };
 }
 
@@ -46,23 +45,24 @@ export interface LayerControlsProps {
   readonly heading?: string;
 }
 
+/** The IA's user-visible copy, `docs/design/minnesota-demo-narrative-ia.md` truth-label table. */
 const statusCopy: Record<SourceStatus, string> = {
-  source_supported: "Source supported",
-  source_screened: "Source screened",
+  source_supported: "Source-supported",
+  source_screened: "Source-screened",
   hypothetical: "Hypothetical",
   synthetic: "Synthetic",
   unavailable: "Unavailable",
   request_failed: "Request failed",
 };
 
-/** Visible marks keep a status recognizable when colour is unavailable. */
-const statusGlyph: Record<SourceStatus, string> = {
-  source_supported: "✓",
-  source_screened: "≈",
-  hypothetical: "?",
-  synthetic: "◇",
-  unavailable: "×",
-  request_failed: "!",
+/**
+ * Accompanying copy the IA binds to the label itself rather than to a producer field.
+ * Statuses whose required copy is producer-supplied (`unavailable`'s named next step,
+ * `request_failed`'s retry guidance) are absent here on purpose: this component refuses
+ * instead of inventing them.
+ */
+const statusNote: Partial<Record<SourceStatus, string>> = {
+  hypothetical: "Not a recommendation.",
 };
 
 const categoryCopy: Record<LayerCategory, string> = {
@@ -74,8 +74,47 @@ const categoryCopy: Record<LayerCategory, string> = {
   provenance: "Provenance",
 };
 
-export function sourceStatusOf(value: unknown): SourceStatus | null {
-  return typeof value === "string" && (SOURCE_STATUSES as readonly string[]).includes(value) ? value as SourceStatus : null;
+const evidenceClassCopy: Record<EvidenceClass, string> = {
+  observed: "Observed",
+  proxy: "Proxy",
+  modeled: "Modeled",
+  fixture: "Fixture",
+  stale: "Stale",
+  malformed: "Malformed",
+  unavailable: "Unavailable",
+};
+
+/**
+ * A refusal this component owns, named by token. It is never presented as a reason the
+ * producer gave; the browser has no reason of its own to offer.
+ */
+export type RefusalCode =
+  | "unrecognized_status"
+  | "unrecognized_descriptor"
+  | "malformed_evidence"
+  | "missing_status_reason";
+
+const refusalCopy: Record<RefusalCode, string> = {
+  unrecognized_status: "Refused: the supplied source-truth status is not one this vocabulary defines.",
+  unrecognized_descriptor: "Refused: the supplied category or evidence class is not one this vocabulary defines.",
+  malformed_evidence: "Refused: the evidence disclosure is incomplete or malformed.",
+  missing_status_reason: "Refused: no reason was supplied for this status.",
+};
+
+/** The statuses that assert a five-field disclosure. `unavailable`/`request_failed` have none to give. */
+const STATUSES_ASSERTING_EVIDENCE: readonly SourceStatus[] = [
+  "source_supported",
+  "source_screened",
+  "hypothetical",
+  "synthetic",
+];
+
+function isLayerCategory(value: unknown): value is LayerCategory {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(categoryCopy, value);
+}
+
+function isEvidenceClass(value: unknown): value is EvidenceClass {
+  return typeof value === "string" && Object.prototype.hasOwnProperty.call(evidenceClassCopy, value);
 }
 
 function evidenceOf(value: unknown): LayerEvidence | null {
@@ -88,18 +127,67 @@ function evidenceOf(value: unknown): LayerEvidence | null {
   return candidate as unknown as LayerEvidence;
 }
 
-type ResolvedLayer = { status: SourceStatus; reason: string | null; evidence: LayerEvidence | null };
+export type ResolvedLayer = {
+  status: SourceStatus;
+  /** Producer-supplied text only. Never written by this component. */
+  reason: string | null;
+  refusal: RefusalCode | null;
+  evidence: LayerEvidence | null;
+};
 
 export function resolveLayer(layer: LayerDescriptor): ResolvedLayer {
-  const status = sourceStatusOf(layer.sourceStatus);
-  if (status === null) return { status: "unavailable", reason: "This layer has no recognized source-truth status and is unavailable.", evidence: null };
-  const evidence = evidenceOf(layer.evidence);
-  if (evidence === null) return { status: "unavailable", reason: "This layer has incomplete or malformed evidence disclosure and is unavailable.", evidence: null };
-  if (!layer.visibility.enabled) return { status, reason: layer.visibility.reason, evidence };
-  if (status === "unavailable" || status === "request_failed") {
-    return { status, reason: "This layer is not available for display.", evidence };
+  if (!isAssetStatus(layer.sourceStatus)) {
+    return { status: "unavailable", reason: null, refusal: "unrecognized_status", evidence: null };
   }
-  return { status, reason: null, evidence };
+  const status: SourceStatus = layer.sourceStatus;
+  if (!isLayerCategory(layer.category) || !isEvidenceClass(layer.evidenceClass)) {
+    return { status: "unavailable", reason: null, refusal: "unrecognized_descriptor", evidence: null };
+  }
+  const evidence = evidenceOf(layer.evidence);
+  if (STATUSES_ASSERTING_EVIDENCE.includes(status) && evidence === null) {
+    return { status: "unavailable", reason: null, refusal: "malformed_evidence", evidence: null };
+  }
+  if (!layer.visibility.enabled) return { status, reason: layer.visibility.reason, refusal: null, evidence };
+  // `unavailable` and `request_failed` keep their own token: a failed request is not the
+  // same claim as a missing artifact, and neither is rewritten into the other.
+  if (status === "unavailable" || status === "request_failed") {
+    return { status, reason: null, refusal: "missing_status_reason", evidence };
+  }
+  return { status, reason: null, refusal: null, evidence };
+}
+
+/** A layer is blocked when it carries a producer reason or a refusal of ours. */
+export function isBlocked(resolved: ResolvedLayer): boolean {
+  return resolved.reason !== null || resolved.refusal !== null;
+}
+
+/**
+ * The list the parent should hold after a toggle, or `null` when the layer is blocked and
+ * no request may be made at all.
+ */
+export function nextVisibleLayerIds(
+  layers: readonly LayerDescriptor[],
+  visibleLayerIds: readonly string[],
+  layer: LayerDescriptor,
+  nextVisible: boolean,
+): readonly string[] | null {
+  if (isBlocked(resolveLayer(layer))) return null;
+  const next = new Set(visibleLayerIds);
+  if (nextVisible) next.add(layer.id);
+  else next.delete(layer.id);
+  return layers.filter((item) => next.has(item.id)).map((item) => item.id);
+}
+
+/**
+ * The visible list with every blocked layer removed. A layer that flips to unavailable on
+ * a refresh must leave the parent's list, not merely grey out.
+ */
+export function prunedVisibleLayerIds(
+  layers: readonly LayerDescriptor[],
+  visibleLayerIds: readonly string[],
+): readonly string[] {
+  const visible = new Set(visibleLayerIds);
+  return layers.filter((item) => visible.has(item.id) && !isBlocked(resolveLayer(item))).map((item) => item.id);
 }
 
 function EvidenceDisclosure({ evidence }: { evidence: LayerEvidence }) {
@@ -120,13 +208,17 @@ export function LayerControls({ layers, visibleLayerIds, onVisibleLayerIdsChange
   const panelId = useId();
   const visible = new Set(visibleLayerIds);
 
+  const pruned = prunedVisibleLayerIds(layers, visibleLayerIds);
+  const prunedKey = pruned.join(" ");
+  useEffect(() => {
+    if (pruned.length !== visibleLayerIds.length) onVisibleLayerIdsChange(pruned);
+    // Keyed on the pruned list itself so the retraction runs once per change, not per render.
+  }, [prunedKey, visibleLayerIds.length]);
+
   const requestVisibility = (layer: LayerDescriptor, nextVisible: boolean) => {
-    const resolved = resolveLayer(layer);
-    if (resolved.reason) return;
-    const next = new Set(visible);
-    if (nextVisible) next.add(layer.id);
-    else next.delete(layer.id);
-    onVisibleLayerIdsChange(layers.filter((item) => next.has(item.id)).map((item) => item.id));
+    const next = nextVisibleLayerIds(layers, visibleLayerIds, layer, nextVisible);
+    if (next === null) return;
+    onVisibleLayerIdsChange(next);
   };
 
   return (
@@ -138,10 +230,11 @@ export function LayerControls({ layers, visibleLayerIds, onVisibleLayerIdsChange
       <ul className="layer-list" aria-label="Layer visibility and evidence">
         {layers.map((layer) => {
           const resolved = resolveLayer(layer);
-          const disabled = resolved.reason !== null;
-          const checked = visible.has(layer.id);
+          const disabled = isBlocked(resolved);
+          const checked = visible.has(layer.id) && !disabled;
+          const note = statusNote[resolved.status];
           return (
-            <li className="layer-row" key={layer.id} data-status={resolved.status}>
+            <li className="layer-row" key={layer.id} data-status={resolved.status} data-refusal={resolved.refusal ?? undefined}>
               <div className="layer-main">
                 <label>
                   <input
@@ -152,11 +245,13 @@ export function LayerControls({ layers, visibleLayerIds, onVisibleLayerIdsChange
                   />
                   <span>{layer.label}</span>
                 </label>
-                <span className="layer-category">{categoryCopy[layer.category]}</span>
-                <span className="layer-status"><span className="layer-status-glyph" aria-hidden="true">{statusGlyph[resolved.status]}</span>{statusCopy[resolved.status]}</span>
-                <span className="layer-evidence-class">{layer.evidenceClass}</span>
+                <span className="layer-category">{isLayerCategory(layer.category) ? categoryCopy[layer.category] : "Unrecognized category"}</span>
+                <span className="layer-status">{statusCopy[resolved.status]}</span>
+                <span className="layer-evidence-class">{isEvidenceClass(layer.evidenceClass) ? evidenceClassCopy[layer.evidenceClass] : "Unrecognized evidence class"}</span>
               </div>
+              {note && <p className="layer-note">{note}</p>}
               {resolved.reason && <p className="layer-reason" role="note">{resolved.reason}</p>}
+              {resolved.refusal && <p className="layer-refusal" role="note">{refusalCopy[resolved.refusal]}</p>}
               {resolved.evidence && <details className="layer-details">
                 <summary>Source, vintage, coverage and uncertainty</summary>
                 <EvidenceDisclosure evidence={resolved.evidence} />
