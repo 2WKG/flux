@@ -77,7 +77,7 @@ def search_locations(
     if (
         policy.feasibility is None
         and _find_callable(net, "placement_feasibility", "feasibility") is None
-        and _import_callable("twin.feasibility", "placement_feasibility", "check_placement")
+        and _import_callable("twin.feasibility", "evaluate_feasibility")
         is None
     ):
         raise SearchUnavailable("placement feasibility policy is unavailable")
@@ -86,20 +86,22 @@ def search_locations(
         return []
 
     baseline_peak = _cascade(net, scenario_id, hour, tuple(edits), policy)
-    baseline_redundancy = _redundancy(
-        net, None, kind, unit_mw, scenario_id, hour, tuple(edits), policy
+    baseline_redundancy: object | None = (
+        _redundancy(net, None, kind, unit_mw, scenario_id, hour, tuple(edits), policy)
+        if kind == "producer"
+        else None
     )
 
     preliminary: list[dict[str, object]] = []
     for candidate in candidates:
-        feasibility = _feasibility(
-            net, candidate, kind, unit_mw, scenario_id, hour, tuple(edits), policy
-        )
-        if not _passed(feasibility, "feasible", "passed", "allowed"):
-            continue
-
         edit = _candidate_edit(candidate, kind, unit_mw, policy)
         candidate_edits = (*edits, edit)
+        feasibility = _feasibility(
+            net, candidate, edit, kind, unit_mw, scenario_id, hour, candidate_edits, policy
+        )
+        if not _feasible(feasibility):
+            continue
+
         balance: object | None = None
         if kind == "consumer":
             balance = _balance(
@@ -151,8 +153,10 @@ def search_locations(
     # set.  The baseline is shared, so no candidate receives a different
     # reference scenario.
     baseline_full = _cascade(net, scenario_id, None, tuple(edits), policy)
-    baseline_full_redundancy = _redundancy(
-        net, None, kind, unit_mw, scenario_id, None, tuple(edits), policy
+    baseline_full_redundancy: object | None = (
+        _redundancy(net, None, kind, unit_mw, scenario_id, None, tuple(edits), policy)
+        if kind == "producer"
+        else None
     )
     for row in finalists:
         candidate = _as_mapping(row["candidate"])
@@ -284,25 +288,43 @@ def _candidate_rows(net: object, kind: CandidateKind, policy: SearchAdapters) ->
     return rows
 
 
-def _feasibility(net: object, candidate: Mapping[str, object], kind: CandidateKind, unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
-    fn = policy.feasibility or _find_callable(net, "placement_feasibility", "feasibility") or _import_callable("twin.feasibility", "placement_feasibility", "check_placement")
+def _feasibility(net: object, candidate: Mapping[str, object], edit: object, kind: CandidateKind, unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
+    fn = policy.feasibility or _find_callable(net, "placement_feasibility", "feasibility")
+    if fn is not None:
+        return _invoke(fn, net=net, candidate=candidate, edit=edit, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    fn = _import_callable("twin.feasibility", "evaluate_feasibility")
     if fn is None:
         raise SearchUnavailable("placement feasibility policy is unavailable")
-    return _invoke(fn, net=net, candidate=candidate, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    return _invoke(fn, net=net, edit=edit)
 
 
 def _balance(net: object, candidate: Mapping[str, object], unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
-    fn = policy.balance or _find_callable(net, "balance", "assess_balance") or _import_callable("twin.balance", "assess_balance", "balance_candidate")
+    fn = policy.balance or _find_callable(net, "balance", "assess_balance")
+    if fn is not None:
+        return _invoke(fn, net=net, candidate=candidate, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    fn = _import_callable("twin.balance", "balance_report")
     if fn is None:
         raise SearchUnavailable("consumer balance/corridor policy is unavailable")
-    return _invoke(fn, net=net, candidate=candidate, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    report = _as_mapping(_invoke(fn, net=net, edits=edits))
+    feasibility = _import_callable("twin.feasibility", "evaluate_feasibility")
+    if feasibility is None:
+        raise SearchUnavailable("consumer corridor policy is unavailable")
+    p4 = _as_mapping(_invoke(feasibility, net=net, edit=edits[-1]))
+    report["p4_passed"] = p4.get("status") == "valid"
+    report["p4_evidence"] = p4
+    return report
 
 
 def _redundancy(net: object, candidate: Mapping[str, object] | None, kind: CandidateKind, unit_mw: float, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
-    fn = policy.redundancy or _find_callable(net, "redundancy", "redundancy_score") or _import_callable("siting.redundancy", "redundancy_score", "score_redundancy")
+    fn = policy.redundancy or _find_callable(net, "redundancy", "redundancy_score")
+    if fn is not None:
+        return _invoke(fn, net=net, candidate=candidate, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    fn = _import_callable("siting.redundancy", "score_redundancy")
     if fn is None:
         raise SearchUnavailable("redundancy policy is unavailable")
-    return _invoke(fn, net=net, candidate=candidate, kind=kind, unit_mw=unit_mw, scenario_id=scenario_id, hour=hour, edits=edits)
+    if candidate is None:
+        raise SearchUnavailable("baseline redundancy requires a candidate-scoped adapter")
+    return _invoke(fn, net=net, bus_id=_required(candidate, "bus_id"), scenario_id=scenario_id, hour=0 if hour is None else hour)
 
 
 def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
@@ -325,6 +347,7 @@ def _candidate_edit(candidate: Mapping[str, object], kind: CandidateKind, unit_m
         "bus_id": _required(candidate, "bus_id"),
         "p_mw": float(unit_mw),
         "pmax_mw": float(unit_mw) if kind == "producer" else None,
+        "length_km": _get(candidate, "interconnect_distance_km", "length_km", default=None),
     }
     factory = policy.edit_factory or _import_callable("twin.contracts", "GridEdit")
     if factory is None:
@@ -479,6 +502,10 @@ def _candidate_id(candidate: Mapping[str, object]) -> str:
 def _passed(value: object, *names: str) -> bool:
     marker = _get(value, *names, default=None)
     return marker is True
+
+
+def _feasible(value: object) -> bool:
+    return _passed(value, "feasible", "passed", "allowed") or _get(value, "status", default=None) == "valid"
 
 
 def _number(value: object, *names: str) -> float:
