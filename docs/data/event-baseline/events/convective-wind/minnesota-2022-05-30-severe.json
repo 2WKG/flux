@@ -50,7 +50,17 @@
       "grid_index_mapping": "No grid mapping.",
       "gaps": [
         "Detailed event record and coverage receipt are pending."
-      ]
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
     },
     {
       "receipt_id": "ncei-stormevents-2022",
@@ -69,7 +79,17 @@
       "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
-      ]
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
     },
     {
       "receipt_id": "eaglei-2022-42547897-20220530t180000-20220531t000000",
@@ -103,7 +123,17 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "data/raw/event-baseline/minnesota-2022-05-30-severe-27121-20220530180000_eaglei_2022_20220530T180000_20220531T000000.csv",
         "filtered_artifact_sha256": "ad094077d40b0ef5b44c998c799560b37b544d1cf87e1deb242232c0e1bab0f6"
-      }
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
     }
   ],
   "records": [
@@ -179,7 +209,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,

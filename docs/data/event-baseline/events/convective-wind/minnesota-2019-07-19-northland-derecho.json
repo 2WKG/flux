@@ -50,7 +50,17 @@
       "grid_index_mapping": "No grid mapping.",
       "gaps": [
         "Detailed event record and coverage receipt are pending."
-      ]
+      ],
+      "capture_method": "Metadata-only public-source citation; no response body was retained.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": false,
+        "row_count_checked": false,
+        "notes": "No response bytes were retained for this discovery/context citation."
+      },
+      "uncertainty": "This citation provides event context only unless a record explicitly declares scoped event-report evidence.",
+      "files": {}
     },
     {
       "receipt_id": "ncei-stormevents-2019",
@@ -69,7 +79,17 @@
       "grid_index_mapping": "County or zone report is event evidence only; no physical-grid mapping.",
       "gaps": [
         "The report establishes an event occurrence and interval but does not supply a weather time series."
-      ]
+      ],
+      "capture_method": "HTTP GET of the NCEI annual Storm Events CSV archive; matching event rows were filtered locally.",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": false,
+        "notes": "The annual archive hash is retained when available; this receipt is event-report evidence, not a sampled weather series."
+      },
+      "uncertainty": "NCEI county or zone event reports establish event occurrence and interval, not a countywide weather time series.",
+      "files": {}
     },
     {
       "bytes": 1102778792,
@@ -105,7 +125,17 @@
         "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
         "filtered_artifact_uri": "data/raw/event-baseline/minnesota-2019-07-19-northland-derecho-27115-20190719180000_eaglei_2019_20190719T180000_20190720T000000.csv",
         "filtered_artifact_sha256": "1ca557f7205a2895f471dbf6f2773d73a48685ab8062df8d563837244d5c5601"
-      }
+      },
+      "capture_method": "Exhaustive annual stream; selected county slice materialized from the verified annual source cache.",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "content_range_matched_request": false,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Annual-sidecar acquisition proof and filtered-artifact SHA are recorded in acquisition; this bundle did not re-fetch the annual response body."
+      },
+      "uncertainty": "The selected slice establishes EAGLE-I row coverage only; it does not supply a customer denominator unless explicitly retained.",
+      "files": {}
     }
   ],
   "records": [
@@ -169,7 +199,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
