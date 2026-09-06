@@ -6,7 +6,7 @@ not product code and should be updated through a pull request.
 ## Repository
 
 - GitHub: `Wyzard1004/flux`
-- Product: **GridMind**, a Texas-first prototype of a national grid digital twin
+- Product: **GridMind**, a state-configurable grid resilience prototype. Public context is state-scoped; the only implemented topology adapter is Texas / ACTIVSg2000 / ERCOT and requires its source artifacts and build.
 - Default branch: `master`
 - GitHub workflow: work on a feature or unit branch, push it, and open a PR into
   `master`; do not commit directly to `master` or merge without explicit approval.
@@ -84,7 +84,7 @@ For the hackathon weekend it therefore supersedes the U0–U9 unit table above a
 `docs/build/` swarm specs. Its cut list explicitly removes ML training, copilot/RAG, cascade
 dynamics, EAGLE-I ingestion, licensing scoring, databases and APIs.
 
-The reduced scope is one screen: a synthetic Texas case under one fixed cold-weather stress,
+The reduced scope is one screen: a geographic-neutral synthetic case under one fixed cold-weather stress,
 with a baseline and two 300 MW firm-generation additions precomputed in Python/pandapower,
 written to JSON on disk, and read by a static React/Vite build served through the **existing**
 Cloudflare Tunnel at `bouncepulse.com`. Target layout is `web/`, `model/`, `data/demo/`,
@@ -162,9 +162,11 @@ before acting on its status notes. The accompanying Graphify artifacts are a
 pre-rebase snapshot and do not yet index the data-quality or metric-layer files
 that subsequently landed on `master`.
 
-**Scope order: Minnesota first, then Texas, then further states, perfecting each before
-moving on.** `docs/specs/10-minnesota-demo.md` is the current authority. Specs 00–09 are
-Texas and carry a scope banner; their content is the second case, not the current one.
+**State scope:** public context can be ingested for a selected U.S. state when its declared
+source artifacts are supplied. The only implemented topology adapter is Texas / ACTIVSg2000 /
+ERCOT and requires its source artifacts and build. `docs/specs/10-minnesota-demo.md` is a
+planning contract, not a checked-in Minnesota fixture; the checked-in five-bus preview represents
+no state.
 
 **Storage is settled: DuckDB.** Recorded as contract amendment **A9** in
 `docs/specs/00-overview.md`; the `[DECISION]` in the curation plan is closed. Postgres was
@@ -183,12 +185,13 @@ already existed. Before starting an issue, check `git worktree list`, open PRs f
 branch, and `list_issues` filtered by `parentId` — `get_issue` on a parent never returns its
 children.
 
-**Two contradictions the team must resolve; both are documented, neither is decided.**
-`README.md` describes Node/Express with `GET /api/demo` and says it "intentionally does not
-use Vite", while `STACK-LOCK.md` locks React+Vite served statically with no API — the built
-app violates the lock twice. And whether `docs/build/converging-swarm-target.md` and
-`swarm-plan.md` are superseded: this file says they are, but copilot work is actively landing
-against spec 05. Tracked in Linear 2WKG-296.
+**One contradiction the team must still resolve.** Whether
+`docs/build/converging-swarm-target.md` and `swarm-plan.md` are superseded: this file says they
+are, but copilot work is actively landing against spec 05. Tracked in Linear 2WKG-296.
+
+The README/`STACK-LOCK.md` runtime contradiction is **decided** (2WKG-300): static assets, no
+demo API. `web/server.mjs` serves `web/dist/` only, the `GET /api/demo` route is removed, and the
+lock's stale "Vite" wording was corrected to esbuild to match `web/scripts/build.mjs`.
 
 **Parallel agents.** Ghadi runs Codex in a second terminal on this repo. Both act as the same
 Linear user, so neither can see the other's claims. Split by workstream, and only one agent

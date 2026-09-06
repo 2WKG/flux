@@ -1,10 +1,6 @@
 # Flux — grid resilience data product
 
-> **⚠ Unresolved contradiction with `STACK-LOCK.md`.** The stack lock (the H03 decision artifact)
-> specifies React + Vite served statically with no API; the description below is Node/Express with
-> `GET /api/demo`. Both cannot be true. Recorded, not resolved — see Linear 2WKG-296.
-
-Flux compares resilience scenarios on a synthetic fixture today and is structured for national-grid data ingestion next. The interactive desk is served by Node/Express and rendered with React; it intentionally does not use Vite.
+Flux compares resilience scenarios on a synthetic fixture today and is structured for state-scoped, source-backed data ingestion. A selected state needs its own validated source artifacts and configuration; the current fixture does not represent any state. The interactive desk is a static React build: the client bundles its data at build time and calls no API at runtime. `STACK-LOCK.md` holds that runtime contract.
 
 ## Run the desk
 
@@ -14,7 +10,7 @@ npm --prefix web install
 npm --prefix web run dev
 ```
 
-Open `http://localhost:4173`. The React client bundles `data/demo/bundle.json` at build time and makes no runtime request; `web/server.mjs` still exposes `GET /api/demo` (validating `?scenario=`) over the same file for the recorded 2WKG-296 question above. Ingestion jobs can validate and publish the same versioned contract without changing the client.
+Open `http://localhost:4173`. `web/server.mjs` serves the built `web/dist/` and nothing else — the React client bundles `data/demo/bundle.json` at build time, so there is no demo API to call. Rebuild after regenerating the bundle. Ingestion jobs can validate and publish the same versioned contract without changing the client.
 
 ## Repository context
 
