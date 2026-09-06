@@ -6,6 +6,7 @@ import re
 from collections.abc import Mapping
 from typing import Any
 
+from copilot.api import ApiError
 from copilot.demo.interactive import Intent, InteractiveEvidence
 from copilot.tools.schemas import ArtifactRef
 
@@ -23,7 +24,7 @@ class InteractiveServiceBridge:
     ) -> InteractiveEvidence:
         try:
             response = await self._call(intent, payload)
-        except (RuntimeError, ValueError) as exc:
+        except (ApiError, RuntimeError, TypeError, ValueError) as exc:
             return InteractiveEvidence(
                 status="unavailable", result={}, reason=_safe_reason(exc)
             )
