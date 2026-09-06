@@ -1,7 +1,5 @@
 import { useMemo, useState } from "react";
 
-import "./ControlRoom.css";
-
 /** The control room only displays a status asserted by its parent data adapter. */
 export type DemoAvailability = "available" | "partial" | "unavailable";
 export type RegionId = "texas" | "minnesota";
@@ -15,7 +13,7 @@ export interface ProvenanceNote {
 export interface RegionTopology {
   /** Parent-provided display label, for example `synthetic (ACTIVSg2000)`. */
   readonly label: string;
-  readonly mode: "synthetic" | "source_backed" | "aggregate" | "unavailable";
+  readonly mode: "synthetic" | "source_inventory" | "aggregate" | "unavailable";
   readonly availability: DemoAvailability;
   /** Required before Minnesota can be presented as topology-backed. */
   readonly accepted?: boolean;
@@ -136,7 +134,7 @@ function Evidence({ notes, limitations }: { notes?: readonly ProvenanceNote[]; l
 export function topologyIsDisplayable(region: ControlRoomRegion): boolean {
   if (region.topology.availability !== "available") return false;
   if (region.id !== "minnesota") return region.topology.mode !== "unavailable";
-  return Boolean(region.topology.accepted) && region.topology.mode === "source_backed";
+  return Boolean(region.topology.accepted) && region.topology.mode === "source_inventory";
 }
 
 /** The event list is the sole authority for whether a cascade playback can run. */

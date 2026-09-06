@@ -45,9 +45,9 @@ const scenario = {
   model: { label: "JEPA forecast", availability: "available", provenance: [{ label: "model artifact", detail: "does not name the architecture" }] },
 };
 
-test("Minnesota never implies topology without an accepted source-backed model", () => {
+test("Minnesota never implies topology without an accepted source-inventory model", () => {
   assert.equal(demo.topologyIsDisplayable(minnesotaAggregate), false);
-  assert.equal(demo.topologyIsDisplayable({ ...minnesotaAggregate, topology: { ...minnesotaAggregate.topology, mode: "source_backed", accepted: true } }), true);
+  assert.equal(demo.topologyIsDisplayable({ ...minnesotaAggregate, topology: { ...minnesotaAggregate.topology, mode: "source_inventory", accepted: true } }), true);
   assert.equal(demo.topologyIsDisplayable({ ...minnesotaAggregate, topology: { ...minnesotaAggregate.topology, mode: "synthetic", accepted: true } }), false);
 });
 

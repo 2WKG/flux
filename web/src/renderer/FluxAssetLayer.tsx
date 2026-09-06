@@ -4,6 +4,8 @@ import type { Layer, LayersList, PickingInfo } from "@deck.gl/core";
 import { IconLayer, ScatterplotLayer, TextLayer } from "@deck.gl/layers";
 import { ScenegraphLayer } from "@deck.gl/mesh-layers";
 
+import { STATUS_COPY } from "../source-truth";
+
 export type FluxAssetSourceMode = "physical_inventory" | "synthetic_texas_act";
 export type StatusLabel =
   | "source_supported"
@@ -70,14 +72,6 @@ export interface FluxAssetLayerProps {
   readonly manifestUrl?: string;
 }
 
-const STATUS: Readonly<Record<StatusLabel, string>> = {
-  source_supported: "Source-supported",
-  source_screened: "Source-screened",
-  hypothetical: "Hypothetical",
-  synthetic: "Synthetic",
-  unavailable: "Unavailable",
-  request_failed: "Request failed",
-};
 const physical: readonly StatusLabel[] = [
   "source_supported",
   "source_screened",
@@ -248,7 +242,7 @@ async function makeLayers(
     id: "flux-asset-labels",
     data: placements,
     getPosition: (p) => p.position,
-    getText: (p) => p.label + "\n" + STATUS[p.status],
+    getText: (p) => p.label + "\n" + STATUS_COPY[p.status],
     getSize: 12,
     getColor: [219, 234, 243, 255],
     getPixelOffset: [28, 0],

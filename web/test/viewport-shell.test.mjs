@@ -53,7 +53,7 @@ const markup = shell.renderApp();
 /** Rendered text only: tag names are not the claim under test. */
 const text = markup.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
-const styles = `${await readFile(new URL("src/styles.css", webRoot), "utf8")}\n${await readFile(new URL("src/demo/ControlRoom.css", webRoot), "utf8")}`;
+const styles = await readFile(new URL("src/styles.css", webRoot), "utf8");
 const bundle = JSON.parse(await readFile(new URL("../data/demo/bundle.json", webRoot), "utf8"));
 
 /**
