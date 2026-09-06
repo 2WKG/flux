@@ -32,14 +32,15 @@
       "source_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
       "vintage": "TIGER/Line 2024",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [{"logical_name": "tl_2024_us_county.zip", "immutable_id": null, "raw_path": "tiger/2024/tl_2024_us_county.zip"}],
+      "artifacts": [{"logical_name": "tl_2024_us_county.zip", "immutable_id": "sha256:04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b", "raw_path": "tiger/2024/tl_2024_us_county.zip"}],
       "coverage": "Texas county polygons and FIPS joins; source CRS EPSG:4269 is transformed to EPSG:4326 for the curated contract.",
       "timezone": "not applicable",
       "units": {"geometry": "source EPSG:4269; curated EPSG:4326"},
       "destinations": ["counties"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The P0 raw path is required by the builder but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-tiger-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "A public raw artifact was retrieved at the declared path; its checksum, byte count, TX loader validation, and CRS transformation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "fema-nri-v1.20",
@@ -50,15 +51,16 @@
       "license_access": {"license": "U.S. government public data", "access": "public"},
       "artifacts": [
         {"logical_name": "NRI_Counties_TX.json", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Counties_TX.json"},
-        {"logical_name": "NRI_Table_Counties.zip", "immutable_id": null, "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}
+        {"logical_name": "NRI_Table_Counties.zip", "immutable_id": "sha256:b99dae90a317b16630d7f9b1faa4a2784d5ca458761c1d3ab9646f046df9d072", "raw_path": "nri/v1.20/NRI_Table_Counties.zip"}
       ],
       "coverage": "Texas county population and composite natural-hazard risk; it is screening context, not site-specific engineering analysis.",
       "timezone": "not applicable",
       "units": {"risk_score": "source index score", "population": "people"},
       "destinations": ["counties", "hazard_static"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "No immutable P0 raw artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-nri-v1.20.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "A public raw artifact was retrieved at the declared path; its checksum, byte count, and TX loader validation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "pudl-eia860-v2026.2.0",
@@ -68,16 +70,17 @@
       "vintage": "PUDL v2026.2.0 EIA-860 yearly outputs",
       "license_access": {"license": "CC-BY-4.0 for PUDL outputs; underlying source terms also apply", "access": "public"},
       "artifacts": [
-        {"logical_name": "out_eia__yearly_plants.parquet", "immutable_id": null, "raw_path": "pudl/v2026.2.0/out_eia__yearly_plants.parquet"},
-        {"logical_name": "out_eia__yearly_generators.parquet", "immutable_id": null, "raw_path": "pudl/v2026.2.0/out_eia__yearly_generators.parquet"}
+        {"logical_name": "out_eia__yearly_plants.parquet", "immutable_id": "sha256:66f2e8e7f9dce641a6dfc1bf3e5444ba8decac98c8b6b5b3bc60128cc5ff73cc", "raw_path": "pudl/v2026.2.0/out_eia__yearly_plants.parquet"},
+        {"logical_name": "out_eia__yearly_generators.parquet", "immutable_id": "sha256:6657e12c40ce2e4019a5dab03c28e12e73c60c9e663b385780b8574574b924f8", "raw_path": "pudl/v2026.2.0/out_eia__yearly_generators.parquet"}
       ],
       "coverage": "Texas plant and generator attributes used for candidate context; proximity matching to synthetic assets is not a real-grid connection claim.",
       "timezone": "not applicable",
       "units": {"capacity": "MW", "coordinates": "degrees EPSG:4326"},
       "destinations": ["gens", "site_candidates"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The versioned P0 paths are specified but their raw artifacts, checksums, and curated output are not checked into this clone."
+      "checked_in_receipt": "data/sources/texas-pudl-eia860-v2026.2.0.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:37:05Z",
+      "reason": "Version-pinned public raw artifacts were retrieved at the declared paths; checksums, byte counts, and TX loader validation are recorded in the checked-in receipt. Raw files and curated outputs remain untracked."
     },
     {
       "id": "eia930-erco-2021h1-2024h2",
@@ -87,16 +90,17 @@
       "vintage": "EIA-930 2021 Jan-Jun and 2024 Jul-Dec",
       "license_access": {"license": "U.S. government public data", "access": "public"},
       "artifacts": [
-        {"logical_name": "EIA930_BALANCE_2021_Jan_Jun.csv", "immutable_id": null, "raw_path": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv"},
-        {"logical_name": "EIA930_BALANCE_2024_Jul_Dec.csv", "immutable_id": null, "raw_path": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv"}
+        {"logical_name": "EIA930_BALANCE_2021_Jan_Jun.csv", "immutable_id": "sha256:40b183f333e0f3edc1b9a2ed48b792eff00fd477915dae79ce5784e862380f7f", "raw_path": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv"},
+        {"logical_name": "EIA930_BALANCE_2024_Jul_Dec.csv", "immutable_id": "sha256:a602a8e577cfdd2fa3083413eaa4dd8ba7f0d2b26a2986f8f6d22917465ea49f", "raw_path": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv"}
       ],
       "coverage": "ERCO, EPE, SWPP, and MISO balancing-authority hourly aggregates; not nodal telemetry or a topology source.",
       "timezone": "UTC end of hour",
       "units": {"demand": "MW"},
       "destinations": ["ba_load_hourly"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The P0 raw paths are specified, but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-eia930-2021-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:40:00Z",
+      "reason": "The two public captures were retrieved, hashed, and passed the existing EIA-930 loader. They are balancing-authority aggregate context only; the upstream period URLs remain mutable and the receipt records HTTP validators."
     },
     {
       "id": "ercot-public-load",
@@ -122,18 +126,19 @@
       "vintage": "figshare article 24237376 version 4; 2021 and 2024 annual files",
       "license_access": {"license": "CC BY 4.0", "access": "public"},
       "artifacts": [
-        {"logical_name": "eaglei_outages_2021.csv", "immutable_id": "figshare-file:42547891", "raw_path": "eaglei/2021/eaglei_outages_2021.csv"},
-        {"logical_name": "eaglei_outages_2024.csv", "immutable_id": "figshare-file:53581661", "raw_path": "eaglei/2024/eaglei_outages_2024.csv"},
-        {"logical_name": "MCC.csv", "immutable_id": "figshare-file:42547708", "raw_path": "eaglei/support/MCC.csv"},
-        {"logical_name": "coverage_history.csv", "immutable_id": "figshare-file:42547714", "raw_path": "eaglei/support/coverage_history.csv"}
+        {"logical_name": "eaglei_outages_2021.csv", "immutable_id": "sha256:e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319", "raw_path": "eaglei/2021/eaglei_outages_2021.csv"},
+        {"logical_name": "eaglei_outages_2024.csv", "immutable_id": "sha256:d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6", "raw_path": "eaglei/2024/eaglei_outages_2024.csv"},
+        {"logical_name": "MCC.csv", "immutable_id": "sha256:d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e", "raw_path": "eaglei/support/MCC.csv"},
+        {"logical_name": "coverage_history.csv", "immutable_id": "sha256:a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267", "raw_path": "eaglei/support/coverage_history.csv"}
       ],
       "coverage": "Texas county 15-minute customers-out observations for 2021 and 2024 plus modeled county-customer and historical coverage support files. Missing observations are not zeros.",
       "timezone": "UTC (documented source-timezone decision for run_start_time)",
       "units": {"customers_out": "customers", "cadence": "15 minutes"},
       "destinations": ["eaglei_outages"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "Public immutable figshare file IDs are known, but their raw files, checksums, and curated output are not checked into this clone."
+      "checked_in_receipt": "data/sources/texas-eaglei-2021-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T05:20:00Z",
+      "reason": "All four public artifacts were retrieved, hashed, and passed the streaming loader with the official UTC source-timezone semantics. Uri and Beryl fixed-window coverage is recorded in the receipt; blank 2021 targets remain missing, not zero."
     },
     {
       "id": "noaa-storm-events-2021-2024",
@@ -143,16 +148,17 @@
       "vintage": "Storm Events 2021 c20260323 and 2024 c20260728 publication files",
       "license_access": {"license": "U.S. government public data", "access": "public"},
       "artifacts": [
-        {"logical_name": "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", "immutable_id": null, "raw_path": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"},
-        {"logical_name": "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", "immutable_id": null, "raw_path": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"}
+        {"logical_name": "StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", "immutable_id": "sha256:60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715", "raw_path": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"},
+        {"logical_name": "StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz", "immutable_id": "sha256:2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c", "raw_path": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"}
       ],
       "coverage": "Texas events for 2021 and 2024. Zone-typed events require an explicit zone-to-county mapping and retain assignment uncertainty.",
       "timezone": "source local time with CZ_TIMEZONE; curated timestamps are UTC",
       "units": {"magnitude": "source-specific; magnitude type retained"},
       "destinations": ["storm_events"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The public source paths are specified, but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-noaa-storm-events-2021-2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:40:00Z",
+      "reason": "Both public files were retrieved and hashed. The current interval-selected loader uses archived NWS-original bp10nv20 for Uri and bp05mr24 for Beryl; the 22 legacy rows are an all-2021 bp16 historical-validation figure, not current fixed-window rejections."
     },
     {
       "id": "nws-zone-county-crosswalk",
@@ -161,30 +167,33 @@
       "source_url": "https://www.weather.gov/gis/ZoneCounty",
       "vintage": "bp16ap26 crosswalk edition",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [{"logical_name": "bp16ap26.dbx", "immutable_id": null, "raw_path": "nws_zone_county/bp16ap26/bp16ap26.dbx"}],
+      "artifacts": [{"logical_name": "bp10nv20.dbx", "immutable_id": "sha256:7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6", "raw_path": "nws_zone_county/bp10nv20/bp10nv20.dbx"}, {"logical_name": "bp05mr24.dbx", "immutable_id": "sha256:ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e", "raw_path": "nws_zone_county/bp05mr24/bp05mr24.dbx"}, {"logical_name": "bp16ap26.dbx", "immutable_id": "sha256:69d3472d4d576b8a4924efb7a43108f7c64111f503e15efd650f43dc617a6f12", "raw_path": "nws_zone_county/bp16ap26/bp16ap26.dbx"}],
       "coverage": "County mapping support for zone-typed NOAA Storm Events. The 2021-era edition match remains an explicit uncertainty.",
       "timezone": "crosswalk carries source timezone labels",
       "units": {"identifiers": "NWS zone and county FIPS codes"},
       "destinations": ["storm_events"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The P0 path is specified, but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-nws-zone-county-bp16ap26.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:40:00Z",
+      "reason": "Window-aware historical NWS-original editions are pinned for Uri and Beryl with archive-hosting provenance; the builder fails closed outside their verified intervals. Current bp16ap26 remains contextual and is never used as a future fallback."
     },
     {
       "id": "noaa-hrrr-scenario-weather",
       "category": "public weather",
       "provider": "NOAA HRRR archive",
       "source_url": "https://registry.opendata.aws/noaa-hrrr-pds/",
-      "vintage": "run- and forecast-lead-specific; no P0 run manifest is checked in",
+      "vintage": "fixed Uri 2021 and Beryl 2024 historical f00/f01 runs",
       "license_access": {"license": "U.S. government public data", "access": "public"},
-      "artifacts": [],
+      "artifacts": [{"logical_name": "grid.duckdb", "immutable_id": "sha256:38453f9a1666f10e6b63af34d524ded71fc9416e14294a8c99e5a387f463a76f", "raw_path": "hrrr/runs/20260906T054451Z/grid.duckdb"}],
       "coverage": "Declared Texas scenario-window county-hour weather. Wind and temperature use f00; precipitation and freezing-rain accumulations use f01.",
       "timezone": "UTC",
       "units": {"wind": "m/s", "gust": "m/s", "temperature": "degrees C", "precipitation": "mm", "freezing_rain": "mm"},
       "destinations": ["weather_hourly"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "No HRRR run/lead manifest, raw subset, checksum, or weather_hourly output is checked into this clone; the current P0 builder does not promote HRRR weather."
+      "checked_in_receipt": "data/sources/texas-hrrr-2021-2024-run.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T05:52:00Z",
+      "feasibility_evidence": "data/sources/texas-hrrr-manifest-feasibility.json",
+      "reason": "The completed four-worker run recorded 85,344 county-hour rows and 336 paired source-run records using the declared f00/f01 rule. The ignored database, content-addressed raw subsets, and per-hour receipts are bound by the checked-in run receipt; the feasibility artifact remains historical planning evidence."
     },
     {
       "id": "ntad-military-bases-fy2024",
@@ -193,14 +202,15 @@
       "source_url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
       "vintage": "FY2024 dataset",
       "license_access": {"license": "U.S. government work; unrestricted public use", "access": "public"},
-      "artifacts": [{"logical_name": "texas.geojson", "immutable_id": null, "raw_path": "ntad_military_bases/fy2024/texas.geojson"}],
+      "artifacts": [{"logical_name": "texas.geojson", "immutable_id": "sha256:5d8064bab8b36bd5a36d8a4621ca4bffc66d28b40c1b66ef6349eefa4f165a9c", "raw_path": "ntad_military_bases/fy2024/texas.geojson"}],
       "coverage": "Public Texas military-installation boundaries for critical-load screening. Nearest synthetic-bus association is not a service-connection claim.",
       "timezone": "not applicable",
       "units": {"geometry": "degrees EPSG:4326", "area": "derived square meters when calculated"},
       "destinations": ["critical_loads"],
-      "status": "unavailable",
-      "ingestion_timestamp": null,
-      "reason": "The P0 path is specified, but no immutable artifact, checksum receipt, or curated output is checked into this clone."
+      "checked_in_receipt": "data/sources/texas-ntad-military-bases-fy2024.json",
+      "status": "validated",
+      "ingestion_timestamp": "2026-09-06T04:40:00Z",
+      "reason": "The public Texas query was retrieved, hashed, and passed the existing loader. This is siting/screening geometry only; it does not establish an electrical service connection."
     }
   ]
 }

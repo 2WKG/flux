@@ -1,6 +1,6 @@
 # Static origin and tunnel inventory
 
-Last checked: 2026-09-06
+Last checked: 2026-09-06 (merged `master` at `76c6fcd880`)
 
 This is an inventory plus the recorded deployment command for the origin host.
 It records checked-in configuration, host checks, and a public, read-only tunnel
@@ -74,6 +74,22 @@ contact a provider. The specifications name `ANTHROPIC_API_KEY`,
 `VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
 checked-in static server. The connector configuration recorded below reads no
 environment variables; its mapping lives entirely in `config.yml` on the host.
+
+## Minnesota demo scope
+
+The Minnesota demonstration is a separate scope with its own planning authority
+([`docs/specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md)). It does not
+create a Minnesota fixture or topology, and it does not reuse the Texas
+ACTIVSg2000 adapter. Its API/SSE routing contract is not yet implemented or
+tunnel-mapped.
+
+The Texas-first shared overview ([`docs/specs/00-overview.md`](../specs/00-overview.md))
+remains the primary reference for the repository's routing, API, and tunnel
+contract. Gate 0 is accepted
+([`docs/design/minnesota-gate-0-approval.md`](../design/minnesota-gate-0-approval.md)),
+which freezes an aggregate-mode boundary only; the network/topology decision gate
+in `10-minnesota-demo.md` is still open. Either way, no Minnesota-specific route,
+fixture, or tunnel mapping is claimed in this inventory.
 
 ## Start and verify the static origin
 
