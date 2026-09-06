@@ -1,0 +1,92 @@
+{
+  "archetype_id": "warehouse_logistics_center",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Warehouse and logistics center",
+  "category": "load",
+  "minnesota_issue": "2WKG-391",
+  "catalog_limit": "Generic distribution massing.",
+  "container": "glb",
+  "model_filename": "warehouse_logistics_center.glb",
+  "preview_filename": "warehouse_logistics_center.preview.png",
+  "preview_size_px": 512,
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 180,
+    "width": 120
+  },
+  "connectors": [
+    "MV_FEED"
+  ],
+  "connector_geometry": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        -49.0,
+        2.2,
+        66.0
+      ]
+    }
+  ],
+  "bounds_m": {
+    "min": [
+      -59.0,
+      0.0,
+      -89.0
+    ],
+    "max": [
+      59.0,
+      19.334999084472656,
+      89.0
+    ]
+  },
+  "lod_triangle_budget": {
+    "lod0": 20000,
+    "lod1": 7500,
+    "lod2": 2200
+  },
+  "triangles_lod0": 5724,
+  "triangles_lod1": 516,
+  "triangles_lod2": 180,
+  "lod_measurement_status": "Measured by data/3d/packs/flux-grid-v1/validation/validate_pack.py from the GLBs the Blender pipeline builds. Those GLBs are not committed and the prepared archive is not published, so these counts are not re-derivable from this repository; data/3d/packs/flux-grid-v1/manifest.json records the per-LOD sha256 each count was taken from. lod_triangle_budget restates the catalog's authored target and is not a count of anything.",
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "binding": "server_asserted_status_label"
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+  "source_pack": {
+    "pack_id": "flux-grid-v1",
+    "manifest": "data/3d/packs/flux-grid-v1/manifest.json",
+    "lod_sha256": {
+      "lod0": "3a9f96ab336eb552df946b2c615045122d16fc4f825cd7141ae713571d3dcca4",
+      "lod1": "fb9b222b9d51bfb7a6c284d3036e07d20cd5119f5fb661cd870c8e3b765c4dc8",
+      "lod2": "1300427cf5deea1193ccfa77a4076f228fc79d194e0446a144811576726200b9"
+    }
+  },
+  "minnesota_context": {
+    "render_mode": "catalog_preview",
+    "truth_label": "unavailable",
+    "disclosure": "Catalogue preview \u2014 not Minnesota infrastructure until an accepted placement artifact supplies identity, coverage, and coordinates."
+  },
+  "export_recipe": {
+    "required_outputs": [
+      "warehouse_logistics_center.glb",
+      "warehouse_logistics_center.preview.png"
+    ],
+    "preview_renderer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "model_producer": "data/3d/packs/flux-grid-v1/source/pipeline/build_pack.py",
+    "binary_policy": "No .glb and no .preview.png is committed by this change. Both are built by the pack's Blender pipeline, which needs Blender and is not part of this repository's toolchain; the prepared archive is unpublished (data/3d/packs/flux-grid-v1/archive.json has download_url null), so the binaries are declared, not delivered."
+  }
+}
