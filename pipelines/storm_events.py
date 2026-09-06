@@ -190,7 +190,7 @@ def load_storm_events(
                     ),
                 ],
             )
-        scope_label = "Texas" if selected_scope.is_texas_only else "scoped"
+        scope_label = "Texas" if selected_scope.is_texas_only else selected_scope.slug
         for zone, count in unmatched_zones.items():
             con.execute(
                 "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
