@@ -40,15 +40,30 @@ is no checked-in environment file or wrapper that overrides it.
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
 | local `GET /api/demo` | No owner | — | Removed by 2WKG-300. The origin serves static assets only; this path now falls back to the SPA shell like any unknown path. |
 | `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
-| optional `GET /health` | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
-| optional `POST /ask` (SSE) | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
+| optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
+| optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
-The FastAPI paths and port are a future contract in
-`docs/specs/00-overview.md` and `docs/specs/05-copilot.md`; they are not evidence
-of a running API. Those specs name `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`,
-`DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the checked-in static
-server. The tunnel's own environment-variable names are unknown because its
-configuration is not available in the repository.
+The FastAPI paths are implemented for local use but are not evidence of a
+running API or a public mapping. `POST /ask` starts only the injected local SSE
+transport; without an injected backend it reports unavailable and it does not
+contact a provider. The specifications name `ANTHROPIC_API_KEY`,
+`VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
+checked-in static server. The tunnel's own environment-variable names are
+unknown because its configuration is not available in the repository.
+
+## Minnesota demo scope
+
+The Minnesota demonstration is a separate scope with its own planning authority
+([`docs/specs/10-minnesota-demo.md`](../specs/10-minnesota-demo.md)). It does not
+create a Minnesota fixture or topology, and it does not reuse the Texas
+ACTIVSg2000 adapter. Its API/SSE routing contract is not yet implemented or
+tunnel-mapped.
+
+The Texas-first shared overview ([`docs/specs/00-overview.md`](../specs/00-overview.md))
+remains the primary reference for the repository's routing, API, and tunnel
+contract. The Minnesota demo inherits neutral engineering patterns only after
+its own source and model gates are accepted; until then, no Minnesota-specific
+route, fixture, or tunnel mapping is claimed in this inventory.
 
 ## Start and verify the static origin
 
