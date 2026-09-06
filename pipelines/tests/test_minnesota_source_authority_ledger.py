@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
-
 
 ROOT = Path(__file__).resolve().parents[2]
 LEDGER = ROOT / "data/sources/minnesota-source-authority-ledger-v1.json"
@@ -39,8 +38,12 @@ def test_ledger_does_not_promote_limited_geometry_to_statewide_or_connectivity_c
         for source in ledger["sources"]
         if source["source_id"] == "mille_lacs_county_utilities_mapserver_2026"
     )
-    assert [layer["returned_feature_count"] for layer in mille_lacs["verified_layers"]] == [11, 31]
-    assert "statewide denominator" in mille_lacs["verified_layers"][1]["denominator_scope"]
+    assert [
+        layer["returned_feature_count"] for layer in mille_lacs["verified_layers"]
+    ] == [11, 31]
+    assert (
+        "statewide denominator" in mille_lacs["verified_layers"][1]["denominator_scope"]
+    )
 
 
 def test_eusa_count_query_is_replayable_and_preserves_its_observed_response():
