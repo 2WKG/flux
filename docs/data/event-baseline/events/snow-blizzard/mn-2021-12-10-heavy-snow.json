@@ -1,6 +1,160 @@
 {
-  "schema_version": "event-baseline/v1", "hazard": "snow-blizzard",
-  "event": {"event_id": "mn-2021-12-10-heavy-snow", "parent_system_id": "upper_midwest_2021-12-10_winter_cyclone", "primary_hazard": "heavy_snow", "secondary_hazards": [], "compound": false, "source_event_ids": ["NCEI:StormEvents:989953"], "context_window": {"start_utc": "2021-12-10T00:00:00Z", "end_utc": "2021-12-12T00:00:00Z"}, "event_window": {"start_utc": "2021-12-10T17:30:00Z", "end_utc": "2021-12-11T10:00:00Z"}, "recovery_window": {"start_utc": "2021-12-11T10:00:00Z", "end_utc": "2021-12-12T00:00:00Z"}, "disposition": "candidate_only", "selection_basis": "NCEI identifies a Hennepin-zone winter storm on December 10–11, 2021.", "exclusions": ["The bounded EAGLE-I attempt included blank outage values and did not produce an auditable completed receipt."], "uncertainties": ["No matched outage evidence is claimed."]},
-  "source_receipts": [{"receipt_id": "ncei-stormevents-2021", "provider": "NOAA NCEI", "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz", "release": "c20260323", "retrieved_at_utc": "2026-09-06T07:19:43Z", "license_or_access": "Public NOAA access; license not independently verified in this collection pass.", "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715", "filtered_sha256": null, "bytes": 10563953, "etag": null, "units": "Storm Events local standard-time event interval and hazard classification.", "timezone_conversion": "CZ_TIMEZONE=CST-6: EVENT_ID 989953, 10-DEC-21 11:30 to 11-DEC-21 04:00, converts to [2021-12-10T17:30:00Z, 2021-12-11T10:00:00Z).", "filters": "STATE=MINNESOTA; EPISODE_ID=163749; EVENT_ID=989953; CZ_NAME=HENNEPIN.", "grid_index_mapping": "No grid index used; NCEI forecast zone MNZ060 is retained as the weather scope.", "gaps": ["Raw annual file is retained only in approved ignored storage."]}],
-  "records": [{"record_id": "mn-2021-12-10-heavy-snow-27053-20211211t0000z", "county_fips": "27053", "boundary_vintage": "Census TIGER/Line 2024", "scenario_id": "mn-2021-12-10-heavy-snow-replay", "window_start_utc": "2021-12-11T00:00:00Z", "window_end_utc": "2021-12-11T06:00:00Z", "disposition": "candidate_only", "mode": "replay", "provenance_receipt_ids": ["ncei-stormevents-2021"], "source_evidence_status": "unavailable", "source_row_keys": [], "source_slices": [], "weather": {"coverage": "covered", "evidence_kind": "authoritative_event_report", "observation_kind": "observed", "source_receipt_ids": ["ncei-stormevents-2021"], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": {"source_event_ids": ["NCEI:StormEvents:989953"], "source_window": {"start_utc": "2021-12-10T17:30:00Z", "end_utc": "2021-12-11T10:00:00Z"}, "spatial_scope": "zone", "scope_identifier": "MNZ060 (Hennepin)", "limitations": "Storm Events zone report is not a county time series."}, "notes": "NCEI EVENT_ID 989953 overlaps this canonical window."}, "outage": {"coverage": "UncoveredLabel", "evidence_kind": "not_assessed", "observation_kind": "not_applicable", "source_receipt_ids": [], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": null, "notes": "No completed, auditable EAGLE-I receipt after blank native outage values; absence is not zero."}, "matched_coverage_decision": "unavailable", "label": {"rule_version": "county_outage_5pct_v1", "status": "UncoveredLabel", "observed_outage_customers": null, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null}, "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}}]
+  "schema_version": "event-baseline/v1",
+  "hazard": "snow-blizzard",
+  "event": {
+    "event_id": "mn-2021-12-10-heavy-snow",
+    "parent_system_id": "upper_midwest_2021-12-10_winter_cyclone",
+    "primary_hazard": "heavy_snow",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": ["NCEI:StormEvents:989953"],
+    "context_window": {"start_utc": "2021-12-10T00:00:00Z", "end_utc": "2021-12-12T00:00:00Z"},
+    "event_window": {"start_utc": "2021-12-10T17:30:00Z", "end_utc": "2021-12-11T10:00:00Z"},
+    "recovery_window": {"start_utc": "2021-12-11T10:00:00Z", "end_utc": "2021-12-12T00:00:00Z"},
+    "selection_basis": "NCEI Storm Events event 989953 records heavy snow in Hennepin County during the 2021-12-10 winter cyclone. Exhaustive EAGLE-I annual acquisition found only 11 valid county observations in the selected six-hour window, so the outage label is retained as an explicit shortfall rather than inferred.",
+    "disposition": "shortfall",
+    "exclusions": [
+      "The selected EAGLE-I slice has 11 valid observations of 24 expected 15-minute intervals; one selected row has a blank customers_out value. Missing or invalid observations are not treated as zero outages."
+    ],
+    "uncertainties": [
+      "The authoritative weather report uses NWS zone MNZ060 (Hennepin), while outage rows use county FIPS 27053.",
+      "EAGLE-I customer denominators are unavailable; no population or customer-base proxy is substituted."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei-stormevents-2021-c20260323",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "release": "Storm Events Details 2021, c20260323",
+      "retrieved_at_utc": "2026-09-06T07:19:43Z",
+      "license_or_access": "Public domain U.S. government work; https://www.ncei.noaa.gov/access/monitoring/dyk/stormevents",
+      "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "filtered_sha256": null,
+      "bytes": 10563953,
+      "etag": null,
+      "units": "event dates: local standard time as supplied; event narrative: text",
+      "timezone_conversion": "NCEI BEGIN_DATE_TIME and END_DATE_TIME are local standard time. This record's canonical UTC report interval follows the NCEI weather-zone report scope documented in the event record.",
+      "filters": "STATE=MINNESOTA; EPISODE_ID=163749; EVENT_ID=989953; CZ_NAME=HENNEPIN",
+      "grid_index_mapping": "none; authoritative event report is scoped to NWS zone MNZ060 (Hennepin)",
+      "gaps": ["Raw annual file is in approved ignored storage."]
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:09:30.928134Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "d662333ea7cf6f7b12b25e6bb77504bb305f570e0b22f70cef0304da1eb8bc98",
+      "bytes": 1141058232,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "states=Minnesota; county_fips=27053; window=UTC half-open [2021-12-11T00:00:00Z,2021-12-11T06:00:00Z)",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "gaps": [
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "27053: partial_15_min_observation; 11 valid of 24 expected 15-minute intervals; one selected row has an invalid blank customers_out value."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2021-12-10-heavy-snow-27053-20211211000000_eaglei_2021_20211211T000000_20211211T060000.csv",
+        "filtered_artifact_sha256": "d662333ea7cf6f7b12b25e6bb77504bb305f570e0b22f70cef0304da1eb8bc98"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2021-12-10-heavy-snow-27053-20211211t0000z",
+      "county_fips": "27053",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2021-12-10-heavy-snow-replay",
+      "window_start_utc": "2021-12-11T00:00:00Z",
+      "window_end_utc": "2021-12-11T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-stormevents-2021-c20260323",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T00:00:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T00:15:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T03:00:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T03:15:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T03:30:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T03:45:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T04:00:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T04:15:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T04:30:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T04:45:00Z",
+        "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000:27053:2021-12-11T05:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000",
+          "county_fips": "27053",
+          "start_utc": "2021-12-11T00:00:00Z",
+          "end_utc": "2021-12-11T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["ncei-stormevents-2021-c20260323"],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": ["NCEI:StormEvents:989953"],
+          "source_window": {"start_utc": "2021-12-10T17:30:00Z", "end_utc": "2021-12-11T10:00:00Z"},
+          "spatial_scope": "zone",
+          "scope_identifier": "MNZ060 (Hennepin)",
+          "limitations": "Zone report is not a county time series."
+        },
+        "notes": "NCEI Storm Events details record 989953 documents heavy snow in Hennepin County."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-2021-42547891-mn-2021-12-10-heavy-snow-27053-20211211000000-20211211t000000-20211211t060000"],
+        "expected_samples": 24,
+        "observed_samples": 11,
+        "missing_timestamps": [
+          "2021-12-11T00:30:00Z", "2021-12-11T00:45:00Z", "2021-12-11T01:00:00Z", "2021-12-11T01:15:00Z", "2021-12-11T01:30:00Z", "2021-12-11T01:45:00Z", "2021-12-11T02:00:00Z", "2021-12-11T02:15:00Z", "2021-12-11T02:30:00Z", "2021-12-11T02:45:00Z", "2021-12-11T05:15:00Z", "2021-12-11T05:30:00Z", "2021-12-11T05:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "The exhaustive annual EAGLE-I acquisition returned 12 selected rows, of which 11 have valid customers_out values. One blank customers_out row and 12 absent intervals leave the label uncovered; no values are imputed."
+      },
+      "matched_coverage_decision": "not_matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {"status": "unavailable", "value": null},
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
 }
