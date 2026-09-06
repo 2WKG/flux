@@ -7,8 +7,10 @@
   "export": {
     "container": "glb",
     "specification": "glTF 2.0",
-    "model_file": "residential_neighborhood.glb",
-    "preview_file": "residential_neighborhood.preview.png",
+    "pipeline_outputs": {
+      "model_file": "residential_neighborhood.glb",
+      "preview_file": "residential_neighborhood.preview.png"
+    },
     "preview_source": "residential_neighborhood.preview.svg",
     "preview_pixels": 512,
     "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
@@ -30,6 +32,9 @@
     "allowed_labels": ["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]
   }],
   "triangles": {"lod0": 36000, "lod1": 13000, "lod2": 3600},
+  "triangles_lod0": 36000,
+  "triangles_lod1": 13000,
+  "triangles_lod2": 3600,
   "author": "Flux team",
   "license": "MIT",
   "source_of_shape": "Original generic Flux residential-block procedural archetype; it depicts no real homes, population, customers, ownership, or Minnesota placement.",
