@@ -10,7 +10,7 @@
       "heavy_snow"
     ],
     "compound": true,
-    "source_event_ids": ["1064361"],
+    "source_event_ids": ["1064375"],
     "context_window": {
       "start_utc": "2022-12-19T00:00:00Z",
       "end_utc": "2022-12-28T00:00:00Z"
@@ -24,7 +24,7 @@
       "end_utc": "2022-12-28T00:00:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "NCEI Storm Events episode 175466, event 1064361, is an independent cold candidate pending matched weather/outage evidence.",
+    "selection_basis": "NCEI Storm Events episode 175466, Hennepin zone event 1064375, is a compound cold candidate pending matched weather/outage evidence.",
     "exclusions": [],
     "uncertainties": [
       "EAGLE-I and canonical county/zone weather coverage have not been collected for this candidate; it cannot be accepted."
@@ -44,7 +44,7 @@
       "etag": null,
       "units": "Storm Events local begin/end times and event classifications.",
       "timezone_conversion": "Local-to-UTC receipt verification is still required for final acceptance.",
-      "filters": "MINNESOTA; EPISODE_ID=175466; EVENT_ID=1064361; EVENT_TYPE=Extreme Cold/Wind Chill.",
+    "filters": "MINNESOTA; EPISODE_ID=175466; EVENT_ID=1064375; EVENT_TYPE=Extreme Cold/Wind Chill.",
       "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
       "gaps": [
         "Raw binary hash and bytes not retained."

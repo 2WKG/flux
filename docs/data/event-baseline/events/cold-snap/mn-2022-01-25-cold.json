@@ -50,8 +50,8 @@
   ],
   "records": [
     {
-      "record_id": "mn-2022-01-25-cold-27053-20220125t000000z",
-      "county_fips": "27053",
+      "record_id": "mn-2022-01-25-cold-27151-20220125t000000z",
+      "county_fips": "27151",
       "boundary_vintage": "Census TIGER/Line 2024",
       "scenario_id": "mn-2022-01-25-cold-replay",
       "window_start_utc": "2022-01-25T00:00:00Z",
