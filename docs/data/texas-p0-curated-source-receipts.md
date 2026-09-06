@@ -23,9 +23,8 @@ gitignored.
 
 [`texas-hrrr-manifest-feasibility.json`](../../data/sources/texas-hrrr-manifest-feasibility.json)
 records a reproducible rule for the fixed Uri and Beryl contract windows and
-four byte-range probes of official archive objects. It is not an ingestion
-receipt: this checkout has no HRRR county-grid index, loader, or aggregation
-artifact to validate `weather_hourly`.
+four byte-range probes of official archive objects. It is planning evidence;
+the completed run receipt below is the ingestion evidence.
 
 [`texas-hrrr-2021-2024-run.json`](../../data/sources/texas-hrrr-2021-2024-run.json)
 records the completed four-worker fixed-window intake: 85,344 county-hour rows
@@ -54,8 +53,9 @@ curl --fail --location --output data/raw/ntad_military_bases/fy2024/texas.geojso
 uv run --extra dev python scripts/validate_texas_p0_inventory.py --raw-root data/raw
 ```
 
-HRRR remains unavailable despite a reproducible fixed-window manifest because
-this checkout lacks the county-grid index, loader, and aggregation transform.
+HRRR fixed-window intake is validated; raw subsets, per-hour receipts, and the
+result database remain ignored, with checksums and aggregate counts in the run
+receipt.
 Storm Events selects historical NWS crosswalk editions by pinned effective
 interval and fails closed outside their verified windows; archive hosting is
 recorded in the receipt.
