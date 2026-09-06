@@ -86,6 +86,11 @@ label is asserted. Do not use population as a proxy. The versioned rule
 `county_outage_5pct_v1` computes `outage_rate = observed_outage_customers /
 customer_denominator` and marks positive when the rate is at least `0.05`.
 Only `label.status="computed"` may carry a rate or `positive` value.
+When native customer denominators vary by observation, retain their
+`denominator_observations` summary (`present_rows`, `missing_rows`, `min`,
+`max`) and mark the scalar label unavailable with
+`unavailability_reason="dynamic_denominator_unsupported"`; coverage acceptance
+does not depend on deriving a five-percent label.
 
 ## Provenance and source starter receipts
 

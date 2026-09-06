@@ -198,6 +198,20 @@ def test_missing_denominator_is_honest_accepted_observation() -> None:
     validator.validate_bundle(candidate)
 
 
+def test_dynamic_denominator_cannot_produce_scalar_label() -> None:
+    candidate = copy.deepcopy(bundle())
+    label = candidate["records"][0]["label"]
+    label["denominator_observations"] = {
+        "status": "dynamic",
+        "present_rows": 24,
+        "missing_rows": 0,
+        "min": 100,
+        "max": 101,
+    }
+    with pytest.raises(validator.ValidationError, match="dynamic denominators"):
+        validator.validate_bundle(candidate)
+
+
 def test_candidate_without_fetched_rows_does_not_need_invented_source_keys() -> None:
     candidate = copy.deepcopy(bundle())
     candidate["event"]["disposition"] = "candidate_only"
