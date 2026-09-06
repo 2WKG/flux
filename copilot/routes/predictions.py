@@ -567,6 +567,12 @@ def _read_qualified_texas_synthetic(
     ).fetchall()
     if not rows:
         return None
+    # Do not release a historical row that calls a partially affected modeled
+    # county dark.  Corrected core output carries structured ``county_impacts``
+    # and leaves ``counties_dark`` empty unless a whole modeled county is dark;
+    # this legacy persistence shape has no place to retain that distinction.
+    if any(_json_list(row[4], "counties_dark_json", _RowInvalid) for row in rows):
+        return None
     selected_run = _require_str(rows[0][0], "run_id", _RowInvalid)
     if any(row[0] != selected_run for row in rows):
         rows = [row for row in rows if row[0] == selected_run]
