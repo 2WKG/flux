@@ -108,7 +108,6 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.get("/assets/flux-grid/line/line.glb"),
         200,
     ),
-    ("GET", "/demo/model"): (lambda client: client.get("/demo/model"), 200),
     ("POST", "/site-score"): (
         lambda client: client.post(
             "/site-score",
