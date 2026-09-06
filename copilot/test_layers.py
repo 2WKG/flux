@@ -240,6 +240,67 @@ def test_rows_without_provenance_are_refused_with_a_named_reason(
     }
 
 
+def test_annotated_bus_layer_scales_draw_and_marks_missing_ba_hour_unavailable(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "annotated.duckdb"
+    _fixture_database(
+        database, rows=[_row(1, "Both", -96.1, 31.2), _row(2, "Consumer", -97.5, 30.1)]
+    )
+    con = duckdb.connect(str(database))
+    con.execute(
+        "CREATE TABLE gens (gen_id BIGINT, bus_id BIGINT, fuel TEXT, pmax_mw DOUBLE)"
+    )
+    con.execute(
+        "CREATE TABLE loads (load_id BIGINT, bus_id BIGINT, p_mw_nominal DOUBLE)"
+    )
+    con.execute("CREATE TABLE counties (county_fips TEXT, name TEXT)")
+    con.execute(
+        "CREATE TABLE critical_loads (cl_id BIGINT, kind TEXT, name TEXT, bus_id BIGINT)"
+    )
+    con.execute("CREATE TABLE scenarios (scenario_id TEXT, ts_start TIMESTAMP)")
+    con.execute(
+        "CREATE TABLE ba_load_hourly (ba_code TEXT, ts TIMESTAMP, demand_mw DOUBLE)"
+    )
+    con.execute("INSERT INTO gens VALUES (1, 1, 'gas', 40)")
+    con.execute("INSERT INTO loads VALUES (1, 1, 10), (2, 2, 5)")
+    con.execute("INSERT INTO counties VALUES ('48453', 'Travis')")
+    con.execute("INSERT INTO critical_loads VALUES (7, 'hospital', 'Central', 1)")
+    con.execute("INSERT INTO scenarios VALUES ('storm', '2024-01-01 00:00:00')")
+    con.execute(
+        "INSERT INTO ba_load_hourly VALUES ('ERCO', '2024-01-01 00:00:00', 100), ('ERCO', '2024-01-01 01:00:00', 150)"
+    )
+    con.close()
+
+    response = _client(database).get("/layers/buses?scenario_id=storm&hour=1")
+
+    assert response.status_code == 200
+    both, consumer = response.json()["features"]
+    assert both["properties"]["role"] == "both"
+    assert both["properties"]["generation_capacity_mw"] == 40
+    assert both["properties"]["draw_mw"] == 15
+    assert both["properties"]["county_name"] == "Travis"
+    assert both["properties"]["critical_loads"] == [
+        {"cl_id": 7, "name": "Central", "kind": "hospital"}
+    ]
+    assert both["properties"]["field_provenance"]["lon"] == "synthetic"
+    assert both["properties"]["field_provenance"]["county_name"] == "source_backed"
+    assert consumer["properties"]["draw_mw"] == 7.5
+
+    con = duckdb.connect(str(database))
+    con.execute("DELETE FROM ba_load_hourly WHERE ts = '2024-01-01 01:00:00'")
+    con.close()
+    missing = (
+        _client(database)
+        .get("/layers/buses?scenario_id=storm&hour=1")
+        .json()["features"]
+    )
+    assert all(feature["properties"]["draw_mw"] is None for feature in missing)
+    assert all(
+        feature["properties"]["draw_status"] == "unavailable" for feature in missing
+    )
+
+
 @pytest.mark.parametrize("variant", ["empty", "all-null-geometry"])
 def test_empty_or_unmappable_table_is_unavailable_not_an_empty_success(
     tmp_path: Path, variant: str
