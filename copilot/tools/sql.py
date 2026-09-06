@@ -210,12 +210,13 @@ def _validate_statement(
         if (
             "class" not in node
             and isinstance(node_type, str)
-            and node_type in {
-            "BASE_TABLE",
-            "JOIN",
-            "SUBQUERY",
-            "TABLE_FUNCTION",
-            "EMPTY",
+            and node_type
+            in {
+                "BASE_TABLE",
+                "JOIN",
+                "SUBQUERY",
+                "TABLE_FUNCTION",
+                "EMPTY",
             }
         ):
             raise SqlRejected("query contains a relation outside FROM or JOIN")
