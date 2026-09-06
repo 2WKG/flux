@@ -1,0 +1,172 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "southwest-2023-07-heat",
+    "parent_system_id": "heat_southwest_202307",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2023-07-12T00:00:00Z",
+      "end_utc": "2023-08-04T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2023-07-15T00:00:00Z",
+      "end_utc": "2023-08-01T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2023-08-01T00:00:00Z",
+      "end_utc": "2023-08-04T00:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "NOAA NCEI reports July 2023 heat waves and record temperatures in parts of the Southwest. This candidate requires county-specific weather and outage evidence before acceptance.",
+    "exclusions": [
+      "Canonical EAGLE-I slice must be acquired with fixed source feasibility tooling",
+      "No demand or controlled shedding claim"
+    ],
+    "uncertainties": [
+      "County weather coverage and outage coverage unresolved",
+      "Regional climate summary is not county-grid evidence",
+      "Definitive EAGLE-I acquisition is incomplete for the selected county window; retained as an explicit coverage shortfall."
+    ],
+    "source_event_ids": [
+      "southwest-2023-07-heat"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei-usclimate-202307",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.climate.gov/news-features/understanding-climate/us-climate-summary-july-2023",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "NOAA public web content",
+      "raw_sha256": "44f04f89b627ce913a863ffe677c1c35788418c525e92ec8ff3d8ba09c0d9da6",
+      "filtered_sha256": null,
+      "bytes": 95766,
+      "etag": "\"1788675834\"",
+      "units": "degrees Fahrenheit regional climate summary",
+      "timezone_conversion": "source monthly summary; canonical county window is UTC",
+      "filters": "July 2023 Southwest heat-wave candidate",
+      "grid_index_mapping": "not applicable; county-grid receipt pending",
+      "gaps": [
+        "Not county-grid weather coverage",
+        "No EAGLE-I slice receipt yet"
+      ]
+    },
+    {
+      "bytes": 1199752423,
+      "etag": "\"de1e6b64163602b3d09531ff4f90d670-2\"",
+      "filtered_sha256": "17ba3d85b6cb7724f911fe969aa97cd75fac5c4d06586c398137f66c28d22dbc",
+      "filters": "states=Arizona; county_fips=04013; window=UTC half-open [2023-07-27T00:00:00+00:00, 2023-07-27T06:00:00+00:00)",
+      "gaps": [
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "15-minute run_start_time grid; basis: datasets/catalog.json ('Fifteen-minute county customers-out labels') and the observed annual-CSV grid",
+        "04013: partial_15_min_observation; missing 5 of 24 15-minute intervals"
+      ],
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_id": "eaglei-2023-44574907-southwest-2023-07-heat-04013-20230727000000-20230727t000000-20230727t060000",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:03:34.253556Z",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "units": "sum: customers; run_start_time: UTC",
+      "url": "https://ndownloader.figshare.com/files/44574907",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:44574907",
+        "source_file": "eaglei_outages_2023.csv",
+        "source_file_id": 44574907,
+        "source_file_bytes": 1199752423,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+        "raw_artifact_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+        "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
+        "filtered_artifact_uri": "data/raw/event-baseline/southwest-2023-07-heat-04013-20230727000000_eaglei_2023_20230727T000000_20230727T060000.csv",
+        "filtered_artifact_sha256": "17ba3d85b6cb7724f911fe969aa97cd75fac5c4d06586c398137f66c28d22dbc"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "southwest-2023-07-heat-04013-20230727t0000",
+      "county_fips": "04013",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "southwest-2023-07-heat-replay",
+      "window_start_utc": "2023-07-27T00:00:00Z",
+      "window_end_utc": "2023-07-27T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-usclimate-202307",
+        "eaglei-2023-44574907-southwest-2023-07-heat-04013-20230727000000-20230727t000000-20230727t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2023-44574907-southwest-2023-07-heat-04013-20230727000000-20230727t000000-20230727t060000:04013-2023-07-27T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2023-44574907-southwest-2023-07-heat-04013-20230727000000-20230727t000000-20230727t060000",
+          "county_fips": "04013",
+          "start_utc": "2023-07-27T00:00:00Z",
+          "end_utc": "2023-07-27T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "ncei-usclimate-202307"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "NOAA regional climate candidate evidence; county-grid observed weather receipt pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2023-44574907-southwest-2023-07-heat-04013-20230727000000-20230727t000000-20230727t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 19,
+        "missing_timestamps": [
+          "2023-07-27T03:00:00Z",
+          "2023-07-27T03:15:00Z",
+          "2023-07-27T03:30:00Z",
+          "2023-07-27T03:45:00Z",
+          "2023-07-27T04:00:00Z"
+        ],
+        "event_report": null,
+        "notes": "Exhaustive annual-stream acquisition completed; 19/24 15-minute source observations. Missing rows are UncoveredLabel, never zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

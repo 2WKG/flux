@@ -1,0 +1,171 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "ercot-2023-06-heat",
+    "parent_system_id": "heat_southern_plains_202306",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2023-06-22T00:00:00Z",
+      "end_utc": "2023-07-23T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2023-06-25T00:00:00Z",
+      "end_utc": "2023-07-20T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2023-07-20T00:00:00Z",
+      "end_utc": "2023-07-23T00:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "EIA documents late-June and July 2023 Texas heat and ERCOT record hourly demand. The BA observation is demand context only; it is not a county outage label.",
+    "exclusions": [
+      "Canonical EAGLE-I slice must be reacquired with fixed source feasibility tooling",
+      "No observed controlled load-shedding record supplied"
+    ],
+    "uncertainties": [
+      "County weather coverage and outage coverage unresolved",
+      "BA demand cannot establish county outage or causality",
+      "Definitive EAGLE-I acquisition is incomplete for the selected county window; retained as an explicit coverage shortfall."
+    ],
+    "source_event_ids": [
+      "ercot-2023-06-heat"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "eia-ercot-202307",
+      "provider": "U.S. Energy Information Administration",
+      "url": "https://www.eia.gov/todayinenergy/detail.php?id=57240",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T08:18:58Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": "534d725a45dc008f99321c7f4da095293d35b7484392a208e16134c92a82e114",
+      "filtered_sha256": null,
+      "bytes": 55220,
+      "etag": null,
+      "units": "megawatthours hourly BA demand context",
+      "timezone_conversion": "EIA reports Central Time; canonical county window is UTC",
+      "filters": "late June and July 2023 Texas heat and ERCOT demand",
+      "grid_index_mapping": "not applicable; BA context is not county level",
+      "gaps": [
+        "No county-grid weather extraction",
+        "No EAGLE-I slice receipt yet",
+        "No county outage label from BA demand",
+        "Mutable web response was recaptured; current byte hash retained in approved raw storage."
+      ]
+    },
+    {
+      "bytes": 1199752423,
+      "etag": "\"de1e6b64163602b3d09531ff4f90d670-2\"",
+      "filtered_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170",
+      "filters": "states=Texas; county_fips=48201; window=UTC half-open [2023-07-19T00:00:00+00:00, 2023-07-19T06:00:00+00:00)",
+      "gaps": [
+        "Explicit source zeros are observations; a missing row has unknown meaning (zero or collection gap) and is classified UncoveredLabel, never imputed zero.",
+        "15-minute run_start_time grid; basis: datasets/catalog.json ('Fifteen-minute county customers-out labels') and the observed annual-CSV grid",
+        "48201: partial_15_min_observation; missing 2 of 24 15-minute intervals"
+      ],
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS, not a model grid index",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); resolved from https://api.figshare.com/v2/articles/24237376",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_id": "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:03:31.874224Z",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "units": "sum: customers; run_start_time: UTC",
+      "url": "https://ndownloader.figshare.com/files/44574907",
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:44574907",
+        "source_file": "eaglei_outages_2023.csv",
+        "source_file_id": 44574907,
+        "source_file_bytes": 1199752423,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+        "raw_artifact_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+        "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
+        "filtered_artifact_uri": "data/raw/event-baseline/ercot-2023-06-heat_eaglei_2023_20230719T000000_20230719T060000.csv",
+        "filtered_artifact_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170"
+      }
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ercot-2023-06-heat-48201-20230719t0000",
+      "county_fips": "48201",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "ercot-2023-06-heat-replay",
+      "window_start_utc": "2023-07-19T00:00:00Z",
+      "window_end_utc": "2023-07-19T06:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "eia-ercot-202307",
+        "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000:48201-2023-07-19T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000",
+          "county_fips": "48201",
+          "start_utc": "2023-07-19T00:00:00Z",
+          "end_utc": "2023-07-19T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "eia-ercot-202307"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "EIA observed regional event context; county-grid weather receipt pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2023-44574907-ercot-2023-06-heat-48201-20230719000000-20230719t000000-20230719t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 22,
+        "missing_timestamps": [
+          "2023-07-19T03:15:00Z",
+          "2023-07-19T03:30:00Z"
+        ],
+        "event_report": null,
+        "notes": "Exhaustive annual-stream acquisition completed; 22/24 15-minute source observations. Missing rows are UncoveredLabel, never zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

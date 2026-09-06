@@ -1,0 +1,215 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "pnw-2021-06-heat",
+    "parent_system_id": "heat_ridge_pnw_202106",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2021-06-24T00:00:00Z",
+      "end_utc": "2021-07-02T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-06-26T00:00:00Z",
+      "end_utc": "2021-06-30T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-06-30T00:00:00Z",
+      "end_utc": "2021-07-02T00:00:00Z"
+    },
+    "disposition": "accepted",
+    "selection_basis": "NOAA Climate.gov documents four days of record Pacific Northwest heat; EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window.",
+    "exclusions": [
+      "County-grid HRRR weather receipt pending",
+      "No controlled shedding assertion"
+    ],
+    "uncertainties": [
+      "EIA balancing-authority load is context, not a county outage label",
+      "Customer denominator unavailable"
+    ],
+    "source_event_ids": [
+      "pnw-2021-06-heat",
+      "ncei-stormevents:961302"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "climategov-pnw-2021",
+      "provider": "NOAA Climate.gov",
+      "url": "https://www.climate.gov/news-features/event-tracker/astounding-heat-obliterates-all-time-records-across-pacific-northwest",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "NOAA public web content",
+      "raw_sha256": "664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a",
+      "filtered_sha256": null,
+      "bytes": 97120,
+      "etag": "\"1788675849\"",
+      "units": "degrees Fahrenheit event narrative and URMA map description",
+      "timezone_conversion": "event dates retained as source narrative; canonical label is UTC",
+      "filters": "late-June 2021 Pacific Northwest heat event",
+      "grid_index_mapping": "not applicable; county-grid receipt pending",
+      "gaps": [
+        "Not a county-grid weather extraction"
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:06:07Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775",
+      "bytes": 1141058232,
+      "etag": null,
+      "units": "customers_out in customers; run_start_time UTC",
+      "timezone_conversion": "none; source UTC",
+      "filters": "exhaustive annual stream; FIPS 41051 canonical window",
+      "grid_index_mapping": "County FIPS only; no grid index",
+      "gaps": [],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/pnw-2021-06-heat-41051-20210629000000_eaglei_2021_20210629T000000_20210629T060000.csv",
+        "filtered_artifact_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775"
+      }
+    },
+    {
+      "receipt_id": "ncei-stormevents-2021-961302",
+      "provider": "NOAA NCEI Storm Events",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "release": "Storm Events details 2021 c20260323",
+      "retrieved_at_utc": "2026-09-06T08:18:58Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "filtered_sha256": "8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124",
+      "bytes": 10563953,
+      "etag": null,
+      "units": "Storm Events local begin/end; event type and NWS zone scope",
+      "timezone_conversion": "CZ_TIMEZONE PST-8 converted by +8 hours to UTC",
+      "filters": "EVENT_ID=961302",
+      "grid_index_mapping": "Historical OR006 NWS zone-to-Multnomah FIPS 41051 crosswalk from bp30mr21.dbx; archived capture https://web.archive.org/web/20210322064256id_/https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx (Memento-Datetime 2021-03-22T06:42:56Z), SHA256 847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595, 323923 bytes; original URL https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx.",
+      "gaps": [
+        "Zone report is not a sampled county weather time series; county mapping uses the archived historical crosswalk, whose current primary version differs."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "pnw-2021-06-heat-41051-20210629t0000",
+      "county_fips": "41051",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "pnw-2021-06-heat-replay",
+      "window_start_utc": "2021-06-29T00:00:00Z",
+      "window_end_utc": "2021-06-29T06:00:00Z",
+      "disposition": "accepted",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "climategov-pnw-2021",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000",
+        "ncei-stormevents-2021-961302"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T00:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T00:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T00:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T00:45:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T01:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T01:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T01:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T01:45:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T02:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T02:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T02:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T02:45:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T03:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T03:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T03:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T03:45:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T04:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T04:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T04:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T04:45:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T05:00:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T05:15:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T05:30:00Z",
+        "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000:41051:2021-06-29T05:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000",
+          "county_fips": "41051",
+          "start_utc": "2021-06-29T00:00:00Z",
+          "end_utc": "2021-06-29T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei-stormevents-2021-961302"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "ncei-stormevents:961302"
+          ],
+          "source_window": {
+            "start_utc": "2021-06-26T20:00:00Z",
+            "end_utc": "2021-06-30T02:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "OR006 Greater Portland Metro Area mapped to Multnomah County FIPS 41051",
+          "limitations": "NCEI records an NWS zone report, not a sampled county time series; county mapping uses the archived historical crosswalk."
+        },
+        "notes": "Observed NCEI Excessive Heat report interval intersects the canonical county window."
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-pnw-2021-06-heat-41051-20210629000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Complete 24/24 native 15-minute observations."
+      },
+      "matched_coverage_decision": "matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
