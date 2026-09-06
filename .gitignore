@@ -11,6 +11,7 @@ web/playwright-report/
 build/
 web/dist-harness/
 web/dist-renderer-harness/
+web/dist-map/
 __pycache__/
 *.pyc
 .env

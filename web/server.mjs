@@ -6,6 +6,7 @@ import express from "express";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
+const mapDist = fileURLToPath(new URL("./dist-map/", import.meta.url));
 
 /**
  * The offline demo's policy, sent as a header as well as the `index.html` meta tag.
@@ -27,12 +28,30 @@ export const CONTENT_SECURITY_POLICY = [
   "base-uri 'none'",
 ].join("; ");
 
-export function createApp() {
+export function createApp({ gridApiOrigin = process.env.FLUX_GRID_API_ORIGIN } = {}) {
   const app = express();
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
     next();
   });
+  // The normal static origin has no API. A configured local API is exposed only
+  // through this same-origin, read-only proxy so the map browser never needs a
+  // CORS exception or an off-origin CSP allowance.
+  if (gridApiOrigin) {
+    const origin = new URL(gridApiOrigin);
+    app.get("/api/v1/grid/{*path}", async (req, res, next) => {
+      try {
+        const upstream = new URL(req.originalUrl, origin);
+        const response = await fetch(upstream, { headers: { accept: "application/json" } });
+        res.status(response.status);
+        const type = response.headers.get("content-type");
+        if (type) res.setHeader("content-type", type);
+        res.send(Buffer.from(await response.arrayBuffer()));
+      } catch (error) { next(error); }
+    });
+  }
+  app.use("/map", express.static(mapDist));
+  app.get("/map/{*path}", (_req, res) => res.sendFile("index.html", { root: mapDist }));
   app.use(express.static(dist));
   // `root` + relative name, not an interpolated absolute path: under Express 5 on Windows
   // `res.sendFile("<abs>/index.html")` raises NotFoundError, which 404s every SPA client route.
