@@ -40,6 +40,19 @@ sets `texas_p0_safe_to_stage: true`. `strict_provenance_ready` stays false when
 a raw artifact has no tracked checksum/provenance receipt. That is intentional:
 do not call an unrecorded raw file verified.
 
+The exit code follows the requested scope and the receipt names the key that
+drove it in `readiness.exit_code_gate`. When `--state` includes Texas the gate
+is `texas_p0_safe_to_stage`; otherwise it is
+`selected_states_public_context_ready` (every selected state's
+`public_context_status` is `ready_to_stage`), so a Minnesota or New York
+context receipt is not failed by an absent Texas raw directory.
+`--strict-provenance` and `--require-scenario-weather` add their own gates.
+A `--database` that another process currently holds open is reported as
+`status: locked` with the instruction to close that process; it is not a
+rebuild signal. Unreadable raw artifacts are reported as `unreadable` inside
+the receipt, and an unwritable `--report` path or an invalid catalog produce a
+JSON error envelope on stderr with exit code 2 instead of a traceback.
+
 For a custody-complete Texas rebuild, require every P0 lock. This currently
 fails until source receipts are recorded for each P0 input; the failure is a
 useful blocker, not an instruction to trust changed files.
