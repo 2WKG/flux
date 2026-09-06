@@ -5,9 +5,10 @@ from datetime import UTC, datetime
 from typing import Any, Literal
 
 import duckdb
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Query, Request, Response
 
 from copilot.api import UnavailableError
+from copilot.api.errors import ARTIFACT_HEADER
 from models.outage.persistence import PersistenceError, query_predictions
 
 router = APIRouter(tags=["predictions"])
@@ -34,6 +35,15 @@ def _utc_timestamp(value: object) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=UTC)
     return value.astimezone(UTC)
+
+
+def _header_safe_artifact_id(value: object) -> str:
+    """Return one immutable artifact id that is safe to emit as an HTTP header."""
+    if not isinstance(value, str) or not value:
+        raise ValueError("artifact id is missing")
+    if not value.isascii() or any(not 33 <= ord(char) <= 126 for char in value):
+        raise ValueError("artifact id is not header-safe")
+    return value
 
 
 @router.get("/predictions")
@@ -71,7 +81,7 @@ def predictions(
 
 
 @router.get("/cascade")
-def cascade(request: Request, scenario_id: str) -> dict[str, Any]:
+def cascade(request: Request, response: Response, scenario_id: str) -> dict[str, Any]:
     """Read only a persisted cascade with an accepted topology artifact."""
     try:
         con = duckdb.connect(
@@ -153,11 +163,13 @@ def cascade(request: Request, scenario_id: str) -> dict[str, Any]:
             )
         if not provenance:
             raise _cascade_unavailable("invalid_topology_artifact")
+        artifact_id = _header_safe_artifact_id(row[2])
+        response.headers[ARTIFACT_HEADER] = artifact_id
         return {
             "status": "available",
             "run_id": row[0],
             "scenario_id": row[1],
-            "artifact_id": row[2],
+            "artifact_id": artifact_id,
             "model_mode": row[3],
             "provenance": provenance,
             "limitations": limitations,

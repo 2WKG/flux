@@ -16,7 +16,12 @@ from copilot.api import (
     UnavailableError,
     install_error_handlers,
 )
-from copilot.api.errors import INTERNAL_ERROR_MESSAGE, REQUEST_ID_HEADER
+from copilot.api.errors import (
+    API_VERSION_HEADER,
+    ARTIFACT_HEADER,
+    INTERNAL_ERROR_MESSAGE,
+    REQUEST_ID_HEADER,
+)
 
 
 class Scenario(BaseModel):
@@ -86,6 +91,8 @@ def test_failure_classes_map_to_the_documented_shape(
     assert body["error"]["message"]
     assert body["meta"]["api_version"] == API_VERSION
     assert body["meta"]["request_id"] == response.headers[REQUEST_ID_HEADER]
+    assert response.headers[API_VERSION_HEADER] == API_VERSION
+    assert ARTIFACT_HEADER not in response.headers
 
 
 def test_unavailable_is_never_an_empty_success(client: TestClient) -> None:
@@ -145,6 +152,7 @@ def test_successful_response_carries_request_id_header(client: TestClient) -> No
     assert response.status_code == 200
     assert REQUEST_ID_HEADER in response.headers
     assert response.headers[REQUEST_ID_HEADER]
+    assert response.headers[API_VERSION_HEADER] == API_VERSION
 
 
 def test_client_supplied_request_id_is_echoed_back(client: TestClient) -> None:

@@ -8,6 +8,7 @@ from pathlib import Path
 import duckdb
 from fastapi.testclient import TestClient
 
+from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
@@ -92,7 +93,12 @@ def _prediction_database(
         con.close()
 
 
-def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> None:
+def _cascade_database(
+    path: Path,
+    *,
+    model_mode: str | None = "topology",
+    artifact_id: str = "mn:model:storm-run-1",
+) -> None:
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE cascade_runs (run_id TEXT, scenario_id TEXT)")
@@ -101,7 +107,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     "model_result",
                     SCHEMA_VERSION,
                     "mn",
@@ -117,7 +123,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     0,
                     "fixture:topology",
                     "fixtures/topology.json",
@@ -132,7 +138,7 @@ def _cascade_database(path: Path, *, model_mode: str | None = "topology") -> Non
             con.execute(
                 "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 [
-                    "mn:model:storm-run-1",
+                    artifact_id,
                     "fixture-cascade",
                     "v1",
                     "mn-storm-run-1",
@@ -166,6 +172,7 @@ def test_qualified_persisted_prediction_is_returned(tmp_path: Path) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "available"
+    assert "X-Flux-Artifact" not in response.headers
     assert len(body["predictions"]) == 1
     assert body["predictions"][0] == {
         "scenario_id": "mn_winter_2023_snow",
@@ -198,6 +205,8 @@ def test_unqualified_prediction_is_not_returned_as_success(tmp_path: Path) -> No
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
     assert response.json()["error"]["details"] == {
         "artifact": "outage_predictions",
         "reason": "no_qualified_prediction",
@@ -234,6 +243,7 @@ def test_persisted_cascade_is_returned(tmp_path: Path) -> None:
         ],
         "limitations": ["Fixture topology evidence only."],
     }
+    assert response.headers["X-Flux-Artifact"] == "mn:model:storm-run-1"
     assert _file_sha256(database) == before
 
 
@@ -254,6 +264,8 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
 
     assert response.status_code == 503
     assert response.json()["status"] == "unavailable"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
 
 
 def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:
@@ -269,6 +281,22 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
         "artifact": "cascade_runs",
         "reason": "topology_cascade_unsupported_or_absent",
     }
+
+
+def test_cascade_rejects_an_artifact_id_unsafe_for_an_http_header(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "unsafe-artifact.duckdb"
+    _cascade_database(database, artifact_id="mn:storm\r\nX-Injected: yes")
+
+    response = _client(database).get(
+        "/cascade", params={"scenario_id": "mn_winter_2023_snow"}
+    )
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+    assert "X-Flux-Artifact" not in response.headers
+    assert "X-Injected" not in response.headers
 
 
 def test_prediction_invalid_limit_is_rejected(tmp_path: Path) -> None:
@@ -295,4 +323,6 @@ def test_cascade_requires_scenario_id_without_opening_a_database(
     response = _client(database).get("/cascade")
 
     assert response.status_code == 422
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
     assert not database.exists()
