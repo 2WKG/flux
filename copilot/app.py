@@ -19,6 +19,8 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings
+from copilot.routes.ask import AskBackend
+from copilot.routes.ask import router as ask_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
@@ -26,16 +28,23 @@ from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    *,
+    ask_backend: AskBackend | None = None,
+) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings or Settings()
+    # Provider and tool orchestration stay deployment-injected.  The default is
+    # deliberately unavailable rather than an implicit provider/network call.
+    app.state.ask_backend = ask_backend
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app.state.settings.cors_origins),
         allow_credentials=False,
-        allow_methods=["GET"],
+        allow_methods=["GET", "POST"],
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER, API_VERSION_HEADER, ARTIFACT_HEADER],
     )
@@ -54,6 +63,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(interventions_router)
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
+    app.include_router(ask_router)
     return app
 
 
