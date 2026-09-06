@@ -27,6 +27,7 @@ const PROXIED = [
   { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/api\/v1\/grid\/asset-placements$/, methods: ["GET"] },
   { pattern: /^\/assets\/flux-grid\/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)$/, methods: ["GET"] },
+  { pattern: /^\/demo\/model$/, methods: ["GET"] },
   { pattern: /^\/health$/, methods: ["GET"] },
   { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
   { pattern: /^\/scenarios$/, methods: ["GET"] },
