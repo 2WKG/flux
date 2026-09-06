@@ -26,9 +26,14 @@ from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.minnesota_smr import router as minnesota_smr_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
+from copilot.interactive_routes import (
+    create_interactive_router,
+    create_interactive_service,
+)
 
 
 def create_app(
@@ -75,6 +80,11 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
+    app.include_router(minnesota_smr_router)
+    app.state.interactive_service = create_interactive_service(
+        duckdb_path=app.state.settings.duckdb_path
+    )
+    app.include_router(create_interactive_router(service=app.state.interactive_service))
     return app
 
 
