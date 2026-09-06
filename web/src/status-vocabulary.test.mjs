@@ -42,6 +42,7 @@ await build({
       import { App } from "./pages/MainPage";
       import { ExplainerPage } from "./pages/ExplainerPage";
       import { MinnesotaControlRoom } from "./minnesota/MinnesotaControlRoom";
+      import { GridInventoryPanel } from "./renderer/GridInventoryPanel";
       export { ASSET_STATUS_TOKENS, STATUS_COPY, TERMINAL_ERROR_CODES };
       export const renderInspector = (status) =>
         renderToStaticMarkup(createElement(Inspector, { asset: { status, artifactLabel: status, name: "Probe", kind: "Facility" } }));
@@ -56,6 +57,11 @@ await build({
       export const renderExplainerPage = () => renderToStaticMarkup(createElement(ExplainerPage));
       export const renderMinnesotaPage = () => renderToStaticMarkup(createElement(MinnesotaControlRoom, {
         search: "", location: { pathname: "/minnesota", hash: "" },
+      }));
+      const noop = () => {};
+      export const renderInventory = (load) => renderToStaticMarkup(createElement(GridInventoryPanel, {
+        load, state: "mn", layers: ["line"], query: "", selected: null,
+        onStateChange: noop, onLayersChange: noop, onQueryChange: noop, onSelect: noop, onRetry: noop,
       }));
     `,
     resolveDir: here.pathname,
@@ -163,6 +169,8 @@ test("main, explainer, and Minnesota surfaces retain their declared status bound
   assert.match(main, /<main data-source-status="synthetic">/);
   assert.ok(textOf(main).includes(STATUS_COPY.synthetic));
   assert.match(main, /five-bus preview .*not Minnesota data/);
+  assert.match(main, /data-request-state="loading"/);
+  assert.match(main, /Checking the evidence API for this scene\./);
 
   // The explainer makes no model-result claim. Its page-level source status
   // and its unavailable result are both explicit rather than inferred from
@@ -186,6 +194,39 @@ test("main, explainer, and Minnesota surfaces retain their declared status bound
   for (const rendered of [main, explainer, minnesota]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
+});
+
+test("the main page's mounted inventory surface distinguishes loading, partial, unavailable, and failed reads", () => {
+  // `GridInventoryPanel` is mounted by MainPage. These are its real `gridLoad`
+  // branches, rendered with the same props MainPage supplies; they are not a
+  // second state vocabulary or a placeholder result.
+  const loading = surface.renderInventory({ kind: "loading" });
+  assert.match(loading, /Requesting the source-backed inventory release\./);
+
+  const page = {
+    api_version: "v1", state: "mn", artifact_version: "1.0.0", artifact_id: "flux:mn-physical:v1",
+    release_sha256: "sha-256", layer: "line", inventory_mode: "physical_observed", electrical_model_mode: "none",
+    items: [], page: { limit: 100, cursor: null, next_cursor: "next-1", total: 250 },
+    coverage: [{
+      assetClass: "generation", status: "partial", scopeId: "eia-860", scope: "EIA-860 2024",
+      reason: "Retired-unit coordinates are absent.", observed: 1200, denominator: 1500, unknown: 44, unavailable: 256,
+    }],
+  };
+  const partial = surface.renderInventory({ kind: "loaded", pages: [page], truncated: true, nextCursor: "next-1" });
+  assert.match(partial, /generation · partial/);
+  assert.match(partial, /Observed 1200 of 1500; unknown 44; unavailable 256\./);
+  assert.match(partial, /The page walk stopped at its cap; more records exist after cursor <code>next-1<\/code>/);
+
+  const unavailable = surface.renderInventory({ kind: "refused", status: "unavailable", code: "artifact_missing", message: "The accepted inventory artifact is unavailable." });
+  assert.match(unavailable, new RegExp(STATUS_COPY.unavailable));
+  assert.match(unavailable, /artifact_missing/);
+  assert.match(unavailable, /The accepted inventory artifact is unavailable\./);
+
+  const failed = surface.renderInventory({ kind: "refused", status: "request_failed", code: "invalid_input", message: "The inventory request was rejected." });
+  assert.match(failed, new RegExp(STATUS_COPY.request_failed));
+  assert.match(failed, /invalid_input/);
+  assert.match(failed, /The inventory request was rejected\./);
+  assert.match(failed, /Retry the inventory request/);
 });
 
 test("`source_backed` is the artifact-provenance axis and never a status", async () => {
