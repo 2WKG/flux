@@ -43,14 +43,19 @@ threshold suite, or mandatory per-PR approval process.
 
 ### U10 integration state (2026-09-06)
 
-The final audit has frozen the 63-request acquisition frame and staged its
-catalog, normalized exhaustive-acquisition ledger, source-artifact registry,
-and grouped-split generator on 2WKG-473. The artifact audit records coverage
-and label shortfalls explicitly; it makes no model-training, forecast, or
-performance claim. Final split manifests depend on the current contract
-validator accepting the legacy receipt shape without changing the locked
-county windows. The source collector dependency is the fail-closed bounded
-range repair (PR 249); final evidence uses only exhaustive annual scans.
+The final audit stages the acquisition request frame, the catalog, and the
+grouped-split generator on 2WKG-473, each produced by a committed,
+repo-relative generator from the bundles in the tree and validated by this
+repository's contract validator. It makes no model-training, forecast, or
+performance claim. It does not depend on the legacy receipt compatibility
+repair: that loosening (PR 250) was rejected and its PR is closed.
+
+The split audit currently reports `insufficient_corpus`, not `pass`: the
+in-tree corpus supports 2 accepted county-window records in 2 singleton
+groups, below the declared floor, so no leakage check can fire. It will be
+regenerated once the remaining hazard-bundle PRs (2WKG-462–472) land. The
+source collector dependency is the fail-closed bounded range repair (PR 249);
+final evidence uses only exhaustive annual scans.
 
 Suggested waves: U1; then U2 and U3; then U4 and U6; then U5, U7, and U9 as
 their dependencies become available; then U8. The critical path is

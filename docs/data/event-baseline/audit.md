@@ -1,54 +1,78 @@
 # Historical event baseline audit
 
-**Snapshot:** `32d006c0114836fcadc1abeca3908ff39ebc08cf`, assembled from the
-locked 63-request frame. The catalog was generated with
-`python scripts/data/event_baseline_assemble.py --events-dir docs/data/event-baseline/events --output docs/data/event-baseline/event_catalog.csv`
-in the isolated integration checkout.
+**Every number below was produced by a committed generator, from the bundles in
+this repository, with this repository's contract validator.** Regenerate it:
 
-The catalog has 63 county-window records. It has 13 accepted records, 25
-record-level shortfalls, and 25 candidate-only records. At the event level,
-13 are accepted, 12 are shortfalls, and 38 remain candidate-only. Every
-record has `time_series_or_grid` outage evidence; none is `not_assessed`.
-The assembled bundle records have 21 complete outage coverages and 42
-`UncoveredLabel` coverages. The acquisition ledger uses a more detailed
-per-request state: 21 complete, 20 partial, and 22 `UncoveredLabel` entries.
-Labels are either `UncoveredLabel` (43) or `unavailable` (20); this snapshot
-does not claim a computed 5% label where the native denominator is absent.
+```
+python scripts/data/event_baseline_requests.py \
+  --events-dir docs/data/event-baseline/events \
+  --output docs/data/event-baseline/requests.json
+python scripts/data/event_baseline_assemble.py \
+  --events-dir docs/data/event-baseline/events \
+  --output docs/data/event-baseline/event_catalog.csv
+python scripts/data/event_baseline_split.py \
+  --events-dir docs/data/event-baseline/events \
+  --output-dir docs/data/event-baseline/splits
+```
 
-The accepted rows have matched coverage, complete 24-sample EAGLE-I outage
-evidence, selected source-row keys, and authoritative weather evidence. The
-weather evidence registry is [source-artifacts.json](source-artifacts.json):
-it rehashed 32 artifacts, has no missing **declared hashed** artifact, and
-links all 13 accepted events to weather proof. It separately retains 48
-receipt-only context entries without local bytes or a hash; those entries are
-not proof of byte availability. The operational EAGLE-I ledger is
-[acquisition-ledger.json](acquisition-ledger.json): all 63 entries declare
-`exhaustive_annual_stream` and `acquisition_complete: true`. Raw annual files
-are durable ignored cache under `data/raw/event-baseline/`; their hashes and
-repository-relative locations are retained in the ledger. The ledger source
-SHA-256 is `a8fdb5ed99e6a5e77afb60267d01407c2298a14b47452e3c86f3c2b3057c3675`.
+The generating commit, the input bundle count, and a SHA-256 for every input
+bundle are recorded in `splits/audit.json.receipt` and
+`requests.json.receipt` (`capture_method: generated`).
 
-The acquisition request frame is [requests.json](requests.json), with its
-generator command, input corpus, and hashes in
-[requests.provenance.json](requests.provenance.json). Its canonical tuple
-digest is `75a2044d89dbe66ac82c8d72c6c6b77eea753b7eb42c3e6952df93fa772ffe2e`.
-The request artifact SHA-256 is
-`bbcb3e15ef84c045b0dd71117af72c74fb89b33eb93dc5956d04ff6b4b68ab8e`.
+## Status: insufficient_corpus
 
-The contract validator passed all 63 canonical bundles using the legacy
-receipt compatibility repair (`730f6fe`). The grouped manifests in
-[`splits/`](splits/) contain 8 train, 4 calibration, and 1 test accepted
-county-window replay rows. All 13 have denominator-unavailable labels; they
-are not a statistically representative sample and are not performance-ready.
-The split generator rejects accepted rows with incomplete coverage, an
-`UncoveredLabel`, absent source-row keys, parent-system overlap, selected-row
-reuse, or overlapping/adjacent context windows across splits. It never uses
-an annual raw-file hash or a reused primary document as a leakage key.
+`splits/audit.json` reports `"status": "insufficient_corpus"`, not `pass`. The
+bundle corpus in the tree today supports **2 accepted county-window records**
+out of 40 bundles, in 2 singleton groups, and the calibration split is empty.
+An audit whose every leakage check is a collision detector cannot demonstrate
+anything on a corpus with no collisions, so the split generator refuses (exit
+status 1) instead of reporting a vacuous pass. The declared floor is 12 accepted
+rows, at least one non-singleton group, and three non-empty splits; it lives in
+`scripts/data/event_baseline_split.py` (`MINIMUM_ACCEPTED_ROWS`,
+`MINIMUM_NON_SINGLETON_GROUPS`) and is recorded in
+`splits/audit.json.declared_minimums`.
 
-The final composed dependency check used acquisition PR 249 at `29fc4e0`,
-contract PR 250 at `730f6fe`, and this audit at `0a53ab0`, in that order. Its
-joint collector, contract, and split suite passed 84 tests; Ruff and the diff
-check also passed. Merge those dependencies before this audit PR.
+The manifests in [`splits/`](splits/) are still written, so the state is
+inspectable, but they are **not** a defensible held-out split and must not be
+used as one. They will be regenerated, and the status is expected to reach
+`pass`, once the remaining event-bundle PRs (#237, #238, #240, #241, #242,
+#243) land and the corpus is large enough.
 
-The grouped manifests are for historical replay only. They do not establish a
-forecast cutoff, forecast score, training result, or model performance claim.
+## What was replaced, and why
+
+An earlier revision of this document claimed a 63-county-window catalog, "the
+contract validator passed all 63 canonical bundles", and 8 train / 4
+calibration / 1 test manifests. None of that was reproducible here:
+
+- the 63-bundle corpus existed only in a `/private/tmp` integration checkout at
+  a snapshot (`32d006c`) that is not a commit in this repository;
+- the validation was qualified as holding "using the legacy receipt
+  compatibility repair (`730f6fe`)" — the head of PR #250, whose loosening of
+  the receipt contract was rejected and whose PR is closed. Nothing in this
+  document now depends on it;
+- `requests.json` was produced by an uncommitted `/tmp/flux-460-request-frame.py`
+  reading three absolute `/private/tmp` paths, so only its original worktree
+  could regenerate it. That generator is now committed, repo-relative, and
+  bundle-driven as `scripts/data/event_baseline_requests.py`;
+- `acquisition-ledger.json` and `source-artifacts.json` described EAGLE-I
+  acquisitions and weather artifacts for that phantom 63-request frame, with no
+  generator and no way to check them from a checkout. They have been removed
+  rather than shipped unverifiable; they belong with the acquisition run that
+  actually produces them.
+
+## What the split generator does establish
+
+Grouping connects rows by `parent_system_id`, by reuse of a selected source row
+key, and by overlapping or adjacent context windows. It never uses an annual
+raw-file hash or a reused primary document as a leakage key: those legitimately
+support many independent episodes.
+
+Alongside the cross-split collision checks, `audit()` positively re-derives each
+row's split from its own group key, so moving a single row — or a whole group —
+between manifests fails the audit even when every group is a singleton and no
+collision exists to detect. `tests/test_event_baseline_split.py` drives each of
+those rules directly, including the `parent_system_id` union, the
+context-window-overlap union, and the `source_evidence_status` refusal.
+
+The manifests are for historical replay only. They establish no forecast cutoff,
+forecast score, training result, or model performance claim.
