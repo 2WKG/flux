@@ -8,7 +8,6 @@ import duckdb
 
 from pipelines.db import SCHEMA_VERSION, validate_schema
 
-
 METRIC_LAYER_VERSION = "1.0.0"
 
 
@@ -181,8 +180,8 @@ VIEW_STATEMENTS = (
 )
 
 
-def _require_contract(con: duckdb.DuckDBPyConnection) -> None:
-    """Reject a missing or incompatible fixture schema before creating views."""
+def validate_metric_layer_contract(con: duckdb.DuckDBPyConnection) -> None:
+    """Read-only preflight for the schema that backs canonical metric views."""
     try:
         version = con.execute(
             "SELECT value FROM schema_meta WHERE key = 'contract_version'"
@@ -201,7 +200,7 @@ def _require_contract(con: duckdb.DuckDBPyConnection) -> None:
 
 def install_metric_layer(con: duckdb.DuckDBPyConnection) -> None:
     """Install or refresh the canonical read-only analytical views."""
-    _require_contract(con)
+    validate_metric_layer_contract(con)
     con.execute("BEGIN TRANSACTION")
     try:
         for statement in VIEW_STATEMENTS:
@@ -219,7 +218,9 @@ def metric_view(name: str) -> str:
         return METRIC_VIEWS[name]
     except KeyError as exc:
         available = ", ".join(sorted(METRIC_VIEWS))
-        raise ValueError(f"Unknown metric view {name!r}; choose one of {available}.") from exc
+        raise ValueError(
+            f"Unknown metric view {name!r}; choose one of {available}."
+        ) from exc
 
 
 def metric_query(name: str) -> str:
