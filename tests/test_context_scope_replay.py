@@ -575,6 +575,93 @@ def test_context_cli_publishes_storm_events_and_denominators_for_a_context_state
         con.close()
 
 
+def test_context_cli_publishes_dod_facilities_scoped_to_county_not_bus(tmp_path):
+    """A real MN DoD extract loads through the county-only context path.
+
+    ``load_dod`` assigns each facility a county by centroid; the context CLI
+    deliberately does not call ``join_critical_loads_to_bus`` (bus matching
+    rides on the Texas-only synthetic topology), so ``bus_id`` must stay NULL.
+    """
+    from pipelines.build_state_context import main
+
+    live = tmp_path / "grid.duckdb"
+    county_polygon = Polygon(
+        [(-93.6, 45.9), (-93.2, 45.9), (-93.2, 46.2), (-93.6, 46.2)]
+    )
+    con = connect(live)
+    replace_frame(
+        con,
+        "counties",
+        pd.DataFrame(
+            [
+                {
+                    "county_fips": "27001",
+                    "name": "Aitkin",
+                    "state": "MN",
+                    "pop": 10,
+                    "geom_wkb": county_polygon.wkb,
+                }
+            ]
+        ),
+        source_name="test",
+        source_ref="fixture",
+        fixture_batch_id="test",
+    )
+    con.close()
+
+    facility_polygon = Polygon(
+        [(-93.45, 46.0), (-93.40, 46.0), (-93.40, 46.05), (-93.45, 46.05)]
+    )
+    dod = tmp_path / "ntad_military_bases_mn.geojson"
+    dod.write_text(
+        json.dumps(
+            {
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "OBJECTID": 1,
+                            "siteName": "Fixture Range",
+                            "stateNameCode": "MN",
+                            "siteOperationalStatus": "act",
+                            "siteReportingComponent": "ARNG",
+                            "isJointBase": "N",
+                        },
+                        "geometry": json.loads(
+                            gpd.GeoSeries([facility_polygon]).to_json()
+                        )["features"][0]["geometry"],
+                    }
+                ],
+            }
+        )
+    )
+
+    assert (
+        main(
+            [
+                "--state",
+                "MN",
+                "--db-root",
+                str(tmp_path),
+                "--parquet-dir",
+                str(tmp_path / "parquet"),
+                "--dod",
+                str(dod),
+            ]
+        )
+        == 0
+    )
+    con = connect(live)
+    try:
+        rows = con.execute(
+            "SELECT kind, county_fips, bus_id FROM critical_loads WHERE kind = 'dod'"
+        ).fetchall()
+    finally:
+        con.close()
+    assert rows == [("dod", "27001", None)]
+
+
 def test_context_cli_requires_counties_before_storm_events(tmp_path, capsys):
     from pipelines.build_state_context import main
 
