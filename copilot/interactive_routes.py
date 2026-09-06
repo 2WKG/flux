@@ -204,7 +204,15 @@ def _scenario_edit(payload: ScenarioEditRequest, *, duckdb_path: Path, case_path
     baseline = _net(case_path=case_path, duckdb_path=duckdb_path)
     ids = [item.element_id for item in payload.ops]
     identity = scenario_identity(ids, payload.base_scenario_id, payload.hour, seed=payload.seed, net=baseline, case_path=case_path)
-    result = _result(baseline, case_path, {"edit_hash": identity["scenario_hash"], "feasibility": [feasibility_report(immutable_scenario_net(baseline, ids))]})
+    result = _result(
+        baseline,
+        case_path,
+        {
+            "edit_hash": identity["scenario_hash"],
+            "element_ids": identity["element_ids"],
+            "feasibility": [feasibility_report(immutable_scenario_net(baseline, ids))],
+        },
+    )
     result["edit_hash"] = identity["scenario_hash"]
     result["_ops"] = [{"element_id": value} for value in identity["element_ids"]]
     return result
@@ -225,14 +233,58 @@ def _balance(edit: _Edit | None, *, scenario_id: str, hour: int, duckdb_path: Pa
 def _redundancy(bus_id: int, *, scenario_id: str, hour: int, duckdb_path: Path, case_path: Path) -> dict[str, object]:
     from twin.cascade import redundancy_report
     baseline = _net(case_path=case_path, duckdb_path=duckdb_path)
-    return _result(baseline, case_path, redundancy_report(baseline, [bus_id])[0])
+    pp_bus_index = _pp_bus_index(baseline, bus_id)
+    report = redundancy_report(baseline, [pp_bus_index])[0]
+    report.pop("bus_id", None)
+    report["source_bus_id"] = bus_id
+    report["pp_bus_index"] = pp_bus_index
+    return _result(baseline, case_path, report)
 
 
 def _siting_search(payload: SitingSearchRequest, *, duckdb_path: Path, case_path: Path) -> dict[str, object]:
     from twin.cascade import placement_counterfactual, rank_candidate_placements
     baseline = _net(case_path=case_path, duckdb_path=duckdb_path)
     ranked = rank_candidate_placements(baseline, list(baseline.bus.index))[:payload.n]
-    return _result(baseline, case_path, [placement_counterfactual([], payload.scenario_id, payload.hour, net=baseline, site_bus=int(row["bus_id"]), unit_mw=payload.unit_mw, seed=payload.seed) for row in ranked])
+    evaluations = []
+    for row in ranked:
+        pp_bus_index = int(row["bus_id"])
+        evaluation = placement_counterfactual(
+            [], payload.scenario_id, payload.hour, net=baseline,
+            site_bus=pp_bus_index, unit_mw=payload.unit_mw, seed=payload.seed,
+        )
+        evaluation.pop("site_bus", None)
+        evaluation["source_bus_id"] = _source_bus_id(baseline, pp_bus_index)
+        evaluation["pp_bus_index"] = pp_bus_index
+        evaluations.append(evaluation)
+    return _result(
+        baseline,
+        case_path,
+        {
+            "selection": {
+                "method": "bounded synthetic graph screening before measured DC counterfactuals",
+                "limitations": "Candidate preselection is not N-1 reliability, interconnection, or physical siting ranking.",
+            },
+            "candidates": evaluations,
+        },
+    )
+
+
+def _pp_bus_index(net: Any, source_bus_id: int) -> int:
+    """Resolve the external MATPOWER/AUX bus ID without relying on row order."""
+    matches = [
+        int(index)
+        for index, source_id in net.bus.flux_source_bus_id.items()
+        if int(source_id) == source_bus_id
+    ]
+    if len(matches) != 1:
+        raise ValueError("source_bus_id is not a unique current synthetic model bus")
+    return matches[0]
+
+
+def _source_bus_id(net: Any, pp_bus_index: int) -> int:
+    if pp_bus_index not in net.bus.index:
+        raise ValueError("pandapower bus index is absent from the synthetic model")
+    return int(net.bus.at[pp_bus_index, "flux_source_bus_id"])
 
 
 def _result(net: Any, case_path: Path, data: object) -> dict[str, object]:
