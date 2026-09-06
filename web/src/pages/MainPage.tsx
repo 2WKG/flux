@@ -35,6 +35,8 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { loadPrimaryScene, type PrimarySceneState } from "../data/primary-scene";
+import { PrimaryScene } from "../renderer/PrimaryScene";
 
 type Id = "baseline" | "a" | "b";
 type View = "load" | "delta";
@@ -361,6 +363,12 @@ export function App() {
   const [gridLoad, setGridLoad] = useState<GridLoad>({ kind: "loading" });
   const [gridAttempt, setGridAttempt] = useState(0);
 
+  // The primary simulation scene (2WKG-479). It is state on this shell like
+  // every other panel's: the read lives in `src/data/primary-scene.ts` and the
+  // scene component below is handed its result or the named reason there is none.
+  const [primaryScene, setPrimaryScene] = useState<PrimarySceneState>({ kind: "loading" });
+  const [primarySceneAttempt, setPrimarySceneAttempt] = useState(0);
+
   const contextRevision = `${selected}:${attemptId}`;
 
   const scenario = data.scenarios[selected];
@@ -453,6 +461,21 @@ export function App() {
       .catch(() => undefined);
     return () => controller.abort();
   }, [gridState, gridLayers, gridAttempt]);
+
+  // The primary simulation's own read: the merged `/api/v1/grid/layers/{layer}`
+  // route, bounded and cursor-paged by `loadGridInventory`, with the synthetic
+  // topology rule applied by `loadPrimaryScene` rather than by this component.
+  useEffect(() => {
+    const controller = new AbortController();
+    setPrimaryScene({ kind: "loading" });
+    loadPrimaryScene({ signal: controller.signal })
+      .then((state) => {
+        if (controller.signal.aborted) return;
+        setPrimaryScene(state);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [primarySceneAttempt]);
 
   const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
   // No producer supplies an evidence disclosure yet, so every layer that would
@@ -644,6 +667,11 @@ export function App() {
           <Inspector asset={inspectorAsset} className="asset-inspector" title="Scenario provenance" />
         </aside>
       </section>
+
+      <PrimaryScene
+        scene={primaryScene}
+        onRetry={() => setPrimarySceneAttempt((value) => value + 1)}
+      />
 
       <GridInventoryPanel
         load={gridLoad}
