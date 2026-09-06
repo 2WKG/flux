@@ -5,15 +5,16 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field
 
 from copilot.api import InvalidInputError, NotFoundError, UnavailableError
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 
 
 class _Request(BaseModel):
@@ -77,7 +78,7 @@ class InteractiveService:
     async def scenario_edit(self, payload: ScenarioEditRequest) -> dict[str, object]:
         _require_static_context(payload.base_scenario_id, payload.hour, payload.seed)
         result = await _in_thread(_scenario_edit, payload, duckdb_path=self.duckdb_path)
-        self._edits[str(result["data"]["edit_hash"])] = _Edit(
+        self._edits[str(result["edit_hash"])] = _Edit(
             payload.base_scenario_id,
             payload.hour,
             payload.seed,
@@ -150,8 +151,14 @@ def create_interactive_service(*, duckdb_path: Path) -> InteractiveService:
 
 
 def create_interactive_router(*, service: InteractiveService) -> APIRouter:
-    """Return the five public root routes; persisted GET /cascade remains separate."""
-    router = APIRouter(tags=["interactive-simulation"])
+    """Return the five interactive routes, namespaced under ``/interactive``.
+
+    The prefix is D-3 (``docs/specs/05-copilot.md``): without it ``POST /cascade``
+    would share a path with the persisted-artifact read ``GET /cascade``
+    (``copilot/routes/predictions.py``), which is exactly the method-on-one-path
+    conflation the routes contract forbids.
+    """
+    router = APIRouter(prefix="/interactive", tags=["interactive-simulation"])
 
     @router.post("/scenario/edit")
     async def scenario_edit(payload: ScenarioEditRequest) -> dict[str, object]:
@@ -377,14 +384,48 @@ def _siting_search(
     )
 
 
-def _result(net: Any, data: object) -> dict[str, object]:
+#: The three fidelity/provenance labels every interactive payload carries.
+#: `network_provenance` is `pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL` verbatim
+#: -- 00-overview.md calls it "the only topology label any route emits", so a
+#: second spelling here would make two labels mean one thing.
+INTERACTIVE_LIMITATIONS: Final[tuple[str, ...]] = (
+    "Synthetic ACTIVSg2000 topology; not a physical asset or interconnection result.",
+    "DC screening excludes AC voltage, transient stability, protection, unit commitment, and regulatory feasibility.",
+    "Interactive edits stay in memory and no route writes DuckDB.",
+)
+
+INTERACTIVE_LABELS: Final[tuple[str, ...]] = (
+    "model_fidelity",
+    "network_provenance",
+    "limitations",
+)
+
+
+def interactive_labels() -> dict[str, object]:
+    """The label block, as its own mapping, for callers that must re-nest it."""
+
     return {
         "model_fidelity": "dc_screening",
-        "network_provenance": "synthetic_activsg2000",
-        "limitations": [
-            "Synthetic ACTIVSg2000 topology; not a physical asset or interconnection result.",
-            "DC screening excludes AC voltage, transient stability, protection, unit commitment, and regulatory feasibility.",
-            "Interactive edits stay in memory and no route writes DuckDB.",
-        ],
-        "data": data,
+        "network_provenance": SYNTHETIC_TOPOLOGY_LABEL,
+        "limitations": list(INTERACTIVE_LIMITATIONS),
     }
+
+
+def _result(net: Any, data: object) -> dict[str, object]:
+    """Return the labelled payload UNWRAPPED, per `copilot/api/envelope.py`.
+
+    Only the failure envelope is wrapped on this surface; a success body is a
+    flat tool-dict pass-through, so the payload's own keys sit at the top level
+    beside the three labels rather than under a bespoke `data` member.
+    """
+
+    if not isinstance(data, Mapping):
+        raise TypeError("interactive result payload must be a mapping")
+    body = interactive_labels()
+    overlap = set(data) & set(body)
+    if overlap:
+        raise ValueError(
+            f"interactive payload may not shadow the labels: {sorted(overlap)!r}"
+        )
+    body.update(data)
+    return body

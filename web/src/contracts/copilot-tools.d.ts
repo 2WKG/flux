@@ -159,7 +159,7 @@ export interface InteractiveData {
   data: Record<string, JsonValue>;
   limitations: string[];
   model_fidelity: "dc_screening";
-  network_provenance: "synthetic_activsg2000";
+  network_provenance: "synthetic (ACTIVSg2000)";
   provenance?: ArtifactRef[];
   status: "available";
   unavailable?: Unavailable | null;

@@ -15,6 +15,8 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
+
 type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
 type UnavailableCode = Literal[
@@ -495,7 +497,9 @@ class InteractiveData(ToolOutput):
 
     status: Literal["available"]
     model_fidelity: Literal["dc_screening"]
-    network_provenance: Literal["synthetic_activsg2000"]
+    # 00-overview.md §"the only topology label any route emits": this is
+    # `pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL` verbatim, not a second spelling.
+    network_provenance: Literal["synthetic (ACTIVSg2000)"]
     limitations: Annotated[list[str], Field(min_length=1)]
     data: dict[str, JsonValue]
 

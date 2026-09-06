@@ -12,7 +12,7 @@ from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sse_starlette.sse import EventSourceResponse, ServerSentEvent
 
-from copilot.dispatcher import ToolCallingProvider, ToolDispatcher
+from copilot.dispatcher import ToolCallingProvider, ToolDispatcher, ToolLoopOverrun
 from copilot.runtime import AsyncNarrationProvider, ToolTurn, stream_turn
 from copilot.sse import CopilotEventStream, SseEvent
 from copilot.verify import verify
@@ -175,6 +175,17 @@ async def _stream_dispatcher(
         )
     except asyncio.CancelledError:
         raise
+    except ToolLoopOverrun:
+        # A provider that keeps calling tools is a distinct failure from a
+        # malformed call: the operator must be able to tell them apart.
+        yield _encoded_event(
+            stream.error(
+                "protocol_error",
+                "The model kept requesting tools past the bounded tool-call loop.",
+                retryable=False,
+            )
+        )
+        return
     except ValueError:
         yield _encoded_event(
             stream.error(

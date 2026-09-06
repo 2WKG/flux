@@ -8,12 +8,16 @@ from types import SimpleNamespace
 import pytest
 from fastapi.testclient import TestClient
 
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
+
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.dispatcher import (
+    MAX_TOOL_TURNS,
     AssistantText,
     ToolCall,
     ToolDispatcher,
+    ToolLoopOverrun,
     interactive_tool_handlers,
 )
 from copilot.non_interactive_tool_handlers import (
@@ -105,18 +109,18 @@ class _InteractiveService:
         assert payload.base_scenario_id == "interactive"
         return {
             "model_fidelity": "dc_screening",
-            "network_provenance": "synthetic_activsg2000",
+            "network_provenance": SYNTHETIC_TOPOLOGY_LABEL,
             "limitations": ["Synthetic topology only."],
-            "data": {"edit_hash": "f" * 16},
+            "edit_hash": "f" * 16,
         }
 
     async def cascade(self, payload):
         assert payload.scenario_id == "interactive"
         return {
             "model_fidelity": "dc_screening",
-            "network_provenance": "synthetic_activsg2000",
+            "network_provenance": SYNTHETIC_TOPOLOGY_LABEL,
             "limitations": ["Synthetic topology only."],
-            "data": {"cascade_id": "cascade-0123456789abcdef"},
+            "cascade_id": "cascade-0123456789abcdef",
         }
 
 
@@ -327,3 +331,189 @@ def test_dispatcher_nests_distinct_cascade_request_identity_in_scene_action() ->
         "reversible": True,
         "status": "available",
     }
+
+
+class _LoopingProvider:
+    """A provider that never stops calling tools."""
+
+    def __init__(self) -> None:
+        self.turns = 0
+
+    async def next_action(self, **kwargs):
+        self.turns += 1
+        return ToolCall(
+            f"loop-{self.turns}",
+            "scenario_edit",
+            {
+                "base_scenario_id": "interactive",
+                "ops": [{"op": "outage", "element_id": "line:7"}],
+                "hour": 0,
+                "seed": 0,
+            },
+        )
+
+
+def test_the_tool_loop_is_bounded_by_max_turns() -> None:
+    """P7: a looping provider is stopped after exactly `max_turns` calls."""
+
+    provider = _LoopingProvider()
+    dispatcher = ToolDispatcher(
+        interactive_tool_handlers(_InteractiveService()), max_turns=3
+    )
+    with pytest.raises(ToolLoopOverrun, match="3 turns"):
+        asyncio.run(
+            dispatcher.run(provider, question="Edit", history=(), context={})
+        )
+    assert provider.turns == 3
+
+
+def test_the_default_tool_loop_bound_is_max_tool_turns() -> None:
+    provider = _LoopingProvider()
+    dispatcher = ToolDispatcher(interactive_tool_handlers(_InteractiveService()))
+    with pytest.raises(ToolLoopOverrun):
+        asyncio.run(
+            dispatcher.run(provider, question="Edit", history=(), context={})
+        )
+    assert provider.turns == MAX_TOOL_TURNS
+
+
+def test_a_loop_overrun_is_distinguishable_from_an_invalid_tool_action() -> None:
+    """`/ask` must not collapse an unbounded provider into `tool_error`."""
+
+    client = TestClient(
+        create_app(
+            Settings(duckdb_path=Path("/tmp/grid.duckdb")),
+            narration_provider=None,
+            tool_dispatcher=ToolDispatcher(
+                interactive_tool_handlers(_InteractiveService()), max_turns=2
+            ),
+            tool_provider=_LoopingProvider(),
+        )
+    )
+    events = _events(
+        client.post(
+            "/ask",
+            json={"attempt_id": "loop_overrun_attempt_1", "question": "Edit", "history": []},
+        )
+    )
+    assert events[-1][0] == "error"
+    assert events[-1][1]["error"]["code"] == "protocol_error"
+    assert "bounded tool-call loop" in events[-1][1]["error"]["message"]
+
+
+def test_a_minnesota_question_is_refused_not_answered_with_texas_data() -> None:
+    """Ported from #254: never answer a Minnesota question with ERCOT numbers."""
+
+    class MinnesotaProvider:
+        def __init__(self) -> None:
+            self.actions = [
+                ToolCall(
+                    "mn-1",
+                    "cascade",
+                    {
+                        "element_ids": ["line:7"],
+                        "scenario_id": "interactive",
+                        "hour": 0,
+                        "seed": 0,
+                    },
+                ),
+                AssistantText("No Minnesota topology is available."),
+            ]
+
+        async def next_action(self, **kwargs):
+            return self.actions.pop(0)
+
+    results, _ = asyncio.run(
+        ToolDispatcher(interactive_tool_handlers(_InteractiveService())).run(
+            MinnesotaProvider(),
+            question="Run a cascade in Minnesota",
+            history=(),
+            context={},
+        )
+    )
+    assert results[0].result["status"] == "unavailable"
+    assert results[0].result["unavailable"]["code"] == "unsupported_request"
+    assert "Texas synthetic" in results[0].result["unavailable"]["reason"]
+    assert "lost_load_mw" not in json.dumps(dict(results[0].result))
+    assert "scene_action" not in results[0].result
+
+
+def test_a_texas_question_still_runs_the_interactive_cascade() -> None:
+    """The Minnesota guard must not refuse the questions it does serve."""
+
+    class TexasProvider:
+        def __init__(self) -> None:
+            self.actions = [
+                ToolCall(
+                    "tx-1",
+                    "cascade",
+                    {
+                        "element_ids": ["line:7"],
+                        "scenario_id": "interactive",
+                        "hour": 0,
+                        "seed": 0,
+                    },
+                ),
+                AssistantText("Done."),
+            ]
+
+        async def next_action(self, **kwargs):
+            return self.actions.pop(0)
+
+    results, _ = asyncio.run(
+        ToolDispatcher(interactive_tool_handlers(_InteractiveService())).run(
+            TexasProvider(),
+            question="Run an ERCOT cascade near Houston",
+            history=(),
+            context={},
+        )
+    )
+    assert results[0].result["status"] == "available"
+    assert results[0].result["data"]["cascade_id"] == "cascade-0123456789abcdef"
+
+
+def test_a_missing_simulation_core_names_itself_in_the_tool_result() -> None:
+    """Not "the answer provider is unavailable" -- the core is what is missing."""
+
+    from copilot.api import UnavailableError
+
+    class _BrokenService:
+        async def cascade(self, payload):
+            raise UnavailableError(
+                "Synthetic interactive simulation is unavailable.",
+                details={"reason": "synthetic_core_unavailable"},
+            )
+
+        async def scenario_edit(self, payload):  # pragma: no cover - unused here
+            raise AssertionError("not called")
+
+    class _Provider:
+        def __init__(self) -> None:
+            self.actions = [
+                ToolCall(
+                    "broken-1",
+                    "cascade",
+                    {
+                        "element_ids": ["line:7"],
+                        "scenario_id": "interactive",
+                        "hour": 0,
+                        "seed": 0,
+                    },
+                ),
+                AssistantText("The simulation core is unavailable."),
+            ]
+
+        async def next_action(self, **kwargs):
+            return self.actions.pop(0)
+
+    results, answer = asyncio.run(
+        ToolDispatcher(interactive_tool_handlers(_BrokenService())).run(
+            _Provider(), question="Cascade", history=(), context={}
+        )
+    )
+    assert results[0].result["status"] == "unavailable"
+    reason = results[0].result["unavailable"]["reason"]
+    assert "simulation core" in reason
+    assert "synthetic_core_unavailable" in reason
+    assert "provider" not in reason.lower()
+    assert answer

@@ -938,7 +938,7 @@
           "type": "string"
         },
         "network_provenance": {
-          "const": "synthetic_activsg2000",
+          "const": "synthetic (ACTIVSg2000)",
           "title": "Network Provenance",
           "type": "string"
         },

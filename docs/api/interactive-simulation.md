@@ -5,7 +5,9 @@ process-local service and a freshly built synthetic network per request.
 
 All five success bodies have the same truth envelope:
 `model_fidelity: "dc_screening"`,
-`network_provenance: "synthetic_activsg2000"`, `limitations`, and `data`.
+`network_provenance: "synthetic (ACTIVSg2000)"` (`pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL`
+verbatim) and `limitations`, alongside the payload's own keys. Success bodies are
+unwrapped: there is no `data` member on the HTTP surface.
 Each request builds a fresh static synthetic baseline and every cascade call
 stays in memory; no route writes to DuckDB. The installed core does not yet
 apply a persisted scenario, hourly conditions, or a stochastic seed. The only

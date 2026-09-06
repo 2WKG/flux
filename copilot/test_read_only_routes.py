@@ -151,6 +151,50 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.get("/cascade", params={"scenario_id": SCENARIO}),
         200,
     ),
+    # The five interactive-simulation routes (D-3: /interactive prefix).  They
+    # rebuild a synthetic network in memory per call and persist nothing, so
+    # they belong in this "reads do not write" snapshot like any other route.
+    ("POST", "/interactive/scenario/edit"): (
+        lambda client: client.post(
+            "/interactive/scenario/edit",
+            json={
+                "base_scenario_id": "interactive",
+                "ops": [{"op": "outage", "element_id": "line:7"}],
+            },
+        ),
+        200,
+    ),
+    ("POST", "/interactive/cascade"): (
+        lambda client: client.post(
+            "/interactive/cascade",
+            json={
+                "element_ids": ["line:7"],
+                "scenario_id": "interactive",
+                "hour": 0,
+            },
+        ),
+        200,
+    ),
+    ("GET", "/interactive/balance"): (
+        lambda client: client.get("/interactive/balance"),
+        200,
+    ),
+    ("GET", "/interactive/redundancy"): (
+        lambda client: client.get("/interactive/redundancy", params={"bus_id": 7}),
+        200,
+    ),
+    ("POST", "/interactive/siting/search"): (
+        lambda client: client.post(
+            "/interactive/siting/search",
+            json={
+                "kind": "synthetic_generation",
+                "unit_mw": 300,
+                "scenario_id": "interactive",
+                "n": 1,
+            },
+        ),
+        200,
+    ),
     # ``/ask`` streams; with no provider configured the fixture produces a 200
     # SSE stream whose terminal frame is the documented unavailable error.
     ("POST", "/ask"): (

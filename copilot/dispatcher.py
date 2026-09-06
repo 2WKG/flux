@@ -7,6 +7,7 @@ handler and gives the provider only immutable context plus prior tool results.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Awaitable, Callable, Mapping, Sequence
 from dataclasses import dataclass
 from types import MappingProxyType
@@ -27,6 +28,30 @@ from copilot.tools.schemas import (
 )
 
 MAX_TOOL_TURNS = 4
+
+#: Words that name Minnesota in a question.  The interactive tools are backed
+#: only by the Texas synthetic ACTIVSg2000 topology, so a Minnesota question
+#: must be refused rather than answered with Texas numbers wearing a Minnesota
+#: label.  Ported from the #254 Minnesota-intent guard.
+_MINNESOTA_WORDS = ("minnesota", "mn", "xcel", "miso")
+
+
+class ToolLoopOverrun(RuntimeError):
+    """The provider kept calling tools past the bounded loop.
+
+    Distinct from an invalid tool argument: the caller must be able to tell an
+    unbounded provider apart from a malformed call, so `/ask` maps this to its
+    own error message rather than the shared invalid-tool-action text.
+    """
+
+
+def mentions_minnesota(text: str) -> bool:
+    """Whole-word match, so "mnemonic" and "amiso" are not Minnesota."""
+
+    lowered = text.lower()
+    return any(
+        re.search(rf"\b{re.escape(word)}\b", lowered) for word in _MINNESOTA_WORDS
+    )
 
 
 @dataclass(frozen=True)
@@ -100,7 +125,10 @@ class ToolDispatcher:
         history: Sequence[Mapping[str, str]],
         context: Mapping[str, object],
     ) -> tuple[tuple[ToolResult, ...], str]:
-        frozen_context = MappingProxyType(dict(context))
+        # The question travels with the context so a handler can refuse a
+        # request whose geography its data cannot answer (Minnesota).  It is
+        # never used to *infer* a tool: the provider still chooses.
+        frozen_context = MappingProxyType({**dict(context), "question": question})
         results: list[ToolResult] = []
         for _ in range(self._max_turns):
             action = await provider.next_action(
@@ -116,7 +144,9 @@ class ToolDispatcher:
                 return tuple(results), action.text
             result = await self._execute(action, frozen_context)
             results.append(result)
-        raise ValueError("provider exceeded the bounded tool-call loop")
+        raise ToolLoopOverrun(
+            f"provider exceeded the bounded tool-call loop of {self._max_turns} turns"
+        )
 
     async def _execute(
         self, call: ToolCall, context: Mapping[str, object]
@@ -180,6 +210,56 @@ def _scene_action(call: ToolCall, output: Mapping[str, object]) -> dict[str, obj
     return action
 
 
+_TEXAS_ONLY_REFUSAL = (
+    "The interactive simulation tools are backed only by the Texas synthetic "
+    "ACTIVSg2000 topology; there is no Minnesota topology to run them against."
+)
+
+
+def _refuse_minnesota(context: Mapping[str, object]) -> Mapping[str, object] | None:
+    """Refuse a Minnesota question rather than answering it with Texas data."""
+
+    question = context.get("question")
+    if isinstance(question, str) and mentions_minnesota(question):
+        return unavailable_output(
+            "unsupported_request", _TEXAS_ONLY_REFUSAL
+        ).model_dump(mode="json")
+    return None
+
+
+async def _guarded(
+    call: Callable[[], Awaitable[Mapping[str, object]]],
+) -> Mapping[str, object]:
+    """Turn the interactive service's typed refusals into tool results.
+
+    Without this, a missing simulation core escapes to `copilot/routes/ask.py`'s
+    blanket handler and `/ask` reports "The answer provider is unavailable" --
+    blaming a provider that was never called.  The named refusal belongs in the
+    tool result, exactly as the HTTP half returns it.
+    """
+
+    from copilot.api import InvalidInputError, NotFoundError, UnavailableError
+
+    try:
+        return await call()
+    except UnavailableError as exc:
+        reason = "synthetic_core_unavailable"
+        details = getattr(exc, "details", None)
+        if isinstance(details, Mapping):
+            reason = str(details.get("reason", reason))
+        return unavailable_output(
+            "artifact_unavailable",
+            f"The synthetic interactive simulation core is unavailable ({reason}).",
+        ).model_dump(mode="json")
+    except NotFoundError:
+        return unavailable_output(
+            "artifact_unavailable",
+            "The requested interactive edit is not available.",
+        ).model_dump(mode="json")
+    except InvalidInputError as exc:
+        raise ValueError(f"invalid interactive request: {exc}") from exc
+
+
 def interactive_tool_handlers(
     service: object, *, historical_handlers: Mapping[str, ToolHandler] | None = None
 ) -> dict[str, ToolHandler]:
@@ -202,48 +282,72 @@ def interactive_tool_handlers(
     handlers = {definition.name: unavailable for definition in TOOL_REGISTRY}
 
     async def scenario_edit(
-        payload: BaseModel, _: Mapping[str, object]
+        payload: BaseModel, context: Mapping[str, object]
     ) -> Mapping[str, object]:
         from copilot.interactive_routes import EditOperation, ScenarioEditRequest
 
+        refusal = _refuse_minnesota(context)
+        if refusal is not None:
+            return refusal
         value = ScenarioEditInput.model_validate(payload)
-        response = await service.scenario_edit(  # type: ignore[attr-defined]
-            ScenarioEditRequest(
-                base_scenario_id=value.base_scenario_id,
-                ops=[EditOperation(**item.model_dump()) for item in value.ops],
-                hour=value.hour,
-                seed=value.seed,
+        response = await _guarded(
+            lambda: service.scenario_edit(  # type: ignore[attr-defined]
+                ScenarioEditRequest(
+                    base_scenario_id=value.base_scenario_id,
+                    ops=[EditOperation(**item.model_dump()) for item in value.ops],
+                    hour=value.hour,
+                    seed=value.seed,
+                )
             )
         )
+        if response.get("status") == "unavailable":
+            return response
         return _interactive_output(response)
 
     async def cascade(
-        payload: BaseModel, _: Mapping[str, object]
+        payload: BaseModel, context: Mapping[str, object]
     ) -> Mapping[str, object]:
         from copilot.interactive_routes import CascadeRequest
 
+        refusal = _refuse_minnesota(context)
+        if refusal is not None:
+            return refusal
         value = InteractiveCascadeInput.model_validate(payload)
-        response = await service.cascade(  # type: ignore[attr-defined]
-            CascadeRequest(**value.model_dump())
+        response = await _guarded(
+            lambda: service.cascade(  # type: ignore[attr-defined]
+                CascadeRequest(**value.model_dump())
+            )
         )
+        if response.get("status") == "unavailable":
+            return response
         return _interactive_output(response)
 
     async def balance(
-        payload: BaseModel, _: Mapping[str, object]
+        payload: BaseModel, context: Mapping[str, object]
     ) -> Mapping[str, object]:
+        refusal = _refuse_minnesota(context)
+        if refusal is not None:
+            return refusal
         value = BalanceInput.model_validate(payload)
-        response = await service.balance(  # type: ignore[attr-defined]
-            **value.model_dump()
+        response = await _guarded(
+            lambda: service.balance(**value.model_dump())  # type: ignore[attr-defined]
         )
+        if response.get("status") == "unavailable":
+            return response
         return _interactive_output(response)
 
     async def redundancy(
-        payload: BaseModel, _: Mapping[str, object]
+        payload: BaseModel, context: Mapping[str, object]
     ) -> Mapping[str, object]:
+        refusal = _refuse_minnesota(context)
+        if refusal is not None:
+            return refusal
         value = RedundancyInput.model_validate(payload)
-        response = await service.redundancy(  # type: ignore[attr-defined]
-            **value.model_dump()
+        response = await _guarded(
+            lambda: service.redundancy(**value.model_dump())  # type: ignore[attr-defined]
         )
+        if response.get("status") == "unavailable":
+            return response
         return _interactive_output(response)
 
     handlers.update(
@@ -273,7 +377,14 @@ def _interactive_output(response: object) -> dict[str, object]:
 
     if not isinstance(response, Mapping):
         raise TypeError("interactive service returned a non-mapping response")
-    value = dict(response)
+    from copilot.interactive_routes import INTERACTIVE_LABELS
+
+    flat = dict(response)
+    # The HTTP body is unwrapped (envelope.py); the *tool* contract
+    # (`InteractiveData`) nests the payload under `data`, so re-nest here
+    # rather than making the HTTP surface carry a bespoke success wrapper.
+    value = {name: flat.pop(name) for name in INTERACTIVE_LABELS if name in flat}
+    value["data"] = flat
     value.update(
         {
             "status": "available",
