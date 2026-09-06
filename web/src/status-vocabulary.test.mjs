@@ -282,3 +282,65 @@ test("no design document outside the prohibition contracts carries the prohibite
     "a design document reintroduced the prohibited status word; the frozen contracts refuse it",
   );
 });
+
+/**
+ * `docs/design/ui-tokens.css` is a design reference, not a second stylesheet.
+ * #252 collapsed the app onto one `:root` in `web/src/styles.css`; a design file
+ * that declared bare token names, or that the app imported, would re-open exactly
+ * the drift that closed. These pin the three properties that keep it a reference:
+ * every name is `--flux-`-prefixed, nothing under `web/` imports it, and the font
+ * stacks lead with the ones `docs/design/texas-workspace-prototype.html` ships
+ * (the same source `web/src/styles.css` cites for `--font-sans`/`--font-mono`).
+ */
+const uiTokensPath = () => path.join(repoRoot.pathname, "docs", "design", "ui-tokens.css");
+
+test("the design token file cannot shadow the app's own token vocabulary", async () => {
+  const tokens = await readFile(uiTokensPath(), "utf8");
+  const declared = [...tokens.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((match) => match[1]);
+  assert.ok(declared.length > 20, "ui-tokens.css declared almost nothing; the parse is wrong");
+  const unprefixed = [...new Set(declared.filter((name) => !name.startsWith("--flux-")))];
+  assert.deepEqual(unprefixed, [], "a design token dropped the --flux- prefix and can now shadow web/src/styles.css");
+
+  // And no browser file pulls the reference in as a stylesheet.
+  const importers = [];
+  for (const file of await browserSources()) {
+    if ((await readFile(file, "utf8")).includes("ui-tokens.css")) {
+      importers.push(path.relative(webRoot.pathname, file));
+    }
+  }
+  assert.deepEqual(importers, [], "browser code imported the design token reference; the app has one stylesheet");
+});
+
+test("the design token font stacks lead with the ones the shipped prototype uses", async () => {
+  const prototype = await readFile(
+    path.join(repoRoot.pathname, "docs", "design", "texas-workspace-prototype.html"),
+    "utf8",
+  );
+  const shipped = {
+    "--flux-font-ui": prototype.match(/font:\s*14px\/1\.4\s*([^;]+);/)?.[1]?.trim(),
+    "--flux-font-data": prototype.match(/font-family:\s*(ui-monospace[^;]*);/)?.[1]?.trim(),
+  };
+  assert.equal(shipped["--flux-font-ui"], "ui-sans-serif, system-ui, sans-serif");
+  assert.equal(shipped["--flux-font-data"], "ui-monospace, monospace");
+
+  const tokens = await readFile(uiTokensPath(), "utf8");
+  for (const [name, stack] of Object.entries(shipped)) {
+    const declared = tokens.match(new RegExp(`${name}\\s*:\\s*([^;]+);`))?.[1]?.trim();
+    assert.ok(declared, `ui-tokens.css no longer declares ${name}`);
+    const lead = stack.split(",")[0].trim();
+    assert.equal(
+      declared.split(",")[0].trim(),
+      lead,
+      `${name} leads with a family the prototype does not ship; a downloadable face makes metrics machine-dependent`,
+    );
+    // Every generic the prototype names must still be in the stack, in order.
+    const wanted = stack.split(",").map((part) => part.trim());
+    const have = declared.split(",").map((part) => part.trim());
+    let cursor = -1;
+    for (const family of wanted) {
+      const at = have.indexOf(family, cursor + 1);
+      assert.ok(at > cursor, `${name} dropped or reordered ${family} from the shipped stack`);
+      cursor = at;
+    }
+  }
+});

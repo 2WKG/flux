@@ -39,6 +39,8 @@ Do not require drag gestures to complete a task. Selecting a proposal location s
 
 These are proposed Flux colors, not measured Palantir or Air Force brand values. The companion [`ui-tokens.css`](ui-tokens.css) scopes tokens under `data-flux-theme="light"` or `"dark"`; it imports no fonts and applies no global reset. The scene palette remains dark in both shell themes.
 
+**The app has one token vocabulary, and it is not this file.** `web/src/styles.css` `:root` owns the tokens the application actually renders — `--ink`, `--muted`, `--dim`, `--line`, `--line-strong`, `--line-soft`, `--panel`, `--panel-solid`, `--panel-raised`, `--panel-sunken`, `--accent`, `--low`, `--mid`, `--high`, `--relief`, `--amber`, `--red`, `--green`, `--font-sans`, `--font-mono` — after #252 collapsed the rival panel colours, borders and inks onto that single sheet. `ui-tokens.css` is a design reference: every name in it is `--flux-`-prefixed so it can never shadow one of those, it is imported by nothing under `web/`, and it ships no runtime value. When this direction lands in the product it lands by changing the values behind `web/src/styles.css` `:root`, never by adding a second set of names beside them. `web/src/status-vocabulary.test.mjs` fails if `ui-tokens.css` grows an unprefixed token, is imported by browser code, or drifts from the prototype's font stacks.
+
 | Role | Light shell | Dark shell / scene |
 |---|---|---|
 | Workspace / scene ground | Chalk `#F4F7F8` | Midnight `#0B141E` |
