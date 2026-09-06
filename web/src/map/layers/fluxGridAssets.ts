@@ -5,12 +5,11 @@ import { ScenegraphLayer } from 'deck.gl';
 import { STATUS_COPY } from '../../source-truth';
 
 /**
- * Colour and glyph per status token. The *words* are not written here: they are
- * `STATUS_COPY`'s, which `src/labels.ts` names as their single owner. This map
- * previously spelled all six itself, which made the built bundle carry
- * "Source-supported" outside the display map -- the exact claim
- * `web/test/viewport-shell.test.mjs` forbids a screen from making, and the
- * reason that gate was red.
+ * Glyph and colour per status token. The wording is NOT re-spelled here:
+ * `STATUS_COPY` (`src/source-truth.ts`) is the one status vocabulary, so each
+ * label is read from it. Re-typing the six labels here put a second copy of
+ * "Source-supported" into the shipped bundle, which is exactly the claim
+ * `web/test/viewport-shell.test.mjs` forbids outside the display map.
  */
 export const STATUS_PRESENTATION = {
   source_supported: { label: STATUS_COPY.source_supported, glyph: '✓', color: [73, 205, 187] },

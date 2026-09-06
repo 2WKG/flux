@@ -48,9 +48,6 @@ function assetManifest(value: unknown): FluxAssetManifest | null {
   if (!record(value) || value.schema_version !== 1 || value.contract_id !== "flux:3d-asset-archetypes:v1" ||
     !record(value.transform) || value.transform.unit !== "meter" || value.transform.up !== "Y" ||
     value.transform.forward !== "-Z" || value.transform.pivot !== "ground_center" || !Array.isArray(value.assets) || value.assets.length === 0) return null;
-  // A type predicate, not a bare boolean: the LOD check below reads
-  // `file.triangles` on the narrowed value, and without the narrowing `file`
-  // stays `unknown` and `tsc --noEmit` fails (TS18046).
   const validFile = (file: unknown): file is Record<string, unknown> =>
     record(file) && typeof file.path === "string" && typeof file.sha256 === "string" &&
     typeof file.bytes === "number" && Number.isFinite(file.bytes);

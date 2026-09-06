@@ -21,16 +21,13 @@ export function databasePackageSpecifier() {
 }
 
 /**
- * Matches a metafile input path that resolves *inside* a database package, e.g.
- * `node_modules/@duckdb/duckdb-wasm/x.js`.
+ * Matches a metafile input path whose segments name an installed database package,
+ * e.g. node_modules/@duckdb/duckdb-wasm/x.js.
  *
- * The `node_modules/` anchor is load-bearing. Without it the rule matched any
- * path segment spelled like a package name, and `sql.js` is both a package name
- * and an ordinary file name: `node_modules/is-unsafe/src/contexts/sql.js` --
- * reached transitively through `fast-xml-parser` under the 3D asset loaders --
- * failed the whole build as a "database dependency" while containing no
- * database at all. A package can only be reached through a `node_modules`
- * directory, so anchoring there loses no real violation.
+ * The package name is anchored to the `node_modules/` boundary that introduces it.
+ * Without that anchor a name like `sql.js` also matched any *file* called `sql.js`
+ * inside an unrelated dependency (deck.gl pulls in `is-unsafe/src/contexts/sql.js`,
+ * a string predicate with no database code), failing the build on a false positive.
  */
 export function databasePackagePath() {
   const scoped = DATABASE_PACKAGE_SCOPES.map((scope) => `${escape(scope)}[/\\\\][^/\\\\]+`);
