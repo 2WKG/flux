@@ -78,3 +78,56 @@ test("preserves only generic ordered tool and terminal-error trace facts", () =>
   assert.doesNotMatch(markup, /scene_action/);
   assert.doesNotMatch(markup, /A narration is not an action/);
 });
+
+test("reads only a complete attributed additive scene action", () => {
+  const markup = render([
+    event("tool_call", 1, { call_id: "cascade-call", tool: "cascade", input: {} }),
+    event("tool_result", 2, {
+      call_id: "cascade-call",
+      tool: "cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: {
+        scene_action: {
+          action_id: "action-7",
+          kind: "cascade",
+          tool_call_id: "cascade-call",
+          cascade_id: "cascade-1",
+          reversible: true,
+          status: "available",
+        },
+      },
+    }),
+  ]);
+
+  assert.match(markup, /data-agent-simulation-capability="simulation_action"[^>]*data-agent-simulation-availability="available"/);
+  assert.match(markup, /data-agent-scene-action="cascade"/);
+  assert.match(markup, /data-agent-scene-action-id="action-7"/);
+  assert.match(markup, /data-agent-scene-action-tool-call-id="cascade-call"/);
+  assert.match(markup, /data-agent-scene-action-reversible="true"/);
+  assert.match(markup, /Cascade id: cascade-1/);
+  assert.match(markup, /No reversal operation is wired here/);
+});
+
+test("rejects absent or invalid scene actions without inferring a capability", () => {
+  const markup = render([
+    event("tool_result", 1, {
+      call_id: "cascade-call",
+      tool: "cascade",
+      ok: true,
+      elapsed_ms: 12,
+      result: { scene_action: { action_id: "action-7", kind: "cascade", tool_call_id: "other-call", reversible: true, status: "available" } },
+    }),
+    event("tool_result", 2, {
+      call_id: "edit-call",
+      tool: "scenario_edit",
+      ok: true,
+      elapsed_ms: 12,
+      result: { scene_action: { action_id: "action-8", kind: "scenario_edit", tool_call_id: "edit-call", reversible: false, status: "available" } },
+    }),
+  ]);
+
+  assert.match(markup, /data-agent-simulation-capability="simulation_action"[^>]*data-agent-simulation-availability="unavailable"/);
+  assert.doesNotMatch(markup, /data-agent-scene-action=/);
+  assert.doesNotMatch(markup, /action-7|action-8/);
+});
