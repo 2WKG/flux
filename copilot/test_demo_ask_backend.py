@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from copilot.app import create_app
 from copilot.config import Settings
-from copilot.demo.ask_backend import DemoAskBackend
+from copilot.demo.ask_backend import CoreCascadeEvidence, DemoAskBackend
 from copilot.tools.schemas import ArtifactRef, CascadeData, TrippedElement
 
 ATTEMPT = "demo_cascade_0123456789"
@@ -49,6 +49,38 @@ class _ActualRunner:
             counties_dark=[],
             critical_loads_lost=[],
             steps=1,
+        )
+
+
+class _CoreRunner:
+    async def run(
+        self, *, element_ids: list[str], scenario_id: str, hour: int
+    ) -> CoreCascadeEvidence:
+        return CoreCascadeEvidence(
+            result={
+                "run_id": "actual-core-run",
+                "scenario_id": scenario_id,
+                "hour": hour,
+                "synthetic": True,
+                "topology": "synthetic (ACTIVSg2000)",
+                "tripped_element_ids": [
+                    {"element_id": element_ids[0], "kind": "impedance", "stage": 0, "cause": "forced"}
+                ],
+                "lost_load_mw": 12.5,
+                "counties_dark": [],
+                "critical_loads_lost": [],
+                "solver": "pandapower.rundcpp",
+                "loading_by_element": {},
+            },
+            provenance=[
+                ArtifactRef(
+                    artifact_id="tx:synthetic:activsg2000",
+                    artifact_version="current",
+                    source_kind="simulated",
+                    source_ref="case_ACTIVSg2000.m",
+                )
+            ],
+            limitations=("Synthetic topology only.",),
         )
 
 
@@ -169,3 +201,24 @@ def test_existing_ask_http_path_exposes_jepa_as_an_explicitly_experimental_tool(
     assert events[1][1]["tool"] == "experimental_forecast"
     assert events[2][1]["result"]["status"] == "experimental"
     assert "not a weather forecast" in events[3][1]["delta"]
+
+
+def test_existing_ask_http_path_preserves_real_core_event_vocabulary_without_relabelling() -> None:
+    response = _client(_CoreRunner()).post(
+        "/ask",
+        json={
+            "attempt_id": ATTEMPT,
+            "question": "Run the cascade.",
+            "context": {
+                "scenario_id": "uri_2021",
+                "hour": 4,
+                "selected_element_id": "impedance:1",
+            },
+            "history": [],
+        },
+    )
+
+    events = _events(response)
+    assert events[1][1]["tool"] == "synthetic_cascade"
+    event = events[2][1]["result"]["tripped_element_ids"][0]
+    assert event == {"element_id": "impedance:1", "kind": "impedance", "stage": 0, "cause": "forced"}

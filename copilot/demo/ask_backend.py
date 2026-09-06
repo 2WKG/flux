@@ -10,6 +10,7 @@ unavailable result as the core, never a fixture-shaped cascade.
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from pathlib import Path
 from types import MappingProxyType
 from typing import Protocol
@@ -26,12 +27,26 @@ from copilot.tools.schemas import (
 )
 
 
+@dataclass(frozen=True)
+class CoreCascadeEvidence:
+    """Raw, labelled output from the newer synthetic cascade core.
+
+    It intentionally remains distinct from the older nine-tool ``CascadeData``
+    schema, whose element vocabulary cannot represent the core's impedance,
+    generator, and load outage events without relabelling them.
+    """
+
+    result: dict[str, object]
+    provenance: tuple[ArtifactRef, ...]
+    limitations: tuple[str, ...]
+
+
 class CascadeRunner(Protocol):
     """The integration adapter around the actual Texas synthetic cascade core."""
 
     async def run(
         self, *, element_ids: list[str], scenario_id: str, hour: int
-    ) -> CascadeData | ToolOutput: ...
+    ) -> CascadeData | CoreCascadeEvidence | ToolOutput: ...
 
 
 class DeterministicNarrationProvider:
@@ -92,6 +107,27 @@ class DemoAskBackend:
             scenario_id=context.scenario_id,
             hour=context.hour,
         )
+        if isinstance(result, CoreCascadeEvidence):
+            return ToolTurn(
+                call_id=f"cascade:{payload.attempt_id}",
+                tool="synthetic_cascade",
+                input={
+                    "element_ids": [context.selected_element_id],
+                    "scenario_id": context.scenario_id,
+                    "hour": context.hour,
+                },
+                narration=GroundedNarration(
+                    status="available",
+                    text=(
+                        "Synthetic Texas cascade evidence is available. It is not "
+                        "a physical-asset connectivity result."
+                    ),
+                    evidence=MappingProxyType(dict(result.result)),
+                    provenance=result.provenance,
+                    citations=(),
+                    limitations=result.limitations,
+                ),
+            )
         # ``narrate`` checks the registered tool output shape again.  A core
         # adapter cannot slip arbitrary JSON or an unlabeled number into SSE.
         narration = narrate("run_cascade", result)
