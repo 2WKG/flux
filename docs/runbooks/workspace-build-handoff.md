@@ -100,17 +100,22 @@ it has not exercised external tiles, glyphs, or attribution delivery.
 The static analysis interface may load its own same-origin built assets and
 MapLibre workers, plus only the configured OpenFreeMap resources: the dark
 style at `https://tiles.openfreemap.org/styles/dark`, its `planet` TileJSON and
-tile resources on `https://tiles.openfreemap.org`, and glyphs at
-`https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`. That is online
+tile resources on `https://tiles.openfreemap.org`, glyphs at
+`https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`, and sprite
+resources under `https://tiles.openfreemap.org/sprites/`. That is online
 basemap access, separate from the static analysis fixture. It does not permit a
 model fetch, a provider connection, `/ask`, or `/api` request.
 
 Treat a style, tile, or glyph failure as a basemap-renderer condition, never as
 evidence about feature data or a reason to substitute geographic geometry. The
 renderer must preserve its explicit unavailable provenance/status disclosure.
-Record the exact visible basemap-unavailable behavior and the browser network
-test result only after the renderer owner confirms them; this runbook does not
-yet claim that proof.
+The renderer owner confirmed at `47c7918` that a browser test aborts
+`https://tiles.openfreemap.org/**`, displays `Basemap unavailable: {MapLibre
+error.message}` in the Map and renderer status notice, and can still select
+Candidate A in the synthetic fixture. Its network allowlist permits same-origin
+static assets/workers and only `tiles.openfreemap.org` paths `/styles/`,
+`/planet`, `/fonts/`, and `/sprites/`; it prohibits `/ask` and `/api`. This is
+local browser evidence, not an external deployment or source-geometry claim.
 
 For the interleaved overlay, attach `MapboxOverlay({interleaved: true})` with
 `useControl`, update it with the layer list, and choose `beforeId` from the
@@ -219,7 +224,7 @@ Run the checks that apply to the selected mode and record the actual result.
 | Root route | required | required when a web origin is served | root returns the built application shell |
 | Deep refresh | required | required when a web origin is served | a direct refresh of a client route remains in the application shell, not a server 404 |
 | Browser/device | required | required | keyboard focus and desktop/laptop/mobile layouts are usable; record viewport and browser |
-| Static request boundary | required | required for static mode | browser monitoring permits same-origin built assets/workers and the configured OpenFreeMap style/tile/glyph resources only; it observes no model/provider, `/ask`, or `/api` request |
+| Static request boundary | required | required for static mode | browser monitoring permits same-origin built assets/workers and configured OpenFreeMap `/styles/`, `/planet`, `/fonts/`, and `/sprites/` resources only; it observes no model/provider, `/ask`, or `/api` request |
 | `/health` | not applicable | required before availability is claimed | documented health response confirms the configured local service; otherwise report unavailable |
 | SSE | not applicable | required only for a configured live-agent rehearsal | stream events and terminal/unavailable behavior are observed through the configured route; do not infer either from a build |
 | Connector routing/restart | blocked | blocked | only owner-supplied host, route, restart, and rollback instructions count as evidence |
