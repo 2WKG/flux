@@ -7,10 +7,18 @@ from pathlib import Path
 import duckdb
 import pytest
 from fastapi.testclient import TestClient
+from httpx import Response
 
 from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
+
+
+def _response_surface(response: Response) -> str:
+    """Every byte a client sees: `response.text` covers the body only, so a
+    credential shipped in a header would otherwise pass unnoticed."""
+    headers = "\n".join(f"{key}: {value}" for key, value in response.headers.items())
+    return f"{response.text}\n{headers}"
 
 
 def _fixture_database(path: Path, *, with_corpus: bool = True) -> None:
@@ -84,14 +92,18 @@ def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
     tmp_path: Path,
 ) -> None:
     database = tmp_path / "missing.duckdb"
-    app = create_app(Settings(duckdb_path=database))
+    secret = "unavailable-but-configured"
+    app = create_app(Settings(duckdb_path=database, anthropic_api_key=secret))
 
     # App construction must not eagerly open DuckDB and create an empty file.
+    # Redundant with the assertions below (they already catch an eager open); kept
+    # only to localise such a failure to the construction phase, not as coverage.
     assert not database.exists()
 
     response = TestClient(app).get("/health", headers={"X-Request-ID": "health-2"})
 
     assert response.status_code == 503
+    assert secret not in _response_surface(response)
     assert response.json()["status"] == "unavailable"
     assert response.json()["data"] is None
     assert response.json()["error"] == {
@@ -161,7 +173,7 @@ def test_health_does_not_treat_a_configured_credential_as_model_availability(
     response = TestClient(app).get("/health")
 
     assert response.status_code == 200
-    assert secret not in response.text
+    assert secret not in _response_surface(response)
     assert response.json()["ok"] is True
     assert response.json()["model"] == {
         "status": "not_verified",
