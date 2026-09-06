@@ -9,14 +9,13 @@ import pytest
 
 from pipelines.fixtures.builder import artifact_id_for
 from pipelines.minnesota_aggregate_runtime import (
-    AggregateRuntimeError,
     METRIC_NAME,
+    AggregateRuntimeError,
     aggregate_identity,
     build_aggregate_runtime,
     load_aggregate_inputs,
     verify_gate0_inputs,
 )
-
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -52,7 +51,9 @@ def test_gate0_input_verification_checks_the_exact_approved_inventory_and_hashes
     ]
 
 
-def test_runtime_build_is_atomic_preserves_source_and_persists_aggregate_truth(tmp_path: Path):
+def test_runtime_build_is_atomic_preserves_source_and_persists_aggregate_truth(
+    tmp_path: Path,
+):
     source, output = tmp_path / "source.duckdb", tmp_path / "aggregate.duckdb"
     _source_db(source)
     source_hash = _sha256(source)
@@ -78,8 +79,12 @@ def test_runtime_build_is_atomic_preserves_source_and_persists_aggregate_truth(t
         source_con.close()
     con = duckdb.connect(str(output), read_only=True)
     try:
-        assert con.execute("SELECT value FROM retained_source").fetchone() == ("unchanged",)
-        assert con.execute("SELECT value FROM mn_schema_meta").fetchone() == ("2.0.0-mn",)
+        assert con.execute("SELECT value FROM retained_source").fetchone() == (
+            "unchanged",
+        )
+        assert con.execute("SELECT value FROM mn_schema_meta").fetchone() == (
+            "2.0.0-mn",
+        )
         manifest = con.execute(
             "SELECT model_mode, identity_json, input_artifact_ids_json FROM mn_artifact_manifests"
         ).fetchone()
@@ -98,7 +103,9 @@ def test_runtime_build_is_atomic_preserves_source_and_persists_aggregate_truth(t
         assert "not Minnesota demand" in model[3]
         assert model[4:] == (None, None, None)
         components = json.loads(
-            con.execute("SELECT score_components_json FROM mn_score_results").fetchone()[0]
+            con.execute(
+                "SELECT score_components_json FROM mn_score_results"
+            ).fetchone()[0]
         )
         assert components["artifact_version"] == "v1"
         assert components["aggregate_manifest"]["allocation_status"] == "unavailable"
@@ -115,25 +122,38 @@ def test_runtime_build_is_atomic_preserves_source_and_persists_aggregate_truth(t
             "p95_index",
         }
         assert components["stress_context"]["scored_hours"] == 4368
-        assert components["stress_context"]["window_peak_hour_utc"] == "2024-06-24T23:00:00Z"
+        assert (
+            components["stress_context"]["window_peak_hour_utc"]
+            == "2024-06-24T23:00:00Z"
+        )
         assert "Minnesota demand allocation" in components["prohibited_claims"]
-        assert con.execute("SELECT count(*) FROM mn_artifact_provenance").fetchone() == (4,)
-        assert con.execute("SELECT count(*) FROM mn_geography_artifacts").fetchone() == (0,)
+        assert con.execute(
+            "SELECT count(*) FROM mn_artifact_provenance"
+        ).fetchone() == (4,)
+        assert con.execute(
+            "SELECT count(*) FROM mn_geography_artifacts"
+        ).fetchone() == (0,)
     finally:
         con.close()
 
 
-def test_build_requires_a_new_distinct_output_and_leaves_existing_files_untouched(tmp_path: Path):
+def test_build_requires_a_new_distinct_output_and_leaves_existing_files_untouched(
+    tmp_path: Path,
+):
     source, output = tmp_path / "source.duckdb", tmp_path / "existing.duckdb"
     _source_db(source)
     _source_db(output)
     existing_hash = _sha256(output)
 
     with pytest.raises(AggregateRuntimeError, match="already exists"):
-        build_aggregate_runtime(source_db=source, output_db=output, repository_root=ROOT)
+        build_aggregate_runtime(
+            source_db=source, output_db=output, repository_root=ROOT
+        )
     assert _sha256(output) == existing_hash
     with pytest.raises(AggregateRuntimeError, match="must differ"):
-        build_aggregate_runtime(source_db=source, output_db=source, repository_root=ROOT)
+        build_aggregate_runtime(
+            source_db=source, output_db=source, repository_root=ROOT
+        )
 
 
 def test_runtime_rejects_symlink_source_or_output_paths(tmp_path: Path):
@@ -144,18 +164,24 @@ def test_runtime_rejects_symlink_source_or_output_paths(tmp_path: Path):
     source_link.symlink_to(source)
     output_link.symlink_to(output)
 
-    with pytest.raises(AggregateRuntimeError, match="source database path must not be a symlink"):
+    with pytest.raises(
+        AggregateRuntimeError, match="source database path must not be a symlink"
+    ):
         build_aggregate_runtime(
             source_db=source_link, output_db=output, repository_root=ROOT
         )
-    with pytest.raises(AggregateRuntimeError, match="output database path must not be a symlink"):
+    with pytest.raises(
+        AggregateRuntimeError, match="output database path must not be a symlink"
+    ):
         build_aggregate_runtime(
             source_db=source, output_db=output_link, repository_root=ROOT
         )
     assert not output.exists()
 
 
-def test_runtime_rejects_a_source_that_already_has_a_minnesota_namespace(tmp_path: Path):
+def test_runtime_rejects_a_source_that_already_has_a_minnesota_namespace(
+    tmp_path: Path,
+):
     source, output = tmp_path / "source.duckdb", tmp_path / "aggregate.duckdb"
     _source_db(source)
     con = duckdb.connect(str(source))
@@ -164,8 +190,12 @@ def test_runtime_rejects_a_source_that_already_has_a_minnesota_namespace(tmp_pat
     finally:
         con.close()
 
-    with pytest.raises(AggregateRuntimeError, match="already has a Minnesota namespace"):
-        build_aggregate_runtime(source_db=source, output_db=output, repository_root=ROOT)
+    with pytest.raises(
+        AggregateRuntimeError, match="already has a Minnesota namespace"
+    ):
+        build_aggregate_runtime(
+            source_db=source, output_db=output, repository_root=ROOT
+        )
     assert not output.exists()
 
 

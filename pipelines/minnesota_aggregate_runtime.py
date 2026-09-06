@@ -27,7 +27,6 @@ import duckdb
 from pipelines.fixtures.builder import artifact_id_for
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
-
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 INVENTORY_PATH = Path("data/sources/minnesota-accepted-artifact-inventory.json")
 MANIFEST_PATH = Path("pipelines/fixtures/inputs/minnesota_aggregate_manifest_v1.json")
@@ -53,6 +52,12 @@ PROHIBITED_CLAIMS = (
     "topology, line, bus, flow, loading, trip, cascade, or outage inference",
     "an interconnection study",
 )
+SOURCE_VERSIONS = {
+    "mn:aggregate:manifest:v1": "v1",
+    "mn:facility_capacity:county:2024": "2024",
+    "mn:facility_context:unassigned:2024": "2024",
+    "mn:ba_context:miso:2024-h1": "2024-h1",
+}
 
 
 class AggregateRuntimeError(RuntimeError):
@@ -138,7 +143,9 @@ def verify_gate0_inputs(
 ) -> tuple[dict[str, Any], tuple[ApprovedInput, ...]]:
     """Verify all and only the four Gate 0-approved input artifacts and digests."""
     root = repository_root.resolve()
-    inventory_file = inventory_path if inventory_path.is_absolute() else root / inventory_path
+    inventory_file = (
+        inventory_path if inventory_path.is_absolute() else root / inventory_path
+    )
     inventory = _load_json(inventory_file, "Minnesota accepted-artifact inventory")
     entries = inventory.get("accepted_product_artifacts")
     if not isinstance(entries, list):
@@ -181,15 +188,24 @@ def verify_gate0_inputs(
 
 
 def _manifest_from(approved: tuple[ApprovedInput, ...]) -> tuple[dict[str, Any], str]:
-    manifest_input = next(item for item in approved if item.artifact_id == EXPECTED_ARTIFACT_IDS[0])
+    manifest_input = next(
+        item for item in approved if item.artifact_id == EXPECTED_ARTIFACT_IDS[0]
+    )
     manifest = _load_json(manifest_input.source_path, "aggregate manifest")
     if manifest.get("format") != "flux-minnesota-aggregate-v1":
         raise AggregateRuntimeError("aggregate manifest format is incompatible")
     if manifest.get("model_mode") != "aggregate":
-        raise AggregateRuntimeError("aggregate manifest must declare aggregate model mode")
+        raise AggregateRuntimeError(
+            "aggregate manifest must declare aggregate model mode"
+        )
     if manifest.get("allocation_status") != "unavailable":
-        raise AggregateRuntimeError("aggregate manifest must keep allocation unavailable")
-    if not isinstance(manifest.get("allocation_limit"), str) or not manifest["allocation_limit"]:
+        raise AggregateRuntimeError(
+            "aggregate manifest must keep allocation unavailable"
+        )
+    if (
+        not isinstance(manifest.get("allocation_limit"), str)
+        or not manifest["allocation_limit"]
+    ):
         raise AggregateRuntimeError("aggregate manifest needs an allocation limitation")
     sources = manifest.get("sources")
     if not isinstance(sources, list):
@@ -201,7 +217,9 @@ def _manifest_from(approved: tuple[ApprovedInput, ...]) -> tuple[dict[str, Any],
         "eia860_2024",
         "eia930_balance_2024_h1",
     }:
-        raise AggregateRuntimeError("aggregate manifest source inventory is incompatible")
+        raise AggregateRuntimeError(
+            "aggregate manifest source inventory is incompatible"
+        )
     return manifest, manifest_input.content_sha256
 
 
@@ -217,7 +235,9 @@ def _miso_peak(
         with context_path.open(encoding="utf-8", newline="") as stream:
             rows = list(csv.DictReader(stream))
     except OSError as exc:
-        raise AggregateRuntimeError(f"cannot read MISO context: {context_path}") from exc
+        raise AggregateRuntimeError(
+            f"cannot read MISO context: {context_path}"
+        ) from exc
     required = {"UTC Time at End of Hour", "Demand (MW)"}
     if not rows or not required <= set(rows[0]):
         raise AggregateRuntimeError("MISO context lacks UTC end-of-hour demand columns")
@@ -234,11 +254,17 @@ def _miso_peak(
             timestamp = datetime.fromisoformat(row["UTC Time at End of Hour"])
             value = float(row["Demand (MW)"])
         except (TypeError, ValueError) as exc:
-            raise AggregateRuntimeError("MISO context contains invalid timestamp or demand") from exc
-        if timestamp.tzinfo is None or timestamp.utcoffset() != UTC.utcoffset(timestamp):
+            raise AggregateRuntimeError(
+                "MISO context contains invalid timestamp or demand"
+            ) from exc
+        if timestamp.tzinfo is None or timestamp.utcoffset() != UTC.utcoffset(
+            timestamp
+        ):
             raise AggregateRuntimeError("MISO context timestamp must be UTC")
         if timestamp in seen:
-            raise AggregateRuntimeError("MISO context repeats a UTC end-of-hour timestamp")
+            raise AggregateRuntimeError(
+                "MISO context repeats a UTC end-of-hour timestamp"
+            )
         if not math.isfinite(value):
             raise AggregateRuntimeError("MISO context demand must be finite")
         seen.add(timestamp)
@@ -270,7 +296,9 @@ def load_aggregate_inputs(
         repository_root=repository_root, inventory_path=inventory_path
     )
     manifest, manifest_sha256 = _manifest_from(approved)
-    context_input = next(item for item in approved if item.artifact_id == MISO_ARTIFACT_ID)
+    context_input = next(
+        item for item in approved if item.artifact_id == MISO_ARTIFACT_ID
+    )
     (
         peak_demand_mw,
         peak_hour_utc,
@@ -280,9 +308,7 @@ def load_aggregate_inputs(
         min_index,
         mean_index,
         p95_index,
-    ) = _miso_peak(
-        context_input.source_path, manifest
-    )
+    ) = _miso_peak(context_input.source_path, manifest)
     return AggregateInputs(
         manifest=manifest,
         manifest_sha256=manifest_sha256,
@@ -310,35 +336,34 @@ def aggregate_identity(manifest_sha256: str) -> dict[str, str]:
     }
 
 
-def _source_provenance(inputs: AggregateInputs) -> list[tuple[Any, ...]]:
+def expected_aggregate_provenance(
+    inputs: AggregateInputs,
+) -> tuple[dict[str, Any], ...]:
+    """Return the complete ordered provenance contract for the accepted inputs."""
     manifest = inputs.manifest
-    retrieved_at = _utc_timestamp(manifest["retrieved_at"], "aggregate manifest retrieved_at")
-    source_names = {
-        "mn:aggregate:manifest:v1": ("flux-minnesota-aggregate-manifest", "v1"),
-        "mn:facility_capacity:county:2024": ("eia-form-860", "2024"),
-        "mn:facility_context:unassigned:2024": ("eia-form-860", "2024"),
-        "mn:ba_context:miso:2024-h1": ("eia-930", "2024-h1"),
-    }
-    return [
-        (
-            item.artifact_id,
-            item.inventory_entry["source_path"],
-            source_names[item.artifact_id][1],
-            retrieved_at,
-            "unknown",
-            item.artifact_id,
-            item.content_sha256,
-            False,
-        )
+    retrieved_at = _utc_timestamp(
+        manifest["retrieved_at"], "aggregate manifest retrieved_at"
+    )
+    return tuple(
+        {
+            "source_name": item.artifact_id,
+            "source_ref": item.inventory_entry["source_path"],
+            "source_version": SOURCE_VERSIONS[item.artifact_id],
+            "retrieved_at": retrieved_at,
+            "license_or_terms": "unknown",
+            "source_record_id": item.artifact_id,
+            "content_sha256": item.content_sha256,
+            "is_derived": False,
+        }
         for item in inputs.approved
-    ]
+    )
 
 
 def _utc_timestamp(value: object, field: str) -> datetime:
     if not isinstance(value, str):
         raise AggregateRuntimeError(f"{field} must be an ISO-8601 timestamp")
     try:
-        timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+        timestamp = datetime.fromisoformat(value)
     except ValueError as exc:
         raise AggregateRuntimeError(f"{field} is not ISO-8601") from exc
     if timestamp.tzinfo is None:
@@ -375,7 +400,9 @@ def _score_components(inputs: AggregateInputs) -> dict[str, Any]:
     }
 
 
-def _write_aggregate_record(con: duckdb.DuckDBPyConnection, inputs: AggregateInputs) -> str:
+def _write_aggregate_record(
+    con: duckdb.DuckDBPyConnection, inputs: AggregateInputs
+) -> str:
     identity = aggregate_identity(inputs.manifest_sha256)
     artifact_id = artifact_id_for(identity)
     assumptions = [
@@ -400,16 +427,29 @@ def _write_aggregate_record(con: duckdb.DuckDBPyConnection, inputs: AggregateInp
                 "available",
                 "aggregate",
                 _canonical_json(identity),
-                _utc_timestamp(inputs.manifest["retrieved_at"], "aggregate manifest retrieved_at"),
+                _utc_timestamp(
+                    inputs.manifest["retrieved_at"], "aggregate manifest retrieved_at"
+                ),
                 _canonical_json(assumptions),
                 _canonical_json(limitations),
                 _canonical_json(input_ids),
             ],
         )
-        for ordinal, provenance in enumerate(_source_provenance(inputs)):
+        for ordinal, provenance in enumerate(expected_aggregate_provenance(inputs)):
             con.execute(
                 "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [artifact_id, ordinal, *provenance],
+                [
+                    artifact_id,
+                    ordinal,
+                    provenance["source_name"],
+                    provenance["source_ref"],
+                    provenance["source_version"],
+                    provenance["retrieved_at"],
+                    provenance["license_or_terms"],
+                    provenance["source_record_id"],
+                    provenance["content_sha256"],
+                    provenance["is_derived"],
+                ],
             )
         for field_name, ordinal in (
             ("aggregate_manifest", 0),
@@ -425,7 +465,12 @@ def _write_aggregate_record(con: duckdb.DuckDBPyConnection, inputs: AggregateInp
         ):
             con.execute(
                 "INSERT INTO mn_artifact_field_provenance VALUES (?, ?, ?, ?)",
-                [artifact_id, field_name, ordinal, "direct value from approved committed evidence"],
+                [
+                    artifact_id,
+                    field_name,
+                    ordinal,
+                    "direct value from approved committed evidence",
+                ],
             )
         con.execute(
             "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -467,7 +512,9 @@ def _verify_read_only_source(source: Path) -> None:
     try:
         con = duckdb.connect(str(source), read_only=True)
     except duckdb.Error as exc:
-        raise AggregateRuntimeError(f"source is not a readable DuckDB database: {source}") from exc
+        raise AggregateRuntimeError(
+            f"source is not a readable DuckDB database: {source}"
+        ) from exc
     try:
         mn_tables = [
             name
@@ -543,7 +590,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--source-db", type=Path, required=True)
     parser.add_argument("--output-db", type=Path, required=True)
     args = parser.parse_args(argv)
-    receipt = build_aggregate_runtime(source_db=args.source_db, output_db=args.output_db)
+    receipt = build_aggregate_runtime(
+        source_db=args.source_db, output_db=args.output_db
+    )
     print(json.dumps(receipt, sort_keys=True, default=str))
     return 0
 
