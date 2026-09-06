@@ -692,9 +692,14 @@ def test_every_skipped_tree_is_actually_git_ignored():
     if not (root / ".git").exists():
         pytest.skip("not a git checkout; the ignore rules are unmeasurable")
 
-    probes = [f"{path}/probe.glb" for path in sorted(validator._SKIP_PATHS)]
+    # Probe the DIRECTORY, not a file inside it. `data/3d/**/*.glb` ignores
+    # every .glb under data/3d without ignoring the tree, so a file probe would
+    # pass for a directory the walk must still descend into — an assertion that
+    # cannot fail. The walk prunes directories, so directories are what must be
+    # ignored.
+    probes = [f"{path}/" for path in sorted(validator._SKIP_PATHS)]
     probes += [
-        f"{prefix}/{name}/probe.glb"
+        f"{prefix}/{name}/"
         for name in sorted(validator._SKIP_NAMES - {".git"})
         for prefix in ("web", "data")
     ]
