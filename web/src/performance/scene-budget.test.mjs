@@ -79,6 +79,33 @@ test("a non-positive or non-integer count is a named issue, not coerced", () => 
   }
 });
 
+test("a LOD label the archetype does not declare is a named issue, never NaN", () => {
+  for (const lod of ["lod3", "LOD0", "", "toString", undefined, null, 7]) {
+    const report = buildSceneBudgetReport(catalog(), [{ archetypeId: "hospital", count: 2, lod }]);
+    assert.deepEqual(
+      report.issues,
+      [{ kind: "invalid_lod", archetypeId: "hospital", lod: String(lod) }],
+      JSON.stringify(lod),
+    );
+    assert.equal(report.lines.length, 0, JSON.stringify(lod));
+    assert.equal(report.totalTriangles, 0, JSON.stringify(lod));
+    assert.equal(Number.isNaN(report.totalTriangles), false, JSON.stringify(lod));
+    assert.equal(report.withinBudget, true, JSON.stringify(lod));
+    assert.deepEqual(report.overBudgetArchetypes, [], JSON.stringify(lod));
+  }
+});
+
+test("an undeclared LOD does not poison the totals of the valid placements beside it", () => {
+  const report = buildSceneBudgetReport(catalog(), [
+    { archetypeId: "hospital", count: 1, lod: "lod2" }, // 2800
+    { archetypeId: "wind_turbine", count: 3, lod: "lod3" },
+  ]);
+  assert.equal(report.totalTriangles, 2800);
+  assert.equal(Number.isNaN(report.totalTriangles), false);
+  assert.equal(report.lines.length, 1);
+  assert.deepEqual(report.issues, [{ kind: "invalid_lod", archetypeId: "wind_turbine", lod: "lod3" }]);
+});
+
 test("an empty placement list is exactly zero triangles and within budget", () => {
   const report = buildSceneBudgetReport(catalog(), []);
   assert.equal(report.totalTriangles, 0);

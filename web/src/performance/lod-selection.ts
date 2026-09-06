@@ -16,7 +16,17 @@ export interface LodDistanceThresholds {
   readonly lod1MaxDistanceMeters: number;
 }
 
-/** Matches the contract's per-archetype LOD chain: lod2 stays recognisable at statewide zoom. */
+/**
+ * Implementation defaults with no contract backing.
+ *
+ * `data/3d/asset-archetypes-v1.json` and `docs/design/3d-asset-contract.md`
+ * declare triangle, byte, texture, and LOD-reduction budgets and state **no**
+ * distance thresholds at all. These two numbers are therefore a starting
+ * point chosen here, not a contract value, and they have not been derived
+ * from a measurement either. A caller with a real camera and a real scene is
+ * expected to pass its own `LodDistanceThresholds` to `selectLod`; treat
+ * these only as the placeholder that keeps the pure function callable.
+ */
 export const DEFAULT_LOD_THRESHOLDS: LodDistanceThresholds = {
   lod0MaxDistanceMeters: 150,
   lod1MaxDistanceMeters: 1500,
