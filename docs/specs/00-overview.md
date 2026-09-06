@@ -106,6 +106,13 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `cascade_runs` | `run_id, scenario_id, hour, tripped_element_ids_json, lost_load_mw, counties_dark_json, critical_loads_lost_json` | 03 (and 04 for counterfactual runs) | 04, 05, 06 |
 | `site_scores` | `site_id, scenario_id, unit_mw, safety_score, safety_flags_json, grid_value_score, lol_reduction_mwh, congestion_relief_pct, blackstart_reach_mw` | 04 | 05, 06 |
 | `line_upgrade_scores` | `line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256, source_kind` — key `(line_id, scenario_id)`; `source_kind` is explicit fixture/observed/simulated/heuristic provenance and legacy NULL is unavailable, see A10 | 08 | 05, 06 |
+| `physical_inventory_schema_meta` | `key, value` — `key='contract_version'` holds `pipelines.physical_inventory.CONTRACT_VERSION` | 11 | 11 |
+| `physical_inventory_manifests` | `artifact_id, contract_version, geography_id, artifact_version, canonical_json, inventory_mode[physical_observed\|fixture\|synthetic], electrical_model_mode[none\|source_backed\|synthetic\|aggregate], created_at, content_sha256` | 11 | 11, read APIs |
+| `physical_inventory_sources` | `artifact_id, source_id, authority, source_ref, source_version, retrieved_at, license_or_terms, content_sha256` — key `(artifact_id, source_id)` | 11 | 11, read APIs |
+| `physical_assets` | `artifact_id, asset_id, asset_class, asset_kind, source_id, source_record_id, geometry_geojson, geometry_crs, geometry_precision_m, geometry_accuracy_basis, geometry_derivation_method, geometry_status[source\|derived\|unavailable]` — key `(artifact_id, asset_id)` | 11 | 11, read APIs |
+| `physical_asset_terminals` | `artifact_id, terminal_id, asset_id, source_id, source_record_id` — key `(artifact_id, terminal_id)` | 11 | 11, read APIs |
+| `physical_connectivity_edges` | `artifact_id, edge_id, from_terminal_id, to_terminal_id, source_id, source_record_id` — key `(artifact_id, edge_id)` | 11 | 11, read APIs |
+| `physical_coverage` | `artifact_id, asset_class, scope_id, status[complete\|partial\|unknown\|unavailable], observed_count, denominator_count, unknown_count, unavailable_count, denominator_basis, source_scope, reason` — key `(artifact_id, asset_class, scope_id)` | 11 | 11, read APIs |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
@@ -317,8 +324,8 @@ pnpm --dir web dev                                                              
 
 ## 6. Acceptance criteria (overview-level)
 
-1. `docs/specs/README.md` lists 00–09 and every file exists.
-2. Every spec 01–09 uses only table names, column names, scenario IDs, and tool signatures from section 2 of this file (grep check: no spec introduces a new table without adding it to the table in §2.2 via a PR to this file).
+1. `docs/specs/README.md` lists 00–11 and every file exists.
+2. Every spec 01–11 uses only table names, column names, scenario IDs, and tool signatures from section 2 of this file (grep check: no spec introduces a new table without adding it to the table in §2.2 via a PR to this file).
 3. `uv run python -m pipelines.fixtures.make_fixture_db` produces a `grid.duckdb` on which `twin.cascade`, `models.outage.predict`, `siting.rank`, and `copilot.app` all start without error (Day 1 noon gate).
 4. The critical path 01→03→04→06 is green by Day 2 noon (see §7).
 5. The six demo beats in §5 each have a named owner and a rehearsed click path by Day 2 18:00.
@@ -533,3 +540,17 @@ These are decisions, not proposals. Every spec is read as if these were in its c
   in-place migration from a `1.0.0` `grid.duckdb`: `ensure_schema` refuses it with a named error
   before running any DDL; delete `data/duck/grid.duckdb` and re-run the ingest. `top_lines` and any
   reader of these tables must filter by `scenario_id`.
+
+- **A12 — additive `physical_*` inventory namespace (spec 11).** The seven
+  `physical_*` tables above are registered by this amendment, satisfying §6
+  acceptance criterion 2 for [11-physical-inventory-contract.md](11-physical-inventory-contract.md).
+  They are additive: no existing table, column, scenario id, or tool signature
+  changes, and `pipelines/db.py`'s `SCHEMA_VERSION` is untouched — the namespace
+  carries its own `physical_inventory_schema_meta.contract_version`
+  (`pipelines.physical_inventory.CONTRACT_VERSION`, `1.0.0`), and
+  `ensure_physical_inventory_schema` refuses any other recorded version rather
+  than migrating in place. Artifact identity is
+  `<geography_id>:physical-inventory:<semver>`, which deliberately differs from
+  spec 10's `mn:<artifact_kind>:<sha256-16>`; the divergence and its reason are
+  recorded in both specs, and spec 11 owns no `mn_*` table and no Minnesota
+  artifact envelope.
