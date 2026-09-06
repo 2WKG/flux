@@ -56,9 +56,13 @@ def _parse_bbox(value: str | None) -> tuple[float, float, float, float] | None:
     try:
         west, south, east, north = (float(part) for part in value.split(","))
     except ValueError as exc:
-        raise InvalidInputError("bbox must be west,south,east,north", details={"field": "bbox"}) from exc
+        raise InvalidInputError(
+            "bbox must be west,south,east,north", details={"field": "bbox"}
+        ) from exc
     if not (-180 <= west < east <= 180 and -90 <= south < north <= 90):
-        raise InvalidInputError("bbox must be a valid WGS84 extent", details={"field": "bbox"})
+        raise InvalidInputError(
+            "bbox must be a valid WGS84 extent", details={"field": "bbox"}
+        )
     return west, south, east, north
 
 
@@ -70,14 +74,20 @@ def _cursor(value: str | None, binding: dict[str, str]) -> int:
         payload = json.loads(decoded)
         offset = payload.pop("offset")
     except (ValueError, TypeError, json.JSONDecodeError) as exc:
-        raise InvalidInputError("cursor is invalid", details={"field": "cursor"}) from exc
+        raise InvalidInputError(
+            "cursor is invalid", details={"field": "cursor"}
+        ) from exc
     if payload != binding or not isinstance(offset, int) or not 0 <= offset <= 100_000:
-        raise InvalidInputError("cursor does not match this request", details={"field": "cursor"})
+        raise InvalidInputError(
+            "cursor does not match this request", details={"field": "cursor"}
+        )
     return offset
 
 
 def _encode_cursor(offset: int, binding: dict[str, str]) -> str:
-    payload = json.dumps({**binding, "offset": offset}, separators=(",", ":"), sort_keys=True)
+    payload = json.dumps(
+        {**binding, "offset": offset}, separators=(",", ":"), sort_keys=True
+    )
     return base64.urlsafe_b64encode(payload.encode()).decode().rstrip("=")
 
 
@@ -86,7 +96,9 @@ def _transformer(source_crs: str) -> Transformer:
     return Transformer.from_crs(source_crs, "EPSG:4326", always_xy=True)
 
 
-def _display_geometry(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+def _display_geometry(
+    asset: dict[str, Any],
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
     native = asset.get("geometry")
     crs = asset.get("geometry_crs")
     if asset.get("geometry_status") == "unavailable":
@@ -95,9 +107,17 @@ def _display_geometry(asset: dict[str, Any]) -> tuple[dict[str, Any] | None, dic
         raise _unavailable("invalid_geometry")
     try:
         if crs == "EPSG:4326":
-            return native, {"method": "identity", "source_crs": crs, "display_crs": "EPSG:4326"}
+            return native, {
+                "method": "identity",
+                "source_crs": crs,
+                "display_crs": "EPSG:4326",
+            }
         converted = transform_geometry(_transformer(crs).transform, shape(native))
-        return converted.__geo_interface__, {"method": "pyproj always_xy", "source_crs": crs, "display_crs": "EPSG:4326"}
+        return converted.__geo_interface__, {
+            "method": "pyproj always_xy",
+            "source_crs": crs,
+            "display_crs": "EPSG:4326",
+        }
     except Exception as exc:  # malformed geometry or unresolvable source CRS
         raise _unavailable("display_transform_failed") from exc
 
@@ -121,7 +141,14 @@ def _item(asset: dict[str, Any], sources: dict[str, dict[str, Any]]) -> dict[str
         "geometry_accuracy_basis": asset["geometry_accuracy_basis"],
         "geometry_precision_m": asset["geometry_precision_m"],
         "transform_provenance": transform,
-        "provenance": {"source_id": source_id, "source_record_id": asset["source_record_id"], "authority": source["authority"], "source_ref": source["source_ref"], "source_version": source["source_version"], "retrieved_at": source["retrieved_at"]},
+        "provenance": {
+            "source_id": source_id,
+            "source_record_id": asset["source_record_id"],
+            "authority": source["authority"],
+            "source_ref": source["source_ref"],
+            "source_version": source["source_version"],
+            "retrieved_at": source["retrieved_at"],
+        },
     }
 
 
@@ -142,32 +169,63 @@ def get_physical_layer(
     if not path.is_file():
         raise _unavailable("release_not_found", state=state, version=version)
     release = _read_release(str(path))
-    if release.get("geography_id") != state or release.get("artifact_version") != version:
+    if (
+        release.get("geography_id") != state
+        or release.get("artifact_version") != version
+    ):
         raise _unavailable("release_identity_mismatch", state=state, version=version)
     classes = {asset.get("asset_class") for asset in release["assets"]}
     if layer not in classes and layer != "all":
         raise NotFoundError("Unknown physical asset layer.", details={"layer": layer})
     bbox_key = bbox or ""
-    binding = {"state": state, "version": version, "layer": layer, "bbox": bbox_key, "release": release["content_sha256"]}
+    binding = {
+        "state": state,
+        "version": version,
+        "layer": layer,
+        "bbox": bbox_key,
+        "release": release["content_sha256"],
+    }
     offset = _cursor(cursor, binding)
     sources = {source["source_id"]: source for source in release.get("sources", [])}
-    items = [_item(asset, sources) for asset in release["assets"] if layer == "all" or asset["asset_class"] == layer]
+    items = [
+        _item(asset, sources)
+        for asset in release["assets"]
+        if layer == "all" or asset["asset_class"] == layer
+    ]
     if viewport is not None:
         viewport_shape = box(*viewport)
-        items = [item for item in items if item["display_geometry"] is not None and shape(item["display_geometry"]).intersects(viewport_shape)]
+        items = [
+            item
+            for item in items
+            if item["display_geometry"] is not None
+            and shape(item["display_geometry"]).intersects(viewport_shape)
+        ]
     items.sort(key=lambda item: item["asset_id"])
     page_items = items[offset : offset + limit]
-    next_cursor = _encode_cursor(offset + limit, binding) if offset + limit < len(items) else None
-    return JSONResponse({
-        "api_version": "v1",
-        "state": state,
-        "artifact_version": version,
-        "artifact_id": release["artifact_id"],
-        "release_sha256": release["content_sha256"],
-        "layer": layer,
-        "inventory_mode": release["inventory_mode"],
-        "electrical_model_mode": release["electrical_model_mode"],
-        "items": page_items,
-        "page": {"limit": limit, "cursor": cursor, "next_cursor": next_cursor, "total": len(items)},
-        "coverage": [row for row in release["coverage"] if layer == "all" or row["asset_class"] == layer],
-    })
+    next_cursor = (
+        _encode_cursor(offset + limit, binding) if offset + limit < len(items) else None
+    )
+    return JSONResponse(
+        {
+            "api_version": "v1",
+            "state": state,
+            "artifact_version": version,
+            "artifact_id": release["artifact_id"],
+            "release_sha256": release["content_sha256"],
+            "layer": layer,
+            "inventory_mode": release["inventory_mode"],
+            "electrical_model_mode": release["electrical_model_mode"],
+            "items": page_items,
+            "page": {
+                "limit": limit,
+                "cursor": cursor,
+                "next_cursor": next_cursor,
+                "total": len(items),
+            },
+            "coverage": [
+                row
+                for row in release["coverage"]
+                if layer == "all" or row["asset_class"] == layer
+            ],
+        }
+    )
