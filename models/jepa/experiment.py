@@ -104,7 +104,8 @@ def load_windows(
                 Window(
                     county_fips=fips,
                     county_name=county_names[fips],
-                    context_end_utc=segment[config.context_steps - 1][0].isoformat() + "Z",
+                    context_end_utc=segment[config.context_steps - 1][0].isoformat()
+                    + "Z",
                     context=context,
                     target=target,
                 )
@@ -113,16 +114,27 @@ def load_windows(
     return windows[: config.max_windows]
 
 
-def _normalise(windows: list[Window], train_count: int) -> tuple[np.ndarray, np.ndarray, float, float]:
+def _normalise(
+    windows: list[Window], train_count: int
+) -> tuple[np.ndarray, np.ndarray, float, float]:
     train_values = np.asarray(
-        [value for window in windows[:train_count] for value in (*window.context, *window.target)],
+        [
+            value
+            for window in windows[:train_count]
+            for value in (*window.context, *window.target)
+        ],
         dtype=np.float64,
     )
     mean = float(np.log1p(train_values).mean())
     scale = float(np.log1p(train_values).std()) or 1.0
     context = np.asarray([window.context for window in windows], dtype=np.float64)
     target = np.asarray([window.target for window in windows], dtype=np.float64)
-    return (np.log1p(context) - mean) / scale, (np.log1p(target) - mean) / scale, mean, scale
+    return (
+        (np.log1p(context) - mean) / scale,
+        (np.log1p(target) - mean) / scale,
+        mean,
+        scale,
+    )
 
 
 def verify_target_context_disjoint(windows: list[Window], config: JepaConfig) -> None:
@@ -135,8 +147,14 @@ def verify_target_context_disjoint(windows: list[Window], config: JepaConfig) ->
             key=lambda window: window.context_end_utc,
         )
         for earlier, later in pairwise(county_windows):
-            earlier_target_end = datetime.fromisoformat(earlier.context_end_utc.removesuffix("Z")) + target_duration
-            later_context_start = datetime.fromisoformat(later.context_end_utc.removesuffix("Z")) - context_duration
+            earlier_target_end = (
+                datetime.fromisoformat(earlier.context_end_utc.removesuffix("Z"))
+                + target_duration
+            )
+            later_context_start = (
+                datetime.fromisoformat(later.context_end_utc.removesuffix("Z"))
+                - context_duration
+            )
             if earlier_target_end >= later_context_start:
                 raise ValueError(f"target/context overlap for county {fips}")
 
@@ -164,7 +182,12 @@ def run_experiment(
     if train_count >= len(windows):
         raise ValueError("chronological holdout is empty")
     x, y, mean, scale = _normalise(windows, train_count)
-    x_train, y_train, x_hold, y_hold = x[:train_count], y[:train_count], x[train_count:], y[train_count:]
+    x_train, y_train, x_hold, y_hold = (
+        x[:train_count],
+        y[:train_count],
+        x[train_count:],
+        y[train_count:],
+    )
     rng = np.random.default_rng(config.seed)
     context_encoder = rng.normal(0, 0.12, (config.context_steps, config.embedding_dim))
     target_encoder = context_encoder.copy()
@@ -186,7 +209,9 @@ def run_experiment(
 
     train_embedding = (x_train @ context_encoder) @ predictor
     hold_embedding = (x_hold @ context_encoder) @ predictor
-    probe = np.linalg.pinv(np.c_[train_embedding, np.ones(len(train_embedding))]) @ y_train
+    probe = (
+        np.linalg.pinv(np.c_[train_embedding, np.ones(len(train_embedding))]) @ y_train
+    )
     train_decoded = train_embedding @ probe[:-1] + probe[-1]
     hold_decoded = hold_embedding @ probe[:-1] + probe[-1]
     predicted_counts = np.maximum(np.expm1(hold_decoded * scale + mean), 0)
@@ -205,7 +230,14 @@ def run_experiment(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     weights_path = output_dir / "jepa_count_forecast_weights.npz"
-    np.savez(weights_path, context_encoder=context_encoder, target_encoder=target_encoder, predictor=predictor, probe=probe)
+    np.savez(
+        weights_path,
+        context_encoder=context_encoder,
+        target_encoder=target_encoder,
+        predictor=predictor,
+        probe=probe,
+    )
+
     def forecast_at(index: int) -> dict[str, object]:
         window = windows[train_count + index]
         return {
@@ -213,14 +245,21 @@ def run_experiment(
             "county_name": window.county_name,
             "context_end_utc": window.context_end_utc,
             "horizon_minutes": config.target_steps * CADENCE_MINUTES,
-            "predicted_customers_out": [round(float(value), 3) for value in predicted_counts[index]],
-            "actual_customers_out": [round(float(value), 3) for value in actual_counts[index]],
+            "predicted_customers_out": [
+                round(float(value), 3) for value in predicted_counts[index]
+            ],
+            "actual_customers_out": [
+                round(float(value), 3) for value in actual_counts[index]
+            ],
         }
 
     selected_holdout_indexes: dict[str, int] = {}
     for index, window in enumerate(windows[train_count:]):
         selected_holdout_indexes.setdefault(window.county_fips, index)
-    county_forecasts = [forecast_at(selected_holdout_indexes[fips]) for fips in sorted(selected_holdout_indexes)]
+    county_forecasts = [
+        forecast_at(selected_holdout_indexes[fips])
+        for fips in sorted(selected_holdout_indexes)
+    ]
     exemplar = 0
     artifact = {
         "artifact_kind": EXPERIMENT_KIND,
@@ -232,7 +271,12 @@ def run_experiment(
             "predictor": "latent-to-latent linear predictor",
             "objective": "mean squared predicted-vs-target embedding error",
         },
-        "source": {"path": source_reference or str(source), "sha256": sha256_file(source), "provider": "ORNL EAGLE-I", "year": 2024},
+        "source": {
+            "path": source_reference or str(source),
+            "sha256": sha256_file(source),
+            "provider": "ORNL EAGLE-I",
+            "year": 2024,
+        },
         "scope": {
             "requested_county_fips": list(county_fips),
             "observed_county_fips": sorted({window.county_fips for window in windows}),
@@ -247,9 +291,16 @@ def run_experiment(
             "overlap_verification": "Each county advances by the full context-plus-target span; no target timestamp is reused as any later context timestamp.",
             "train_windows": train_count,
             "holdout_windows": len(windows) - train_count,
-            "train_counties": sorted({window.county_fips for window in windows[:train_count]}),
-            "holdout_counties": sorted({window.county_fips for window in windows[train_count:]}),
-            "county_window_counts": {fips: sum(window.county_fips == fips for window in windows) for fips in sorted({window.county_fips for window in windows})},
+            "train_counties": sorted(
+                {window.county_fips for window in windows[:train_count]}
+            ),
+            "holdout_counties": sorted(
+                {window.county_fips for window in windows[train_count:]}
+            ),
+            "county_window_counts": {
+                fips: sum(window.county_fips == fips for window in windows)
+                for fips in sorted({window.county_fips for window in windows})
+            },
         },
         "metrics": {
             "holdout_embedding_mse": embedding_mse,
@@ -257,14 +308,29 @@ def run_experiment(
             "holdout_count_rmse": count_rmse,
             "persistence_baseline_count_mae": persistence_mae,
             "persistence_baseline_count_rmse": persistence_rmse,
-            "train_count_mae": float(np.mean(np.abs(np.maximum(np.expm1(train_decoded * scale + mean), 0) - np.maximum(np.expm1(y_train * scale + mean), 0))) ),
+            "train_count_mae": float(
+                np.mean(
+                    np.abs(
+                        np.maximum(np.expm1(train_decoded * scale + mean), 0)
+                        - np.maximum(np.expm1(y_train * scale + mean), 0)
+                    )
+                )
+            ),
         },
         "forecast": forecast_at(exemplar),
         "county_forecasts": county_forecasts,
         "weights": {"path": str(weights_path), "sha256": sha256_file(weights_path)},
         "config": asdict(config),
-        "limitations": ["Experimental observed-count forecast only.", "Not an outage probability or qualified outage-model result.", "No customer-normalized label, weather forecast, topology, or cascade inference.", "Forecast target is held-out historical EAGLE-I customers_out.", "A persistence baseline is recorded for comparison; experimental metrics do not establish operational usefulness."],
+        "limitations": [
+            "Experimental observed-count forecast only.",
+            "Not an outage probability or qualified outage-model result.",
+            "No customer-normalized label, weather forecast, topology, or cascade inference.",
+            "Forecast target is held-out historical EAGLE-I customers_out.",
+            "A persistence baseline is recorded for comparison; experimental metrics do not establish operational usefulness.",
+        ],
     }
     artifact_path = output_dir / "jepa_count_forecast_artifact.json"
-    artifact_path.write_text(json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    artifact_path.write_text(
+        json.dumps(artifact, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
     return artifact_path

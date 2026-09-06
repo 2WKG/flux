@@ -48,7 +48,9 @@ class Frozen(BaseModel):
 # Identity
 # --------------------------------------------------------------------------
 
-CountyFips = Annotated[str, Field(pattern=r"^\d{5}$", description="5-digit county FIPS")]
+CountyFips = Annotated[
+    str, Field(pattern=r"^\d{5}$", description="5-digit county FIPS")
+]
 Sha256 = Annotated[str, Field(pattern=r"^[0-9a-f]{64}$")]
 
 
@@ -64,8 +66,15 @@ class WindowKey(Frozen):
         ts = self.window_start
         if ts.tzinfo is None or ts.utcoffset().total_seconds() != 0:
             raise ValueError("window_start must be timezone-aware UTC")
-        if (ts.hour % WINDOW_HOURS, ts.minute, ts.second, ts.microsecond) != (0, 0, 0, 0):
-            raise ValueError(f"window_start must be aligned to {WINDOW_HOURS}h UTC boundaries")
+        if (ts.hour % WINDOW_HOURS, ts.minute, ts.second, ts.microsecond) != (
+            0,
+            0,
+            0,
+            0,
+        ):
+            raise ValueError(
+                f"window_start must be aligned to {WINDOW_HOURS}h UTC boundaries"
+            )
         return self
 
 
@@ -78,7 +87,9 @@ class ObservedLabel(Frozen):
     """A real measurement. Requires provenance that a fixture cannot supply."""
 
     kind: Literal["observed"] = "observed"
-    customers_out_max: int = Field(ge=0, description="max customers out in the window, count")
+    customers_out_max: int = Field(
+        ge=0, description="max customers out in the window, count"
+    )
     total_customers: int = Field(gt=0, description="denominator, count")
     source_dataset_id: str = Field(min_length=1, description="datasets/catalog.json id")
     source_file_sha256: Sha256
@@ -112,10 +123,14 @@ class UncoveredLabel(Frozen):
     """No EAGLE-I sample exists for this window, so it is not a zero-outage label."""
 
     kind: Literal["uncovered"] = "uncovered"
-    reason: str = Field(min_length=1, description="why the source does not cover this window")
+    reason: str = Field(
+        min_length=1, description="why the source does not cover this window"
+    )
 
 
-Label = Annotated[ObservedLabel | FixtureLabel | UncoveredLabel, Field(discriminator="kind")]
+Label = Annotated[
+    ObservedLabel | FixtureLabel | UncoveredLabel, Field(discriminator="kind")
+]
 
 
 class CountyOutageRow(Frozen):
@@ -151,9 +166,15 @@ class FeatureValue(Frozen):
 
     @model_validator(mode="after")
     def _value_matches_status(self) -> FeatureValue:
-        if self.status in (FeatureStatus.PRESENT, FeatureStatus.IMPUTED) and self.value is None:
+        if (
+            self.status in (FeatureStatus.PRESENT, FeatureStatus.IMPUTED)
+            and self.value is None
+        ):
             raise ValueError(f"status={self.status} requires a value")
-        if self.status in (FeatureStatus.MISSING_SOURCE, FeatureStatus.OUT_OF_COVERAGE) and self.value is not None:
+        if (
+            self.status in (FeatureStatus.MISSING_SOURCE, FeatureStatus.OUT_OF_COVERAGE)
+            and self.value is not None
+        ):
             raise ValueError(f"status={self.status} must not carry a value")
         return self
 
@@ -168,7 +189,9 @@ class FeatureRow(Frozen):
     key: WindowKey
     feature_set_version: str = Field(min_length=1)
     features: FeatureEntries = Field(min_length=1)
-    source_input_sha256: Sha256 = Field(description="hash of the input artifact this was built from")
+    source_input_sha256: Sha256 = Field(
+        description="hash of the input artifact this was built from"
+    )
 
     @model_validator(mode="after")
     def _feature_names_are_unique(self) -> FeatureRow:
@@ -179,7 +202,11 @@ class FeatureRow(Frozen):
 
     @property
     def missing(self) -> tuple[str, ...]:
-        return tuple(name for name, feature in self.features if feature.status != FeatureStatus.PRESENT)
+        return tuple(
+            name
+            for name, feature in self.features
+            if feature.status != FeatureStatus.PRESENT
+        )
 
 
 # --------------------------------------------------------------------------
@@ -209,7 +236,9 @@ class SplitManifest(Frozen):
 
     @model_validator(mode="after")
     def _assignments_have_unique_keys(self) -> SplitManifest:
-        if len({assignment.key for assignment in self.assignments}) != len(self.assignments):
+        if len({assignment.key for assignment in self.assignments}) != len(
+            self.assignments
+        ):
             raise ValueError("assignments must not contain duplicate WindowKey values")
         return self
 
@@ -239,7 +268,8 @@ class EvaluationRef(Frozen):
     evaluation_sha256: Sha256
     split_id: str
     calibration_method: str | None = Field(
-        default=None, description="None means predictions are uncalibrated; say so in the UI"
+        default=None,
+        description="None means predictions are uncalibrated; say so in the UI",
     )
 
 
@@ -277,7 +307,9 @@ class TrainedModelPrediction(Frozen):
     @model_validator(mode="after")
     def _evaluation_matches_split(self) -> TrainedModelPrediction:
         if self.evaluation and self.evaluation.split_id != self.artifact.split_id:
-            raise ValueError("evaluation split_id does not match the model artifact's split_id")
+            raise ValueError(
+                "evaluation split_id does not match the model artifact's split_id"
+            )
         return self
 
 
@@ -378,7 +410,9 @@ class PredictionRecord(Frozen):
                 artifact_sha256=p.artifact.artifact_sha256,
                 split_id=p.artifact.split_id,
                 feature_set_version=p.artifact.feature_set_version,
-                evaluation_sha256=p.evaluation.evaluation_sha256 if p.evaluation else None,
+                evaluation_sha256=p.evaluation.evaluation_sha256
+                if p.evaluation
+                else None,
             )
         else:
             provenance = HeuristicPredictionProvenance(

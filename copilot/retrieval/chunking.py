@@ -70,7 +70,10 @@ class SourceDocument:
             raise ValueError("page must be a positive integer when provided")
         if not isinstance(self.provenance, Mapping):
             raise TypeError("provenance must be a mapping of strings")
-        if any(not isinstance(key, str) or not isinstance(value, str) for key, value in self.provenance.items()):
+        if any(
+            not isinstance(key, str) or not isinstance(value, str)
+            for key, value in self.provenance.items()
+        ):
             raise TypeError("provenance keys and values must be strings")
         if not normalize_text(self.text):
             raise ValueError("text must contain at least one non-whitespace token")
@@ -138,7 +141,9 @@ def chunk_document(
     if chunk_tokens < 1:
         raise ValueError("chunk_tokens must be at least 1")
     if overlap_tokens < 0 or overlap_tokens >= chunk_tokens:
-        raise ValueError("overlap_tokens must be non-negative and smaller than chunk_tokens")
+        raise ValueError(
+            "overlap_tokens must be non-negative and smaller than chunk_tokens"
+        )
 
     tokens = _TOKEN_RE.findall(normalize_text(document.text))
     metadata = document.metadata()
@@ -149,7 +154,9 @@ def chunk_document(
         if not text:
             break
         chunk_id = sha256(
-            _canonical_json({"chunk_index": chunk_index, "metadata": metadata, "text": text}).encode("utf-8")
+            _canonical_json(
+                {"chunk_index": chunk_index, "metadata": metadata, "text": text}
+            ).encode("utf-8")
         ).hexdigest()
         chunks.append(
             CorpusChunk(
@@ -189,11 +196,18 @@ def chunk_documents(
     for document in documents:
         if not isinstance(document, SourceDocument):
             raise TypeError("documents must contain SourceDocument instances")
-        source_key = (document.document_id, document.version, document.source_uri, document.page)
+        source_key = (
+            document.document_id,
+            document.version,
+            document.source_uri,
+            document.page,
+        )
         fingerprint = sha256(normalize_text(document.text).encode("utf-8")).hexdigest()
         previous = fingerprints.setdefault(source_key, fingerprint)
         if previous != fingerprint:
-            raise ValueError("conflicting normalized text for the same document, version, source, and page")
+            raise ValueError(
+                "conflicting normalized text for the same document, version, source, and page"
+            )
         unique_key = (
             document.document_id,
             document.version,
@@ -208,8 +222,12 @@ def chunk_documents(
 
     chunks = [
         chunk
-        for _, document in sorted(unique.items(), key=lambda item: _canonical_json(item[0]))
-        for chunk in chunk_document(document, chunk_tokens=chunk_tokens, overlap_tokens=overlap_tokens)
+        for _, document in sorted(
+            unique.items(), key=lambda item: _canonical_json(item[0])
+        )
+        for chunk in chunk_document(
+            document, chunk_tokens=chunk_tokens, overlap_tokens=overlap_tokens
+        )
     ]
     return sorted(
         chunks,
@@ -243,4 +261,7 @@ def serialize_chunks(chunks: Iterable[CorpusChunk]) -> bytes:
             chunk.chunk_id,
         ),
     )
-    return ("\n".join(_canonical_json(chunk.record()) for chunk in ordered) + ("\n" if ordered else "")).encode("utf-8")
+    return (
+        "\n".join(_canonical_json(chunk.record()) for chunk in ordered)
+        + ("\n" if ordered else "")
+    ).encode("utf-8")

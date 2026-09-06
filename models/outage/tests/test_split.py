@@ -125,9 +125,7 @@ def test_partition_rows_requires_the_exact_manifest_population():
     manifest = build_split_manifest(
         rows, states_by_county=states, input_artifact_sha256=HASH
     )
-    partitions = partition_rows(
-        rows, manifest, verified_input_artifact_sha256=HASH
-    )
+    partitions = partition_rows(rows, manifest, verified_input_artifact_sha256=HASH)
 
     assert sum(len(bucket) for bucket in partitions.values()) == len(rows)
     with pytest.raises(TypeError):
@@ -180,9 +178,7 @@ def test_calibration_is_texas_2023_and_is_stable_under_backfill():
     refreshed = build_split_manifest(
         appended, states_by_county=states, input_artifact_sha256="b" * 64
     )
-    refreshed_assignment = {
-        item.key: item.partition for item in refreshed.assignments
-    }
+    refreshed_assignment = {item.key: item.partition for item in refreshed.assignments}
     assert {key: refreshed_assignment[key] for key in assignment} == assignment
 
 
@@ -205,9 +201,9 @@ def test_calibration_fold_is_spatially_blocked_disjoint_and_has_expected_fractio
     assert {key.county_fips for key in calibration} == {"48001", "48003"}
     assert {key.window_start.year for key in calibration} == {2023}
     assert calibration.isdisjoint(membership[Partition.TRAIN])
-    assert len(calibration) / (len(calibration) + len(membership[Partition.TRAIN])) == pytest.approx(
-        2 / 9
-    )
+    assert len(calibration) / (
+        len(calibration) + len(membership[Partition.TRAIN])
+    ) == pytest.approx(2 / 9)
 
     frame = pd.DataFrame(
         {
@@ -301,7 +297,9 @@ def test_split_dataframe_path_does_not_construct_pydantic_keys(monkeypatch):
     frame = pd.DataFrame(
         {
             "county_fips": ["48001"] * 1000,
-            "window_start": pd.date_range("2023-01-01", periods=1000, freq="6h", tz="UTC"),
+            "window_start": pd.date_range(
+                "2023-01-01", periods=1000, freq="6h", tz="UTC"
+            ),
         }
     )
 
@@ -309,11 +307,11 @@ def test_split_dataframe_path_does_not_construct_pydantic_keys(monkeypatch):
         raise AssertionError("split DataFrame path must remain vectorized")
 
     monkeypatch.setattr("models.outage.split.WindowKey", unexpected_pydantic_path)
-    train, calibration, holdouts = split(
-        frame, county_catalog={"48001": "TX"}
-    )
+    train, calibration, holdouts = split(frame, county_catalog={"48001": "TX"})
 
-    assert len(train) + len(calibration) + sum(len(value) for value in holdouts.values()) <= len(frame)
+    assert len(train) + len(calibration) + sum(
+        len(value) for value in holdouts.values()
+    ) <= len(frame)
 
 
 def test_split_rejects_ambiguous_or_unknown_county_input():

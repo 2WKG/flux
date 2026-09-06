@@ -18,12 +18,36 @@ from models.jepa.experiment import (
 def test_trains_jepa_and_marks_count_forecast_experimental(tmp_path: Path) -> None:
     source = tmp_path / "eaglei.csv"
     with source.open("w", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=["fips_code", "county", "state", "customers_out", "run_start_time", "total_customers"])
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=[
+                "fips_code",
+                "county",
+                "state",
+                "customers_out",
+                "run_start_time",
+                "total_customers",
+            ],
+        )
         writer.writeheader()
         for index in range(2_000):
             hour, minute = divmod(index * 15, 60)
-            writer.writerow({"fips_code": "27031", "county": "Test", "state": "Minnesota", "customers_out": index % 17, "run_start_time": f"2024-01-{1 + hour // 24:02d} {hour % 24:02d}:{minute:02d}:00", "total_customers": "1000"})
-    artifact_path = run_experiment(source=source, output_dir=tmp_path / "out", county_fips=("27031",), config=JepaConfig(epochs=3, max_windows=80))
+            writer.writerow(
+                {
+                    "fips_code": "27031",
+                    "county": "Test",
+                    "state": "Minnesota",
+                    "customers_out": index % 17,
+                    "run_start_time": f"2024-01-{1 + hour // 24:02d} {hour % 24:02d}:{minute:02d}:00",
+                    "total_customers": "1000",
+                }
+            )
+    artifact_path = run_experiment(
+        source=source,
+        output_dir=tmp_path / "out",
+        county_fips=("27031",),
+        config=JepaConfig(epochs=3, max_windows=80),
+    )
     artifact = json.loads(artifact_path.read_text())
     assert artifact["artifact_kind"] == EXPERIMENT_KIND
     assert artifact["status"] == "experimental"
@@ -44,7 +68,9 @@ def test_trains_jepa_and_marks_count_forecast_experimental(tmp_path: Path) -> No
 
 def test_rejects_unequal_encoder_dimensions(tmp_path: Path) -> None:
     source = tmp_path / "empty.csv"
-    source.write_text("fips_code,county,state,customers_out,run_start_time,total_customers\n")
+    source.write_text(
+        "fips_code,county,state,customers_out,run_start_time,total_customers\n"
+    )
     with pytest.raises(ValueError, match="context_steps and target_steps must match"):
         run_experiment(
             source=source,

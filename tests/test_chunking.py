@@ -62,7 +62,13 @@ def test_reingestion_is_byte_identical_and_sorted_independent_of_input_order() -
 
     assert [chunk.chunk_id for chunk in first] == [chunk.chunk_id for chunk in second]
     assert serialize_chunks(first) == serialize_chunks(second)
-    assert [chunk.document_id for chunk in first] == ["fixture-b", "fixture-b", "regulation-a", "regulation-a", "regulation-a"]
+    assert [chunk.document_id for chunk in first] == [
+        "fixture-b",
+        "fixture-b",
+        "regulation-a",
+        "regulation-a",
+        "regulation-a",
+    ]
 
 
 def test_conflicting_content_for_an_existing_source_version_is_rejected() -> None:

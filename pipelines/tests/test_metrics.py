@@ -5,7 +5,7 @@ from datetime import datetime
 import duckdb
 import pytest
 
-import pipelines.metrics as metrics
+from pipelines import metrics
 from pipelines.db import ensure_schema
 from pipelines.metrics import (
     METRIC_DEFINITIONS,
@@ -17,7 +17,7 @@ from pipelines.metrics import (
 
 
 def _provenance() -> tuple[object, ...]:
-    return ("fixture", "test://fixture", "v1", datetime(2026, 9, 5), "batch-1")
+    return ("fixture", "test://fixture", "v1", datetime(2026, 9, 5), "batch-1")  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
 
 
 def _seed(con: duckdb.DuckDBPyConnection) -> None:
@@ -33,8 +33,8 @@ def _seed(con: duckdb.DuckDBPyConnection) -> None:
             "uri_2021",
             "Uri",
             "historical",
-            datetime(2021, 2, 13),
-            datetime(2021, 2, 20),
+            datetime(2021, 2, 13),  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
+            datetime(2021, 2, 20),  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
             *provenance,
         ),
     )
@@ -55,7 +55,7 @@ def _seed(con: duckdb.DuckDBPyConnection) -> None:
     )
     con.execute(
         """INSERT INTO outage_predictions VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-        ("uri_2021", "48453", datetime(2021, 2, 13), 0.4, 120, "ice", *provenance),
+        ("uri_2021", "48453", datetime(2021, 2, 13), 0.4, 120, "ice", *provenance),  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
     )
     con.execute(
         """INSERT INTO cascade_runs VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
@@ -85,16 +85,44 @@ def test_metric_layer_uses_contract_views_and_preserves_grain() -> None:
     install_metric_layer(con)
 
     outage = con.execute(metric_query("outage_county_prediction_windows")).fetchone()
-    assert outage[:8] == ("uri_2021", "Uri", "historical", "48453", "Travis", "TX", datetime(2021, 2, 13), 0.4)
+    assert outage[:8] == (
+        "uri_2021",
+        "Uri",
+        "historical",
+        "48453",
+        "Travis",
+        "TX",
+        datetime(2021, 2, 13),  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
+        0.4,
+    )
     assert outage[8] == 120
     assert outage[10:15] == _provenance()
 
     cascade = con.execute(metric_query("cascade_run_hours")).fetchone()
-    assert cascade[0:7] == ("uri_2021-s0-empty", "uri_2021", "Uri", "historical", 2, datetime(2021, 2, 13, 2), 42.0)
+    assert cascade[0:7] == (
+        "uri_2021-s0-empty",
+        "uri_2021",
+        "Uri",
+        "historical",
+        2,
+        datetime(2021, 2, 13, 2),  # noqa: DTZ001 -- DuckDB TIMESTAMP fixture
+        42.0,
+    )
     assert cascade[10:12] == (1, "Example Site")
 
     score = con.execute(metric_query("site_scorecards")).fetchone()
-    assert score[0:10] == (1, "Example Site", "coal_retired", "48453", "Travis", "TX", "all", "all_scenarios", None, None)
+    assert score[0:10] == (
+        1,
+        "Example Site",
+        "coal_retired",
+        "48453",
+        "Travis",
+        "TX",
+        "all",
+        "all_scenarios",
+        None,
+        None,
+    )
     assert score[10:15] == (1000.0, 90.0, "[]", 80.0, 15.0)
 
     assert metric_view("site_scorecards") == "metric_site_scorecards"
@@ -107,17 +135,26 @@ def test_metric_layer_uses_contract_views_and_preserves_grain() -> None:
         "site_lol_reduction_mwh",
         "site_grid_value_score",
     }
-    assert all(definition.version == METRIC_LAYER_VERSION for definition in METRIC_DEFINITIONS)
-    assert all(definition.unit and definition.lineage for definition in METRIC_DEFINITIONS)
+    assert all(
+        definition.version == METRIC_LAYER_VERSION for definition in METRIC_DEFINITIONS
+    )
+    assert all(
+        definition.unit and definition.lineage for definition in METRIC_DEFINITIONS
+    )
 
 
-def test_metric_view_install_rolls_back_on_a_bad_view(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_metric_view_install_rolls_back_on_a_bad_view(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     con = duckdb.connect(":memory:")
     _seed(con)
     monkeypatch.setattr(
         metrics,
         "VIEW_STATEMENTS",
-        (metrics.VIEW_STATEMENTS[0], "CREATE OR REPLACE VIEW metric_broken AS SELECT FROM"),
+        (
+            metrics.VIEW_STATEMENTS[0],
+            "CREATE OR REPLACE VIEW metric_broken AS SELECT FROM",
+        ),
     )
 
     with pytest.raises(duckdb.ParserException):

@@ -51,7 +51,9 @@ def build_network(
     try:
         net = from_mpc(path, f_hz=f_hz)
     except Exception as exc:  # converter errors differ by pandapower release
-        raise SimulationUnavailableError(f"could not import MATPOWER case {path}: {exc}") from exc
+        raise SimulationUnavailableError(
+            f"could not import MATPOWER case {path}: {exc}"
+        ) from exc
 
     net["flux_topology"] = SYNTHETIC_TOPOLOGY_LABEL
     net["flux_case_path"] = str(path)
@@ -62,7 +64,10 @@ def build_network(
 
 
 def cached_base_network(
-    case_path: str | Path | None = None, *, db_path: str | Path | None = None, f_hz: int = 60,
+    case_path: str | Path | None = None,
+    *,
+    db_path: str | Path | None = None,
+    f_hz: int = 60,
 ) -> Any:
     """Keep one immutable-process baseline for fast callers that deepcopy it.
 
@@ -97,13 +102,19 @@ def _attach_element_ids(net: Any) -> None:
             element_type = str(row["element_type"])
             element = int(row["element"])
             if element_type == "line":
-                net.line.loc[element, "flux_element_id"] = f"line:{int(source_index) + 1}"
+                net.line.loc[element, "flux_element_id"] = (
+                    f"line:{int(source_index) + 1}"
+                )
             elif element_type == "impedance":
-                net.impedance.loc[element, "flux_element_id"] = f"impedance:{int(source_index) + 1}"
+                net.impedance.loc[element, "flux_element_id"] = (
+                    f"impedance:{int(source_index) + 1}"
+                )
     if "flux_element_id" not in net.line:
         net.line["flux_element_id"] = [f"line:{index + 1}" for index in net.line.index]
     if "flux_element_id" not in net.impedance:
-        net.impedance["flux_element_id"] = [f"impedance:{index + 1}" for index in net.impedance.index]
+        net.impedance["flux_element_id"] = [
+            f"impedance:{index + 1}" for index in net.impedance.index
+        ]
     gen_lookup = net.get("_from_ppc_lookups", {}).get("gen")
     if gen_lookup is not None:
         for source_index, row in gen_lookup.iterrows():
@@ -111,15 +122,23 @@ def _attach_element_ids(net: Any) -> None:
             element = int(row["element"])
             source_id = int(source_index) + 1
             if element_type in {"gen", "sgen"}:
-                net[element_type].loc[element, "flux_element_id"] = f"generator:{source_id}"
+                net[element_type].loc[element, "flux_element_id"] = (
+                    f"generator:{source_id}"
+                )
             elif element_type == "ext_grid":
                 net.ext_grid.loc[element, "flux_element_id"] = f"slack:{source_id}"
     if "flux_element_id" not in net.gen:
-        net.gen["flux_element_id"] = [f"generator:{index + 1}" for index in net.gen.index]
+        net.gen["flux_element_id"] = [
+            f"generator:{index + 1}" for index in net.gen.index
+        ]
     if "flux_element_id" not in net.sgen:
-        net.sgen["flux_element_id"] = [f"generator:{index + 1}" for index in net.sgen.index]
+        net.sgen["flux_element_id"] = [
+            f"generator:{index + 1}" for index in net.sgen.index
+        ]
     if "flux_element_id" not in net.ext_grid:
-        net.ext_grid["flux_element_id"] = [f"slack:{index + 1}" for index in net.ext_grid.index]
+        net.ext_grid["flux_element_id"] = [
+            f"slack:{index + 1}" for index in net.ext_grid.index
+        ]
     net.load["flux_element_id"] = [f"load:{index + 1}" for index in net.load.index]
 
 
@@ -139,7 +158,9 @@ def attach_current_bus_coordinates(net: Any, db_path: str | Path) -> None:
         tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
         if "buses" not in tables:
             raise SimulationUnavailableError("coordinate database has no buses table")
-        columns = {row[1] for row in con.execute("PRAGMA table_info('buses')").fetchall()}
+        columns = {
+            row[1] for row in con.execute("PRAGMA table_info('buses')").fetchall()
+        }
         required_columns = {"bus_id", "name", "base_kv", "lon", "lat", "coord_source"}
         if not required_columns.issubset(columns):
             raise SimulationUnavailableError(
@@ -156,7 +177,9 @@ def attach_current_bus_coordinates(net: Any, db_path: str | Path) -> None:
             "current AUX coordinates are unavailable in buses; refusing non-current coordinates"
         )
     if frame.bus_id.duplicated().any() or frame.name.duplicated().any():
-        raise SimulationUnavailableError("current AUX coordinate records contain duplicate bus_id or name values")
+        raise SimulationUnavailableError(
+            "current AUX coordinate records contain duplicate bus_id or name values"
+        )
     required = {str(value) for value in net.bus.name}
     actual = {str(value) for value in frame.name}
     if actual != required:
@@ -167,7 +190,11 @@ def attach_current_bus_coordinates(net: Any, db_path: str | Path) -> None:
     mismatched = [
         bus_id
         for bus_id in net.bus.index
-        if abs(float(net.bus.at[bus_id, "vn_kv"]) - float(by_name.at[str(net.bus.at[bus_id, "name"]), "base_kv"])) > 1e-4
+        if abs(
+            float(net.bus.at[bus_id, "vn_kv"])
+            - float(by_name.at[str(net.bus.at[bus_id, "name"]), "base_kv"])
+        )
+        > 1e-4
     ]
     if mismatched:
         raise SimulationUnavailableError(
@@ -178,7 +205,15 @@ def attach_current_bus_coordinates(net: Any, db_path: str | Path) -> None:
         for bus_id in net.bus.index
     ]
     net.bus.loc[:, "geo"] = [
-        json.dumps({"type": "Point", "coordinates": [float(by_name.at[str(net.bus.at[bus_id, "name"]), "lon"]), float(by_name.at[str(net.bus.at[bus_id, "name"]), "lat"])]})
+        json.dumps(
+            {
+                "type": "Point",
+                "coordinates": [
+                    float(by_name.at[str(net.bus.at[bus_id, "name"]), "lon"]),
+                    float(by_name.at[str(net.bus.at[bus_id, "name"]), "lat"]),
+                ],
+            }
+        )
         for bus_id in net.bus.index
     ]
     net["flux_coordinate_source"] = "tamu_aux"
@@ -211,58 +246,110 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
     all_elements: dict[str, tuple[str, int]] = {}
     for table in ("line", "impedance", "gen", "sgen", "ext_grid", "load"):
         if "flux_element_id" not in net[table]:
-            raise SimulationUnavailableError("model geometry requires flux element identifiers")
+            raise SimulationUnavailableError(
+                "model geometry requires flux element identifiers"
+            )
         for index, element_id in net[table].flux_element_id.items():
             all_elements[str(element_id)] = (table, int(index))
-    selected = sorted(all_elements) if element_ids is None else [str(value) for value in element_ids]
+    selected = (
+        sorted(all_elements)
+        if element_ids is None
+        else [str(value) for value in element_ids]
+    )
     elements: list[dict[str, Any]] = []
     for requested_element_id in selected:
-        element_id, record = _resolve_geometry_element(net, all_elements, requested_element_id)
+        element_id, record = _resolve_geometry_element(
+            net, all_elements, requested_element_id
+        )
         if record is None:
-            elements.append({"element_id": requested_element_id, "resolved": False, "reason": "unknown synthetic model element"})
+            elements.append(
+                {
+                    "element_id": requested_element_id,
+                    "resolved": False,
+                    "reason": "unknown synthetic model element",
+                }
+            )
             continue
         table, index = record
         frame = net[table]
         if table in {"line", "impedance"}:
-            from_bus, to_bus = int(frame.at[index, "from_bus"]), int(frame.at[index, "to_bus"])
+            from_bus, to_bus = (
+                int(frame.at[index, "from_bus"]),
+                int(frame.at[index, "to_bus"]),
+            )
             first, second = _bus_point(net, from_bus), _bus_point(net, to_bus)
             if first is None or second is None:
-                elements.append({"element_id": element_id, "resolved": False, "reason": "current AUX point unavailable"})
+                elements.append(
+                    {
+                        "element_id": element_id,
+                        "resolved": False,
+                        "reason": "current AUX point unavailable",
+                    }
+                )
                 continue
-            geometry: dict[str, Any] = {"type": "LineString", "coordinates": [first, second]}
+            geometry: dict[str, Any] = {
+                "type": "LineString",
+                "coordinates": [first, second],
+            }
             coordinates: dict[str, Any] = {
                 "from": {"lon": first[0], "lat": first[1]},
                 "to": {"lon": second[0], "lat": second[1]},
             }
-            source_bus_ids = [int(net.bus.at[from_bus, "flux_source_bus_id"]), int(net.bus.at[to_bus, "flux_source_bus_id"])]
+            source_bus_ids = [
+                int(net.bus.at[from_bus, "flux_source_bus_id"]),
+                int(net.bus.at[to_bus, "flux_source_bus_id"]),
+            ]
         else:
             bus = int(frame.at[index, "bus"])
             point = _bus_point(net, bus)
             if point is None:
-                elements.append({"element_id": element_id, "resolved": False, "reason": "current AUX point unavailable"})
+                elements.append(
+                    {
+                        "element_id": element_id,
+                        "resolved": False,
+                        "reason": "current AUX point unavailable",
+                    }
+                )
                 continue
             geometry = {"type": "Point", "coordinates": point}
             coordinates = {"lon": point[0], "lat": point[1]}
             source_bus_ids = [int(net.bus.at[bus, "flux_source_bus_id"])]
-        elements.append({
-            "element_id": element_id,
-            **({"requested_element_id": requested_element_id} if requested_element_id != element_id else {}),
-            "resolved": True,
-            "role": {
-                "line": "line", "impedance": "impedance_branch", "gen": "generator",
-                "sgen": "static_generator", "ext_grid": "grid_forming_slack", "load": "load",
-            }[table],
-            "pandapower_index": index,
-            "source_id": element_id,
-            "source_bus_ids": source_bus_ids,
-            "coordinates": coordinates,
-            "geometry": geometry,
-            "provenance": {"topology": SYNTHETIC_TOPOLOGY_LABEL, "coordinate_source": "tamu_aux"},
-        })
+        elements.append(
+            {
+                "element_id": element_id,
+                **(
+                    {"requested_element_id": requested_element_id}
+                    if requested_element_id != element_id
+                    else {}
+                ),
+                "resolved": True,
+                "role": {
+                    "line": "line",
+                    "impedance": "impedance_branch",
+                    "gen": "generator",
+                    "sgen": "static_generator",
+                    "ext_grid": "grid_forming_slack",
+                    "load": "load",
+                }[table],
+                "pandapower_index": index,
+                "source_id": element_id,
+                "source_bus_ids": source_bus_ids,
+                "coordinates": coordinates,
+                "geometry": geometry,
+                "provenance": {
+                    "topology": SYNTHETIC_TOPOLOGY_LABEL,
+                    "coordinate_source": "tamu_aux",
+                },
+            }
+        )
     unresolved = [element for element in elements if not element["resolved"]]
     return {
         "status": "partial" if unresolved else "available",
-        **({"reason": "one or more requested synthetic elements could not be resolved"} if unresolved else {}),
+        **(
+            {"reason": "one or more requested synthetic elements could not be resolved"}
+            if unresolved
+            else {}
+        ),
         "data": {
             "topology": {
                 "label": SYNTHETIC_TOPOLOGY_LABEL,
@@ -281,15 +368,21 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
 
 
 def _resolve_geometry_element(
-    net: Any, all_elements: dict[str, tuple[str, int]], requested_element_id: str,
+    net: Any,
+    all_elements: dict[str, tuple[str, int]],
+    requested_element_id: str,
 ) -> tuple[str, tuple[str, int] | None]:
     """Resolve the same one-based table aliases accepted by ``run_cascade``."""
     if requested_element_id in all_elements:
         return requested_element_id, all_elements[requested_element_id]
     prefix, separator, raw_index = requested_element_id.partition(":")
     table = {
-        "line": "line", "impedance": "impedance", "gen": "gen", "sgen": "sgen",
-        "slack": "ext_grid", "load": "load",
+        "line": "line",
+        "impedance": "impedance",
+        "gen": "gen",
+        "sgen": "sgen",
+        "slack": "ext_grid",
+        "load": "load",
     }.get(prefix)
     if not separator or table is None:
         return requested_element_id, None

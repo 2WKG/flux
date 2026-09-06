@@ -83,8 +83,8 @@ One process, one DuckDB connection (read-only), async FastAPI; blocking DuckDB a
 - Model: `claude-opus-5` (default; `COPILOT_MODEL` env can override, e.g. `claude-sonnet-5` for cheaper eval runs). Ids match the Anthropic `claude-api` skill model table (cached 2026-06-24); not confirmed against the live Models API this session (no key in the checkout) — the `/health` startup check must call `client.models.retrieve(COPILOT_MODEL)` and fail loud. Adaptive thinking is on by default on Opus 5; we set it explicitly with a low effort for the tool-planning turns to keep latency under the demo budget:
 
 ```python
-thinking={"type": "adaptive"},
-output_config={"effort": "medium"},
+thinking = ({"type": "adaptive"},)
+output_config = ({"effort": "medium"},)
 ```
 
   (SDK shapes verified against `anthropic` 1.4.0: `ThinkingConfigAdaptiveParam = {type: "adaptive", display?: "summarized"|"omitted"}`; `OutputConfigParam.effort ∈ low|medium|high|xhigh|max`.) No `temperature`/`top_p` (rejected with 400 on Opus 5 per the `claude-api` skill thinking table — documented, not exercised live here). No assistant prefill (rejected). No forced `tool_choice` — `{"type": "auto"}` (`ToolChoiceAutoParam`, optional `disable_parallel_tool_use`) plus the system-prompt rule; `strict: true` on every tool (`ToolParam.strict: bool`, top-level on the tool, not on `tool_choice`) so arguments always validate.
@@ -322,13 +322,17 @@ sequence.
 def predict_outage(county_fips: str, scenario_id: str, horizon_h: int = 72) -> dict: ...
 def run_cascade(element_ids: list[str], scenario_id: str, hour: int) -> dict: ...
 def score_site(site_id: str, unit_mw: int, scenario_id: str) -> dict: ...
-def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10) -> dict: ...
+def top_lines(
+    region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10
+) -> dict: ...
 def sql(query: str | None = None, template_id: str | None = None) -> dict: ...
 def cite(query: str, k: int = 5) -> dict: ...
 # amendment A8 (00-overview):
 def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict: ...
 def top_critical_elements(region: str, n: int = 10) -> dict: ...
-def resolve_site(lat: float, lon: float) -> dict: ...        # helper, not in TOOL_SCHEMAS
+def resolve_site(lat: float, lon: float) -> dict: ...  # helper, not in TOOL_SCHEMAS
+
+
 # spec 07 owns: def causal_query(...) -> dict
 ```
 

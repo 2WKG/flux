@@ -8,13 +8,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
-SPEC = importlib.util.spec_from_file_location("scenario_validator", ROOT / "scripts" / "validate_scenario_config.py")
+SPEC = importlib.util.spec_from_file_location(
+    "scenario_validator", ROOT / "scripts" / "validate_scenario_config.py"
+)
 validator = importlib.util.module_from_spec(SPEC)
 assert SPEC.loader is not None
 SPEC.loader.exec_module(validator)
-EXAMPLE = json.loads((ROOT / "configs" / "scenarios" / "examples" / "mn_evening_net_load_stress.json").read_text(encoding="utf-8"))
+EXAMPLE = json.loads(
+    (
+        ROOT / "configs" / "scenarios" / "examples" / "mn_evening_net_load_stress.json"
+    ).read_text(encoding="utf-8")
+)
 
 
 class ScenarioConfigValidationTests(unittest.TestCase):
@@ -78,6 +83,6 @@ class ScenarioConfigValidationTests(unittest.TestCase):
         for token in ("NaN", "Infinity", "-Infinity"):
             with tempfile.TemporaryDirectory() as directory:
                 path = Path(directory) / "config.json"
-                path.write_text('{"value": ' + token + '}', encoding="utf-8")
+                path.write_text('{"value": ' + token + "}", encoding="utf-8")
                 with self.assertRaisesRegex(ValueError, "non-finite numeric"):
                     validator.load_config(path)

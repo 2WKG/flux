@@ -117,7 +117,12 @@ def _arguments(context: DemoContext) -> Mapping[str, object]:
 
 def _choose_intent(
     payload: DemoAskRequest,
-) -> tuple[str, Literal["inventory", "scenario", "cascade", "forecast", "availability"], str, str]:
+) -> tuple[
+    str,
+    Literal["inventory", "scenario", "cascade", "forecast", "availability"],
+    str,
+    str,
+]:
     text = payload.question.casefold()
     state = payload.context.state
     if any(word in text for word in ("cascade", "fail", "outage", "redundan", "trip")):
@@ -134,14 +139,20 @@ def _choose_intent(
             "Texas synthetic cascade",
             "I checked the selected Texas scenario through the labelled synthetic topology tool. The card keeps its tool result and limits together.",
         )
-    if any(word in text for word in ("weather", "forecast", "jepa", "predict", "projection")):
+    if any(
+        word in text
+        for word in ("weather", "forecast", "jepa", "predict", "projection")
+    ):
         return (
             "forecast",
             "forecast",
             "Weather and forecast evidence",
             "I checked the available weather or experimental forecast artifact. This card does not turn an observed count forecast into a weather forecast or cascade claim.",
         )
-    if any(word in text for word in ("scenario", "storm", "snow", "heat", "cold", "timeline")):
+    if any(
+        word in text
+        for word in ("scenario", "storm", "snow", "heat", "cold", "timeline")
+    ):
         return (
             "scenario",
             "scenario",

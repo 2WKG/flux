@@ -231,6 +231,7 @@ tagged otherwise. Each entry: what · where · format/size · how to pull · tar
   ≈ 2–3 MB/hour. Example:
   ```python
   from herbie import Herbie
+
   H = Herbie("2021-02-15 06:00", model="hrrr", product="sfc", fxx=0)
   ds = H.xarray(":(UGRD|VGRD):10 m above ground|:GUST:surface|:TMP:2 m above ground")
   ```
@@ -479,8 +480,12 @@ All in Python, engine-agnostic, in `pipelines/joins.py`.
 
 **J1 bus → county.**
 ```python
-pts = gpd.GeoDataFrame(buses, geometry=gpd.points_from_xy(buses.lon, buses.lat), crs=4326)
-hit = gpd.sjoin(pts, counties[["county_fips","geometry"]], how="left", predicate="within")
+pts = gpd.GeoDataFrame(
+    buses, geometry=gpd.points_from_xy(buses.lon, buses.lat), crs=4326
+)
+hit = gpd.sjoin(
+    pts, counties[["county_fips", "geometry"]], how="left", predicate="within"
+)
 ```
 Unmatched (coastal jitter, buses just offshore): nearest county **centroid** within 30 km using
 `BallTree(metric="haversine")` on centroids computed in EPSG:3083; else NULL + a row in

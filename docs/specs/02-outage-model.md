@@ -140,53 +140,115 @@ frac_hat = p * (0.08 + 0.35 * clip(ice_sum_48h / 10, 0, 1) + 0.25 * clip((gust_m
 
 ```python
 # models/outage/labels.py
-def build_labels(con, states: tuple[str, ...], years: list[int], window_h: int = 6,
-                 material_frac: float = 0.05, min_customers: int = 500) -> pd.DataFrame: ...
+def build_labels(
+    con,
+    states: tuple[str, ...],
+    years: list[int],
+    window_h: int = 6,
+    material_frac: float = 0.05,
+    min_customers: int = 500,
+) -> pd.DataFrame: ...
+
+
 # → county_fips, window_start, max_out, total_customers, frac_out, y_out
 
 # models/outage/features.py
-FEATURES_NOWCAST: list[str]; FEATURES_FORECAST: list[str]
-def build_features(con, states: tuple[str, ...], ts_start: datetime, ts_end: datetime,
-                   window_h: int = 6, include_labels: bool = True,
-                   out_path: str = "data/parquet/outage_features.parquet") -> pd.DataFrame: ...
-def build_rows(con, county_fips: str, window_starts: list[datetime],
-               feature_set: Literal["nowcast","forecast"], scenario_id: str) -> pd.DataFrame: ...
+FEATURES_NOWCAST: list[str]
+FEATURES_FORECAST: list[str]
+
+
+def build_features(
+    con,
+    states: tuple[str, ...],
+    ts_start: datetime,
+    ts_end: datetime,
+    window_h: int = 6,
+    include_labels: bool = True,
+    out_path: str = "data/parquet/outage_features.parquet",
+) -> pd.DataFrame: ...
+def build_rows(
+    con,
+    county_fips: str,
+    window_starts: list[datetime],
+    feature_set: Literal["nowcast", "forecast"],
+    scenario_id: str,
+) -> pd.DataFrame: ...
+
 
 # models/outage/split.py
-HOLDOUT_WINDOWS: dict[str, tuple[datetime, datetime, tuple[str, ...]]]  # scenario_id -> (start, end, states)
-def split(df: pd.DataFrame, *, county_catalog: pd.DataFrame | Mapping[str, str]) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...
+HOLDOUT_WINDOWS: dict[
+    str, tuple[datetime, datetime, tuple[str, ...]]
+]  # scenario_id -> (start, end, states)
+
+
+def split(
+    df: pd.DataFrame, *, county_catalog: pd.DataFrame | Mapping[str, str]
+) -> tuple[pd.DataFrame, pd.DataFrame, dict[str, pd.DataFrame]]: ...
+
+
 # `df` is `outage_features` (keyed only by county_fips/window_start); county_catalog is the
 # shared `counties` lookup with county_fips/state, resolved separately to keep display metadata
 # out of the feature transport.  # train, calib, holdouts
 
+
 # models/outage/train.py
 @dataclass
 class OutageModel:
-    clf: lightgbm.Booster; reg: lightgbm.Booster; calibrator: sklearn.isotonic.IsotonicRegression
-    feature_set: Literal["nowcast","forecast"]; features: list[str]; version: str
-    def predict(self, X: pd.DataFrame) -> pd.DataFrame: ...   # p_out, frac_hat, driver
-    def contrib(self, X: pd.DataFrame) -> pd.DataFrame: ...    # SHAP-style per-feature contributions
-def train(features_path: str, feature_set: Literal["nowcast","forecast"], seed: int = 7,
-          out_dir: str = "models/outage/artifacts") -> OutageModel: ...
-def load_model(feature_set: Literal["nowcast","forecast"], out_dir: str = "models/outage/artifacts") -> OutageModel: ...
+    clf: lightgbm.Booster
+    reg: lightgbm.Booster
+    calibrator: sklearn.isotonic.IsotonicRegression
+    feature_set: Literal["nowcast", "forecast"]
+    features: list[str]
+    version: str
+
+    def predict(self, X: pd.DataFrame) -> pd.DataFrame: ...  # p_out, frac_hat, driver
+    def contrib(
+        self, X: pd.DataFrame
+    ) -> pd.DataFrame: ...  # SHAP-style per-feature contributions
+
+
+def train(
+    features_path: str,
+    feature_set: Literal["nowcast", "forecast"],
+    seed: int = 7,
+    out_dir: str = "models/outage/artifacts",
+) -> OutageModel: ...
+def load_model(
+    feature_set: Literal["nowcast", "forecast"],
+    out_dir: str = "models/outage/artifacts",
+) -> OutageModel: ...
+
 
 # models/outage/evaluate.py
-def evaluate(model: OutageModel, holdouts: dict[str, pd.DataFrame],
-             baselines: dict[str, Callable[[pd.DataFrame], np.ndarray]]) -> dict: ...  # metrics.json content
-def write_eval_table(con, scenario_id: str, df: pd.DataFrame) -> int: ...          # outage_eval
+def evaluate(
+    model: OutageModel,
+    holdouts: dict[str, pd.DataFrame],
+    baselines: dict[str, Callable[[pd.DataFrame], np.ndarray]],
+) -> dict: ...  # metrics.json content
+def write_eval_table(con, scenario_id: str, df: pd.DataFrame) -> int: ...  # outage_eval
+
 
 # models/outage/predict.py
-def predict_scenario(con, scenario_id: str, model: OutageModel | None = None,
-                     states: tuple[str, ...] = ("TX",)) -> int: ...                 # rows written to outage_predictions
+def predict_scenario(
+    con,
+    scenario_id: str,
+    model: OutageModel | None = None,
+    states: tuple[str, ...] = ("TX",),
+) -> int: ...  # rows written to outage_predictions
 def driver_of(contrib_row: pd.Series) -> str: ...
+
 
 # models/outage/forecast.py
 def refresh_forecast(con, area: str = "TX", horizon_h: int = 72) -> int: ...
 
+
 # models/outage/heuristic.py
 COEF: dict[str, float]
-class HeuristicOutageModel(OutageModel):   # same .predict/.contrib contract, no boosters
+
+
+class HeuristicOutageModel(OutageModel):  # same .predict/.contrib contract, no boosters
     ...
+
 
 # copilot/tools/predict_outage.py  (signature fixed by spec 05's tool schema)
 def predict_outage(county_fips: str, scenario_id: str, horizon_h: int = 72) -> dict:

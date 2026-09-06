@@ -273,16 +273,16 @@ file]; others from FERC 714 delta vs 2022 baseline attributed to data centers (c
 
 ```python
 class ScoreParams(TypedDict, total=False):
-    mw: float                    # required
-    curtailable_share: float     # 0..1, share of load that can be shed on request
+    mw: float  # required
+    curtailable_share: float  # 0..1, share of load that can be shed on request
     curtail_response_min: float  # minutes to respond (<15 fast, 15–60 medium, >60 slow — OUR bins; [UNVERIFIED that EPRI DCFlex / Flex MOSAIC (23 Mar 2026) uses these cut-points — its public page names magnitude/timing/duration/frequency dimensions but the numeric tiers are only in the technical brief, not read])
-    curtail_hours_yr: float      # committed curtailment hours per year
-    byog_mw: float               # co-located generation
+    curtail_hours_yr: float  # committed curtailment hours per year
+    byog_mw: float  # co-located generation
     storage_mw: float
     storage_hours: float
-    load_factor: float           # 0..1
-    service_type: str            # "firm" | "non_firm" | "interim"
-    min_demand_share: float      # 0..1
+    load_factor: float  # 0..1
+    service_type: str  # "firm" | "non_firm" | "interim"
+    min_demand_share: float  # 0..1
     collateral_usd_per_mw: float
 ```
 

@@ -599,8 +599,10 @@ def _read_qualified_texas_synthetic(
         "hours": hours,
         "provenance": [
             {
-                "source_name": rows[0][6], "source_ref": rows[0][7],
-                "source_version": rows[0][8], "fixture_batch_id": rows[0][9],
+                "source_name": rows[0][6],
+                "source_ref": rows[0][7],
+                "source_version": rows[0][8],
+                "fixture_batch_id": rows[0][9],
             }
         ],
         "limitations": [

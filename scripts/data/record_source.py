@@ -16,7 +16,7 @@ import json
 import re
 import shlex
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 RAW = Path("data/raw/activsg2000_current")
@@ -59,14 +59,16 @@ def _aux_block(text: str, obj: str) -> tuple[list[str], list[list[str]]]:
     Values are whitespace-separated but names are double-quoted and contain
     spaces ("BIG SPRING 5"), so rows must be tokenised with shlex, not split().
     """
-    m = re.search(rf"DATA\s*\(\s*{obj}\s*,\s*\[(.*?)\]", text, re.I | re.S)
+    m = re.search(
+        rf"DATA\s*\(\s*{obj}\s*,\s*\[(.*?)\]", text, re.IGNORECASE | re.DOTALL
+    )
     if not m:
         raise ValueError(f"no DATA ({obj}, …) block found")
     fields = [f.strip() for f in m.group(1).split(",")]
     open_i = text.index("{", m.end())
     close_i = text.index("}", open_i)
     rows = []
-    for line in text[open_i + 1: close_i].splitlines():
+    for line in text[open_i + 1 : close_i].splitlines():
         if not line.strip():
             continue
         try:
@@ -79,7 +81,7 @@ def _aux_block(text: str, obj: str) -> tuple[list[str], list[list[str]]]:
 def _mpc_bus_ids(path: Path) -> dict[int, float]:
     """bus_id -> base_kv from the MATPOWER `mpc.bus = [ ... ];` block."""
     text = path.read_text(errors="replace")
-    m = re.search(r"mpc\.bus\s*=\s*\[(.*?)\];", text, re.S)
+    m = re.search(r"mpc\.bus\s*=\s*\[(.*?)\];", text, re.DOTALL)
     if not m:
         raise ValueError("no mpc.bus block in the .m file")
     out: dict[int, float] = {}
@@ -107,7 +109,10 @@ def inspect_aux(aux: Path, mfile: Path) -> dict:
         if len(r) <= max(si["Latitude"], si["Longitude"], si["SubNum"]):
             continue
         try:
-            subs[r[si["SubNum"]]] = (float(r[si["Latitude"]]), float(r[si["Longitude"]]))
+            subs[r[si["SubNum"]]] = (
+                float(r[si["Latitude"]]),
+                float(r[si["Longitude"]]),
+            )
         except ValueError:
             continue
     out["substation_fields"] = sub_fields
@@ -137,8 +142,10 @@ def inspect_aux(aux: Path, mfile: Path) -> dict:
         lats = [c[0] for c in located.values()]
         lons = [c[1] for c in located.values()]
         out["extent"] = {
-            "lon_min": round(min(lons), 4), "lon_max": round(max(lons), 4),
-            "lat_min": round(min(lats), 4), "lat_max": round(max(lats), 4),
+            "lon_min": round(min(lons), 4),
+            "lon_max": round(max(lons), 4),
+            "lat_min": round(min(lats), 4),
+            "lat_max": round(max(lats), 4),
         }
 
     # The check that matters for D02/D05/D06: does the AUX describe the same
@@ -166,7 +173,7 @@ def main() -> int:
 
     record = {
         "issue": "2WKG-38 [D01] Download one synthetic Texas case",
-        "retrieved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "retrieved_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "provider": PROVIDER,
         "files": files,
         "aux_check": inspect_aux(RAW / "ACTIVSg2000.aux", RAW / "case_ACTIVSg2000.m"),

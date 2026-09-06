@@ -35,25 +35,38 @@ def read_aux_coords(aux_path: str | Path) -> pd.DataFrame:
         if match:
             number, name, source_id, lat, lon = match.groups()
             substations[int(number)] = {
-                "sub_num": int(number), "sub_name": name, "sub_id": source_id,
-                "lat": float(lat), "lon": float(lon),
+                "sub_num": int(number),
+                "sub_name": name,
+                "sub_id": source_id,
+                "lat": float(lat),
+                "lon": float(lon),
             }
 
     rows: list[dict[str, object]] = []
     for line in _block(text, "Bus").splitlines():
         # BusNum, quoted name, nominal kV, then enough tokens to reach SubNum.
-        match = re.match(r'\s*(\d+)\s+"([^"]*)"\s+([-+0-9.eE]+)\s+.*?\s+(\d+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+"', line)
+        match = re.match(
+            r'\s*(\d+)\s+"([^"]*)"\s+([-+0-9.eE]+)\s+.*?\s+(\d+)\s+([-+0-9.eE]+)\s+([-+0-9.eE]+)\s+"',
+            line,
+        )
         if match is None:
             continue
         bus_id, bus_name, nominal_kv, sub_num, lat, lon = match.groups()
         record = substations.get(int(sub_num))
         if record is None:
             raise ValueError(f"bus {bus_id} references absent substation {sub_num}")
-        rows.append({
-            "bus_id": int(bus_id), "bus_name": bus_name, "base_kv_aux": float(nominal_kv),
-            "sub_num": int(sub_num), "sub_name": record["sub_name"], "sub_id": record["sub_id"],
-            "lat": float(lat), "lon": float(lon),
-        })
+        rows.append(
+            {
+                "bus_id": int(bus_id),
+                "bus_name": bus_name,
+                "base_kv_aux": float(nominal_kv),
+                "sub_num": int(sub_num),
+                "sub_name": record["sub_name"],
+                "sub_id": record["sub_id"],
+                "lat": float(lat),
+                "lon": float(lon),
+            }
+        )
     frame = pd.DataFrame(rows)
     if frame.empty or frame.bus_id.duplicated().any():
         raise ValueError("AUX bus parse yielded no rows or duplicate bus IDs")

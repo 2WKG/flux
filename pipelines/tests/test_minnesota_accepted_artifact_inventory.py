@@ -6,7 +6,6 @@ import hashlib
 import json
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
 INVENTORY = ROOT / "data/sources/minnesota-accepted-artifact-inventory.json"
 TRUTH_LABELS = {"source_backed", "synthetic", "illustrative", "unavailable"}
@@ -45,17 +44,38 @@ def test_accepted_artifacts_have_verified_local_identity_and_truth_policy():
 
 def test_inventory_rejects_misleading_minnesota_coverage_combinations():
     inventory = _inventory()
-    excluded = {item["evidence_id"]: item for item in inventory["not_accepted_as_current_product_coverage"]}
-    assert excluded["synthetic_power_balance_preview"]["truth_label_policy"]["default"] == "synthetic"
-    assert "not Minnesota" in excluded["synthetic_power_balance_preview"]["truth_label_policy"]["rule"]
-    assert excluded["gridsfm_minnesota_feasibility"]["truth_label_policy"]["default"] == "unavailable"
-    assert excluded["raw_minnesota_geometry"]["truth_label_policy"]["default"] == "unavailable"
+    excluded = {
+        item["evidence_id"]: item
+        for item in inventory["not_accepted_as_current_product_coverage"]
+    }
+    assert (
+        excluded["synthetic_power_balance_preview"]["truth_label_policy"]["default"]
+        == "synthetic"
+    )
+    assert (
+        "not Minnesota"
+        in excluded["synthetic_power_balance_preview"]["truth_label_policy"]["rule"]
+    )
+    assert (
+        excluded["gridsfm_minnesota_feasibility"]["truth_label_policy"]["default"]
+        == "unavailable"
+    )
+    assert (
+        excluded["raw_minnesota_geometry"]["truth_label_policy"]["default"]
+        == "unavailable"
+    )
 
     taxonomy = {item["class"]: item for item in inventory["asset_taxonomy"]}
     assert taxonomy["topology_node"]["current_availability"] == "unavailable"
     assert taxonomy["topology_edge"]["current_availability"] == "unavailable"
     assert taxonomy["operating_overlay"]["current_availability"] == "unavailable"
-    assert taxonomy["regional_time_context"]["current_availability"] == "available_without_geometry"
-    assert taxonomy["synthetic_preview_network"]["current_availability"] == "available_outside_minnesota_product_coverage"
+    assert (
+        taxonomy["regional_time_context"]["current_availability"]
+        == "available_without_geometry"
+    )
+    assert (
+        taxonomy["synthetic_preview_network"]["current_availability"]
+        == "available_outside_minnesota_product_coverage"
+    )
     for entry in taxonomy.values():
         assert entry["truth_label_policy"]

@@ -84,6 +84,7 @@ from fastapi import FastAPI
 
 app = install_error_handlers(FastAPI())
 
+
 @app.get("/scenarios/{scenario_id}")
 async def get_scenario(scenario_id: str):
     row = db.scenario(scenario_id)
@@ -92,7 +93,7 @@ async def get_scenario(scenario_id: str):
     if not row.cascade_built:
         raise UnavailableError(
             "Cascade not yet built for this scenario.",
-            details={"scenario_id": scenario_id}
+            details={"scenario_id": scenario_id},
         )
     return row.to_dict()  # unwrapped payload
 ```

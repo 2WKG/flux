@@ -67,8 +67,14 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def download_file(url: str, destination: Path, force: bool, *, expected_sha256: str | None = None,
-                  attempts: int = 3) -> None:
+def download_file(
+    url: str,
+    destination: Path,
+    force: bool,
+    *,
+    expected_sha256: str | None = None,
+    attempts: int = 3,
+) -> None:
     """Publish a complete, optionally checksum-pinned direct download.
 
     A ``.part`` file is never promoted. Failed attempts retain it for forensic
@@ -77,7 +83,9 @@ def download_file(url: str, destination: Path, force: bool, *, expected_sha256: 
     """
     if destination.exists() and not force:
         if expected_sha256 and _sha256(destination).lower() != expected_sha256.lower():
-            raise RuntimeError(f"existing file checksum differs from catalog: {destination}")
+            raise RuntimeError(
+                f"existing file checksum differs from catalog: {destination}"
+            )
         print(f"  exists: {destination}")
         return
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -88,13 +96,17 @@ def download_file(url: str, destination: Path, force: bool, *, expected_sha256: 
             with urllib.request.urlopen(request, timeout=60) as response:
                 content_length = response.headers.get("Content-Length")
                 if content_length is None:
-                    raise ValueError("response omitted Content-Length; completeness cannot be verified")
+                    raise ValueError(
+                        "response omitted Content-Length; completeness cannot be verified"
+                    )
                 expected_bytes = int(content_length)
                 with temporary.open("wb") as output:
                     shutil.copyfileobj(response, output)
             actual_bytes = temporary.stat().st_size
             if actual_bytes != expected_bytes:
-                raise ValueError(f"downloaded {actual_bytes} bytes; expected {expected_bytes}")
+                raise ValueError(
+                    f"downloaded {actual_bytes} bytes; expected {expected_bytes}"
+                )
             actual_sha256 = _sha256(temporary)
             if expected_sha256 and actual_sha256.lower() != expected_sha256.lower():
                 raise ValueError("download checksum differs from catalog")
@@ -137,7 +149,9 @@ def main() -> int:
             print(f"  route:   {entry['source_url']}")
             continue
         if entry.get("large") and not args.include_large:
-            print("  skipped: large source; pass --include-large after checking capacity")
+            print(
+                "  skipped: large source; pass --include-large after checking capacity"
+            )
             continue
         for item in downloads:
             target = args.output / entry["id"] / item["filename"]
@@ -145,7 +159,9 @@ def main() -> int:
                 print(f"  would download {item['url']} -> {target}")
                 continue
             try:
-                download_file(item["url"], target, args.force, expected_sha256=item.get("sha256"))
+                download_file(
+                    item["url"], target, args.force, expected_sha256=item.get("sha256")
+                )
             except RuntimeError as exc:
                 failures += 1
                 print(f"  ERROR: {exc}", file=sys.stderr)

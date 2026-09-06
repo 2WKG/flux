@@ -319,9 +319,7 @@ def test_default_exhaustive_acquisition_handles_fips_major_source(
         ("27137", "St Louis", "Minnesota"),
     ):
         for index in range(100):
-            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime("%Y-%m-%d %H:%M:%S")
             lines.append(f"{fips},{county},{state},{index},{stamp},123\n")
     body = "".join(lines).encode()
     source = FakeSource(body)
@@ -370,9 +368,7 @@ def test_bounded_fips_major_false_zero_never_claims_source_absence(
         ("27137", "St Louis", "Minnesota"),
     ):
         for index in range(SAMPLES):
-            stamp = (BASE + timedelta(minutes=15 * index)).strftime(
-                "%Y-%m-%d %H:%M:%S"
-            )
+            stamp = (BASE + timedelta(minutes=15 * index)).strftime("%Y-%m-%d %H:%M:%S")
             lines.append(f"{fips},{county},{state},{index % 10},{stamp},123\n")
     source = FakeSource("".join(lines).encode())
     start = BASE + timedelta(minutes=15 * WINDOW_INDEX)

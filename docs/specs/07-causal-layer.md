@@ -179,44 +179,102 @@ distinguishable from zero".
 
 ```python
 # causal/bn.py
-NODES: list[str]; EDGES: list[tuple[str, str]]
-def discretise(features: pd.DataFrame, cuts: dict | None = None) -> tuple[pd.DataFrame, dict]: ...
-def fit_bn(discrete: pd.DataFrame, latent: tuple[str, ...] = ("line_failures",),
-           out_dir: str = "causal/artifacts") -> "pgmpy.models.DiscreteBayesianNetwork": ...
-def load_bn(path: str = "causal/artifacts/outage_bn.bif") -> "pgmpy.models.DiscreteBayesianNetwork": ...
+NODES: list[str]
+EDGES: list[tuple[str, str]]
+
+
+def discretise(
+    features: pd.DataFrame, cuts: dict | None = None
+) -> tuple[pd.DataFrame, dict]: ...
+def fit_bn(
+    discrete: pd.DataFrame,
+    latent: tuple[str, ...] = ("line_failures",),
+    out_dir: str = "causal/artifacts",
+) -> "pgmpy.models.DiscreteBayesianNetwork": ...
+def load_bn(
+    path: str = "causal/artifacts/outage_bn.bif",
+) -> "pgmpy.models.DiscreteBayesianNetwork": ...
 def attribute(bn, county_fips: str, scenario_id: str, con) -> dict: ...
 # → {p_factual, p_out_weather_only, p_out_invest_only, share_weather, share_investment, evidence: dict}
-def attribute_scenario(con, bn, scenario_id: str, states: tuple[str, ...] = ("TX",)) -> int: ...  # rows → causal_attribution
+def attribute_scenario(
+    con, bn, scenario_id: str, states: tuple[str, ...] = ("TX",)
+) -> int: ...  # rows → causal_attribution
+
 
 # causal/panel.py
-def build_event_panel(con, states: tuple[str, ...], years: list[int],
-                      onset_frac: float = 0.05, restored_frac: float = 0.02, cap_h: int = 240) -> pd.DataFrame: ...
+def build_event_panel(
+    con,
+    states: tuple[str, ...],
+    years: list[int],
+    onset_frac: float = 0.05,
+    restored_frac: float = 0.02,
+    cap_h: int = 240,
+) -> pd.DataFrame: ...
 # → county_fips, event_id, ts_onset, duration_h, peak_frac, gust_max, ice_sum_48h, temp_min_48h, precip_sum_72h, year
-def label_treatments(con, panel: pd.DataFrame) -> pd.DataFrame: ...   # adds hardening_saidi, firm_generation_100mw, treat_year_*
+def label_treatments(
+    con, panel: pd.DataFrame
+) -> pd.DataFrame: ...  # adds hardening_saidi, firm_generation_100mw, treat_year_*
+
 
 # causal/effect.py
 @dataclass
 class EffectResult:
-    treatment: str; estimand: str; estimate: float; ci_low: float; ci_high: float
-    n_treated: int; n_control: int; method: str; refutations: dict; caveats: list[str]
-def estimate_effect(panel: pd.DataFrame, treatment: Literal["hardening_saidi","firm_generation_100mw"],
-                    outcome: Literal["log_duration_h","peak_frac"] = "log_duration_h",
-                    k_controls: int = 10, n_boot: int = 200, seed: int = 7) -> EffectResult: ...
-def write_effects(results: list[EffectResult], path: str = "causal/artifacts/hardening_effect.json") -> None: ...
+    treatment: str
+    estimand: str
+    estimate: float
+    ci_low: float
+    ci_high: float
+    n_treated: int
+    n_control: int
+    method: str
+    refutations: dict
+    caveats: list[str]
+
+
+def estimate_effect(
+    panel: pd.DataFrame,
+    treatment: Literal["hardening_saidi", "firm_generation_100mw"],
+    outcome: Literal["log_duration_h", "peak_frac"] = "log_duration_h",
+    k_controls: int = 10,
+    n_boot: int = 200,
+    seed: int = 7,
+) -> EffectResult: ...
+def write_effects(
+    results: list[EffectResult], path: str = "causal/artifacts/hardening_effect.json"
+) -> None: ...
+
 
 # causal/counterfactual.py
-def replay_with_site(con, scenario_id: str, site_id: str, capacity_mw: float,
-                     seed: int = 0, factual_run_id: str | None = None) -> dict: ...
+def replay_with_site(
+    con,
+    scenario_id: str,
+    site_id: str,
+    capacity_mw: float,
+    seed: int = 0,
+    factual_run_id: str | None = None,
+) -> dict: ...
 # → {cf_id, customer_hours_avoided, peak_customers_avoided, critical_loads_kept: list[{cl_id,name,kind,hour_lost_factual}],
 #    per_county: list[{county_fips, factual_ch, cf_ch}], factual_run_id, cf_run_id}
-def replay_with_hardening(con, scenario_id: str, line_ids: list[int], failure_multiplier: float = 0.2) -> dict: ...
-def precompute(con, scenario_id: str = "uri_2021", top_n_sites: int = 5,
-               capacities: tuple[float, ...] = (300.0, 1000.0)) -> int: ...      # rows → counterfactual_runs
+def replay_with_hardening(
+    con, scenario_id: str, line_ids: list[int], failure_multiplier: float = 0.2
+) -> dict: ...
+def precompute(
+    con,
+    scenario_id: str = "uri_2021",
+    top_n_sites: int = 5,
+    capacities: tuple[float, ...] = (300.0, 1000.0),
+) -> int: ...  # rows → counterfactual_runs
+
 
 # copilot/tools/causal_query.py
-def causal_query(kind: Literal["attribution","effect","counterfactual"], county_fips: str | None = None,
-                 scenario_id: str = "uri_2021", site_id: str | None = None, capacity_mw: float | None = None,
-                 treatment: str | None = None) -> dict: ...
+def causal_query(
+    kind: Literal["attribution", "effect", "counterfactual"],
+    county_fips: str | None = None,
+    scenario_id: str = "uri_2021",
+    site_id: str | None = None,
+    capacity_mw: float | None = None,
+    treatment: str | None = None,
+) -> dict: ...
 ```
 
 CLI: `uv run python -m causal.bn --fit --states TX`; `uv run python -m causal.bn --attribute uri_2021`;

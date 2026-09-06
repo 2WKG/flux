@@ -285,67 +285,125 @@ Every loader is idempotent: `DELETE FROM <table> WHERE <source-key>` then insert
 
 ```python
 # pipelines/db.py
-def connect(path: str = "data/duck/grid.duckdb", read_only: bool = False) -> duckdb.DuckDBPyConnection: ...
-def ensure_schema(con: duckdb.DuckDBPyConnection) -> None: ...   # creates all contract tables if missing
+def connect(
+    path: str = "data/duck/grid.duckdb", read_only: bool = False
+) -> duckdb.DuckDBPyConnection: ...
+def ensure_schema(
+    con: duckdb.DuckDBPyConnection,
+) -> None: ...  # creates all contract tables if missing
+
 
 # pipelines/activsg.py
-def load_activsg(con, aux_path: str = "data/raw/activsg2000/ACTIVSg2000.aux",
-                 case: str = "ACTIVSg2000", manual_coords: str | None = None) -> dict[str, int]: ...  # rows per table
-def to_pandapower(case: str = "ACTIVSg2000") -> "pandapower.auxiliary.pandapowerNet": ...   # from_mpc on the pip matpower .m
-def geocode_bus_names(names: list[str], gazetteer_zip: str) -> pd.DataFrame: ...  # fallback only: name, lon, lat, score
+def load_activsg(
+    con,
+    aux_path: str = "data/raw/activsg2000/ACTIVSg2000.aux",
+    case: str = "ACTIVSg2000",
+    manual_coords: str | None = None,
+) -> dict[str, int]: ...  # rows per table
+def to_pandapower(
+    case: str = "ACTIVSg2000",
+) -> "pandapower.auxiliary.pandapowerNet": ...  # from_mpc on the pip matpower .m
+def geocode_bus_names(
+    names: list[str], gazetteer_zip: str
+) -> pd.DataFrame: ...  # fallback only: name, lon, lat, score
 # pipelines/activsg_aux.py
-def read_aux_coords(aux_path: str) -> pd.DataFrame: ...  # bus_id, lon, lat, sub_num, sub_name (PowerWorld AUX DATA blocks)
+def read_aux_coords(
+    aux_path: str,
+) -> (
+    pd.DataFrame
+): ...  # bus_id, lon, lat, sub_num, sub_name (PowerWorld AUX DATA blocks)
+
 
 # pipelines/counties.py
-def load_counties(con, tiger_zip: str = "data/raw/tiger/tl_2024_us_county.zip", states: tuple[str, ...] | None = None) -> int: ...
+def load_counties(
+    con,
+    tiger_zip: str = "data/raw/tiger/tl_2024_us_county.zip",
+    states: tuple[str, ...] | None = None,
+) -> int: ...
+
 
 # pipelines/nri.py
 def load_nri(con, source_path: str) -> int: ...  # FEMA bulk ZIP or official ArcGIS JSON
+
 
 # pipelines/eia860.py
 def load_eia860_plants(con, plants_parquet: str, generators_parquet: str) -> int: ...
 def attach_gens_to_eia(con, radius_km: float = 25.0) -> int: ...
 def seed_site_candidates(con, states: tuple[str, ...] = ("TX",)) -> int: ...
 
+
 # pipelines/eia930.py
-def load_eia930(con, csv_paths: list[str], ba_codes: tuple[str, ...] | None = ("ERCO","EPE","SWPP","MISO")) -> int: ...
+def load_eia930(
+    con,
+    csv_paths: list[str],
+    ba_codes: tuple[str, ...] | None = ("ERCO", "EPE", "SWPP", "MISO"),
+) -> int: ...
+
 
 # pipelines/eaglei.py
-def load_eaglei(con, years: list[int], states: tuple[str, ...] = ("Texas",), raw_dir: str = "data/raw/eaglei") -> int: ...
+def load_eaglei(
+    con,
+    years: list[int],
+    states: tuple[str, ...] = ("Texas",),
+    raw_dir: str = "data/raw/eaglei",
+) -> int: ...
 def load_county_customers(con, mcc_csv: str = "data/raw/eaglei/MCC.csv") -> int: ...
 
+
 # pipelines/storm_events.py
-def load_storm_events(con, years: list[int], raw_dir: str = "data/raw/storm_events") -> int: ...
+def load_storm_events(
+    con, years: list[int], raw_dir: str = "data/raw/storm_events"
+) -> int: ...
+
 
 # pipelines/hrrr.py
-def build_county_index(con, cache: str = "data/parquet/hrrr_county_index.parquet") -> pd.DataFrame: ...
-def load_hrrr_window(con, scenario_id: str, states: tuple[str, ...] = ("TX",), fxx: int = 0) -> int: ...
-def load_hrrr_forecast(con, run: datetime | None = None, horizon_h: int = 48) -> int: ...  # forecast_72h
+def build_county_index(
+    con, cache: str = "data/parquet/hrrr_county_index.parquet"
+) -> pd.DataFrame: ...
+def load_hrrr_window(
+    con, scenario_id: str, states: tuple[str, ...] = ("TX",), fxx: int = 0
+) -> int: ...
+def load_hrrr_forecast(
+    con, run: datetime | None = None, horizon_h: int = 48
+) -> int: ...  # forecast_72h
+
 
 # pipelines/isd.py
-def load_isd_window(con, scenario_id: str, states: tuple[str, ...] = ("TX",)) -> int: ...
+def load_isd_window(
+    con, scenario_id: str, states: tuple[str, ...] = ("TX",)
+) -> int: ...
+
 
 # pipelines/nws.py
 def snapshot_alerts(con, area: str = "TX", user_agent: str = ...) -> int: ...
-def alerts_to_features(con, ts: datetime) -> pd.DataFrame: ...  # county_fips, ice_flag, wind_flag, fire_flag, heat_flag
+def alerts_to_features(
+    con, ts: datetime
+) -> pd.DataFrame: ...  # county_fips, ice_flag, wind_flag, fire_flag, heat_flag
+
 
 # pipelines/dod.py
 def load_dod(con, states: tuple[str, ...] = ("TX",)) -> int: ...
 # pipelines/hospitals.py
-def load_hospitals(con, source: Literal["osm","hifld"] = "osm", pbf: str | None = None) -> int: ...
+def load_hospitals(
+    con, source: Literal["osm", "hifld"] = "osm", pbf: str | None = None
+) -> int: ...
 # pipelines/osm_power.py
-def load_osm_power(con, pbf: str = "data/raw/osm/texas-latest.osm.pbf") -> dict[str, int]: ...
+def load_osm_power(
+    con, pbf: str = "data/raw/osm/texas-latest.osm.pbf"
+) -> dict[str, int]: ...
 # pipelines/wildfire.py / seismic.py / eia861.py
 def load_whp(con, data_zip: str) -> int: ...
 def load_nshm(con, pga_zip: str) -> int: ...
 def load_eia861(con, years: list[int]) -> int: ...
 # pipelines/ba_map.py
-def assign_ba(counties: pd.DataFrame) -> pd.DataFrame: ...   # county_fips, ba_code
+def assign_ba(counties: pd.DataFrame) -> pd.DataFrame: ...  # county_fips, ba_code
 # pipelines/joins.py
 def join_bus_county(con) -> int: ...
 def join_critical_loads_to_bus(con, min_kv: float = 115.0) -> int: ...
 # pipelines/build.py
-def build(tier: Literal["p0","p1","p2"] = "p0", states: tuple[str, ...] = ("TX",)) -> None: ...
+def build(
+    tier: Literal["p0", "p1", "p2"] = "p0", states: tuple[str, ...] = ("TX",)
+) -> None: ...
 def export_parquet(con, out_dir: str = "data/parquet") -> list[str]: ...
 ```
 
