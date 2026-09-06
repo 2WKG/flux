@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
-import { CONTENT_SECURITY_POLICY, createApp } from "../server.mjs";
+import { CONTENT_SECURITY_POLICY, createApp, NO_API_ORIGIN_REASON } from "../server.mjs";
 
 const servers = [];
 
@@ -13,8 +13,8 @@ async function origin() {
   await new Promise((resolve) => server.once("listening", resolve));
   servers.push(server);
   const base = `http://127.0.0.1:${server.address().port}`;
-  return async (path) => {
-    const response = await fetch(`${base}${path}`);
+  return async (path, init) => {
+    const response = await fetch(`${base}${path}`, init);
     return {
       status: response.status,
       type: response.headers.get("content-type"),
@@ -92,13 +92,46 @@ async function proxyOrigin(apiOrigin) {
   return `http://127.0.0.1:${server.address().port}`;
 }
 
-test("with no API origin configured, every API path is the SPA shell", async () => {
+test("with no API origin configured, every allowlisted path refuses by name", async () => {
+  // This assertion replaces "every API path is the SPA shell", which pinned a
+  // real defect: `GET /health` answered 200 with `index.html`, and the browser's
+  // validator could only report that as a *malformed* response. "Malformed" and
+  // "this deployment has no API" are different claims, and only the second is
+  // true, so the shell fall-through was a quieter, weaker refusal than the one
+  // the offline story promises. The replacement is strictly stronger -- it pins
+  // the status, the content type, the frozen token, the named reason, and that
+  // the answer is never the shell.
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/health", "/scenarios/baseline", "/api/v1/grid/layers/line", "/layers/buses"]) {
+  for (const path of ["/health", "/scenarios", "/scenarios/baseline", "/api/v1/grid/layers/line", "/layers/buses"]) {
     const response = await get(path);
-    assert.equal(response.body, shell.body, `${path} must fall back to the shell when no API origin is set`);
+    assert.equal(response.status, 503, `${path} must refuse, not answer`);
+    assert.match(response.type, /json/, `${path} must refuse in the envelope's own media type`);
+    assert.notEqual(response.body, shell.body, `${path} must not be answered with the SPA shell`);
+    const body = JSON.parse(response.body);
+    assert.equal(body.status, "unavailable");
+    assert.equal(body.error.code, "unavailable");
+    assert.equal(body.error.details.reason, NO_API_ORIGIN_REASON);
+    assert.equal(body.error.retryable, true);
+    assert.ok(body.error.message.trim().length > 0, `${path} refused with an empty reason`);
+    assert.equal(body.data, null, `${path} must not invent a payload`);
+    assert.equal(body.meta.api_version, "v1");
   }
+});
+
+test("with no API origin configured, a path outside the allowlist is still the shell", async () => {
+  // The control: the refusal above is registered for the allowlist, not for
+  // everything. A blanket 503 would pass the test above and break the SPA.
+  const get = await origin();
+  const shell = await get("/");
+  for (const path of ["/api/v1/grid/releases", "/admin", "/api/demo", "/health/../admin"]) {
+    const response = await get(path);
+    assert.equal(response.body, shell.body, `${path} must still fall back to the shell`);
+  }
+  // And the method half of the table: POST /health is not forwarded, so it is
+  // not refused as an API path either.
+  const posted = await get("/health", { method: "POST" });
+  assert.notEqual(posted.status, 503, "POST /health is outside the table and must not be refused as one");
 });
 
 test("a configured API origin forwards only the allowlisted read paths", async () => {

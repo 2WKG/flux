@@ -59,6 +59,29 @@ export const CONTENT_SECURITY_POLICY = [
   "base-uri 'none'",
 ].join("; ");
 
+/**
+ * The shared failure envelope, in the shape `web/src/data/validation.ts` reads
+ * (`copilot/api/envelope.py`). It is the only thing this origin ever says about
+ * an API path it cannot answer -- never an HTML page, and never a 200.
+ */
+export function unavailableEnvelope({ message, reason, requestId }) {
+  return {
+    status: "unavailable",
+    data: null,
+    error: {
+      code: "unavailable",
+      message,
+      retryable: true,
+      retry_after_s: 30,
+      details: { reason },
+    },
+    meta: { api_version: "v1", request_id: requestId, generated_at: new Date().toISOString() },
+  };
+}
+
+/** The named reason an allowlisted path carries when this deployment has no upstream at all. */
+export const NO_API_ORIGIN_REASON = "no_api_origin_configured";
+
 export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN } = {}) {
   const app = express();
   app.use((_req, res, next) => {
@@ -97,19 +120,28 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
         // validator reads, so it becomes a named unavailable state rather than
         // an HTML error page parsed as a malformed response.
         res.status(503).setHeader("content-type", "application/json");
-        res.end(JSON.stringify({
-          status: "unavailable",
-          data: null,
-          error: {
-            code: "unavailable",
-            message: `The configured API origin did not answer: ${error instanceof Error ? error.message : String(error)}`,
-            retryable: true,
-            retry_after_s: 30,
-            details: { reason: "upstream_unreachable" },
-          },
-          meta: { api_version: "v1", request_id: "proxy-upstream-unreachable", generated_at: new Date().toISOString() },
-        }));
+        res.end(JSON.stringify(unavailableEnvelope({
+          message: `The configured API origin did not answer: ${error instanceof Error ? error.message : String(error)}`,
+          reason: "upstream_unreachable",
+          requestId: "proxy-upstream-unreachable",
+        })));
       });
+    });
+  } else {
+    // No upstream is configured -- the default, and the state of a fresh clone.
+    // These paths used to fall through to the SPA shell, so `GET /health`
+    // answered 200 with `index.html`; the browser's validator could only call
+    // that a *malformed* response, which is a different and weaker claim than
+    // "this deployment has no API". The allowlist is registered either way and
+    // refuses by name, so the offline case fails honestly and retryably.
+    app.use((req, res, next) => {
+      if (!proxied(new URL(req.originalUrl, "http://placeholder.invalid").pathname, req.method)) return next();
+      res.status(503).setHeader("content-type", "application/json");
+      res.end(JSON.stringify(unavailableEnvelope({
+        message: "This origin serves the App only; no Copilot API origin is configured for this deployment, so this read has no upstream to serve it.",
+        reason: NO_API_ORIGIN_REASON,
+        requestId: "proxy-no-api-origin",
+      })));
     });
   }
   app.use(express.static(dist));
