@@ -480,3 +480,23 @@ def test_preflight_reads_the_builders_p0_contract():
 
     assert preflight._p0_raw_inputs is build._p0_raw_inputs
     assert not hasattr(preflight, "_catalog_inputs")
+
+
+def test_write_performed_follows_a_writable_open_instead_of_being_a_literal(
+    tmp_path, monkeypatch
+):
+    database = tmp_path / "legacy.duckdb"
+    connect(database).close()
+    real_connect = duckdb.connect
+
+    def writable_connect(path, *args, **kwargs):
+        # Simulate the regression the receipt must be able to report.
+        kwargs.pop("read_only", None)
+        return real_connect(path, *args, read_only=False, **kwargs)
+
+    monkeypatch.setattr(preflight.duckdb, "connect", writable_connect)
+
+    result = preflight.inspect_database(database)
+
+    assert result["access_mode"] != "read_only"
+    assert result["write_performed"] is True
