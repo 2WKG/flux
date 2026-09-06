@@ -576,6 +576,89 @@ def test_read_only_execution_does_not_change_database(db_path: Path) -> None:
     assert hashlib.sha256(db_path.read_bytes()).hexdigest() == before
 
 
+def test_execution_records_are_safe_for_success_and_rejection(
+    db_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    records: list[object] = []
+    executor = MinnesotaSqlExecutor(db_path, [_view()], execution_logger=records.append)
+
+    with caplog.at_level("INFO", logger="copilot.sql"):
+        success = _execute(executor, "SELECT id FROM mn_summary LIMIT 1")
+        rejected = _execute(executor, "SELECT * FROM secret_rows")
+
+    assert success.status == "available"
+    assert rejected.status == "unavailable"
+    assert len(records) == 2
+    available, unavailable = records
+    assert available.outcome == "success"
+    assert available.template_id is None
+    assert available.parameter_count == 0
+    assert available.row_count == 1
+    assert available.provenance_artifact_ids == ("mn:fixture:0123456789abcdef",)
+    assert unavailable.outcome == "rejected"
+    assert unavailable.row_count is None
+    messages = "\n".join(caplog.messages)
+    assert "sql_execution" in messages
+    assert "secret_rows" not in messages
+
+
+def test_execution_log_omits_bypassed_untrusted_template_id(
+    db_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    records: list[object] = []
+    malicious_id = "SELECT secret FROM hidden_table"
+    bypassed = SqlInput.model_construct(
+        query=None, template_id=malicious_id, parameters=[]
+    )
+
+    with caplog.at_level("INFO", logger="copilot.sql"):
+        result = asyncio.run(
+            MinnesotaSqlExecutor(
+                db_path, [_view()], execution_logger=records.append
+            ).execute(bypassed)
+        )
+
+    assert result.status == "unavailable"
+    assert len(records) == 1
+    assert records[0].template_id is None
+    assert records[0].outcome == "rejected"
+    assert malicious_id not in "\n".join(caplog.messages)
+
+
+def test_execution_failure_has_safe_outcome_and_no_driver_details(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    records: list[object] = []
+    executor = MinnesotaSqlExecutor(db_path, [_view()], execution_logger=records.append)
+
+    def broken_run(*_args: object) -> None:
+        raise RuntimeError("driver secret at /private/path")
+
+    monkeypatch.setattr(executor, "_run", broken_run)
+    with caplog.at_level("INFO", logger="copilot.sql"):
+        result = _execute(executor, "SELECT id FROM mn_summary")
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.reason == "SQL query could not be executed"
+    assert records[0].outcome == "failed"
+    assert "driver secret" not in "\n".join(caplog.messages)
+
+
+def test_execution_log_callback_failure_does_not_mask_tool_result(
+    db_path: Path,
+) -> None:
+    def broken_logger(_record: object) -> None:
+        raise RuntimeError("logger secret")
+
+    result = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()], execution_logger=broken_logger),
+        "SELECT id FROM mn_summary LIMIT 1",
+    )
+
+    assert result.status == "available"
+
+
 def test_timeout_interrupts_the_per_request_connection_and_closes_it(
     db_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -622,8 +705,14 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
 
     monkeypatch.setattr("copilot.tools.sql.duckdb.connect", connect)
 
+    records: list[object] = []
     result = _execute(
-        MinnesotaSqlExecutor(db_path, [_view()], timeout_seconds=0.01),
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            timeout_seconds=0.01,
+            execution_logger=records.append,
+        ),
         "SELECT * FROM mn_summary",
     )
 
@@ -638,3 +727,42 @@ def test_timeout_interrupts_the_per_request_connection_and_closes_it(
         "autoload_known_extensions": "false",
         "enable_external_access": "false",
     }
+    assert len(records) == 1
+    assert records[0].outcome == "timed_out"
+    assert records[0].row_count is None
+
+
+def test_expensive_approved_template_is_interrupted_without_mutating_database(
+    db_path: Path,
+) -> None:
+    """A real approved DuckDB aggregate honors the per-request deadline."""
+
+    before = hashlib.sha256(db_path.read_bytes()).hexdigest()
+    expensive_template = ApprovedMinnesotaQuery(
+        "expensive_aggregate",
+        "SELECT sum(a.id * b.id * c.id) FROM mn_summary a "
+        "CROSS JOIN mn_summary b CROSS JOIN mn_summary c",
+        frozenset({"mn_summary"}),
+    )
+    records: list[object] = []
+
+    result = asyncio.run(
+        MinnesotaSqlExecutor(
+            db_path,
+            [_view()],
+            [expensive_template],
+            timeout_seconds=0.001,
+            execution_logger=records.append,
+        ).execute(SqlInput(template_id="expensive_aggregate"))
+    )
+
+    assert result.status == "unavailable"
+    assert result.unavailable is not None
+    assert result.unavailable.reason == "SQL query exceeded the execution time limit"
+    assert records[0].outcome == "timed_out"
+    assert hashlib.sha256(db_path.read_bytes()).hexdigest() == before
+    follow_up = _execute(
+        MinnesotaSqlExecutor(db_path, [_view()]),
+        "SELECT count(*) FROM mn_summary",
+    )
+    assert follow_up.status == "available"
