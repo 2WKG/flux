@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from pipelines.common import fips5, utc_naive
+from pipelines.common import fips5, sha256_file, utc_naive
 from pipelines.db import log_artifact, replace_frame
 from pipelines.state_scope import scope
 
@@ -36,6 +36,7 @@ class NwsCrosswalkRelease:
     valid_from: datetime
     valid_until: datetime
     source_url: str
+    sha256: str
 
 
 def select_nws_crosswalk_release(
@@ -67,8 +68,13 @@ def _validate_nws_crosswalk_releases(
         raise ValueError("Storm Events zone expansion requires explicit NWS releases")
     ordered = tuple(sorted(releases, key=lambda release: release.valid_from))
     for release in ordered:
-        if not release.release or not release.source_url:
+        if not release.release or not release.source_url or not release.sha256:
             raise ValueError("NWS crosswalk releases require release and source_url")
+        if (
+            not Path(release.path).is_file()
+            or sha256_file(release.path) != release.sha256
+        ):
+            raise ValueError(f"NWS crosswalk bytes do not match {release.release}")
         if release.valid_from >= release.valid_until:
             raise ValueError(f"invalid NWS interval for {release.release}")
     for earlier, later in pairwise(ordered):
@@ -157,7 +163,7 @@ def load_storm_events(
         else:
             zone = str(int(event["CZ_FIPS"])).zfill(3)
             release = select_nws_crosswalk_release(
-                pd.Timestamp(event["BEGIN_DATE_TIME"]).to_pydatetime(), releases
+                utc_naive(event["BEGIN_DATE_TIME"], source_tz), releases
             )
             if release is None:
                 targets = []

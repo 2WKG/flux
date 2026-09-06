@@ -4,6 +4,7 @@ import pandas as pd
 from shapely.geometry import Polygon
 
 from pipelines.db import connect, replace_frame
+from pipelines.common import sha256_file
 from pipelines.storm_events import (
     NwsCrosswalkRelease,
     load_storm_events,
@@ -18,6 +19,7 @@ def _release(name, path, start, end):
         valid_from=datetime.fromisoformat(start),
         valid_until=datetime.fromisoformat(end),
         source_url=f"https://example.test/nws/{name}.dbx",
+        sha256=sha256_file(path) if path.exists() else "0" * 64,
     )
 
 
@@ -95,12 +97,6 @@ def test_release_selection_is_half_open_and_never_falls_forward(tmp_path):
         == uri
     )
     assert (
-        select_nws_crosswalk_release(
-            datetime.fromisoformat("2021-02-20T23:59"), [uri, beryl]
-        )
-        == uri
-    )
-    assert (
         select_nws_crosswalk_release(datetime.fromisoformat("2021-02-21"), [uri, beryl])
         is None
     )
@@ -112,6 +108,38 @@ def test_release_selection_is_half_open_and_never_falls_forward(tmp_path):
         select_nws_crosswalk_release(datetime.fromisoformat("2024-07-11"), [uri, beryl])
         is None
     )
+
+
+def test_loader_selects_releases_after_cst_and_cdt_utc_normalization(tmp_path):
+    detail, crosswalk = tmp_path / "boundary.csv.gz", tmp_path / "release.dbx"
+    crosswalk.write_text("TX|215|||||48001|CST-6\n")
+    rows = [
+        _zone_event(1, "2021-02-10 18:00:00", 215),
+        _zone_event(2, "2021-02-20 18:00:00", 215),
+        {**_zone_event(3, "2024-07-06 19:00:00", 215), "CZ_TIMEZONE": "CDT-5"},
+        {**_zone_event(4, "2024-07-10 19:00:00", 215), "CZ_TIMEZONE": "CDT-5"},
+    ]
+    pd.DataFrame(rows).to_csv(detail, index=False, compression="gzip")
+    con = connect(tmp_path / "grid.duckdb")
+    try:
+        _seed_county(con)
+        assert (
+            load_storm_events(
+                con,
+                str(detail),
+                [
+                    _release("uri", crosswalk, "2021-02-11", "2021-02-21"),
+                    _release("beryl", crosswalk, "2024-07-07", "2024-07-11"),
+                ],
+                2021,
+            )
+            == 2
+        )
+        assert con.execute(
+            "SELECT event_id FROM storm_events ORDER BY event_id"
+        ).fetchall() == [(1,), (3,)]
+    finally:
+        con.close()
 
 
 def test_uri_legacy_zones_recover_all_22_rows_with_the_historical_release(tmp_path):

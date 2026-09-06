@@ -91,6 +91,7 @@ def _nws_crosswalk_releases(
                 valid_from=datetime.fromisoformat(entry["valid_from"]),
                 valid_until=datetime.fromisoformat(entry["valid_until"]),
                 source_url=entry["source_url"],
+                sha256=entry["sha256"],
             )
             for entry in entries
         )
