@@ -1,0 +1,20 @@
+{
+  "retrieved_at": "2026-09-06T04:40:00Z",
+  "provider": "U.S. Energy Information Administration",
+  "source_url": "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/",
+  "vintage": "EIA-930 2021 Jan-Jun and 2024 Jul-Dec captures",
+  "license_access": "U.S. government public data",
+  "files": {
+    "EIA930_BALANCE_2021_Jan_Jun.csv": {"bytes": 43073764, "sha256": "40b183f333e0f3edc1b9a2ed48b792eff00fd477915dae79ce5784e862380f7f", "etag": "\"0113cee433ddd1:0\"", "last_modified": "2026-09-05T14:36:26Z"},
+    "EIA930_BALANCE_2024_Jul_Dec.csv": {"bytes": 47928993, "sha256": "a602a8e577cfdd2fa3083413eaa4dd8ba7f0d2b26a2986f8f6d22917465ea49f", "etag": "\"802bac6443ddd1:0\"", "last_modified": "2026-09-05T14:37:07Z"}
+  },
+  "validation": {
+    "loader": "pipelines.eia930.load_eia930",
+    "scope": "ERCO, EPE, SWPP, MISO",
+    "rows_loaded": 35040,
+    "each_ba_hours": 8760,
+    "erco": {"2021_h1_rows": 4343, "2021_h1_utc_range": "2021-01-01T07:00Z..2021-07-01T05:00Z", "2024_h2_rows": 4417, "2024_h2_utc_range": "2024-07-01T06:00Z..2025-01-01T06:00Z", "bad_utc_timestamps": 0, "duplicate_timestamps": 0, "demand_nulls": 0},
+    "result": "passed"
+  },
+  "uncertainty": "These upstream URLs are mutable captures, so this receipt records the retrieval time, HTTP validators, byte counts, and SHA-256 values. EIA-930 is balancing-authority aggregate context, not nodal telemetry or topology."
+}

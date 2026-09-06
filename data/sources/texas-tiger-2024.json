@@ -1,0 +1,21 @@
+{
+  "retrieved_at": "2026-09-06T04:37:05Z",
+  "provider": "U.S. Census Bureau",
+  "source_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
+  "vintage": "TIGER/Line 2024",
+  "license_access": "U.S. government public data",
+  "files": {
+    "tl_2024_us_county.zip": {
+      "bytes": 83913260,
+      "sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b"
+    }
+  },
+  "validation": {
+    "loader": "pipelines.counties.load_counties",
+    "scope": "TX",
+    "curated_crs": "EPSG:4326",
+    "texas_counties_loaded": 254,
+    "result": "passed"
+  },
+  "uncertainty": "This receipt validates county geometry intake only. County boundaries do not establish electrical topology or service connections."
+}

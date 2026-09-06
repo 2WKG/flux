@@ -52,3 +52,11 @@ The inventory's synthetic-topology caveat is binding: ACTIVSg2000 is a
 synthetic Texas-shaped network, not the real ERCOT network. A public geometry
 or nearest synthetic-bus association never establishes real electrical
 connectivity or a service connection.
+
+Validated public source receipts have checked-in retrieval and loader
+evidence. Their exact hashes, coverage checks, reproduction commands, and
+remaining P0 gaps are in
+[`texas-p0-curated-source-receipts.md`](texas-p0-curated-source-receipts.md).
+The asset semantic crosswalk is separately recorded in
+[`texas-asset-taxonomy.md`](texas-asset-taxonomy.md); it does not promote a
+source artifact to a real-grid claim.
