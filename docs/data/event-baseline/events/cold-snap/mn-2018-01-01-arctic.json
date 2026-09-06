@@ -47,7 +47,14 @@
       "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
       "gaps": [
         "Raw binary hash and bytes not retained."
-      ]
+      ],
+      "capture_method": "metadata-only reference; retained raw and filtered artifacts unavailable",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No retained response body was available in this collection pass."
+      },
+      "files": {},
+      "uncertainty": "Raw and filtered artifacts were not retained; this receipt supports only the stated report context."
     },
     {
       "receipt_id": "eaglei-2018-42547879-20180101t120000-20180101t180000",
@@ -81,7 +88,32 @@
         "source_sidecar_sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd",
         "filtered_artifact_uri": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
         "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
-      }
+      },
+      "capture_method": "exhaustive_annual_stream",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+          "bytes": null,
+          "sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70"
+        },
+        "source_sidecar": {
+          "url": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+          "bytes": null,
+          "sha256": "7fb25c790d868a3b4c9e29c692436aef364e179c72eab7f0cd696343f7fbf3bd"
+        },
+        "filtered": {
+          "url": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
+          "bytes": null,
+          "sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
     }
   ],
   "records": [
@@ -167,6 +199,7 @@
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

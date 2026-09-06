@@ -47,7 +47,14 @@
       "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
       "gaps": [
         "Raw binary hash and bytes not retained."
-      ]
+      ],
+      "capture_method": "metadata-only reference; retained raw and filtered artifacts unavailable",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No retained response body was available in this collection pass."
+      },
+      "files": {},
+      "uncertainty": "Raw and filtered artifacts were not retained; this receipt supports only the stated report context."
     },
     {
       "receipt_id": "eaglei-2020-42547894-20200213t000000-20200213t060000",
@@ -81,7 +88,32 @@
         "source_sidecar_sha256": "6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9",
         "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2020-02-12-arctic-27149-20200213000000_eaglei_2020_20200213T000000_20200213T060000.csv",
         "filtered_artifact_sha256": "43fb999193d6f81d5b6f381558300d2a897d9621a51ed949b883dfc0816a3893"
-      }
+      },
+      "capture_method": "exhaustive_annual_stream",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+          "bytes": 1170699724,
+          "sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a"
+        },
+        "source_sidecar": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+          "bytes": 1106,
+          "sha256": "6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9"
+        },
+        "filtered": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2020-02-12-arctic-27149-20200213000000_eaglei_2020_20200213T000000_20200213T060000.csv",
+          "bytes": 99,
+          "sha256": "43fb999193d6f81d5b6f381558300d2a897d9621a51ed949b883dfc0816a3893"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
     }
   ],
   "records": [
@@ -167,6 +199,7 @@
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

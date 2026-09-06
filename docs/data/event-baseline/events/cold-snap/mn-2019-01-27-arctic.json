@@ -7,7 +7,9 @@
     "primary_hazard": "extreme_cold",
     "secondary_hazards": [],
     "compound": false,
-    "source_event_ids": ["800140"],
+    "source_event_ids": [
+      "800140"
+    ],
     "context_window": {
       "start_utc": "2019-01-25T00:00:00Z",
       "end_utc": "2019-02-03T00:00:00Z"
@@ -58,7 +60,32 @@
         "source_sidecar_sha256": "cf782848b2a11f9e2c6cb8ac42187f0f3d155322aace956abdb33572c8278cf9",
         "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/ncei_stormevents_2019_event_800140.csv",
         "filtered_artifact_sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6"
-      }
+      },
+      "capture_method": "retained_ncei_annual_gzip_exact_event_id_filter",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz",
+          "bytes": 11602648,
+          "sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b"
+        },
+        "source_sidecar": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz.source.json",
+          "bytes": 983,
+          "sha256": "cf782848b2a11f9e2c6cb8ac42187f0f3d155322aace956abdb33572c8278cf9"
+        },
+        "filtered": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/ncei_stormevents_2019_event_800140.csv",
+          "bytes": 4473,
+          "sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
     },
     {
       "receipt_id": "eaglei-2019-42547885-mn-2019-01-27-arctic-27053-20190130120000-20190130t120000-20190130t180000",
@@ -92,7 +119,32 @@
         "source_sidecar_sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51",
         "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2019-01-27-arctic-27053-20190130120000_eaglei_2019_20190130T120000_20190130T180000.csv",
         "filtered_artifact_sha256": "dd93c66715b3d1a6f96e442ec1a608522b11b62693f33e8e78da15c0a9d2ed69"
-      }
+      },
+      "capture_method": "exhaustive_annual_stream",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+          "bytes": 1102778792,
+          "sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27"
+        },
+        "source_sidecar": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+          "bytes": 1106,
+          "sha256": "74ef3391062241f008e0bb20017d1a6d7c4b99873ce059028d8c025356681d51"
+        },
+        "filtered": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2019-01-27-arctic-27053-20190130120000_eaglei_2019_20190130T120000_20190130T180000.csv",
+          "bytes": 1224,
+          "sha256": "dd93c66715b3d1a6f96e442ec1a608522b11b62693f33e8e78da15c0a9d2ed69"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
     }
   ],
   "records": [
@@ -185,6 +237,7 @@
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

@@ -50,7 +50,14 @@
       "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
       "gaps": [
         "Raw binary hash and bytes not retained."
-      ]
+      ],
+      "capture_method": "metadata-only reference; retained raw and filtered artifacts unavailable",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No retained response body was available in this collection pass."
+      },
+      "files": {},
+      "uncertainty": "Raw and filtered artifacts were not retained; this receipt supports only the stated report context."
     },
     {
       "receipt_id": "eaglei-2022-42547897-20221223t120000-20221223t180000",
@@ -84,7 +91,32 @@
         "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
         "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2022-12-21-arctic-27053-20221223120000_eaglei_2022_20221223T120000_20221223T180000.csv",
         "filtered_artifact_sha256": "3fec0af6ebeef4d8274397b27bdcd2e3145fb8dda872030f877d29f79c13630b"
-      }
+      },
+      "capture_method": "exhaustive_annual_stream",
+      "verification": {
+        "sha256_computed_from_response_body": true,
+        "decoded_field_identity_checked": true,
+        "row_count_checked": true,
+        "notes": "Retained raw and filtered artifacts are enumerated in files."
+      },
+      "files": {
+        "raw": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+          "bytes": 1187596176,
+          "sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0"
+        },
+        "source_sidecar": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+          "bytes": 1106,
+          "sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08"
+        },
+        "filtered": {
+          "url": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2022-12-21-arctic-27053-20221223120000_eaglei_2022_20221223T120000_20221223T180000.csv",
+          "bytes": 785,
+          "sha256": "3fec0af6ebeef4d8274397b27bdcd2e3145fb8dda872030f877d29f79c13630b"
+        }
+      },
+      "uncertainty": "None beyond the receipt-specific gaps."
     }
   ],
   "records": [
@@ -178,6 +210,7 @@
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "UncoveredLabel",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
