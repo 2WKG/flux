@@ -15,6 +15,8 @@
 > disagreed with what `master` implements, what the code does, and how it was resolved. Read the
 > ledger before trusting a contract claim in any spec below.
 
+> **Visual and interaction direction.** [UI style guide](../design/ui-style-guide.md) and its [token reference](../design/ui-tokens.css) guide presentation only; they do not supersede the authority lattice or define API, data, geography, scenario, or provenance contracts.
+
 Product name: **Flux** (the repository and package stay `flux`; see `00-overview.md` amendment A8 and the retained pitch document).
 Headline: **state-configurable grid resilience analysis: outage context, synthetic-topology analysis where validated, and siting**. The repository's Texas / ACTIVSg2000 / ERCOT topology adapter requires its source artifacts and build; other states require their own validated source artifacts and configuration.
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the

@@ -122,6 +122,24 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             404,
         ),
     ),
+    ("GET", "/api/v1/grid/layers/{layer}"): RouteContract(
+        success=Cell(
+            "copilot/test_physical_layers.py::test_tx_lines_are_real_http_pages_with_release_bound_cursor",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_physical_layers.py::test_invalid_viewport_and_unknown_physical_layer_use_shared_errors",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_physical_layers.py::test_missing_release_is_explicitly_unavailable",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_physical_layers.py::test_invalid_viewport_and_unknown_physical_layer_use_shared_errors",
+            404,
+        ),
+    ),
     ("POST", "/site-score"): RouteContract(
         success=Cell(
             "copilot/test_interventions.py::test_site_read_is_server_side_and_unqualified_comparison_is_unavailable",
@@ -174,10 +192,9 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_interventions.py::test_critical_elements_use_persisted_values_with_stable_paging",
             200,
         ),
-        invalid=Gap(
-            "2WKG-422: region/n/offset are bounded by Query constraints "
-            "(copilot/routes/comparisons.py:571), but no test pins the 422 envelope "
-            "for an out-of-bounds page."
+        invalid=Cell(
+            "copilot/test_interventions.py::test_critical_elements_rejects_an_out_of_bounds_page_with_shared_envelope",
+            422,
         ),
         unavailable=Cell(
             "copilot/test_interventions.py::test_canonical_unavailable_critical_manifest_needs_no_domain_row",
@@ -352,9 +369,7 @@ def test_every_contract_gap_cites_a_tracking_key() -> None:
     ]
     for route, state, slot in gaps:
         assert "2WKG-" in slot.reason, (route, state)
-    assert {(route, state) for route, state, _ in gaps} == {
-        (("GET", "/elements/critical"), "invalid"),
-    }
+    assert not gaps
 
 
 def test_every_unreachable_cell_states_a_reason() -> None:

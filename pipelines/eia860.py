@@ -208,12 +208,16 @@ def load_eia860_plants(
                 ),
             ],
         )
+    # The plant slice is replaced per state, so its acquisition evidence is
+    # scope-keyed too. Without it a second state's load would take the first
+    # state's `ingest_log` row (INSERT OR REPLACE keys on source/release).
     log_artifact(
         con,
         source="pudl_eia860",
         source_release=release,
         path=plants_path,
         rows_loaded=rows,
+        scope_key=selected_scope.slug,
         schema_fingerprint="out_eia__yearly_plants version-pinned",
     )
     log_artifact(

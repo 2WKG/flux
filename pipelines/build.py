@@ -240,7 +240,26 @@ def _build_mutating(
     return counts
 
 
-def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> dict:
+def _stored_state_scope(con, fallback_states=None) -> str:
+    """Return the canonical scope represented by the database's counties.
+
+    The release manifest describes the promoted database, rather than merely
+    the most recent loader invocation.  Context builds add counties to a
+    Texas store, so using their requested state alone would under-report the
+    published artifact.
+    """
+    states = [
+        row[0]
+        for row in con.execute(
+            "SELECT DISTINCT state FROM counties ORDER BY state"
+        ).fetchall()
+    ]
+    return scope(states if states else fallback_states).slug
+
+
+def _write_stage_manifest(
+    stage_db: Path, stage_parquet: Path, fallback_states=None
+) -> dict:
     """Describe the staged release before it is checked and promoted.
 
     The manifest is stored in the staged database and written next to the
@@ -248,7 +267,9 @@ def _write_stage_manifest(stage_db: Path, stage_parquet: Path, states=None) -> d
     """
     con = connect(stage_db)
     try:
-        manifest = build_manifest(con, state_scope=scope(states).slug)
+        manifest = build_manifest(
+            con, state_scope=_stored_state_scope(con, fallback_states)
+        )
         store_manifest(con, manifest)
     finally:
         con.close()
@@ -397,7 +418,20 @@ def main() -> int:
     parser.add_argument(
         "--states",
         action="append",
-        help="USPS codes, full names, FIPS, or comma-separated state scope (default: Texas)",
+        help=(
+            "USPS codes, full names, FIPS, or comma-separated state scope "
+            "(default: Texas). This builder always loads the ACTIVSg2000 "
+            "synthetic topology (buses/lines/gens/loads) unconditionally, so a "
+            "scope that omits Texas will still populate that Texas topology and "
+            "then fail pipelines.checks.run_checks' synthetic-topology-absent "
+            "check. Adding a real, solver-complete non-Texas topology is out of "
+            "scope here (2WKG-419/2WKG-362); a non-Texas-only scope is accepted "
+            "for public-context ingestion (counties, NRI, storm events, "
+            "EAGLE-I, DoD facilities) but not for a standalone topology build. "
+            "Use `python -m pipelines.build_state_context --state <STATE> ...` "
+            "instead for a non-Texas state: it loads the same public-context "
+            "sources into the shared database without touching topology."
+        ),
     )
     args = parser.parse_args()
     counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.states)
