@@ -185,6 +185,23 @@ def test_operations_alignment_blocks_dashboard_when_curated_source_has_no_canoni
     assert result["unoperated_source_ids"] == ["unknown-source"]
 
 
+def test_operations_alignment_accepts_declared_loader_to_operation_mapping(tmp_path):
+    database = tmp_path / "grid.duckdb"
+    con = connect(database)
+    try:
+        con.execute(
+            """INSERT INTO counties (county_fips, name, state, pop, geom_wkb, source_name, source_ref, fixture_batch_id)
+               VALUES ('48001', 'fixture', 'TX', 1, 'x', 'eia930', 'x', 'fixture')"""
+        )
+    finally:
+        con.close()
+
+    result = preflight._operation_id_alignment(database)
+
+    assert result["status"] == "ready"
+    assert result["mapped_operation_ids"] == ["eia-930"]
+
+
 def test_non_texas_context_is_state_configurable_but_never_implies_topology(tmp_path):
     tiger, nri = tmp_path / "counties.zip", tmp_path / "nri.zip"
     tiger.write_bytes(b"county-boundaries")

@@ -21,6 +21,10 @@ import duckdb
 
 from pipelines.checks import run_checks
 from pipelines.common import sha256_file
+from pipelines.data_quality import (
+    _curated_source_mappings,
+    _operation_ids_for_curated_source,
+)
 from pipelines.db import SCHEMA_VERSION, TABLE_COLUMNS
 from pipelines.state_scope import StateScope, StateScopeError, scope
 
@@ -295,24 +299,41 @@ def _operation_id_alignment(database: Path) -> dict[str, Any]:
     try:
         operations = json.loads(OPERATIONS_PATH.read_text(encoding="utf-8"))
         operation_ids = {str(item["id"]) for item in operations["sources"]}
-    except (OSError, KeyError, TypeError, json.JSONDecodeError) as error:
+        mappings = _curated_source_mappings(operations)
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as error:
         return {"status": "unavailable", "reason": f"invalid operations metadata: {error}"}
     con = duckdb.connect(str(database), read_only=True)
     try:
-        union = " UNION ALL ".join(f"SELECT source_name FROM {table}" for table in TABLE_COLUMNS)
-        curated = {row[0] for row in con.execute(f"SELECT DISTINCT source_name FROM ({union})").fetchall()}
+        union = " UNION ALL ".join(
+            f"SELECT source_name, source_version FROM {table}" for table in TABLE_COLUMNS
+        )
+        curated = {
+            (row[0], row[1])
+            for row in con.execute(f"SELECT DISTINCT source_name, source_version FROM ({union})").fetchall()
+        }
     except duckdb.Error as error:
         return {"status": "unavailable", "reason": str(error)}
     finally:
         con.close()
-    unoperated = sorted(curated - operation_ids)
+    unoperated, mapped = [], set()
+    for source_name, source_version in sorted(curated, key=lambda item: (item[0], item[1] or "")):
+        mapping = _operation_ids_for_curated_source(
+            source_name, source_version, operated_ids=operation_ids, mappings=mappings
+        )
+        if mapping is None:
+            unoperated.append(
+                source_name if source_version is None else f"{source_name}@{source_version}"
+            )
+        else:
+            mapped.update(mapping[0])
     return {
         "status": "ready" if not unoperated else "blocked",
-        "curated_source_ids": sorted(curated),
+        "curated_source_ids": sorted({source_name for source_name, _ in curated}),
+        "mapped_operation_ids": sorted(mapped),
         "unoperated_source_ids": unoperated,
         "reason": (
-            "Every curated source has an operations ID."
-            if not unoperated else "Dashboard release is blocked: curated source_name values lack matching datasets/operations.json IDs."
+            "Every curated source/version has a declared operations mapping."
+            if not unoperated else "Dashboard release is blocked: curated source_name/source_version values lack matching datasets/operations.json mappings."
         ),
     }
 
