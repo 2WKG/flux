@@ -16,6 +16,12 @@ from fastapi.testclient import TestClient
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.persisted_fixtures import persisted_site_database
+from copilot.tools.schemas import (
+    CriticalElement,
+    CriticalElementsData,
+    Intervention,
+    InterventionsData,
+)
 from pipelines.minnesota_schema import SCHEMA_VERSION, ensure_minnesota_schema
 
 
@@ -25,6 +31,31 @@ def client(path: Path) -> TestClient:
 
 def db(path: Path, **kwargs: object) -> None:
     persisted_site_database(Path(path), **kwargs)  # type: ignore[arg-type]
+
+
+def comparison_components(
+    intervention_id: str,
+    *,
+    scenario_id: str = "mn_fixture",
+    baseline_run_id: str = "run-baseline",
+    run_id: str = "run-with",
+    lol_reduction_mwh: float = 3.0,
+    customer_hours_avoided: float = 12.0,
+    critical_loads_protected: tuple[str, ...] = ("cl-1",),
+) -> str:
+    """The persisted component payload the A8 comparison shape is read from."""
+
+    return json.dumps(
+        {
+            "scenario_id": scenario_id,
+            "intervention_id": intervention_id,
+            "baseline_run_id": baseline_run_id,
+            "run_id": run_id,
+            "lol_reduction_mwh": lol_reduction_mwh,
+            "customer_hours_avoided": customer_hours_avoided,
+            "critical_loads_protected": list(critical_loads_protected),
+        }
+    )
 
 
 def score_artifact(
@@ -148,7 +179,17 @@ def test_site_read_is_server_side_and_unqualified_comparison_is_unavailable(
         json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
     )
     assert comparison.status_code == 503
-    assert comparison.json()["error"]["details"]["reason"] == "missing"
+    assert comparison.json()["error"]["details"]["reason"] == "no_qualified_result"
+
+    # The mn_* namespace absent entirely is a distinct, separately named state.
+    absent = tmp_path / "absent.duckdb"
+    db(absent, with_minnesota=False)
+    without_tables = client(absent).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert without_tables.status_code == 503
+    assert without_tables.json()["error"]["details"]["reason"] == "missing"
 
 
 def test_comparison_reads_a_qualified_persisted_score_without_deriving_a_delta(
@@ -159,7 +200,7 @@ def test_comparison_reads_a_qualified_persisted_score_without_deriving_a_delta(
     score_artifact(
         path,
         "mn:score:0000000000000001",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        components=comparison_components("site:1@300"),
     )
 
     response = client(path).post(
@@ -168,14 +209,24 @@ def test_comparison_reads_a_qualified_persisted_score_without_deriving_a_delta(
     )
 
     assert response.status_code == 200
-    intervention = response.json()["interventions"][0]
-    assert intervention["score_value"] == 3.0
-    assert intervention["scenario_id"] == "mn_fixture"
+    body = response.json()
+    intervention = body["interventions"][0]
     assert intervention["intervention_id"] == "site:1@300"
-    assert intervention["provenance"][0]["source_name"] == "fixture:synthetic"
-    assert intervention["model_mode"] == "topology"
-    assert intervention["limitations"] == ["fixture limitation"]
-    assert response.json()["comparison_status"] == "persisted_scores_not_derived_deltas"
+    assert intervention["kind"] == "site"
+    assert intervention["run_id"] == "run-with"
+    assert intervention["lol_reduction_mwh"] == 3.0
+    assert intervention["customer_hours_avoided"] == 12.0
+    assert intervention["critical_loads_protected"] == ["cl-1"]
+    assert body["baseline_run_id"] == "run-baseline"
+    assert body["assumptions"] == []
+    evidence = body["evidence"][0]
+    assert evidence["score_value"] == 3.0
+    assert evidence["scenario_id"] == "mn_fixture"
+    assert evidence["intervention_id"] == "site:1@300"
+    assert evidence["provenance"][0]["source_name"] == "fixture:synthetic"
+    assert evidence["model_mode"] == "topology"
+    assert evidence["limitations"] == ["fixture limitation"]
+    assert body["comparison_status"] == "persisted_scores_not_derived_deltas"
 
 
 def test_aggregate_comparison_is_explicitly_unsupported(tmp_path: Path) -> None:
@@ -185,7 +236,7 @@ def test_aggregate_comparison_is_explicitly_unsupported(tmp_path: Path) -> None:
         path,
         "mn:score:0000000000000002",
         mode="aggregate",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        components=comparison_components("site:1@300"),
     )
 
     response = client(path).post(
@@ -202,7 +253,7 @@ def test_line_comparison_reads_a_named_persisted_score(tmp_path: Path) -> None:
     score_artifact(
         path,
         "mn:score:0000000000000003",
-        components='{"scenario_id":"mn_fixture","intervention_id":"line:line-1"}',
+        components=comparison_components("line:line-1"),
     )
 
     response = client(path).post(
@@ -221,12 +272,12 @@ def test_unrelated_invalid_score_does_not_poison_a_qualified_comparison(
     score_artifact(
         path,
         "mn:score:0000000000000005",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        components=comparison_components("site:1@300"),
     )
     score_artifact(
         path,
         "mn:score:0000000000000006",
-        components='{"scenario_id":"another_scenario","intervention_id":"site:9@300"}',
+        components=comparison_components("site:9@300", scenario_id="another_scenario"),
     )
     with duckdb.connect(str(path)) as con:
         con.execute(
@@ -239,10 +290,8 @@ def test_unrelated_invalid_score_does_not_poison_a_qualified_comparison(
         json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
     )
     assert response.status_code == 200
-    assert (
-        response.json()["interventions"][0]["artifact_id"]
-        == "mn:score:0000000000000005"
-    )
+    assert response.json()["evidence"][0]["artifact_id"] == "mn:score:0000000000000005"
+    assert response.json()["interventions"][0]["intervention_id"] == "site:1@300"
 
 
 def test_critical_elements_use_persisted_values_with_stable_paging(
@@ -250,9 +299,12 @@ def test_critical_elements_use_persisted_values_with_stable_paging(
 ) -> None:
     path = tmp_path / "critical.duckdb"
     db(path)
+    # Inserted against both the primary sort and the tie-break: `line-b` ties
+    # `line-a` on score_value and is stored first, so physical order cannot
+    # produce the asserted sequence and a non-unique tie-break cannot fake it.
     for artifact_id, element_id, score in (
-        ("mn:score:000000000000000a", "line-a", 5.0),
         ("mn:score:000000000000000b", "line-b", 5.0),
+        ("mn:score:000000000000000a", "line-a", 5.0),
         ("mn:score:000000000000000c", "line-c", 2.0),
     ):
         score_artifact(
@@ -273,9 +325,10 @@ def test_critical_elements_use_persisted_values_with_stable_paging(
         "line-a",
         "line-b",
     ]
-    assert first_page.json()["elements"][0]["scenario_id"] == "mn_fixture"
-    assert first_page.json()["elements"][0]["provenance"]
-    assert first_page.json()["elements"][0]["limitations"] == ["fixture limitation"]
+    assert first_page.json()["scenario_ids"] == ["mn_fixture"]
+    assert first_page.json()["evidence"][0]["scenario_id"] == "mn_fixture"
+    assert first_page.json()["evidence"][0]["provenance"]
+    assert first_page.json()["evidence"][0]["limitations"] == ["fixture limitation"]
     assert first_page.json()["partial"] is False
 
     second_page = client(path).get(
@@ -283,6 +336,17 @@ def test_critical_elements_use_persisted_values_with_stable_paging(
     )
     assert second_page.status_code == 200
     assert [item["element_id"] for item in second_page.json()["elements"]] == ["line-c"]
+
+    # Walking one row at a time must partition the relation exactly: no repeat,
+    # no omission, and the tied pair in the documented artifact_id order.
+    walked = []
+    for offset in range(3):
+        page = client(path).get(
+            "/elements/critical", params={"region": "mn", "n": 1, "offset": offset}
+        )
+        assert page.status_code == 200
+        walked.extend(item["element_id"] for item in page.json()["elements"])
+    assert walked == ["line-a", "line-b", "line-c"]
 
 
 def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
@@ -301,7 +365,13 @@ def test_missing_and_invalid_comparison_inputs_are_not_empty_successes(
     )
     critical = client(path).get("/elements/critical", params={"region": "mn"})
     assert critical.status_code == 503
-    assert critical.json()["error"]["details"]["reason"] == "missing"
+    assert critical.json()["error"]["details"]["reason"] == "no_qualified_result"
+
+    absent = tmp_path / "absent.duckdb"
+    db(absent, with_minnesota=False)
+    without_tables = client(absent).get("/elements/critical", params={"region": "mn"})
+    assert without_tables.status_code == 503
+    assert without_tables.json()["error"]["details"]["reason"] == "missing"
     for identifier in ("site:", "site:1@not-a-number", "site:1@200"):
         assert (
             client(path)
@@ -345,7 +415,7 @@ def test_unrelated_unavailable_manifest_does_not_poison_available_comparison(
     score_artifact(
         path,
         "mn:score:0000000000000007",
-        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+        components=comparison_components("site:1@300"),
     )
     unavailable_score_manifest(
         path,
@@ -554,3 +624,277 @@ def test_underivable_topology_label_is_unavailable_not_a_null_in_a_200(tmp_path:
     )
     assert response.status_code == 503
     assert response.json()["error"]["details"]["reason"] == "topology_label_unavailable"
+
+
+def test_site_score_missing_database_is_unavailable(tmp_path: Path) -> None:
+    """Restored with #196: /site-score against an absent database is a 503."""
+
+    response = client(tmp_path / "none.duckdb").post(
+        "/site-score", json={"site_id": "1", "unit_mw": 300, "scenario_id": "x"}
+    )
+    assert response.status_code == 503
+    assert response.json()["status"] == "unavailable"
+
+
+def test_site_score_capacity_bound_is_a_validation_error(tmp_path: Path) -> None:
+    """Restored with #196: unit_mw is Literal[300, 1000], not any int."""
+
+    path = tmp_path / "capacity.duckdb"
+    db(path)
+    assert (
+        client(path)
+        .post(
+            "/site-score",
+            json={"site_id": "1", "unit_mw": 200, "scenario_id": "mn_fixture"},
+        )
+        .status_code
+        == 422
+    )
+    assert (
+        client(path)
+        .post(
+            "/site-score",
+            json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+        )
+        .status_code
+        == 200
+    )
+
+
+def test_compare_payload_validates_against_the_frozen_a8_contract(
+    tmp_path: Path,
+) -> None:
+    """The A8 half of the /compare body is exactly `InterventionsData`.
+
+    The body is a superset: it adds the `evidence` list and `comparison_status`
+    this route documents in docs/specs/05-copilot.md.  Every field the frozen
+    contract declares is projected here and validated by the frozen model
+    itself, so a shape drift is a failure rather than a silent divergence.
+    The scenario is one of the four `ScenarioId` values the frozen contract
+    admits; a Minnesota scenario id is covered by the spec'd widening.
+    """
+
+    path = tmp_path / "a8.duckdb"
+    db(path, scenario_id="uri_2021")
+    score_artifact(
+        path,
+        "mn:score:00000000000000a8",
+        components=comparison_components("site:1@300", scenario_id="uri_2021"),
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "uri_2021", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 200
+    body = response.json()
+
+    # `unavailable` is absent because this is an available result; every other
+    # frozen field, `provenance` included, is present and persisted.
+    assert set(InterventionsData.model_fields) - set(body) == {"unavailable"}
+    assert body["provenance"][0]["source_kind"] == "fixture"
+    projected = {
+        name: body[name] for name in InterventionsData.model_fields if name in body
+    }
+    data = InterventionsData.model_validate(projected)
+    assert data.scenario_id == "uri_2021"
+    assert data.baseline_run_id == "run-baseline"
+    assert data.interventions[0] == Intervention(
+        intervention_id="site:1@300",
+        kind="site",
+        run_id="run-with",
+        lol_reduction_mwh=3.0,
+        customer_hours_avoided=12.0,
+        critical_loads_protected=["cl-1"],
+    )
+
+
+def test_critical_elements_payload_validates_against_the_frozen_a8_contract(
+    tmp_path: Path,
+) -> None:
+    """The A8 half of the /elements/critical body is `CriticalElementsData`.
+
+    `scenario_ids` was absent entirely before this test existed, so the payload
+    could not validate at all.
+    """
+
+    path = tmp_path / "a8-critical.duckdb"
+    db(path, scenario_id="uri_2021")
+    score_artifact(
+        path,
+        "mn:score:00000000000000c8",
+        metric="critical_element",
+        score=5.0,
+        components=json.dumps(
+            {
+                "scenario_id": "uri_2021",
+                "element_id": "line-a",
+                "kind": "line",
+                "critical_loads_lost": ["cl-1"],
+                "runs": 2,
+            }
+        ),
+    )
+
+    response = client(path).get("/elements/critical", params={"region": "mn", "n": 1})
+    assert response.status_code == 200
+    body = response.json()
+
+    assert set(CriticalElementsData.model_fields) - set(body) == {"unavailable"}
+    assert body["provenance"][0]["source_kind"] == "fixture"
+    projected = {
+        name: body[name] for name in CriticalElementsData.model_fields if name in body
+    }
+    data = CriticalElementsData.model_validate(projected)
+    assert data.scenario_ids == ["uri_2021"]
+    assert data.elements[0] == CriticalElement(
+        element_id="line-a",
+        kind="line",
+        lost_load_mw=5.0,
+        critical_loads_lost=["cl-1"],
+        runs=2,
+    )
+
+
+def test_comparison_without_persisted_a8_components_is_named_not_defaulted(
+    tmp_path: Path,
+) -> None:
+    """A persisted score with no delta fields is unavailable, never zeroes."""
+
+    path = tmp_path / "no-delta.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:00000000000000d0",
+        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 503
+    details = response.json()["error"]["details"]
+    assert details["reason"] == "persisted_delta_unavailable"
+    assert details["field"] == "lol_reduction_mwh"
+    assert details["intervention_id"] == "site:1@300"
+
+
+def test_two_qualified_artifacts_for_one_intervention_are_ambiguous(
+    tmp_path: Path,
+) -> None:
+    """Duplicate qualified scores must be named, never last-write-wins."""
+
+    path = tmp_path / "duplicate.duckdb"
+    db(path)
+    for artifact_id, lol in (
+        ("mn:score:00000000000000aa", 1.0),
+        ("mn:score:00000000000000bb", 99.0),
+    ):
+        score_artifact(
+            path,
+            artifact_id,
+            score=lol,
+            components=comparison_components("site:1@300", lol_reduction_mwh=lol),
+        )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "ambiguous_identity"
+
+
+def test_disagreeing_baselines_are_ambiguous_not_silently_mixed(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "baselines.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:00000000000000b1",
+        components=comparison_components("site:1@300", baseline_run_id="run-a"),
+    )
+    score_artifact(
+        path,
+        "mn:score:00000000000000b2",
+        components=comparison_components("line:line-1", baseline_run_id="run-b"),
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={
+            "scenario_id": "mn_fixture",
+            "intervention_ids": ["site:1@300", "line:line-1"],
+        },
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "ambiguous_identity"
+
+
+def test_partial_comparison_is_never_a_200_with_fewer_rows(tmp_path: Path) -> None:
+    """Two qualified artifacts for a three-id request is a named failure."""
+
+    path = tmp_path / "partial.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:00000000000000p1",
+        components=comparison_components("site:1@300"),
+    )
+    score_artifact(
+        path,
+        "mn:score:00000000000000p2",
+        components=comparison_components("line:line-1"),
+    )
+
+    response = client(path).post(
+        "/compare",
+        json={
+            "scenario_id": "mn_fixture",
+            "intervention_ids": ["site:1@300", "line:line-1", "line:line-2"],
+        },
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "no_qualified_result"
+    assert response.json()["data"] is None
+
+
+def test_critical_partial_counts_the_relation_not_the_page(tmp_path: Path) -> None:
+    """`partial` means "fewer than n have any persisted run", not "page ended"."""
+
+    path = tmp_path / "critical-partial.duckdb"
+    db(path)
+    for artifact_id, element_id in (
+        ("mn:score:00000000000000e1", "line-a"),
+        ("mn:score:00000000000000e2", "line-b"),
+    ):
+        score_artifact(
+            path,
+            artifact_id,
+            metric="critical_element",
+            score=5.0,
+            components=json.dumps(
+                {
+                    "scenario_id": "mn_fixture",
+                    "element_id": element_id,
+                    "kind": "line",
+                    "critical_loads_lost": ["cl-1"],
+                    "runs": 2,
+                }
+            ),
+        )
+
+    # A last page shorter than n is NOT partial: the relation has enough rows.
+    last_page = client(path).get(
+        "/elements/critical", params={"region": "mn", "n": 2, "offset": 1}
+    )
+    assert last_page.status_code == 200
+    assert len(last_page.json()["elements"]) == 1
+    assert last_page.json()["partial"] is False
+
+    # Asking for more elements than the relation holds IS partial.
+    over = client(path).get("/elements/critical", params={"region": "mn", "n": 3})
+    assert over.status_code == 200
+    assert over.json()["partial"] is True
