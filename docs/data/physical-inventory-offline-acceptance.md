@@ -23,3 +23,8 @@ The receipt is only an offline artifact-to-normalized-inventory proof. It always
 marks spatial API transport, viewport rendering, selection, inspector, and
 browser interaction `NOT VERIFIED`. It cannot complete 2WKG-439, 2WKG-458, or
 2WKG-459.
+
+The clone-portable canonical releases are listed in
+[`data/artifacts/physical_inventory/manifest-1.1.0.json`](../../data/artifacts/physical_inventory/manifest-1.1.0.json).
+Load one with `gzip -cd <published_path> > /tmp/physical-inventory.json`, then
+run the verifier against that JSON and the manifest's state and release version.
