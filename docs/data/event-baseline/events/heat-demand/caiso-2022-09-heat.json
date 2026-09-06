@@ -1,11 +1,149 @@
 {
-  "schema_version": "event-baseline/v1", "hazard": "heat-demand",
-  "event": {"event_id": "caiso-2022-09-heat", "parent_system_id": "heat_western_us_202209", "primary_hazard": "extreme_heat", "secondary_hazards": [], "compound": false, "context_window": {"start_utc": "2022-09-02T00:00:00Z", "end_utc": "2022-09-13T00:00:00Z"}, "event_window": {"start_utc": "2022-09-04T00:00:00Z", "end_utc": "2022-09-11T00:00:00Z"}, "recovery_window": {"start_utc": "2022-09-11T00:00:00Z", "end_utc": "2022-09-13T00:00:00Z"}, "disposition": "candidate_only", "selection_basis": "EIA reports early-September California extreme heat, record CAISO demand, and emergency actions intended to avoid rolling outages; EAGLE-I has 24 observed 15-minute Sacramento County values in the selected UTC window.", "exclusions": ["County-grid HRRR weather receipt pending", "Avoidance actions are not observed controlled shedding", "BA load is context only"], "uncertainties": ["Customer denominator unavailable", "No causal attribution between heat, demand, and county outage values"]},
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "caiso-2022-09-heat",
+    "parent_system_id": "heat_western_us_202209",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2022-09-02T00:00:00Z",
+      "end_utc": "2022-09-13T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-09-04T00:00:00Z",
+      "end_utc": "2022-09-11T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-09-11T00:00:00Z",
+      "end_utc": "2022-09-13T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "EIA reports early-September California extreme heat, record CAISO demand, and emergency actions intended to avoid rolling outages; EAGLE-I has 24 observed 15-minute Sacramento County values in the selected UTC window.",
+    "exclusions": [
+      "County-grid HRRR weather receipt pending",
+      "Avoidance actions are not observed controlled shedding",
+      "BA load is context only"
+    ],
+    "uncertainties": [
+      "Customer denominator unavailable",
+      "No causal attribution between heat, demand, and county outage values"
+    ],
+    "source_event_ids": [
+      "caiso-2022-09-heat"
+    ]
+  },
   "source_receipts": [
-    {"receipt_id": "eia-caiso-202209", "provider": "U.S. Energy Information Administration", "url": "https://www.eia.gov/todayinenergy/detail.php?id=54039", "release": null, "retrieved_at_utc": "2026-09-06T07:11:09Z", "license_or_access": "U.S. government public information", "raw_sha256": "199c0b7d1d93a14b01d457a69bf1ff0d147a66a79db442bfc592cb811413e97a", "filtered_sha256": null, "bytes": 53512, "etag": null, "units": "megawatts demand context", "timezone_conversion": "EIA narrative reports local timing; canonical label is UTC", "filters": "September 2022 California heat and CAISO demand context", "grid_index_mapping": "not applicable; BA context is not county-level", "gaps": ["No county-grid weather extraction", "No county outage label from BA demand"]},
-    {"receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000", "provider": "ORNL EAGLE-I via Figshare", "url": "https://ndownloader.figshare.com/files/42547897", "release": "10.6084/m9.figshare.24237376.v4", "retrieved_at_utc": "2026-09-06T07:11:02Z", "license_or_access": "CC BY 4.0", "raw_sha256": "c8ad319fea141d9b6a94d5266883a4634f242acfb1e02fae5aea24d3d7680707", "filtered_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30", "bytes": 983040, "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"", "units": "customers_out: customers; run_start_time: UTC", "timezone_conversion": "none; documentation states run_start_time is UTC", "filters": "California FIPS 06067; 2022-09-07T00:00:00Z to 2022-09-07T06:00:00Z", "grid_index_mapping": "not applicable", "gaps": ["Customer denominator unavailable; no population substitution"]}
+    {
+      "receipt_id": "eia-caiso-202209",
+      "provider": "U.S. Energy Information Administration",
+      "url": "https://www.eia.gov/todayinenergy/detail.php?id=54039",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": "199c0b7d1d93a14b01d457a69bf1ff0d147a66a79db442bfc592cb811413e97a",
+      "filtered_sha256": null,
+      "bytes": 53512,
+      "etag": null,
+      "units": "megawatts demand context",
+      "timezone_conversion": "EIA narrative reports local timing; canonical label is UTC",
+      "filters": "September 2022 California heat and CAISO demand context",
+      "grid_index_mapping": "not applicable; BA context is not county-level",
+      "gaps": [
+        "No county-grid weather extraction",
+        "No county outage label from BA demand"
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:11:02Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "c8ad319fea141d9b6a94d5266883a4634f242acfb1e02fae5aea24d3d7680707",
+      "filtered_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30",
+      "bytes": 983040,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; documentation states run_start_time is UTC",
+      "filters": "California FIPS 06067; 2022-09-07T00:00:00Z to 2022-09-07T06:00:00Z",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution"
+      ]
+    }
   ],
   "records": [
-    {"record_id": "caiso-2022-09-heat-06067-20220907t0000", "county_fips": "06067", "boundary_vintage": "2020 Census county FIPS", "scenario_id": "caiso-2022-09-heat-replay", "window_start_utc": "2022-09-07T00:00:00Z", "window_end_utc": "2022-09-07T06:00:00Z", "disposition": "candidate_only", "mode": "replay", "provenance_receipt_ids": ["eia-caiso-202209", "eaglei-2022-42547897-20220907t000000-20220907t060000"], "source_evidence_status": "available", "source_row_keys": ["eaglei-2022-42547897-20220907t000000-20220907t060000:06067-2022-09-07T00:00:00Z"], "source_slices": [{"receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000", "county_fips": "06067", "start_utc": "2022-09-07T00:00:00Z", "end_utc": "2022-09-07T06:00:00Z"}], "weather": {"coverage": "uncovered", "source_receipt_ids": ["eia-caiso-202209"], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "notes": "EIA event context supports candidacy; county-grid weather receipt pending."}, "outage": {"coverage": "covered", "source_receipt_ids": ["eaglei-2022-42547897-20220907t000000-20220907t060000"], "expected_samples": 24, "observed_samples": 24, "missing_timestamps": [], "notes": "24/24 observed 15-minute EAGLE-I values; observed range 147 to 647 customers; no causal attribution."}, "matched_coverage_decision": "unavailable", "label": {"rule_version": "county_outage_5pct_v1", "status": "unavailable", "observed_outage_customers": 647, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null}, "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}}
+    {
+      "record_id": "caiso-2022-09-heat-06067-20220907t0000",
+      "county_fips": "06067",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "caiso-2022-09-heat-replay",
+      "window_start_utc": "2022-09-07T00:00:00Z",
+      "window_end_utc": "2022-09-07T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "eia-caiso-202209",
+        "eaglei-2022-42547897-20220907t000000-20220907t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2022-42547897-20220907t000000-20220907t060000:06067-2022-09-07T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2022-42547897-20220907t000000-20220907t060000",
+          "county_fips": "06067",
+          "start_utc": "2022-09-07T00:00:00Z",
+          "end_utc": "2022-09-07T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "eia-caiso-202209"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "EIA event context supports candidacy; county-grid weather receipt pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20220907t000000-20220907t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "notes": "24/24 observed 15-minute EAGLE-I values; observed range 147 to 647 customers; no causal attribution.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": 647,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
   ]
 }

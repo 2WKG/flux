@@ -7,19 +7,141 @@
     "primary_hazard": "extreme_heat",
     "secondary_hazards": [],
     "compound": false,
-    "context_window": {"start_utc": "2021-06-01T00:00:00Z", "end_utc": "2021-06-09T00:00:00Z"},
-    "event_window": {"start_utc": "2021-06-03T00:00:00Z", "end_utc": "2021-06-07T00:00:00Z"},
-    "recovery_window": {"start_utc": "2021-06-07T00:00:00Z", "end_utc": "2021-06-09T00:00:00Z"},
+    "context_window": {
+      "start_utc": "2021-06-01T00:00:00Z",
+      "end_utc": "2021-06-09T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-06-03T00:00:00Z",
+      "end_utc": "2021-06-07T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-06-07T00:00:00Z",
+      "end_utc": "2021-06-09T00:00:00Z"
+    },
     "disposition": "candidate_only",
     "selection_basis": "NWS Twin Cities June 2021 local climatological record identifies a 99 F station maximum on June 5; EAGLE-I has 24 observed 15-minute values for the selected county window.",
-    "exclusions": ["No county-grid HRRR extraction receipt yet", "No documented controlled shedding record"],
-    "uncertainties": ["Station evidence is not a county-wide heat-field receipt", "Customer denominator unavailable"]
+    "exclusions": [
+      "No county-grid HRRR extraction receipt yet",
+      "No documented controlled shedding record"
+    ],
+    "uncertainties": [
+      "Station evidence is not a county-wide heat-field receipt",
+      "Customer denominator unavailable"
+    ],
+    "source_event_ids": [
+      "mn-2021-06-heat"
+    ]
   },
   "source_receipts": [
-    {"receipt_id": "nws-mpx-jun2021", "provider": "NOAA National Weather Service", "url": "https://www.weather.gov/media/mpx/Climate/MSP/jun2021.pdf", "release": null, "retrieved_at_utc": "2026-09-06T07:11:09Z", "license_or_access": "U.S. government public information", "raw_sha256": "177f8183f4681857cab830afbe734e4999cfe380188f65b4220061ad5e16cef2", "filtered_sha256": null, "bytes": 14276, "etag": null, "units": "degrees Fahrenheit station monthly climatology", "timezone_conversion": "source report local station dates; no conversion used for the EAGLE-I UTC label", "filters": "June 2021 Twin Cities report", "grid_index_mapping": "not applicable; station evidence is candidate discovery only", "gaps": ["Does not establish county-grid weather coverage"]},
-    {"receipt_id": "eaglei-2021-42547891-20210605t000000-20210605t060000", "provider": "ORNL EAGLE-I via Figshare", "url": "https://ndownloader.figshare.com/files/42547891", "release": "10.6084/m9.figshare.24237376.v4", "retrieved_at_utc": "2026-09-06T07:11:00Z", "license_or_access": "CC BY 4.0", "raw_sha256": "da064be2e8c913865e416ffa5e4b7abccc84a2294f5ab392d9324b45849f6cda", "filtered_sha256": "1e5827d179283a03ab26cd77a4f95810a3c533bcdccbcbfd51917a1212c1cd42", "bytes": 1048576, "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"", "units": "customers_out: customers; run_start_time: UTC", "timezone_conversion": "none; documentation states run_start_time is UTC", "filters": "Minnesota FIPS 27053 and 27123; 2021-06-05T00:00:00Z to 2021-06-05T06:00:00Z", "grid_index_mapping": "not applicable", "gaps": ["Customer denominator unavailable; no population substitution"]}
+    {
+      "receipt_id": "nws-mpx-jun2021",
+      "provider": "NOAA National Weather Service",
+      "url": "https://www.weather.gov/media/mpx/Climate/MSP/jun2021.pdf",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": "177f8183f4681857cab830afbe734e4999cfe380188f65b4220061ad5e16cef2",
+      "filtered_sha256": null,
+      "bytes": 14276,
+      "etag": null,
+      "units": "degrees Fahrenheit station monthly climatology",
+      "timezone_conversion": "source report local station dates; no conversion used for the EAGLE-I UTC label",
+      "filters": "June 2021 Twin Cities report",
+      "grid_index_mapping": "not applicable; station evidence is candidate discovery only",
+      "gaps": [
+        "Does not establish county-grid weather coverage"
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-20210605t000000-20210605t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:11:00Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "da064be2e8c913865e416ffa5e4b7abccc84a2294f5ab392d9324b45849f6cda",
+      "filtered_sha256": "1e5827d179283a03ab26cd77a4f95810a3c533bcdccbcbfd51917a1212c1cd42",
+      "bytes": 1048576,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; documentation states run_start_time is UTC",
+      "filters": "Minnesota FIPS 27053 and 27123; 2021-06-05T00:00:00Z to 2021-06-05T06:00:00Z",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution"
+      ]
+    }
   ],
   "records": [
-    {"record_id": "mn-2021-06-heat-27053-20210605t0000", "county_fips": "27053", "boundary_vintage": "2020 Census county FIPS", "scenario_id": "mn-2021-06-heat-replay", "window_start_utc": "2021-06-05T00:00:00Z", "window_end_utc": "2021-06-05T06:00:00Z", "disposition": "candidate_only", "mode": "replay", "provenance_receipt_ids": ["nws-mpx-jun2021", "eaglei-2021-42547891-20210605t000000-20210605t060000"], "source_evidence_status": "available", "source_row_keys": ["eaglei-2021-42547891-20210605t000000-20210605t060000:27053-2021-06-05T00:00:00Z"], "source_slices": [{"receipt_id": "eaglei-2021-42547891-20210605t000000-20210605t060000", "county_fips": "27053", "start_utc": "2021-06-05T00:00:00Z", "end_utc": "2021-06-05T06:00:00Z"}], "weather": {"coverage": "uncovered", "source_receipt_ids": ["nws-mpx-jun2021"], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "notes": "Station candidate evidence exists; county-grid observed weather receipt is pending."}, "outage": {"coverage": "covered", "source_receipt_ids": ["eaglei-2021-42547891-20210605t000000-20210605t060000"], "expected_samples": 24, "observed_samples": 24, "missing_timestamps": [], "notes": "24/24 observed 15-minute EAGLE-I values; observed range 39 to 1287 customers; not attributed to heat."}, "matched_coverage_decision": "unavailable", "label": {"rule_version": "county_outage_5pct_v1", "status": "unavailable", "observed_outage_customers": 1287, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null}, "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}}
+    {
+      "record_id": "mn-2021-06-heat-27053-20210605t0000",
+      "county_fips": "27053",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "mn-2021-06-heat-replay",
+      "window_start_utc": "2021-06-05T00:00:00Z",
+      "window_end_utc": "2021-06-05T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nws-mpx-jun2021",
+        "eaglei-2021-42547891-20210605t000000-20210605t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2021-42547891-20210605t000000-20210605t060000:27053-2021-06-05T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2021-42547891-20210605t000000-20210605t060000",
+          "county_fips": "27053",
+          "start_utc": "2021-06-05T00:00:00Z",
+          "end_utc": "2021-06-05T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "nws-mpx-jun2021"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "Station candidate evidence exists; county-grid observed weather receipt is pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-20210605t000000-20210605t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "notes": "24/24 observed 15-minute EAGLE-I values; observed range 39 to 1287 customers; not attributed to heat.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": 1287,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
   ]
 }

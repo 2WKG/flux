@@ -1,11 +1,147 @@
 {
-  "schema_version": "event-baseline/v1", "hazard": "heat-demand",
-  "event": {"event_id": "pnw-2021-06-heat", "parent_system_id": "heat_ridge_pnw_202106", "primary_hazard": "extreme_heat", "secondary_hazards": [], "compound": false, "context_window": {"start_utc": "2021-06-24T00:00:00Z", "end_utc": "2021-07-02T00:00:00Z"}, "event_window": {"start_utc": "2021-06-26T00:00:00Z", "end_utc": "2021-06-30T00:00:00Z"}, "recovery_window": {"start_utc": "2021-06-30T00:00:00Z", "end_utc": "2021-07-02T00:00:00Z"}, "disposition": "candidate_only", "selection_basis": "NOAA Climate.gov documents four days of record Pacific Northwest heat; EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window.", "exclusions": ["County-grid HRRR weather receipt pending", "No controlled shedding assertion"], "uncertainties": ["EIA balancing-authority load is context, not a county outage label", "Customer denominator unavailable"]},
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "pnw-2021-06-heat",
+    "parent_system_id": "heat_ridge_pnw_202106",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2021-06-24T00:00:00Z",
+      "end_utc": "2021-07-02T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-06-26T00:00:00Z",
+      "end_utc": "2021-06-30T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-06-30T00:00:00Z",
+      "end_utc": "2021-07-02T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NOAA Climate.gov documents four days of record Pacific Northwest heat; EAGLE-I has 24 observed 15-minute Multnomah County values in the selected UTC window.",
+    "exclusions": [
+      "County-grid HRRR weather receipt pending",
+      "No controlled shedding assertion"
+    ],
+    "uncertainties": [
+      "EIA balancing-authority load is context, not a county outage label",
+      "Customer denominator unavailable"
+    ],
+    "source_event_ids": [
+      "pnw-2021-06-heat"
+    ]
+  },
   "source_receipts": [
-    {"receipt_id": "climategov-pnw-2021", "provider": "NOAA Climate.gov", "url": "https://www.climate.gov/news-features/event-tracker/astounding-heat-obliterates-all-time-records-across-pacific-northwest", "release": null, "retrieved_at_utc": "2026-09-06T07:11:09Z", "license_or_access": "NOAA public web content", "raw_sha256": "664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a", "filtered_sha256": null, "bytes": 97120, "etag": "\"1788675849\"", "units": "degrees Fahrenheit event narrative and URMA map description", "timezone_conversion": "event dates retained as source narrative; canonical label is UTC", "filters": "late-June 2021 Pacific Northwest heat event", "grid_index_mapping": "not applicable; county-grid receipt pending", "gaps": ["Not a county-grid weather extraction"]},
-    {"receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000", "provider": "ORNL EAGLE-I via Figshare", "url": "https://ndownloader.figshare.com/files/42547891", "release": "10.6084/m9.figshare.24237376.v4", "retrieved_at_utc": "2026-09-06T07:11:01Z", "license_or_access": "CC BY 4.0", "raw_sha256": "a7297064d940fe7d2f2f206a297998c3a8a738632572ed8d98b0faa2bcb0ac3d", "filtered_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775", "bytes": 1245184, "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"", "units": "customers_out: customers; run_start_time: UTC", "timezone_conversion": "none; documentation states run_start_time is UTC", "filters": "Oregon FIPS 41051; 2021-06-29T00:00:00Z to 2021-06-29T06:00:00Z", "grid_index_mapping": "not applicable", "gaps": ["Customer denominator unavailable; no population substitution"]}
+    {
+      "receipt_id": "climategov-pnw-2021",
+      "provider": "NOAA Climate.gov",
+      "url": "https://www.climate.gov/news-features/event-tracker/astounding-heat-obliterates-all-time-records-across-pacific-northwest",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "NOAA public web content",
+      "raw_sha256": "664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a",
+      "filtered_sha256": null,
+      "bytes": 97120,
+      "etag": "\"1788675849\"",
+      "units": "degrees Fahrenheit event narrative and URMA map description",
+      "timezone_conversion": "event dates retained as source narrative; canonical label is UTC",
+      "filters": "late-June 2021 Pacific Northwest heat event",
+      "grid_index_mapping": "not applicable; county-grid receipt pending",
+      "gaps": [
+        "Not a county-grid weather extraction"
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:11:01Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "a7297064d940fe7d2f2f206a297998c3a8a738632572ed8d98b0faa2bcb0ac3d",
+      "filtered_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775",
+      "bytes": 1245184,
+      "etag": "\"758b4cd635a45214d34da5de08b484d9-2\"",
+      "units": "customers_out: customers; run_start_time: UTC",
+      "timezone_conversion": "none; documentation states run_start_time is UTC",
+      "filters": "Oregon FIPS 41051; 2021-06-29T00:00:00Z to 2021-06-29T06:00:00Z",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "Customer denominator unavailable; no population substitution"
+      ]
+    }
   ],
   "records": [
-    {"record_id": "pnw-2021-06-heat-41051-20210629t0000", "county_fips": "41051", "boundary_vintage": "2020 Census county FIPS", "scenario_id": "pnw-2021-06-heat-replay", "window_start_utc": "2021-06-29T00:00:00Z", "window_end_utc": "2021-06-29T06:00:00Z", "disposition": "candidate_only", "mode": "replay", "provenance_receipt_ids": ["climategov-pnw-2021", "eaglei-2021-42547891-20210629t000000-20210629t060000"], "source_evidence_status": "available", "source_row_keys": ["eaglei-2021-42547891-20210629t000000-20210629t060000:41051-2021-06-29T00:00:00Z"], "source_slices": [{"receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000", "county_fips": "41051", "start_utc": "2021-06-29T00:00:00Z", "end_utc": "2021-06-29T06:00:00Z"}], "weather": {"coverage": "uncovered", "source_receipt_ids": ["climategov-pnw-2021"], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "notes": "Observed regional heat source supports candidacy; county-grid weather receipt pending."}, "outage": {"coverage": "covered", "source_receipt_ids": ["eaglei-2021-42547891-20210629t000000-20210629t060000"], "expected_samples": 24, "observed_samples": 24, "missing_timestamps": [], "notes": "24/24 observed 15-minute EAGLE-I values; observed range 723 to 11747 customers; no causal attribution."}, "matched_coverage_decision": "unavailable", "label": {"rule_version": "county_outage_5pct_v1", "status": "unavailable", "observed_outage_customers": 11747, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null}, "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}}
+    {
+      "record_id": "pnw-2021-06-heat-41051-20210629t0000",
+      "county_fips": "41051",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "pnw-2021-06-heat-replay",
+      "window_start_utc": "2021-06-29T00:00:00Z",
+      "window_end_utc": "2021-06-29T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "climategov-pnw-2021",
+        "eaglei-2021-42547891-20210629t000000-20210629t060000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2021-42547891-20210629t000000-20210629t060000:41051-2021-06-29T00:00:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2021-42547891-20210629t000000-20210629t060000",
+          "county_fips": "41051",
+          "start_utc": "2021-06-29T00:00:00Z",
+          "end_utc": "2021-06-29T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "climategov-pnw-2021"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "Observed regional heat source supports candidacy; county-grid weather receipt pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "covered",
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-20210629t000000-20210629t060000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "notes": "24/24 observed 15-minute EAGLE-I values; observed range 723 to 11747 customers; no causal attribution.",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": 11747,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
   ]
 }

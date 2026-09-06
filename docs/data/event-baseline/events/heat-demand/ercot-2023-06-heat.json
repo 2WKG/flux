@@ -1,0 +1,118 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "ercot-2023-06-heat",
+    "parent_system_id": "heat_southern_plains_202306",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2023-06-22T00:00:00Z",
+      "end_utc": "2023-07-23T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2023-06-25T00:00:00Z",
+      "end_utc": "2023-07-20T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2023-07-20T00:00:00Z",
+      "end_utc": "2023-07-23T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "EIA documents late-June and July 2023 Texas heat and ERCOT record hourly demand. The BA observation is demand context only; it is not a county outage label.",
+    "exclusions": [
+      "Canonical EAGLE-I slice must be reacquired with fixed source feasibility tooling",
+      "No observed controlled load-shedding record supplied"
+    ],
+    "uncertainties": [
+      "County weather coverage and outage coverage unresolved",
+      "BA demand cannot establish county outage or causality"
+    ],
+    "source_event_ids": [
+      "ercot-2023-06-heat"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "eia-ercot-202307",
+      "provider": "U.S. Energy Information Administration",
+      "url": "https://www.eia.gov/todayinenergy/detail.php?id=57240",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": "22ebf01123ee313e830c72612e73dbace600942e9b5143170f1e6152d74acd5a",
+      "filtered_sha256": null,
+      "bytes": 54202,
+      "etag": null,
+      "units": "megawatthours hourly BA demand context",
+      "timezone_conversion": "EIA reports Central Time; canonical county window is UTC",
+      "filters": "late June and July 2023 Texas heat and ERCOT demand",
+      "grid_index_mapping": "not applicable; BA context is not county level",
+      "gaps": [
+        "No county-grid weather extraction",
+        "No EAGLE-I slice receipt yet",
+        "No county outage label from BA demand"
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ercot-2023-06-heat-48201-20230719t0000",
+      "county_fips": "48201",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "ercot-2023-06-heat-replay",
+      "window_start_utc": "2023-07-19T00:00:00Z",
+      "window_end_utc": "2023-07-19T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "eia-ercot-202307"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "eia-ercot-202307"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "EIA observed regional event context; county-grid weather receipt pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "No fixed EAGLE-I acquisition receipt yet; absence is not zero.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
