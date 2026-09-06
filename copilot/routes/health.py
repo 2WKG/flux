@@ -21,6 +21,11 @@ class ComponentStatus(BaseModel):
 
     status: Literal["available", "not_configured", "not_verified"]
     message: str
+    # Which provider would answer, and with which model id.  Both are reported
+    # whether or not the credential is present, so an operator can see that the
+    # selected provider is the unconfigured one rather than guessing.
+    provider: str
+    model: str
 
 
 class HealthData(BaseModel):
@@ -58,14 +63,19 @@ def _database_health(path: str) -> tuple[tuple[str, ...], int, bool]:
 
 
 def _model_status(settings: Settings) -> ComponentStatus:
-    if not settings.model_is_configured:
+    status = settings.provider_status()
+    if not status.ready:
         return ComponentStatus(
             status="not_configured",
             message="No model provider credential is configured.",
+            provider=status.provider,
+            model=status.model,
         )
     return ComponentStatus(
         status="not_verified",
         message="Model availability is not verified by this local health check.",
+        provider=status.provider,
+        model=status.model,
     )
 
 

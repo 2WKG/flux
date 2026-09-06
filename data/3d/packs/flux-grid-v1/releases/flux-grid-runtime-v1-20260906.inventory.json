@@ -1,0 +1,278 @@
+{
+  "schema_version": 1,
+  "release_tag": "flux-grid-runtime-v1-20260906",
+  "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+  "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+  "files": [
+    {
+      "path": "battery_storage/battery_storage.glb",
+      "sha256": "21a9df4a1034ba2d7ede5b774c3ca30f97a1843868a65eb36eaa1a818049cb25",
+      "bytes": 869400
+    },
+    {
+      "path": "battery_storage/battery_storage.lod1.glb",
+      "sha256": "85752594aff4f42f7509bd99c7248abe86af6e5790599d9de997a1f779bb231a",
+      "bytes": 93056
+    },
+    {
+      "path": "battery_storage/battery_storage.lod2.glb",
+      "sha256": "c03d8aaa48641d87e72e55ffc5dfd8cef4f24bc73d5331960c33632ab69de49b",
+      "bytes": 38820
+    },
+    {
+      "path": "coal_plant_retiring_site/coal_plant_retiring_site.glb",
+      "sha256": "78f1ee2a55871015427e1b4fb2e29aa8c45865a7751664199fdfd478c87f927c",
+      "bytes": 1234216
+    },
+    {
+      "path": "coal_plant_retiring_site/coal_plant_retiring_site.lod1.glb",
+      "sha256": "4d965d105a459a06c0c8c5998723f74809741eddd0d34f19591319597224972b",
+      "bytes": 130312
+    },
+    {
+      "path": "coal_plant_retiring_site/coal_plant_retiring_site.lod2.glb",
+      "sha256": "1e1098741494c389f2168bbe6d6015fa8e5337eac7075c11c1124cb70d8a64a4",
+      "bytes": 13096
+    },
+    {
+      "path": "commercial_buildings/commercial_buildings.glb",
+      "sha256": "734acbbbaea6a3b585d56dc56c0ad84edc3326b47a7b0f952ffaefcc0ebb8025",
+      "bytes": 219296
+    },
+    {
+      "path": "commercial_buildings/commercial_buildings.lod1.glb",
+      "sha256": "1904c8db706ed82debeabaefefabfbc2791298d59222539b592aab970eb89670",
+      "bytes": 32868
+    },
+    {
+      "path": "commercial_buildings/commercial_buildings.lod2.glb",
+      "sha256": "1f2290ef1c23ea1945586f87a7cccf1c19504c9eadf7cbc0f9cd3f1ef365017e",
+      "bytes": 8348
+    },
+    {
+      "path": "data_center_campus/data_center_campus.glb",
+      "sha256": "f05a231a32c8dedd7841a4f215f0ea2d067f5b2dc61118de1bbc5cf4d78c8b48",
+      "bytes": 937084
+    },
+    {
+      "path": "data_center_campus/data_center_campus.lod1.glb",
+      "sha256": "2069d1d05031f6c618ac337a240eb1e09203db8600de413c45302b2855e1fdb6",
+      "bytes": 75460
+    },
+    {
+      "path": "data_center_campus/data_center_campus.lod2.glb",
+      "sha256": "b84c692fddf667daf06a94f37253fe1e41a67572cf1b5bc80de4fee043882e02",
+      "bytes": 9620
+    },
+    {
+      "path": "ev_charging_station/ev_charging_station.glb",
+      "sha256": "9169ee6ce6e7435601d97f07841f2439d3b47937b12c9c632456bed39d0cb918",
+      "bytes": 219428
+    },
+    {
+      "path": "ev_charging_station/ev_charging_station.lod1.glb",
+      "sha256": "6099f44bff892da5f0219f9ee4b1e72f64630e434cc42d70cff92ea70781e7b7",
+      "bytes": 37248
+    },
+    {
+      "path": "ev_charging_station/ev_charging_station.lod2.glb",
+      "sha256": "5215f933efc90c65dff06f8d9d336e25a97604f93c1836fc2f0ac04d30c51a1c",
+      "bytes": 13080
+    },
+    {
+      "path": "factory_industrial_facility/factory_industrial_facility.glb",
+      "sha256": "2c2086ff2f359b72429b2ecad8e0e46767b5bd6271a051f9a6e5c5cd3d03a385",
+      "bytes": 245988
+    },
+    {
+      "path": "factory_industrial_facility/factory_industrial_facility.lod1.glb",
+      "sha256": "2b7a8b65c278e93a6997f36b8c28db6cee6a9d16ff72dee7947c90c1b228b878",
+      "bytes": 27644
+    },
+    {
+      "path": "factory_industrial_facility/factory_industrial_facility.lod2.glb",
+      "sha256": "f0190e9b126a203a51a556f29c77ab45c2a4b0f9c58548d70cb290ef1ae8a87e",
+      "bytes": 10956
+    },
+    {
+      "path": "hospital/hospital.glb",
+      "sha256": "934ce1aa772ee1aac2462515a7a9fde83a0c11a0b8db34f36dd94f05af14ab82",
+      "bytes": 545336
+    },
+    {
+      "path": "hospital/hospital.lod1.glb",
+      "sha256": "1670de1faa5957da5a36b84f55c231f7ebc5ca8a9ce5b83acc45f84f4ab2f7ea",
+      "bytes": 40576
+    },
+    {
+      "path": "hospital/hospital.lod2.glb",
+      "sha256": "1cfed0b1b5db06a9441f5458d29d70b3516328f58c3f4d83f8c891b97e9e1ab1",
+      "bytes": 20888
+    },
+    {
+      "path": "military_base/military_base.glb",
+      "sha256": "600dd3b0d5e13c545350962a591050b54208b55f034c11409e500b1d99a3b53b",
+      "bytes": 509808
+    },
+    {
+      "path": "military_base/military_base.lod1.glb",
+      "sha256": "d221f0335fbb544cf1de79885eb78cad310fe0799910ee585c190c1f84457e97",
+      "bytes": 88544
+    },
+    {
+      "path": "military_base/military_base.lod2.glb",
+      "sha256": "6b04349b6bc3ab934c4fa2061fdb95ec8fd470064426c016ad5cceb3c78fa328",
+      "bytes": 17668
+    },
+    {
+      "path": "natural_gas_plant/natural_gas_plant.glb",
+      "sha256": "649035aed933081ffc515c19612f1f4b8ac02b4fb36839b8db3c976a639f9531",
+      "bytes": 840872
+    },
+    {
+      "path": "natural_gas_plant/natural_gas_plant.lod1.glb",
+      "sha256": "cdc1132d3917ef78320866c66467eac2334b773d43a066f013c86c09382f121f",
+      "bytes": 229360
+    },
+    {
+      "path": "natural_gas_plant/natural_gas_plant.lod2.glb",
+      "sha256": "67a72bbeba30a74797a53b10b12c1465b09094ba1691d70bbfa8af7955571201",
+      "bytes": 16428
+    },
+    {
+      "path": "nuclear_smr_module/nuclear_smr_module.glb",
+      "sha256": "711162c4d7ae245ffbdab84e4d32301276e03efbafa7260bddb9e23915865f2b",
+      "bytes": 881160
+    },
+    {
+      "path": "nuclear_smr_module/nuclear_smr_module.lod1.glb",
+      "sha256": "30f900085683e6d3932cfd066bce07538458e02b19b69b94e0bd66f360464d0f",
+      "bytes": 141180
+    },
+    {
+      "path": "nuclear_smr_module/nuclear_smr_module.lod2.glb",
+      "sha256": "334aee5e39bed81a93fd81b79d4dd73e4f90e2f31f2e330bf5d918c4ba21b526",
+      "bytes": 25380
+    },
+    {
+      "path": "residential_neighborhood/residential_neighborhood.glb",
+      "sha256": "2deee35300deb610cd481bc93f992cb3b93253aafa2f649a8f0e09a687830802",
+      "bytes": 534368
+    },
+    {
+      "path": "residential_neighborhood/residential_neighborhood.lod1.glb",
+      "sha256": "3ccd91f93320766436d2199c2f0775558e212dbbd0a7c46c9c5f61f9006668f7",
+      "bytes": 73528
+    },
+    {
+      "path": "residential_neighborhood/residential_neighborhood.lod2.glb",
+      "sha256": "36102fe9444faaf0a34b79ff4007338e27af6a7d014b01d7ecd7a659be525fb0",
+      "bytes": 25156
+    },
+    {
+      "path": "school_emergency_services/school_emergency_services.glb",
+      "sha256": "ddd3af4fd82de6ec70650d37b604eae2e8643fb860db6e87530cb072351dd786",
+      "bytes": 517164
+    },
+    {
+      "path": "school_emergency_services/school_emergency_services.lod1.glb",
+      "sha256": "af4465e30090e29972d01649b552c76e134fbe4533dd17f97a296773e5c7c3de",
+      "bytes": 84816
+    },
+    {
+      "path": "school_emergency_services/school_emergency_services.lod2.glb",
+      "sha256": "bdcf85306c98b2f1defaed1f8ce4fd0840b21c307388c0408779ff054e0b8b05",
+      "bytes": 22496
+    },
+    {
+      "path": "solar_array/solar_array.glb",
+      "sha256": "8c27ce2dd4923cbf0e1e6a6a641835beb8e8193c31a2f8e076057f6f6d1077a1",
+      "bytes": 1112140
+    },
+    {
+      "path": "solar_array/solar_array.lod1.glb",
+      "sha256": "f9913379916c46eb03f7ec8929cbf73b6232e72b755daa1663e1c4919c685960",
+      "bytes": 199080
+    },
+    {
+      "path": "solar_array/solar_array.lod2.glb",
+      "sha256": "559cc18fb9ae0268a4db2072e116ef34a2a1a75bcc9d6b131d8b9a53c5fb6290",
+      "bytes": 37332
+    },
+    {
+      "path": "substation_transformer_yard/substation_transformer_yard.glb",
+      "sha256": "603d08999dd8bfb98b21882cb3038e4538d4e305c5c1a0a99152c7b632ba4793",
+      "bytes": 1653032
+    },
+    {
+      "path": "substation_transformer_yard/substation_transformer_yard.lod1.glb",
+      "sha256": "0368fde189ab1816fcdf2810ff345c2113dc3089f622e8df8450bfcb945b8c45",
+      "bytes": 324736
+    },
+    {
+      "path": "substation_transformer_yard/substation_transformer_yard.lod2.glb",
+      "sha256": "14685e78266375b169b17efbd41b2e9178f4d17248a08b7b59276191b31a0b4e",
+      "bytes": 56880
+    },
+    {
+      "path": "transmission_line_segment/transmission_line_segment.glb",
+      "sha256": "793b9ce5aee1aa42ff815ea748b1924cf22698496fb36625b5efff83be78c19e",
+      "bytes": 905524
+    },
+    {
+      "path": "transmission_line_segment/transmission_line_segment.lod1.glb",
+      "sha256": "fec19bb926f9b0a7c19b86a28c0577d90094f0cc853ebb4ae771b5b47026c1c9",
+      "bytes": 207428
+    },
+    {
+      "path": "transmission_line_segment/transmission_line_segment.lod2.glb",
+      "sha256": "76e31f70849aaeb91188c35e008fd3f76b95d63ae0963a1143faa992ab71759e",
+      "bytes": 61664
+    },
+    {
+      "path": "warehouse_logistics_center/warehouse_logistics_center.glb",
+      "sha256": "3a9f96ab336eb552df946b2c615045122d16fc4f825cd7141ae713571d3dcca4",
+      "bytes": 301736
+    },
+    {
+      "path": "warehouse_logistics_center/warehouse_logistics_center.lod1.glb",
+      "sha256": "fb9b222b9d51bfb7a6c284d3036e07d20cd5119f5fb661cd870c8e3b765c4dc8",
+      "bytes": 33020
+    },
+    {
+      "path": "warehouse_logistics_center/warehouse_logistics_center.lod2.glb",
+      "sha256": "1300427cf5deea1193ccfa77a4076f228fc79d194e0446a144811576726200b9",
+      "bytes": 14892
+    },
+    {
+      "path": "water_treatment_plant/water_treatment_plant.glb",
+      "sha256": "9dac3f605b6c0a4c5d765342c31e7e6c7cb7eaa055f23a8bd9e69509c9707fa2",
+      "bytes": 706920
+    },
+    {
+      "path": "water_treatment_plant/water_treatment_plant.lod1.glb",
+      "sha256": "904804c25bf7c638a0bfe2252b7f7498af03a29f45d0afcc6cdc47055b173e4a",
+      "bytes": 132004
+    },
+    {
+      "path": "water_treatment_plant/water_treatment_plant.lod2.glb",
+      "sha256": "00cc5e13aefc3231455a3c3e5c8a9530f4fb845591ac27cab119ca7ec33a764d",
+      "bytes": 43628
+    },
+    {
+      "path": "wind_turbine/wind_turbine.glb",
+      "sha256": "780e3aeb8957193fc177a1e3e562a69644067c4d99970c09185e042add5309c9",
+      "bytes": 433040
+    },
+    {
+      "path": "wind_turbine/wind_turbine.lod1.glb",
+      "sha256": "1fa507dec4bd89ae2df82f7d4a1a86e190d0121730e8d8e04fadedc49e66f3d3",
+      "bytes": 94108
+    },
+    {
+      "path": "wind_turbine/wind_turbine.lod2.glb",
+      "sha256": "81e99a96fe8e62955fc4aa651d13688146b9e7df03e0a7740789665660157c0e",
+      "bytes": 22984
+    }
+  ]
+}
