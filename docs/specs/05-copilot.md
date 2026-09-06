@@ -301,11 +301,23 @@ routes now import) in the record itself, not only on the response envelope, so
 a second consumer that serialises one record still ships the disclosure.
 
 Each entry of `critical_loads` is `{id, name, kind, bus_id, binding_method,
-binding_distance_km}`. The facility key is **`id`**, matching the
-`critical_loads` layer row above and `TexasNodeCriticalFacility` in
-`web/src/texas-nodes/types.ts` (2WKG-438); the adapter's earlier `cl_id` spelling
-was the drift and is gone. `binding_distance_km` is `null` whenever no receipt
-row describes this exact `(cl_id, bus_id)` pair.
+binding_distance_km}`. The facility key is **`id`** and its JSON type is a
+**number**: `critical_loads.cl_id` is a DuckDB `BIGINT` and
+`pipelines/node_annotations.py` emits it unconverted as
+`struct_pack(id := c.cl_id, …)`. The adapter in `web/src/texas-nodes/adapter.ts`
+(2WKG-438) matches that today — it declares `id: number` and refuses a record
+that is not (`if (!number(id)) return null`), which surfaces as
+`request_failed` for the whole layer. The type is therefore a **cross-surface
+contract, and both sides must move in the same change**;
+`pipelines/tests/test_label_vocabulary.py::
+test_the_critical_facility_id_type_is_pinned_to_what_the_client_expects` is the
+server-side pin. Note this is *not* the same convention as the feature-level
+`bus_id`, which `copilot/routes/layers.py` stringifies — stringifying the
+facility `id` to match was proposed under 2WKG-427 and **rejected**, because the
+client that would have required it has since moved to `number` and the change
+would have broken it. The adapter's earlier `cl_id` spelling was the drift and
+is gone. `binding_distance_km` is `null` whenever no receipt row describes this
+exact `(cl_id, bus_id)` pair.
 
 `read_node_annotations` returns exactly one record per `buses` row and raises
 `ValueError` if it ever does not — `_annotated_buses_collection` indexes the
