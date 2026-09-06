@@ -30,6 +30,8 @@ const captured = JSON.parse(readFileSync(new URL("../contracts/interactive-paylo
 const render = (payload) =>
   renderToStaticMarkup(createElement(RedundancyPanel, { state: { kind: "ready", data: toRedundancyView(payload) } }));
 const escape = (text) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+/** Rendered text only: an attribute the user never sees is not a disclosure. */
+const textOf = (markup) => markup.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 
 const number = (value) => new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(value);
 
@@ -46,8 +48,9 @@ test("the score is the server's, formatted, and never recomputed from components
 test("the synthetic topology disclosure is rendered from the server's flag", () => {
   const markup = render(captured);
   assert.equal(captured.evidence.synthetic_topology, true);
-  // The token itself must reach the user, not merely a "synthetic" adjective.
-  assert.match(markup, new RegExp(escape(SYNTHETIC_TOPOLOGY_LABEL)));
+  // The token itself must reach the *user*, not merely an attribute: a chip that
+  // says only "Synthetic" leaves the ACTIVSg2000 disclosure unsaid.
+  assert.match(textOf(markup), new RegExp(escape(SYNTHETIC_TOPOLOGY_LABEL)));
   assert.match(markup, new RegExp(`data-redundancy-topology="${escape(SYNTHETIC_TOPOLOGY_LABEL)}"`));
   assert.match(markup, /data-redundancy-truth="synthetic"/);
 });
@@ -59,6 +62,7 @@ test("a server that asserts no synthetic topology gets no topology claim", () =>
     evidence: { ...captured.evidence, synthetic_topology: false },
   });
   assert.doesNotMatch(markup, new RegExp(escape(SYNTHETIC_TOPOLOGY_LABEL)));
+  assert.doesNotMatch(textOf(markup), new RegExp(escape(SYNTHETIC_TOPOLOGY_LABEL)));
   assert.match(markup, /data-redundancy-truth="unavailable"/);
   assert.match(markup, /asserts no topology/);
   assert.doesNotMatch(markup, /Source-supported|Source-screened/);
