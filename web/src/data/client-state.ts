@@ -26,10 +26,36 @@ export type ClientState<T> =
       reason: "version_mismatch" | "malformed_response";
       message: typeof VERSION_MISMATCH_MESSAGE | typeof MALFORMED_RESPONSE_MESSAGE;
     }
-  | { kind: "failed"; source: "network" | "server"; message: string; requestId?: string };
+  | {
+      kind: "failed";
+      source: "network" | "server";
+      /**
+       * Why a client-side failure happened. Cancellation, deadline, and
+       * size-cap breaches are real, distinct outcomes; collapsing them into
+       * "unreachable" would tell a user who cancelled that the service is down.
+       */
+      reason?: NetworkFailureReason;
+      message: string;
+      requestId?: string;
+    };
+
+/** The client-side causes `createReadApiClient`/`createSseClient` can observe. */
+export type NetworkFailureReason =
+  | "unreachable"
+  | "cancelled"
+  | "timeout"
+  | "response_too_large"
+  | "invalid_options";
 
 export const NETWORK_FAILURE_MESSAGE =
   "Unable to reach the service. Check your connection and try again.";
+export const CANCELLED_MESSAGE = "The request was cancelled before it returned a result.";
+export const TIMEOUT_MESSAGE =
+  "The request timed out before the service responded. Nothing was returned.";
+export const RESPONSE_TOO_LARGE_MESSAGE =
+  "The response exceeded the client size limit and was discarded unread.";
+export const INVALID_OPTIONS_MESSAGE =
+  "The request could not be made because its options were invalid.";
 
 export type EmptyGuard<T> = (value: T) => boolean;
 export type Transport = typeof fetchWithPolicy;
@@ -97,7 +123,49 @@ export function toClientState<T>(
 
 /** Network and cancellation failures stay distinct from a server unavailable envelope. */
 export function networkFailure<T>(): ClientState<T> {
-  return { kind: "failed", source: "network", message: NETWORK_FAILURE_MESSAGE };
+  return {
+    kind: "failed",
+    source: "network",
+    reason: "unreachable",
+    message: NETWORK_FAILURE_MESSAGE,
+  };
+}
+
+function errorName(error: unknown): string {
+  return error instanceof Error || (typeof error === "object" && error !== null && "name" in error)
+    ? String((error as { name?: unknown }).name ?? "")
+    : "";
+}
+
+/**
+ * Classify a thrown transport error by its `name`, so a cancelled request, an
+ * expired deadline, and a discarded oversized body are not all reported as
+ * "unable to reach the service". Names (not `instanceof`) are used so a value
+ * thrown from another realm still classifies correctly.
+ */
+export function transportFailure<T>(error: unknown): ClientState<T> {
+  switch (errorName(error)) {
+    case "AbortError":
+      return { kind: "failed", source: "network", reason: "cancelled", message: CANCELLED_MESSAGE };
+    case "RequestTimeoutError":
+      return { kind: "failed", source: "network", reason: "timeout", message: TIMEOUT_MESSAGE };
+    case "ResponseSizeError":
+      return {
+        kind: "failed",
+        source: "network",
+        reason: "response_too_large",
+        message: RESPONSE_TOO_LARGE_MESSAGE,
+      };
+    case "RangeError":
+      return {
+        kind: "failed",
+        source: "network",
+        reason: "invalid_options",
+        message: INVALID_OPTIONS_MESSAGE,
+      };
+    default:
+      return networkFailure();
+  }
 }
 
 export function createReadApiClient(transport: Transport = fetchWithPolicy): ReadApiClient {
@@ -111,8 +179,8 @@ export function createReadApiClient(transport: Transport = fetchWithPolicy): Rea
       try {
         const response = await transport(input, { ...options, method: "GET" });
         return toClientState(await validateJsonResponse(response, isPayload), isEmpty);
-      } catch {
-        return networkFailure();
+      } catch (error) {
+        return transportFailure(error);
       }
     },
   };
@@ -181,9 +249,9 @@ export function createSseClient(transport: Transport = fetchWithPolicy): SseClie
           await validateJsonResponse(response, (_value): _value is never => false),
           () => false,
         );
-      } catch {
+      } catch (error) {
         request.close();
-        return networkFailure();
+        return transportFailure(error);
       }
     },
   };

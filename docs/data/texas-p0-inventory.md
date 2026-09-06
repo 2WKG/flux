@@ -53,7 +53,10 @@ synthetic Texas-shaped network, not the real ERCOT network. A public geometry
 or nearest synthetic-bus association never establishes real electrical
 connectivity or a service connection.
 
-For the placement and truth-label policy of the reusable 3D archetypes, see
-[`texas-asset-taxonomy.md`](texas-asset-taxonomy.md). It cross-references this
-inventory without treating generic meshes as source evidence or changing the
-shared 3D asset contract.
+Validated public source receipts have checked-in retrieval and loader
+evidence. Their exact hashes, coverage checks, reproduction commands, and
+remaining P0 gaps are in
+[`texas-p0-curated-source-receipts.md`](texas-p0-curated-source-receipts.md).
+The asset semantic crosswalk is separately recorded in
+[`texas-asset-taxonomy.md`](texas-asset-taxonomy.md); it does not promote a
+source artifact to a real-grid claim.
