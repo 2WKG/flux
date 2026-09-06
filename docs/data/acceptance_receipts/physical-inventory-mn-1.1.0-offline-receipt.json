@@ -2,12 +2,12 @@
   "artifact": {
     "artifact_id": "mn:physical-inventory:1.1.0",
     "artifact_version": "1.1.0",
-    "published_path": "data/artifacts/physical_inventory/mn/physical-inventory-1.1.0.json.gz",
-    "published_compressed_sha256": "aeab767671b755de484db5262d234a2ad643a95cf543c413959350058829f374",
-    "content_sha256": "4a58995d7cb82eaa5e79d5b9a8777a37d85dee64726c0a459ec57766019130ff",
+    "content_sha256": "1ea4272d60cdbf9072764749446b9677114c883c78e39f20e48a7d8873dc1728",
     "contract_version": "1.0.0",
     "electrical_model_mode": "none",
     "inventory_mode": "physical_observed",
+    "published_compressed_sha256": "538855318e181264e734798e5fa78e6539fb98f072c61fb2485fc6002a1edf48",
+    "published_path": "data/artifacts/physical_inventory/mn/physical-inventory-1.1.0.json.gz",
     "sources": [
       {
         "authority": "U.S. Energy Information Administration",
@@ -17,11 +17,18 @@
         "source_version": "2025 early release"
       },
       {
-        "authority": "Mille Lacs County GIS public Utilities MapServer; county-scoped source only",
-        "content_sha256": "82b82a132fee5306716cc3a77c1afcdbe0fcc1bd51ef7d8638359f51bb8f862e",
-        "source_id": "mille_lacs_county_utilities_mapserver_2026",
-        "source_ref": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer",
-        "source_version": "live MapServer queried 2026-09-06"
+        "authority": "Mille Lacs County GIS public Utilities MapServer layer 0 (Substations); county-scoped source only. Service copyrightText: Mille Lacs County MN.",
+        "content_sha256": "57fb1a4267b8b657da4bcf0bc7d12251b19d396396237f4eacc7bd24218b9481",
+        "source_id": "mille_lacs_county_utilities_mapserver_2026:substations-layer-0",
+        "source_ref": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+        "source_version": "live MapServer layer 0 query captured 2026-09-06T07:05:03Z"
+      },
+      {
+        "authority": "Mille Lacs County GIS public Utilities MapServer layer 2 (Transmission Lines); county-scoped source only. Service copyrightText: Mille Lacs County MN.",
+        "content_sha256": "f8ca26cb493124c72dacefba9c282a79280cbf44926474102ea3c3943b55a583",
+        "source_id": "mille_lacs_county_utilities_mapserver_2026:transmission-lines-layer-2",
+        "source_ref": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&outFields=*&returnGeometry=true&f=json",
+        "source_version": "live MapServer layer 2 query captured 2026-09-06T07:05:03Z"
       }
     ]
   },
