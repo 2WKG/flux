@@ -18,7 +18,12 @@ def main() -> int:
     args = parser.parse_args()
     payload = _read_model_geometry(args.duckdb, None)
     data = payload["data"]
-    if data["counts"] != {"buses": 2000, "branches": 3206, "lines": 2359, "impedance_branches": 847}:
+    if data["counts"] != {
+        "buses": 2000,
+        "branches": 3206,
+        "lines": 2359,
+        "impedance_branches": 847,
+    }:
         raise SystemExit(f"unexpected validated topology counts: {data['counts']}")
     artifact = {
         "artifact_id": "tx:synthetic-topology:activsg2000-current-v1",
@@ -33,9 +38,11 @@ def main() -> int:
     }
     raw = json.dumps(artifact, sort_keys=True, separators=(",", ":")).encode()
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    with args.output.open("wb") as stream:
-        with gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as zipped:
-            zipped.write(raw)
+    with (
+        args.output.open("wb") as stream,
+        gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as zipped,
+    ):
+        zipped.write(raw)
     manifest = {
         "artifact_id": artifact["artifact_id"],
         "artifact_version": artifact["artifact_version"],
@@ -45,7 +52,9 @@ def main() -> int:
         "counts": data["counts"],
         "source": artifact["source"],
     }
-    args.output.with_suffix(".manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+    args.output.with_suffix(".manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    )
     print(json.dumps(manifest, sort_keys=True))
     return 0
 
