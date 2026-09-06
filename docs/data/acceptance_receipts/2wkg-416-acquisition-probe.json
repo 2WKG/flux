@@ -1,0 +1,369 @@
+{
+  "catalog": "datasets\\catalog.json",
+  "catalog_schema_version": 1,
+  "checked_at": "2026-09-06T13:31:23.391305+00:00",
+  "network_probed": true,
+  "p0_inputs": [
+    {
+      "acceptable_paths": [
+        "activsg2000_current/ACTIVSg2000.aux"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "activsg2000",
+      "downloads": [
+        {
+          "filename": "activsg2000-current.zip",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/125303682",
+            "content_type": "application/octet-stream",
+            "final_url": "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t"
+        }
+      ],
+      "label": "activsg2000_current/ACTIVSg2000.aux",
+      "layout_note": "Catalog ships activsg2000-current.zip; the .aux must be extracted into the documented layout by hand.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "activsg2000_current/case_ACTIVSg2000.m"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "activsg2000",
+      "downloads": [
+        {
+          "filename": "activsg2000-current.zip",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/125303682",
+            "content_type": "application/octet-stream",
+            "final_url": "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://drive.usercontent.google.com/download?id=1tC-ofbw1EE46hoZeSfiBAWnSAhG0SmVu&export=download&confirm=t"
+        }
+      ],
+      "label": "activsg2000_current/case_ACTIVSg2000.m",
+      "layout_note": "Catalog ships activsg2000-current.zip; the .m case must be extracted into the documented layout by hand.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "tiger/2024/tl_2024_us_county.zip",
+        "tiger/tl_2024_us_county.zip"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "census-tiger-counties",
+      "downloads": [
+        {
+          "filename": "tl_2024_us_county.zip",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/83913260",
+            "content_type": "application/zip",
+            "final_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"
+        }
+      ],
+      "label": "tiger/2024/tl_2024_us_county.zip",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "nri/v1.20/NRI_Counties_TX.json",
+        "nri/v1.20/NRI_Table_Counties.zip",
+        "nri/NRI_Table_Counties.zip"
+      ],
+      "catalog_access": "api",
+      "catalog_dataset": "fema-nri",
+      "label": "NRI v1.20 county data",
+      "next_step": "Retrieve fema-nri by hand from https://hazards.fema.gov/nri/data-resources and record a source receipt; the catalog declares no scripted URL.",
+      "present_locally": false,
+      "retrieval": "manual_only",
+      "source_url": "https://hazards.fema.gov/nri/data-resources"
+    },
+    {
+      "acceptable_paths": [
+        "pudl/v2026.2.0/out_eia__yearly_plants.parquet"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "pudl-eia860-plants",
+      "downloads": [
+        {
+          "filename": "core_eia860__scd_plants.parquet",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/3343041",
+            "content_type": "binary/octet-stream",
+            "final_url": "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/core_eia860__scd_plants.parquet",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/core_eia860__scd_plants.parquet"
+        }
+      ],
+      "label": "pudl/v2026.2.0/out_eia__yearly_plants.parquet",
+      "layout_note": "Catalog declares the nightly core_eia860__scd_plants.parquet, not the pinned v2026.2.0 out_eia__yearly_plants.parquet the builder requires.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "pudl/v2026.2.0/out_eia__yearly_generators.parquet"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "pudl-eia860-plants",
+      "downloads": [
+        {
+          "filename": "core_eia860__scd_plants.parquet",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/3343041",
+            "content_type": "binary/octet-stream",
+            "final_url": "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/core_eia860__scd_plants.parquet",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://s3.us-west-2.amazonaws.com/pudl.catalyst.coop/nightly/core_eia860__scd_plants.parquet"
+        }
+      ],
+      "label": "pudl/v2026.2.0/out_eia__yearly_generators.parquet",
+      "layout_note": "Catalog declares no generators Parquet at any version.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv"
+      ],
+      "catalog_access": "api",
+      "catalog_dataset": "eia-930",
+      "label": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
+      "next_step": "Retrieve eia-930 by hand from https://www.eia.gov/opendata/browser/electricity/rto and record a source receipt; the catalog declares no scripted URL.",
+      "present_locally": false,
+      "retrieval": "manual_only",
+      "source_url": "https://www.eia.gov/opendata/browser/electricity/rto"
+    },
+    {
+      "acceptable_paths": [
+        "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv"
+      ],
+      "catalog_access": "api",
+      "catalog_dataset": "eia-930",
+      "label": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
+      "next_step": "Retrieve eia-930 by hand from https://www.eia.gov/opendata/browser/electricity/rto and record a source receipt; the catalog declares no scripted URL.",
+      "present_locally": false,
+      "retrieval": "manual_only",
+      "source_url": "https://www.eia.gov/opendata/browser/electricity/rto"
+    },
+    {
+      "acceptable_paths": [
+        "nws_zone_county/bp10nv20/bp10nv20.dbx"
+      ],
+      "catalog_dataset": null,
+      "label": "nws_zone_county/bp10nv20/bp10nv20.dbx",
+      "layout_note": "Source-pinned NWS zone/county edition; no catalog dataset covers it.",
+      "next_step": "Add a catalog dataset (or a source receipt) declaring this artifact's publisher URL, license, and checksum before the Texas P0 build can be reproduced.",
+      "present_locally": false,
+      "retrieval": "no_declared_retrieval"
+    },
+    {
+      "acceptable_paths": [
+        "nws_zone_county/bp05mr24/bp05mr24.dbx"
+      ],
+      "catalog_dataset": null,
+      "label": "nws_zone_county/bp05mr24/bp05mr24.dbx",
+      "layout_note": "Source-pinned NWS zone/county edition; no catalog dataset covers it.",
+      "next_step": "Add a catalog dataset (or a source receipt) declaring this artifact's publisher URL, license, and checksum before the Texas P0 build can be reproduced.",
+      "present_locally": false,
+      "retrieval": "no_declared_retrieval"
+    },
+    {
+      "acceptable_paths": [
+        "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+      ],
+      "catalog_access": "manual",
+      "catalog_dataset": "noaa-storm-events",
+      "label": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "next_step": "Retrieve noaa-storm-events by hand from https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/ and record a source receipt; the catalog declares no scripted URL.",
+      "present_locally": false,
+      "retrieval": "manual_only",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
+    },
+    {
+      "acceptable_paths": [
+        "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
+      ],
+      "catalog_access": "manual",
+      "catalog_dataset": "noaa-storm-events",
+      "label": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+      "next_step": "Retrieve noaa-storm-events by hand from https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/ and record a source receipt; the catalog declares no scripted URL.",
+      "present_locally": false,
+      "retrieval": "manual_only",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/"
+    },
+    {
+      "acceptable_paths": [
+        "eaglei/support/MCC.csv"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "eaglei-2021",
+      "downloads": [
+        {
+          "filename": "eaglei_outages_2021.csv",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/1141058232",
+            "content_type": "text/csv",
+            "final_url": "https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/42547891/eaglei_outages_2021.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20260906/eu-west-1/s3/aws4_request&X-Amz-Date=20260906T133119Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=0c96a02ca6231c767e190f77b62ea0fbbbd7ab2223576d221b6da9404fe76a10",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://ndownloader.figshare.com/files/42547891"
+        }
+      ],
+      "label": "eaglei/support/MCC.csv",
+      "layout_note": "Catalog declares only the annual outage CSV; the MCC support file has no declared download.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "eaglei/support/coverage_history.csv"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "eaglei-2021",
+      "downloads": [
+        {
+          "filename": "eaglei_outages_2021.csv",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/1141058232",
+            "content_type": "text/csv",
+            "final_url": "https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/42547891/eaglei_outages_2021.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20260906/eu-west-1/s3/aws4_request&X-Amz-Date=20260906T133119Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=0c96a02ca6231c767e190f77b62ea0fbbbd7ab2223576d221b6da9404fe76a10",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://ndownloader.figshare.com/files/42547891"
+        }
+      ],
+      "label": "eaglei/support/coverage_history.csv",
+      "layout_note": "Catalog declares only the annual outage CSV; coverage_history.csv has no declared download.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "eaglei/2021/eaglei_outages_2021.csv"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "eaglei-2021",
+      "downloads": [
+        {
+          "filename": "eaglei_outages_2021.csv",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/1141058232",
+            "content_type": "text/csv",
+            "final_url": "https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/42547891/eaglei_outages_2021.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20260906/eu-west-1/s3/aws4_request&X-Amz-Date=20260906T133119Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=0c96a02ca6231c767e190f77b62ea0fbbbd7ab2223576d221b6da9404fe76a10",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://ndownloader.figshare.com/files/42547891"
+        }
+      ],
+      "label": "eaglei/2021/eaglei_outages_2021.csv",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "eaglei/2024/eaglei_outages_2024.csv"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "eaglei-2024",
+      "downloads": [
+        {
+          "filename": "eaglei_outages_2024.csv",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/1444846424",
+            "content_type": "text/csv",
+            "final_url": "https://s3-eu-west-1.amazonaws.com/pfigshare-u-files/53581661/eaglei_outages_2024.csv?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=AKIAIYCQYOYV5JSSROOA/20260906/eu-west-1/s3/aws4_request&X-Amz-Date=20260906T133120Z&X-Amz-Expires=10&X-Amz-SignedHeaders=host&X-Amz-Signature=46c1e98c5ca5a45daa39564b42f5170ae7a2c041d510953fc7f2eee83ae3c7ba",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://ndownloader.figshare.com/files/53581661"
+        }
+      ],
+      "label": "eaglei/2024/eaglei_outages_2024.csv",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    },
+    {
+      "acceptable_paths": [
+        "ntad_military_bases/fy2024/texas.geojson"
+      ],
+      "catalog_access": "direct",
+      "catalog_dataset": "dod-bases-tx",
+      "downloads": [
+        {
+          "filename": "ntad_military_bases_tx.geojson",
+          "probe": {
+            "content_length": "1",
+            "content_range": "bytes 0-0/534134",
+            "content_type": "application/json; charset=utf-8",
+            "final_url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+            "http_status": 206,
+            "reachable": true
+          },
+          "url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson"
+        }
+      ],
+      "label": "ntad_military_bases/fy2024/texas.geojson",
+      "layout_note": "Catalog writes ntad_military_bases_tx.geojson; it must be curated into the fy2024/texas.geojson path the builder reads.",
+      "present_locally": false,
+      "retrieval": "declared_download"
+    }
+  ],
+  "probe_version": 1,
+  "raw_dir": "data\\raw",
+  "scope_label": "Texas P0 / ACTIVSg2000 legacy research evidence. ACTIVSg2000 is synthetic topology and is not the Minnesota demo delivery path.",
+  "summary": {
+    "present_locally": 0,
+    "reproducible_end_to_end": false,
+    "requires_manual_curation_into_builder_layout": [
+      "activsg2000_current/ACTIVSg2000.aux",
+      "activsg2000_current/case_ACTIVSg2000.m",
+      "pudl/v2026.2.0/out_eia__yearly_plants.parquet",
+      "pudl/v2026.2.0/out_eia__yearly_generators.parquet",
+      "nws_zone_county/bp10nv20/bp10nv20.dbx",
+      "nws_zone_county/bp05mr24/bp05mr24.dbx",
+      "eaglei/support/MCC.csv",
+      "eaglei/support/coverage_history.csv",
+      "ntad_military_bases/fy2024/texas.geojson"
+    ],
+    "total_inputs": 17,
+    "unavailable_without_manual_retrieval": [
+      "NRI v1.20 county data",
+      "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
+      "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
+      "nws_zone_county/bp10nv20/bp10nv20.dbx",
+      "nws_zone_county/bp05mr24/bp05mr24.dbx",
+      "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
+    ],
+    "with_declared_download": 10
+  }
+}

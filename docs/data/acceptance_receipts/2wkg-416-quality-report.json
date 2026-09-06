@@ -1,0 +1,117 @@
+{
+  "checked_at": "2026-09-06T14:28:14.009728+00:00",
+  "database": "run-artifacts\\texas-p0-2wkg-416\\grid.duckdb",
+  "row_counts": {
+    "buses": 2000,
+    "lines": 3206,
+    "gens": 544,
+    "loads": 1125,
+    "counties": 254,
+    "critical_loads": 20,
+    "eaglei_outages": 5364241,
+    "weather_hourly": 0,
+    "storm_events": 6549,
+    "hazard_static": 254,
+    "ba_load_hourly": 35040,
+    "site_candidates": 11,
+    "scenarios": 0,
+    "outage_predictions": 0,
+    "cascade_runs": 0,
+    "site_scores": 0,
+    "line_upgrade_scores": 0,
+    "line_upgrade_detail": 0,
+    "corpus_chunks": 0
+  },
+  "alerts": [
+    {
+      "code": "reconciliation_unavailable",
+      "severity": "warning",
+      "message": "Curated rows have provenance but no append-only ingest log was supplied.",
+      "owner": "unassigned",
+      "next_step": "Run with --ingest-log before relying on a dashboard."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite activsg2000, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite census-tiger-counties, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite fema-nri, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite pudl-eia860-plants, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite eia-930, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite eaglei-2021, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite eaglei-2024, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite noaa-storm-events, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "source_curated_mismatch",
+      "severity": "error",
+      "message": "Curated rows cite dod-bases-tx, but no successful ingest-log record exists.",
+      "owner": "unassigned",
+      "next_step": "Restore the matching ingest record or rebuild from a logged source release."
+    },
+    {
+      "code": "volume_baseline_missing",
+      "severity": "error",
+      "message": "No reviewed expected row-count baseline was supplied.",
+      "owner": "unassigned",
+      "next_step": "Provide --previous-counts with declared minimum counts before dashboard promotion."
+    },
+    {
+      "code": "reconciliation_unavailable",
+      "severity": "error",
+      "message": "No append-only ingest log was supplied.",
+      "owner": "unassigned",
+      "next_step": "Provide --ingest-log before dashboard promotion."
+    }
+  ],
+  "dashboard_eligible": false,
+  "api_health": {
+    "status": "unavailable",
+    "message": "No API health URL was supplied."
+  },
+  "delivery": "No notification or dashboard is configured; consume this report in the release workflow."
+}
