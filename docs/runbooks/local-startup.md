@@ -28,6 +28,44 @@ with a committed `package-lock.json`; pnpm is not used.
 
 The repo root is `flux/`. All paths below are relative to it.
 
+## Morning launcher (offline or local live API)
+
+Use the portable bash helper when the browser app and optional local API need
+to start together with recorded logs and PIDs. It uses API port `8031` and web
+port `4317` by default, avoids secrets, and never creates a database, starts a
+provider, or publishes a service.
+
+```bash
+# Default: build and serve the full browser app with its explicit offline state.
+scripts/dev/launch_demo.sh --offline
+
+# Stop only the processes this invocation recorded.
+scripts/dev/launch_demo.sh --run-dir /tmp/flux-demo-launch-$USER --stop
+
+# Local live mode: the DuckDB must already exist and pass the API health check.
+scripts/dev/launch_demo.sh --live --duckdb /absolute/path/to/grid.duckdb
+```
+
+The composed local inventory target is
+`/Users/joshua/buckeye-swarm/flux/data/duck/grid.duckdb` when that artifact has
+been built. Pass it explicitly rather than assuming it exists; a clean checkout
+has no DuckDB file.
+
+`--live` exports `DUCKDB_PATH` only to the local FastAPI process and sets
+`FLUX_API_ORIGIN=http://127.0.0.1:8031` only for the web process. It refuses a
+missing or unreadable database, treats a non-200 `/health` response as a failed
+live launch, and checks that the same-origin `/layers/buses` proxy returns a
+JSON response. A `503` JSON response from that proxy may describe a named
+unavailable layer; it is not represented as a successful data claim.
+
+`--offline` starts no API. It checks the served shell and built JavaScript asset
+and requires the client’s named “Not available in this offline build” state to
+remain present. Use `--api-port`, `--web-port`, and `--run-dir` to override the
+defaults; `--skip-install` reuses an already-synchronized environment but still
+builds the web app. The helper refuses occupied ports and leaves logs/PIDs in
+the selected run directory. It does not change Cloudflare or expose an external
+URL.
+
 ## Static demo
 
 `web/server.mjs` is a Node/Express server. It serves the built React client
