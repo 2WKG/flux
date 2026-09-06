@@ -1,0 +1,7 @@
+# Normalise line endings in the repository index so tracked text is stored as LF
+# regardless of the checkout platform. The published calibration digests are
+# SHA-256 of this LF-canonical content.
+* text=auto eol=lf
+
+*.json text eol=lf
+*.md text eol=lf
