@@ -126,11 +126,32 @@ TABLE_EXPORTS: Final = (
         "Physical inventory provenance records.",
     ),
     TableExport(
+        "physical_asset_terminals",
+        "physical_asset_terminals.csv",
+        "artifact_id, terminal_id",
+        "source inventory metadata",
+        "Physical inventory terminal records; an empty CSV is an explicit empty source snapshot.",
+    ),
+    TableExport(
+        "physical_inventory_schema_meta",
+        "physical_inventory_schema_meta.csv",
+        "key",
+        "source inventory metadata",
+        "Physical inventory schema metadata.",
+    ),
+    TableExport(
         "physical_inventory_manifests",
         "physical_inventory_manifests.csv",
         "artifact_id",
         "source inventory metadata",
         "Physical inventory manifest records.",
+    ),
+    TableExport(
+        "ingest_log",
+        "ingest_log.csv",
+        "source, source_release, source_file",
+        "ingest receipt",
+        "Recorded ingest provenance; this is operational metadata, not a model output.",
     ),
 )
 
@@ -143,6 +164,37 @@ DERIVED_OR_MODEL_TABLES: Final = (
     "mn_artifact_manifests",
     "mn_model_results",
     "mn_score_results",
+)
+
+_NOT_RAW_PREFIXES: Final = ("mn_",)
+_NOT_RAW_TABLES: Final = frozenset(
+    {
+        "cascade_runs",
+        "corpus_chunks",
+        "critical_loads",
+        "county_customers",
+        "eaglei_coverage",
+        "eaglei_ingest_quality",
+        "eaglei_ingest_quality_by_state",
+        "eaglei_outage_observations",
+        "eaglei_outages",
+        "eia_generator_inventory",
+        "eia_plants",
+        "hazard_static",
+        "line_upgrade_detail",
+        "line_upgrade_scores",
+        "nri_hazards",
+        "outage_predictions",
+        "scenarios",
+        "schema_meta",
+        "site_candidates",
+        "site_scores",
+        "storm_events",
+        "synthetic_branch_electrical",
+        "synthetic_bus_electrical",
+        "synthetic_generator_electrical",
+        "synthetic_substations",
+    }
 )
 
 EIA_FILES: Final = (
@@ -249,6 +301,24 @@ def _write_index(output: Path, inventory: dict[str, object]) -> None:
             "<th>Rows</th><th>Bytes</th><th>SHA-256</th><th>Scope</th></tr></thead>"
             f"<tbody>{''.join(rows)}</tbody></table>"
         )
+    database_rows = []
+    for entry in inventory["database_tables"]:  # type: ignore[index]
+        value = entry  # type: ignore[assignment]
+        database_rows.append(
+            "<tr><td><code>{table}</code></td><td>{rows:,}</td><td>{classification}</td></tr>".format(
+                table=html.escape(str(value["table"])),
+                rows=int(value["rows"]),
+                classification=html.escape(str(value["classification"])),
+            )
+        )
+    sections.append(
+        "<h2>Complete database table inventory</h2><p>Every table found in the supplied "
+        "read-only source database is classified here. Only rows labelled source, receipt, "
+        "or inventory metadata are downloadable above.</p><table><thead><tr><th>Table</th>"
+        "<th>Rows</th><th>Classification</th></tr></thead><tbody>"
+        + "".join(database_rows)
+        + "</tbody></table>"
+    )
     unavailable = "".join(
         f"<li>{html.escape(item)}</li>" for item in inventory["unavailable"]
     )
@@ -282,6 +352,24 @@ def main() -> None:
         table_exports = [
             _copy_table(connection, item, output) for item in TABLE_EXPORTS
         ]
+        exported = {item.table for item in TABLE_EXPORTS}
+        database_tables = []
+        for (table,) in connection.execute("SHOW TABLES").fetchall():
+            name = str(table)
+            count = int(
+                connection.execute(f'SELECT count(*) FROM "{name}"').fetchone()[0]
+            )
+            if name in exported:
+                classification = "approved source/receipt/inventory export"
+            elif name in _NOT_RAW_TABLES or name.startswith(_NOT_RAW_PREFIXES):
+                classification = "derived, model, product configuration, or artifact metadata (not raw)"
+            elif count == 0:
+                classification = "empty/unavailable in this source snapshot"
+            else:
+                classification = "operational metadata (not a raw dataset)"
+            database_tables.append(
+                {"table": name, "rows": count, "classification": classification}
+            )
     finally:
         connection.close()
     eia_downloads = []
@@ -317,6 +405,7 @@ def main() -> None:
         "generated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "source_database": "approved local source database (read-only snapshot; absolute operator path omitted)",
         "table_exports": table_exports,
+        "database_tables": database_tables,
         "eia_downloads": eia_downloads,
         "minnesota_evidence": minnesota_evidence,
         "derived_or_model_tables": list(DERIVED_OR_MODEL_TABLES),
