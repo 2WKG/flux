@@ -7,7 +7,7 @@ const current: RunIdentity = { attemptId: "browser-current", contextRevision: "b
 const replacement: RunIdentity = { attemptId: "browser-replacement", contextRevision: "browser-rev-b" };
 const currentEvents: readonly RunEvent[] = [
   { type: "lifecycle", id: "1", v: 1, seq: 1, status: "started" },
-  { type: "tool_call", id: "2", v: 1, seq: 2, callId: "browser-call", tool: "score_site", input: { site_id: "site-browser" } },
+  { type: "tool_call", id: "2", v: 1, seq: 2, call_id: "browser-call", tool: "score_site", input: { site_id: "site-browser" } },
 ];
 const replacementEvents: readonly RunEvent[] = [{ type: "lifecycle", id: "1", v: 1, seq: 1, status: "started" }];
 
