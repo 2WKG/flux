@@ -1,0 +1,165 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "controls",
+  "event": {
+    "event_id": "near-miss-mn-2021-10-10-grant-wind",
+    "parent_system_id": "near-miss-mn-2021-10-10-grant-wind",
+    "primary_hazard": "thunderstorm_wind",
+    "secondary_hazards": [
+
+    ],
+    "compound": false,
+    "source_event_ids": [
+      "990297",
+      "164028"
+    ],
+    "context_window": {
+      "start_utc": "2021-10-09T18:00:00Z",
+      "end_utc": "2021-10-10T12:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-10-10T00:00:00Z",
+      "end_utc": "2021-10-10T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-10-10T06:00:00Z",
+      "end_utc": "2021-10-10T12:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "controls-preselection-v1 diagnostic cohort; NCEI documented event selected without outage screening",
+    "uncertainties": [
+      "Diagnostic candidate, not a causal or low-outage control.",
+      "Coverage evidence pending."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei-stormevents-index",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T00:00:00Z",
+      "license_or_access": "U.S. government public data",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events catalog metadata",
+      "timezone_conversion": "No event-time conversion performed in this starter receipt.",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "Specific annual-file version, raw hash, and filtered receipt are pending per-event source capture."
+      ]
+    },
+    {
+      "receipt_id": "nws-mpx-events-archive",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "url": "https://www.weather.gov/mpx/events",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T00:00:00Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "event archive metadata",
+      "timezone_conversion": "Archive timing is not used as a label; canonical records are UTC six-hour windows.",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "grid_index_mapping": "not applicable",
+      "gaps": [
+        "No raw local-weather analysis is captured by this receipt."
+      ]
+    },
+    {
+      "receipt_id": "ornl-eaglei-landing",
+      "provider": "ORNL",
+      "url": "https://doi.ccs.ornl.gov/dataset/ccec86f0-e144-5de8-aee0-fb26028b26e1",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T00:00:00Z",
+      "license_or_access": "Dataset landing record; actual availability/terms to be recorded from a source-feasibility receipt.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "county outage observations when available",
+      "timezone_conversion": "pending source-feasibility receipt",
+      "filters": "No EAGLE-I rows read during candidate selection.",
+      "grid_index_mapping": "county FIPS mapping pending catalog boundary-vintage receipt",
+      "gaps": [
+        "Coverage, annual release, access route, raw hash, and filtered hash are not yet evidenced."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "near-miss-mn-2021-10-10-grant-wind",
+      "county_fips": "27051",
+      "boundary_vintage": "pending-catalog-contract",
+      "scenario_id": "near-miss-mn-2021-10-10-grant-wind",
+      "window_start_utc": "2021-10-10T00:00:00Z",
+      "window_end_utc": "2021-10-10T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei-stormevents-index"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [
+
+      ],
+      "source_slices": [
+
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "ncei-stormevents-index"
+        ],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [
+
+        ],
+        "event_report": null,
+        "notes": "NCEI event ID catalogs diagnostic exposure; gridded weather coverage pending."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "source_receipt_ids": [
+          "ornl-eaglei-landing"
+        ],
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [
+
+        ],
+        "event_report": null,
+        "notes": "No label evidence used in diagnostic selection."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": [
+
+        ]
+      }
+    }
+  ]
+}
