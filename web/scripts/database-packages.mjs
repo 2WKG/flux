@@ -21,18 +21,16 @@ export function databasePackageSpecifier() {
 }
 
 /**
- * Matches a metafile input path that *installs* a database package, e.g.
- * `node_modules/@duckdb/duckdb-wasm/x.js`.
+ * Matches a metafile input path whose segments name an installed database package,
+ * e.g. node_modules/@duckdb/duckdb-wasm/x.js.
  *
- * The package name is anchored to the `node_modules/` boundary. Without that
- * anchor any file whose own name matched one of the names counted -- and
- * `is-unsafe/src/contexts/sql.js` (pulled in transitively by
- * `fast-xml-parser`) is a source file named after a rule, not the `sql.js`
- * package, so it failed every build for the wrong reason.
+ * The package name is anchored to the `node_modules/` boundary that introduces it.
+ * Without that anchor a name like `sql.js` also matched any *file* called `sql.js`
+ * inside an unrelated dependency (deck.gl pulls in `is-unsafe/src/contexts/sql.js`,
+ * a string predicate with no database code), failing the build on a false positive.
  */
 export function databasePackagePath() {
   const scoped = DATABASE_PACKAGE_SCOPES.map((scope) => `${escape(scope)}[/\\\\][^/\\\\]+`);
   const names = DATABASE_PACKAGE_NAMES.map(escape);
-  const installed = `node_modules[/\\\\](?:${[...scoped, ...names].join("|")})`;
-  return new RegExp(`(?:^|[/\\\\])${installed}(?:[/\\\\]|$)`, "i");
+  return new RegExp(`(?:^|[/\\\\])node_modules[/\\\\](?:${[...scoped, ...names].join("|")})(?:[/\\\\]|$)`, "i");
 }

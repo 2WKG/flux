@@ -5,12 +5,11 @@ import { ScenegraphLayer } from 'deck.gl';
 import { STATUS_COPY } from '../../source-truth';
 
 /**
- * Glyph and colour are this layer's own presentation. The **label** is not: it
- * is read from `STATUS_COPY`, the single owner of the six IA display strings
- * (`src/source-truth.ts`). This map previously re-spelled all six, which put a
- * second copy of "Source-supported" into the shipped bundle and tripped
- * `test/viewport-shell.test.mjs`'s "must not claim source support outside the
- * display map".
+ * Glyph and colour per status token. The wording is NOT re-spelled here:
+ * `STATUS_COPY` (`src/source-truth.ts`) is the one status vocabulary, so each
+ * label is read from it. Re-typing the six labels here put a second copy of
+ * "Source-supported" into the shipped bundle, which is exactly the claim
+ * `web/test/viewport-shell.test.mjs` forbids outside the display map.
  */
 export const STATUS_PRESENTATION = {
   source_supported: { label: STATUS_COPY.source_supported, glyph: '✓', color: [73, 205, 187] },

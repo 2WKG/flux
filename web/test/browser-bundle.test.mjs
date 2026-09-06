@@ -29,15 +29,15 @@ test("database packages are rejected by segment, including scoped and suffixed D
     "node_modules/postgres-array/index.js",
     "node_modules/react/index.js",
     "src/main.tsx",
-    // A source file *named* after a rule inside an unrelated package is not an
-    // installed database package. `fast-xml-parser` pulls this one in, and the
-    // unanchored match failed every build for the wrong reason.
+    // A file merely *named* like a database package, inside an unrelated dependency:
+    // deck.gl -> fast-xml-parser -> is-unsafe ships a DOM-free string predicate here.
     "node_modules/is-unsafe/src/contexts/sql.js",
-    "node_modules/is-unsafe/src/contexts/nosql.js",
+    "src/contexts/sql.js",
   ]) {
     assertBrowserBundle(inputs(input), webRoot);
   }
-  // ...while the package of that name, installed, is still refused.
+
+  // The real package by that name is still rejected.
   assert.throws(() => assertBrowserBundle(inputs("node_modules/sql.js/dist/sql-wasm.js"), webRoot), /database dependency/);
 });
 

@@ -1,6 +1,7 @@
 # Static origin and tunnel inventory
 
-Last checked: 2026-09-06 (merged `master` at `76c6fcd880`)
+Last checked: 2026-09-06, public edge re-measured the same day after the
+connector came up (see *Update* below).
 
 This is an inventory plus the recorded deployment command for the origin host.
 It records checked-in configuration, host checks, and a public, read-only tunnel
@@ -8,6 +9,11 @@ check; it intentionally contains no credentials, connector IDs, tunnel UUIDs, or
 private hostnames.
 
 ## Current status
+
+> **Superseded later the same day.** A connector is now running and
+> `bouncepulse.com` serves both the SPA and the FastAPI read paths; jump to
+> *Update — the route went live later on 2026-09-06* for the measured state. The
+> paragraph and table below record the earlier situation.
 
 **No connector is installed, running, or credentialed on the origin host — but
 a tunnel route may already exist in the Cloudflare account.** The earlier tasks
@@ -30,15 +36,40 @@ origin host (`WYZWORKSTATION`, user `willi`) on 2026-09-06:
 | Tracked config | repository grep for `cloudflare`/`tunnel` | docs only; no config, service definition, or credential |
 
 `bouncepulse.com` is proxied by Cloudflare (the zone exists). The host checks
-prove only that no connector has ever been registered *from `WYZWORKSTATION`*;
-they say nothing about the Cloudflare account. The `1033` body says the zone
-still has a hostname-to-tunnel route, so **a tunnel may already exist in the
+prove only that no connector had ever been registered *from `WYZWORKSTATION`*;
+they say nothing about the Cloudflare account. The `1033` body said the zone
+still had a hostname-to-tunnel route, so **a tunnel may already exist in the
 account and must be inspected before a new one is created**: after
 `cloudflared tunnel login`, run `cloudflared tunnel list` and adopt the existing
 tunnel rather than creating `flux-demo`, or the account ends up with two tunnels
-competing for the same hostname. The local static origin is fully identified
-below; the origin side of the mapping does not exist yet, whichever tunnel is
-used.
+competing for the same hostname.
+
+### Update — the route went live later on 2026-09-06
+
+The table above is the earlier measurement and is kept for the history. A
+connector is now running and the hostname resolves to it. Measured from off the
+origin host (`curl -s -o /dev/null -w '%{http_code} %{content_type}'`):
+
+| URL | Result |
+| --- | --- |
+| `https://bouncepulse.com/` | `200 text/html` — the built SPA shell |
+| `https://bouncepulse.com/api/demo` | `503 text/plain` — the static origin's own refusal, so `web/server.mjs` is what answers `/` |
+| `https://bouncepulse.com/health` | `200 application/json`, body `{"ok":true,...}` from FastAPI |
+| `https://bouncepulse.com/scenarios` | `503 application/json`, the shared `unavailable` envelope (`no_rows`) |
+| `https://bouncepulse.com/layers/mn` | `404`-class `not_found` envelope from FastAPI |
+| `https://bouncepulse.com/api/v1/grid/layers/mn` | `invalid_input` envelope from FastAPI |
+| `https://bouncepulse.com/lines/top`, `/elements/critical`, `/predictions`, `/cascade` | FastAPI envelopes — **published, and wider than the allowlist below** |
+| `GET https://bouncepulse.com/ask` | the SPA shell — not published at the edge |
+
+So the deployed `config.yml` on the origin host is currently the *wide* rule:
+it publishes four read paths (`/lines/top`, `/elements/critical`,
+`/predictions`, `/cascade`) that `web/server.mjs`'s same-origin forward refuses,
+and because the API rule precedes the static rule those four bypass that
+allowlist entirely. `deploy/cloudflared/config.example.yml` in this repository is
+now the narrow, derived rule (see *One allowlist, one place*). **The host's
+`config.yml` has not been re-copied from the template**; until the owner does
+that and restarts the connector, the live public surface is wider than the
+checked-in one. This repository cannot verify or change the host's file.
 
 ## Static origin (authoritative)
 
@@ -62,10 +93,38 @@ is no checked-in environment file or wrapper that overrides it.
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
-| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route by design; this path falls back to the SPA shell like any unknown path (verified 2026-09-06: `200 text/html`). |
+| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route of its own, and since `0240db1` it refuses API-shaped paths outright rather than serving the shell: `GET /api/demo` returns `503`, `content-type: text/plain`, body `The static Flux demo does not serve API routes.` (verified 2026-09-06 against `node web/server.mjs`; pinned by `web/test/static-demo.test.mjs`). Only non-`/api` unknown paths fall back to the SPA shell. |
 | `https://bouncepulse.com/` and static assets | Cloudflare public edge | Node/Express on `127.0.0.1:4173` | Connector must be running; the static rule is the fallback after the API read rule below |
-| `https://bouncepulse.com/health` and read paths | Cloudflare public edge | `copilot.app:app` on `127.0.0.1:8000` | Mapped by `deploy/cloudflared/config.example.yml`: `/health`, `/layers/*`, `/api/v1/grid/layers/*`, `/lines/top`, `/elements/critical`, `/scenarios*`, `/predictions`, and `/cascade`; Cloudflared filters paths, not methods, and FastAPI rejects unsupported methods |
-| `https://bouncepulse.com/ask`, `/site-score`, `/compare` | No public tunnel owner | — | Explicitly excluded from ingress; the static fallback must not be treated as an API response. |
+| `https://bouncepulse.com/health` and read paths | Cloudflare public edge | `copilot.app:app` on `127.0.0.1:8000` | Live at the edge (measured 2026-09-06, see the update above), but routed by the host's own `config.yml`, **not** by anything in this repository. `deploy/cloudflared/config.example.yml` is a template: copying it is configured-but-not-routed until an operator installs it and restarts the connector. The template publishes exactly the GET half of `PROXIED` — currently `/health`, `/layers/<name>`, `/api/v1/grid/layers/<layer>`, `/api/v1/grid/asset-placements`, `/assets/flux-grid/<file>`, `/scenarios`, `/scenarios/<id>`; the live host publishes four read paths that are not in it. Cloudflared filters paths, not methods, and FastAPI rejects unsupported methods |
+| `https://bouncepulse.com/ask`, `/site-score`, `/compare` | No public tunnel owner | — | Explicitly excluded from ingress. `POST /ask` is forwarded by `web/server.mjs` on the local origin but is deliberately absent from the edge rule: cloudflared filters paths, not methods, so an `/ask` rule would publish the Copilot ask surface to the public internet. |
+| `https://bouncepulse.com/lines/top`, `/elements/critical`, `/predictions`, `/cascade` | Cloudflare public edge (live), no template owner | `copilot.app:app` on `127.0.0.1:8000` | Reachable in public right now, but **not** in the checked-in template: they are outside `web/server.mjs`'s forward allowlist, and because the API ingress rule precedes the static rule they bypass it. The template no longer carries them. Re-copying the template narrows the live surface to match; that is the intended direction, and it is the owner's call. |
+
+### One allowlist, one place
+
+There are two programs that can publish an API path — the Cloudflare edge and
+`web/server.mjs`'s same-origin forward — and cloudflared evaluates its API rule
+*before* the static rule, so anything the edge admits never reaches `server.mjs`
+at all. They therefore get one definition, not two: the `PROXIED` table in
+`web/server.mjs` is the source, its GET half is exported as
+`INGRESS_PATH_PATTERN`, and the `path:` line in
+`deploy/cloudflared/config.example.yml` must be that string verbatim.
+`web/test/ingress-allowlist.test.mjs` reads both files and fails when either
+side drifts (it runs in `gate/web`). To change the public surface, change
+`PROXIED` and regenerate:
+
+```
+node -e 'import("./web/server.mjs").then(m=>console.log(m.INGRESS_PATH_PATTERN))'
+```
+
+### What a routed path returns when the API is down
+
+`deploy/tunnel.ps1` only guards connector *start*; it does not watch the API at
+runtime. If the ingress rule is live and `127.0.0.1:8000` stops answering,
+cloudflared returns **its own `502 Bad Gateway`** for `/health` and every routed
+read path — not the shared `unavailable` envelope, and not the SPA shell. Do not
+tell an operator to expect either of those. A `502` on a read path means the
+FastAPI process is down behind a working connector; a `530` / `error code: 1033`
+on any path means the connector itself is not running.
 
 The FastAPI paths are implemented for local use but are not evidence of a
 running API or a public mapping. `POST /ask` starts only the injected local SSE
