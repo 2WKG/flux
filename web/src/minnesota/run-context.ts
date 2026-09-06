@@ -14,6 +14,12 @@ export const MINNESOTA_BOOKMARK_VERSION = "v1";
 export const MINNESOTA_AGGREGATE_SCENE_ID = "mn:coverage:aggregate:v1";
 export const MINNESOTA_AGGREGATE_ARTIFACT_ID = "mn:aggregate:manifest:v1";
 
+/** Server context identifiers for the persisted aggregate comparison endpoint. */
+export const MINNESOTA_COMPARISON_CONTEXT_IDS = Object.freeze({
+  baseline: "mn:baseline:v1",
+  candidate: "mn:candidate:v1",
+});
+
 /** The one Minnesota scene this branch can identify without inventing geometry. */
 export const MINNESOTA_AGGREGATE_SCENE = Object.freeze({
   id: MINNESOTA_AGGREGATE_SCENE_ID,

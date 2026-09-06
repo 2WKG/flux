@@ -1,0 +1,109 @@
+/*
+ * Minnesota-local presentation surface. It is intentionally scoped to the
+ * wrapper: the shell owns layout and its existing stylesheet owns controls.
+ * The layered surfaces are visual depth only; they do not represent a map,
+ * topology, facility, or physical lighting model.
+ */
+.mn-visual-hierarchy {
+  --mn-vh-ink: #f2f7ff;
+  --mn-vh-muted: #c5d5e6;
+  --mn-vh-edge: #6285a6;
+  --mn-vh-accent: #8ee7ff;
+  --mn-vh-surface: #091b2d;
+  --mn-vh-raised: #102a43;
+  --mn-vh-focus: #ffe47a;
+  display: grid;
+  gap: .875rem;
+  min-inline-size: 0;
+  padding: clamp(1rem, 2vw, 1.5rem);
+  color: var(--mn-vh-ink);
+  background:
+    linear-gradient(135deg, rgb(142 231 255 / 12%), transparent 45%),
+    var(--mn-vh-surface);
+  border: 1px solid var(--mn-vh-edge);
+  border-radius: .875rem;
+  box-shadow: 0 1.25rem 2.75rem rgb(0 0 0 / 20%);
+}
+
+.mn-visual-hierarchy,
+.mn-visual-hierarchy * { box-sizing: border-box; }
+
+.mn-visual-hierarchy :where(h2, p) { margin: 0; }
+
+.mn-visual-hierarchy__header {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-inline-start: 1rem;
+  border-inline-start: .3125rem solid var(--mn-vh-accent);
+}
+
+.mn-visual-hierarchy h2 {
+  margin-block: .25rem;
+  font-size: clamp(1.35rem, 2vw, 2rem);
+  line-height: 1.15;
+  letter-spacing: -.025em;
+}
+
+.mn-visual-hierarchy__eyebrow {
+  color: var(--mn-vh-accent);
+  font: 700 .75rem / 1.3 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+
+.mn-visual-hierarchy__summary,
+.mn-visual-hierarchy__truth-note { color: var(--mn-vh-muted); max-inline-size: 74ch; }
+
+.mn-visual-hierarchy__truth {
+  flex: 0 0 auto;
+  padding: .375rem .5rem;
+  color: var(--mn-vh-ink);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font: 700 .75rem / 1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: nowrap;
+}
+
+.mn-visual-hierarchy__truth[data-truth-label="unavailable"],
+.mn-visual-hierarchy__truth[data-truth-label="request_failed"] { color: #ffd08a; }
+
+.mn-visual-hierarchy__truth[data-truth-label="synthetic"],
+.mn-visual-hierarchy__truth[data-truth-label="hypothetical"] { color: #d9c3ff; }
+
+.mn-visual-hierarchy__content {
+  min-inline-size: 0;
+  padding: clamp(.875rem, 1.5vw, 1.25rem);
+  background: color-mix(in srgb, var(--mn-vh-raised) 92%, transparent);
+  border: 1px solid var(--mn-vh-edge);
+  border-radius: .625rem;
+}
+
+.mn-visual-hierarchy :focus-visible {
+  outline: .25rem solid var(--mn-vh-focus);
+  outline-offset: .25rem;
+}
+
+@media (max-width: 34rem) {
+  .mn-visual-hierarchy__header { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mn-visual-hierarchy,
+  .mn-visual-hierarchy *,
+  .mn-visual-hierarchy *::before,
+  .mn-visual-hierarchy *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .mn-visual-hierarchy,
+  .mn-visual-hierarchy__content,
+  .mn-visual-hierarchy__truth { border-color: CanvasText; }
+  .mn-visual-hierarchy :focus-visible { outline-color: Highlight; }
+}
