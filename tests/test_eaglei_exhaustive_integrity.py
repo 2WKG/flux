@@ -277,16 +277,20 @@ def test_batch_emits_full_receipts_and_selected_csv_equivalent_to_single_scan(
     requests_path = tmp_path / "requests.json"
     requests_path.write_text(
         json.dumps(
-            [
-                {
-                    "event_id": "batch-event",
-                    "year": 2024,
-                    "start": "2024-06-19T00:00:00Z",
-                    "end": "2024-06-19T01:00:00Z",
-                    "states": ["Minnesota"],
-                    "fips": ["27137"],
-                }
-            ]
+            {
+                "request_schema_version": "flux-460-final-requests/v1",
+                "source": "test",
+                "requests": [
+                    {
+                        "event_id": "batch-event",
+                        "year": 2024,
+                        "start": "2024-06-19T00:00:00Z",
+                        "end": "2024-06-19T01:00:00Z",
+                        "states": ["Minnesota"],
+                        "fips": ["27137"],
+                    }
+                ],
+            }
         ),
         encoding="utf-8",
     )
