@@ -30,7 +30,8 @@ def _sha256(path: Path) -> str:
     line endings and a Linux checkout has LF, so hashing the raw working-tree
     bytes pins a value that can only ever match one platform. Normalising to LF
     first yields the hash of the canonical (index) content, which is also what
-    `sha256sum` reports on the Linux runner.
+    `sha256sum` reports on the Linux runner. Reproduce any published digest with
+    `git cat-file -p HEAD:<path> | shasum -a 256`.
     """
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
@@ -226,6 +227,8 @@ def build_report(
         "reportAsOf": ledger["reportAsOf"],
         "inputLedger": {
             "path": ledger_path.relative_to(repo_root).as_posix(),
+            # SHA-256 of the LF-canonical content, reproducible with
+            # `git cat-file -p HEAD:<path> | shasum -a 256`.
             "sha256": _sha256(ledger_path),
         },
         "evidenceStatus": {
@@ -268,6 +271,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "## Citable topology context, not calibration evidence\n\n"
         f"`{report['topologyContext']['receipt']}` (SHA-256 `{report['topologyContext']['receiptSha256']}`) records: "
         f"{report['topologyContext']['citation']}. {report['topologyContext']['mappingLimit']}\n\n"
+        "Every SHA-256 above is of the LF-canonical content of the tracked file, not of the "
+        "working-tree bytes; reproduce with `git cat-file -p HEAD:<path> | shasum -a 256`.\n\n"
         "## Per-result limits\n\n"
         f"{limits}\n"
     )
