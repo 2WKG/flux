@@ -10,6 +10,7 @@ from scripts.generate_p0_calibration_report import (
     build_report,
     load_ledger,
     render_markdown,
+    validate_ledger,
     write_report,
 )
 
@@ -60,3 +61,27 @@ def test_report_explicitly_discloses_all_mapping_limits():
     )
     assert rendered.count("Synthetic-topology mapping") == 2
     assert "like-for-like" in rendered
+
+
+def test_receipt_checksum_is_line_ending_independent_but_content_sensitive(tmp_path):
+    ledger = load_ledger(DEFAULT_LEDGER)
+    lf = (
+        (ROOT / ledger["topologyContext"]["receipt"])
+        .read_bytes()
+        .replace(b"\r\n", b"\n")
+    )
+    receipt = tmp_path / ledger["topologyContext"]["receipt"]
+    receipt.parent.mkdir(parents=True, exist_ok=True)
+
+    receipt.write_bytes(lf.replace(b"\n", b"\r\n"))
+    validate_ledger(ledger, repo_root=tmp_path)  # a CRLF checkout must still match
+
+    receipt.write_bytes(lf.replace(b"\n", b"\r\n").replace(b"{", b"[", 1))
+    with pytest.raises(ValueError, match="checksum changed"):
+        validate_ledger(ledger, repo_root=tmp_path)
+
+    receipt.write_bytes(
+        lf.replace(b"\n", b"\r")
+    )  # bare CR is content, not a line ending
+    with pytest.raises(ValueError, match="checksum changed"):
+        validate_ledger(ledger, repo_root=tmp_path)

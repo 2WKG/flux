@@ -26,7 +26,7 @@ public hostname-to-origin mapping is not.
 | Bind port | `PORT`, default `4173` (`server.mjs` calls `app.listen(port)`) |
 | Bind address | Not explicitly configured in source; Node's default listen host is used. Do not assume a loopback or LAN bind without checking the connector host. |
 | Static build | `web/dist/`, built by `npm --prefix web run build` |
-| Demo data | `data/demo/bundle.json`, bundled into `web/dist/assets/app.js` at build time. The origin serves no API route (2WKG-300), so regenerating the bundle requires a rebuild. |
+| Demo data | `data/demo/bundle.json`, read directly by the Express route `GET /api/demo`. The file is also bundled into `web/dist/assets/app.js` at build time. |
 | Service owner | Not recorded in this checkout |
 
 The static server's only environment variable is `PORT`; no value is recorded
@@ -38,17 +38,18 @@ is no checked-in environment file or wrapper that overrides it.
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
-| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. The origin serves static assets only; this path now falls back to the SPA shell like any unknown path. |
+| local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified; reads `data/demo/bundle.json` on every request. The built client does not call it. |
 | `https://bouncepulse.com/*` | Cloudflare public edge | Unknown connector/origin mapping | Public check returns `530`; no route can be attributed to the local origin yet |
-| optional `GET /health` | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
-| optional `POST /ask` (SSE) | No current runtime in this checkout | Planned FastAPI process on port `8000` | Specification only; not deployed or tunnel-mapped |
+| optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
+| optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
-The FastAPI paths and port are a future contract in
-`docs/specs/00-overview.md` and `docs/specs/05-copilot.md`; they are not evidence
-of a running API. Those specs name `ANTHROPIC_API_KEY`, `VOYAGE_API_KEY`,
-`DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the checked-in static
-server. The tunnel's own environment-variable names are unknown because its
-configuration is not available in the repository.
+The FastAPI paths are implemented for local use but are not evidence of a
+running API or a public mapping. `POST /ask` starts only the injected local SSE
+transport; without an injected backend it reports unavailable and it does not
+contact a provider. The specifications name `ANTHROPIC_API_KEY`,
+`VOYAGE_API_KEY`, `DUCKDB_PATH`, and `COPILOT_MODEL`, but none is read by the
+checked-in static server. The tunnel's own environment-variable names are
+unknown because its configuration is not available in the repository.
 
 ## Start and verify the static origin
 
@@ -61,15 +62,15 @@ $env:PORT = 4173 # omit to use the default
 npm --prefix web run start
 ```
 
-In another shell, verify the SPA shell and the built client asset:
+In another shell, verify the SPA shell, the demo route, and the built client asset:
 
 ```powershell
 curl.exe -I http://127.0.0.1:4173/
+curl.exe http://127.0.0.1:4173/api/demo
 curl.exe -I http://127.0.0.1:4173/assets/app.js
 ```
 
-Both should return `200`; the first is the built HTML and the second the bundled
-client, which already contains the demo fixture. Restart the static origin by
+The first should return `200` (built HTML), the second JSON from `data/demo/bundle.json`, and the third the bundled client. Restart the static origin by
 stopping that Node process and rerunning `npm --prefix web run start` with the
 intended `PORT`.
 
