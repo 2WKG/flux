@@ -8,13 +8,15 @@
  */
 
 import { MapLibreDeckFoundation } from "./MapLibreDeckFoundation";
+import type { GridState } from "../data/grid-client";
 import type { ScenePath } from "./grid-scene";
 import type { SceneView } from "./scene-view";
 
-export function GridMap({ view, paths, fitBounds }: {
+export function GridMap({ state, view, paths, fitBounds }: {
+  readonly state: GridState;
   readonly view: SceneView;
   readonly paths: readonly ScenePath[];
   readonly fitBounds: readonly [readonly [number, number], readonly [number, number]] | null;
 }) {
-  return <MapLibreDeckFoundation view={view} paths={paths} fitBounds={fitBounds} />;
+  return <MapLibreDeckFoundation state={state} view={view} paths={paths} fitBounds={fitBounds} />;
 }
