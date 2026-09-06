@@ -19,7 +19,9 @@
  * frozen token and the finer machine reason carried alongside it.
  *
  * On top of that, the approved additive action nested in a successful
- * `tool_result.result.scene_action` is accepted only in its exact shape.
+ * `tool_result.result.scene_action`, declared in
+ * `docs/research/sse-event-schema.md` § "`scene_action` (additive)", is accepted
+ * only in its exact shape.
  *
  * Why this is not `../ask/run-state/RunTrace`: `RunTrace` owns the run's phase,
  * its cancellation affordance and the raw tool payloads. This component renders
@@ -32,6 +34,7 @@ import type { ArtifactRef } from "../contracts/copilot-tools";
 import { isArtifactSourceKind, isSimulationToolName } from "../contracts/tool-names";
 import type { AssetStatus } from "../labels";
 import type { ErrorEvent, RunEvent, ToolCallEvent, ToolResultEvent } from "../ask/run-state/types";
+import { missingSceneActionIdentity, type SceneActionKind } from "../ask/results/types";
 
 export type SimulationCapability =
   | "simulation_action"
@@ -54,7 +57,7 @@ export interface UnavailableSimulationCapability {
 /** One additive action declared in a successful, attributed `tool_result`. */
 export interface ReceivedSceneAction {
   readonly actionId: string;
-  readonly kind: "scenario_edit" | "cascade";
+  readonly kind: Extract<SceneActionKind, "scenario_edit" | "cascade">;
   readonly toolCallId: string;
   readonly editHash?: string;
   readonly cascadeId?: string;
@@ -82,8 +85,13 @@ const unavailable: UnavailableSimulationCapability = {
   reason: "absent_from_received_ask_event_data",
 };
 
-const MISSING_CASCADE_ID_REASON =
-  "The received cascade action has no stable cascade_id, so it cannot be applied.";
+/**
+ * One sentence for every kind, built from the identity field the shared rule says is
+ * missing. There is no per-kind copy and therefore no per-kind exemption.
+ */
+function missingIdentityReason(kind: ReceivedSceneAction["kind"], field: string): string {
+  return `The received ${kind} action has no stable ${field}, so it cannot be applied.`;
+}
 
 function record(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
@@ -104,7 +112,7 @@ function optionalString(value: unknown): string | undefined | null {
  * shape. Generic result objects remain opaque, and a malformed action is
  * deliberately indistinguishable from an absent one to callers.
  */
-function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | null {
+export function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | null {
   if (!event.ok) return null;
   const result = record(event.result);
   const source = record(result?.scene_action);
@@ -133,18 +141,20 @@ function sceneActionFromResult(event: ToolResultEvent): ReceivedSceneAction | nu
     || reason === null
   ) return null;
 
-  // An edit hash names an edit, not a cascade run. A cascade that claims to be
-  // available without its own stable identity stays explicitly unavailable;
-  // this view must never substitute one identifier for the other.
-  if (kind === "cascade" && status === "available" && cascadeId === undefined) {
+  // Identity is decided by the shared rule in ../ask/results/types, for EVERY kind: an
+  // edit hash names an edit and a cascade id names a run. An action that claims to be
+  // available without the identity its own kind requires stays explicitly unavailable,
+  // and the refusal carries no identifier at all, so nothing on screen can be mistaken
+  // for the identity that is missing.
+  const missingIdentity = missingSceneActionIdentity(kind, { editHash, cascadeId });
+  if (status === "available" && missingIdentity !== null) {
     return {
       actionId,
       kind,
       toolCallId,
-      ...(editHash === undefined ? {} : { editHash }),
       reversible: true,
       status: "unavailable",
-      reason: MISSING_CASCADE_ID_REASON,
+      reason: missingIdentityReason(kind, missingIdentity),
     };
   }
 
