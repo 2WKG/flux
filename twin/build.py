@@ -18,6 +18,7 @@ from pandapower.converter.matpower import from_mpc
 from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationUnavailableError
 
 DEFAULT_CASE_RELATIVE_PATH = Path("data/raw/activsg2000_current/case_ACTIVSg2000.m")
+_BASE_NETWORK_CACHE: dict[tuple[str, str | None, int | None, int | None], Any] = {}
 
 
 def default_case_path() -> Path:
@@ -58,6 +59,34 @@ def build_network(
     if db_path is not None:
         attach_current_bus_coordinates(net, db_path)
     return net
+
+
+def cached_base_network(
+    case_path: str | Path | None = None, *, db_path: str | Path | None = None, f_hz: int = 60,
+) -> Any:
+    """Keep one immutable-process baseline for fast callers that deepcopy it.
+
+    This function is internal-facing by convention: callers must never mutate
+    the returned network.  :func:`twin.cascade.run_cascade` immediately deep
+    copies it before applying any scenario edit.  File mtimes form the cache
+    key, so replacing the case or coordinate DB produces a new base network.
+    """
+    case = Path(case_path) if case_path is not None else default_case_path()
+    db = Path(db_path) if db_path is not None else None
+    if not case.is_file():
+        raise SimulationUnavailableError(f"MATPOWER case is unavailable: {case}")
+    if db is not None and not db.is_file():
+        raise SimulationUnavailableError(f"coordinate database is unavailable: {db}")
+    key = (
+        str(case.resolve()),
+        str(db.resolve()) if db is not None else None,
+        case.stat().st_mtime_ns,
+        db.stat().st_mtime_ns if db is not None else None,
+    )
+    if key not in _BASE_NETWORK_CACHE:
+        _BASE_NETWORK_CACHE.clear()
+        _BASE_NETWORK_CACHE[key] = build_network(case, db_path=db, f_hz=f_hz)
+    return _BASE_NETWORK_CACHE[key]
 
 
 def _attach_element_ids(net: Any) -> None:

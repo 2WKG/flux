@@ -7,7 +7,16 @@ import pandapower as pp
 import pytest
 
 from twin.build import build_network
-from twin.cascade import rank_candidate_placements, run_cascade
+from twin.cascade import (
+    balance_report,
+    feasibility_report,
+    immutable_scenario_net,
+    placement_counterfactual,
+    rank_candidate_placements,
+    redundancy_report,
+    run_cascade,
+    scenario_identity,
+)
 from twin.contracts import (
     SYNTHETIC_TOPOLOGY_LABEL,
     SimulationInputError,
@@ -25,6 +34,17 @@ def _overloaded_impedance_net():
     return net
 
 
+def _island_generator_net(generator_mw: float) -> object:
+    net = pp.create_empty_network(sn_mva=100)
+    first, second = pp.create_bus(net, 110), pp.create_bus(net, 110)
+    pp.create_ext_grid(net, first)
+    pp.create_line_from_parameters(net, first, second, 1, 0.01, 0.1, 0, 1.0)
+    pp.create_load(net, second, p_mw=10)
+    if generator_mw:
+        pp.create_gen(net, second, p_mw=generator_mw, vm_pu=1, max_p_mw=generator_mw, min_p_mw=0)
+    return net
+
+
 def test_cascade_trips_impedance_and_sheds_its_island_without_mutating_input() -> None:
     net = _overloaded_impedance_net()
     result = run_cascade([], "storm", 0, net=net, max_stages=4)
@@ -33,6 +53,13 @@ def test_cascade_trips_impedance_and_sheds_its_island_without_mutating_input() -
     assert result["lost_load_mw"] == pytest.approx(10.0)
     assert net.impedance.at[0, "in_service"]
     assert result["topology"] == SYNTHETIC_TOPOLOGY_LABEL
+
+
+@pytest.mark.parametrize("generator_mw", [0, 5, 20])
+def test_isolated_normal_generator_is_not_claimed_as_grid_forming_supply(generator_mw: float) -> None:
+    result = run_cascade(["line:1"], "storm", 0, net=_island_generator_net(generator_mw))
+    assert result["lost_load_mw"] == pytest.approx(10.0)
+    assert any(event["cause"] == "island" for event in result["tripped_element_ids"])
 
 
 def test_forced_load_outage_and_candidate_ranking_are_json_safe() -> None:
@@ -44,6 +71,52 @@ def test_forced_load_outage_and_candidate_ranking_are_json_safe() -> None:
     assert placements[0]["topology"] == SYNTHETIC_TOPOLOGY_LABEL
     with pytest.raises(SimulationInputError, match="unknown"):
         run_cascade(["physical:1"], "storm", 1, net=net)
+
+
+def test_county_impact_reports_synthetic_load_fraction_without_customer_claim(tmp_path) -> None:
+    db = tmp_path / "grid.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("CREATE TABLE buses(bus_id BIGINT, county_fips TEXT)")
+    con.execute("INSERT INTO buses VALUES (2, '48001')")
+    con.close()
+    result = run_cascade(["load:1"], "storm", 1, net=_overloaded_impedance_net(), db_path=db)
+    assert result["counties_dark"] == ["48001"]
+    assert result["county_impacts"] == [{
+        "county_fips": "48001",
+        "lost_mw": 10.0,
+        "customers_out": None,
+        "fraction_dark": 1.0,
+        "basis": "synthetic modeled load; customer count unavailable",
+    }]
+
+
+def test_identity_and_immutable_edit_are_deterministic() -> None:
+    net = _overloaded_impedance_net()
+    first = scenario_identity(["line:1", "load:1"], "storm", 1, net=net)
+    second = scenario_identity(["load:1", "1", "line:1"], "storm", 1, net=net)
+    assert first == second
+    edited = immutable_scenario_net(net, ["line:1"])
+    assert net.line.at[0, "in_service"]
+    assert not edited.line.at[0, "in_service"]
+    with pytest.raises(RuntimeError, match="cancelled"):
+        run_cascade([], "storm", 0, net=net, cancel_check=lambda: True)
+    forward = run_cascade(["line:1", "load:1"], "storm", 1, net=net)
+    reverse = run_cascade(["load:1", "1", "line:1"], "storm", 1, net=net)
+    assert forward == reverse
+
+
+def test_feasibility_balance_redundancy_and_measured_counterfactual() -> None:
+    net = _overloaded_impedance_net()
+    pp.create_gen(net, 0, p_mw=1, vm_pu=1, max_p_mw=20, min_p_mw=0)
+    feasibility = feasibility_report(net)
+    assert feasibility["dc_solve_converged"]
+    balance = balance_report(net)
+    assert balance["dc_balance_residual_mw"] == pytest.approx(0.0)
+    redundancy = redundancy_report(net, [0, 2])
+    assert redundancy[0]["topology"] == SYNTHETIC_TOPOLOGY_LABEL
+    comparison = placement_counterfactual([], "storm", 0, net=net, site_bus=0, unit_mw=1)
+    assert set(comparison["measured_delta"]) == {"lost_load_reduction_mw", "tripped_event_reduction"}
+    assert "not a physical siting" in comparison["limitations"][0]
 
 
 def test_persistence_requires_real_schema_and_writes_copilot_shape(tmp_path) -> None:

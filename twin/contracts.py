@@ -29,6 +29,10 @@ class SimulationSolveError(SimulationError):
     """pandapower could not solve the edited synthetic model."""
 
 
+class SimulationCancelledError(SimulationError):
+    """A caller cancelled a synchronous DC run before it was persisted."""
+
+
 @dataclass(frozen=True)
 class CascadeEvent:
     """An ordered outage event that can be serialized into ``cascade_runs``."""
@@ -61,6 +65,7 @@ class CascadeResult:
     solver: str = "pandapower.rundcpp"
     synthetic: bool = True
     loading_by_element: dict[str, float] = field(default_factory=dict)
+    county_impacts: tuple[dict[str, Any], ...] = ()
 
     def json(self) -> dict[str, Any]:
         """Return the copilot-friendly payload without numpy/pandas values."""
@@ -76,6 +81,7 @@ class CascadeResult:
             "synthetic": self.synthetic,
             "solver": self.solver,
             "loading_by_element": {key: float(value) for key, value in self.loading_by_element.items()},
+            "county_impacts": [dict(value) for value in self.county_impacts],
         }
 
 
