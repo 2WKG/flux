@@ -281,9 +281,10 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         raise ValidationError(
             f"{where}: EAGLE-I gap requires label.status=UncoveredLabel"
         )
-    if (
-        outage_coverage == "UncoveredLabel" or status == "UncoveredLabel"
-    ) and observed is not None:
+    # An uncovered window has no measured count. The rule above already forces
+    # status == "UncoveredLabel" whenever the outage coverage is a gap, so this
+    # one clause covers both directions.
+    if status == "UncoveredLabel" and observed is not None:
         raise ValidationError(
             f"{where}: gap_recorded_as_zero — an uncovered window has no measured "
             f"outage count, so observed_outage_customers must be null, not "
