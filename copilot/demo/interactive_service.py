@@ -31,6 +31,31 @@ class InteractiveServiceBridge:
             return InteractiveEvidence(
                 status="unavailable", result={}, reason="The interactive service returned an invalid result."
             )
+        if intent == "cascade":
+            response = dict(response)
+            data = response.get("data")
+            if isinstance(data, dict):
+                response["scene_action"] = {
+                    "kind": "synthetic_cascade_current",
+                    "persisted": False,
+                    "run_id": data.get("run_id"),
+                    "scenario_id": data.get("scenario_id"),
+                    "hour": data.get("hour"),
+                    "element_ids": [
+                        item.get("element_id")
+                        for item in data.get("tripped_element_ids", [])
+                        if isinstance(item, dict) and isinstance(item.get("element_id"), str)
+                    ],
+                    # Keep this exact ordered tool output for scene playback;
+                    # it is a current write=False run, not persisted evidence.
+                    "timeline": data.get("tripped_element_ids", []),
+                    "topology": data.get("topology"),
+                    "synthetic": data.get("synthetic"),
+                    "solver": data.get("solver"),
+                    "model_fidelity": response.get("model_fidelity"),
+                    "network_provenance": response.get("network_provenance"),
+                    "limitations": response.get("limitations", []),
+                }
         return InteractiveEvidence(
             status="available",
             result=response,

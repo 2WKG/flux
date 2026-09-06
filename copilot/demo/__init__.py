@@ -6,6 +6,7 @@ from copilot.demo.ask_backend import (
     DeterministicNarrationProvider,
 )
 from copilot.demo.bridge import DemoCapability, DemoToolBridge, DemoToolResult
+from copilot.demo.composed import ComposedAskBackend, create_composed_ask_backend
 from copilot.demo.data import create_demo_data_router
 from copilot.demo.interactive import (
     InteractiveAskBackend,
@@ -17,6 +18,7 @@ from copilot.demo.model import create_demo_model_router
 from copilot.demo.runtime import CoreCascadeRunner, build_demo_ask_backend
 
 __all__ = (
+    "ComposedAskBackend",
     "CoreCascadeEvidence",
     "CoreCascadeRunner",
     "DemoAskBackend",
@@ -28,6 +30,7 @@ __all__ = (
     "InteractiveEvidence",
     "InteractiveToolBridge",
     "build_demo_ask_backend",
+    "create_composed_ask_backend",
     "create_demo_data_router",
     "create_demo_model_router",
     "read_experimental_jepa_forecast",
