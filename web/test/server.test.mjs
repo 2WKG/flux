@@ -71,13 +71,22 @@ test("every response carries a CSP that names no off-origin source and permits o
   assert.doesNotMatch(CONTENT_SECURITY_POLICY, /'unsafe-eval'/);
   for (const directive of CONTENT_SECURITY_POLICY.split("; ")) {
     const [name, ...values] = directive.split(" ");
+    // script-src is skipped here and pinned as a whole directive below: it is
+    // the one directive that legitimately carries a non-origin token.
+    if (name === "script-src") continue;
     for (const value of values) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
         `${name} allows ${value}, which can reach an off-origin server`,
       );
     }
   }
+  // Pinned as a whole directive, not by substring: `assert.match` above still
+  // passes if a third token is appended after 'wasm-unsafe-eval', and the
+  // allowlist loop cannot fail for any token already on it. This is the
+  // assertion that goes red on any further widening.
+  assert.ok(CONTENT_SECURITY_POLICY.split("; ").includes("script-src 'self' 'wasm-unsafe-eval'"),
+    "the served policy must keep script-src exactly 'self' plus the WebAssembly allowance");
 });
 
 /**

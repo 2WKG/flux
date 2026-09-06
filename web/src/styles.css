@@ -190,6 +190,11 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .relief li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-bottom: 1px solid #17334a; font-size: .78rem; color: #b9d2e4 }
 .relief em { font-style: normal; font-weight: 800; color: var(--relief); font-variant-numeric: tabular-nums }
 
+/* The interactive twin inspectors mounted by src/interactive/InteractivePanels.tsx. */
+.interactive-panels { margin-top: 16px; padding: 25px; display: grid; gap: 24px; border: 1px solid #234962; background: var(--panel); border-radius: 12px }
+.interactive-panels h2 { font-size: 1.25rem; margin: .2rem 0 }
+.interactive-panels dl { display: grid; gap: 6px; margin: .6rem 0 }
+.interactive-panels dl > div { display: flex; justify-content: space-between; gap: 16px }
 .pipeline { margin-top: 16px; padding: 25px; display: flex; justify-content: space-between; gap: 30px }
 .pipeline h2 { font-size: 1.5rem; margin: .4rem 0 }
 .pipeline > p { max-width: 520px; margin: 0 }

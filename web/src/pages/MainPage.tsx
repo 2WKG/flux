@@ -33,6 +33,7 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { InteractivePanels } from "../interactive/InteractivePanels";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
@@ -591,6 +592,8 @@ export function App() {
         </article>
 
       </section>
+
+      <InteractivePanels scenarioId={selected} busId="load" />
 
       <section className="pipeline">
         <div>
