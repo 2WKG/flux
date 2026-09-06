@@ -1,8 +1,8 @@
 # 03 — Cascade Simulation (`twin/`)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Cascade simulation is available only for a selected state with a validated topology contract. The Texas material below documents the repository's ACTIVSg2000 / ERCOT adapter, which requires its source artifacts and build; [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a runnable Minnesota topology.
 
-Status: draft · Scope: Texas-first (ACTIVSg2000 / ERCOT) · Owner: twin team
+Status: draft · Scope: The repository's Texas / ACTIVSg2000 / ERCOT synthetic-topology adapter requires its source artifacts and build. State-context ingestion alone does not authorize cascade simulation elsewhere. · Owner: twin team
 
 ## Purpose
 
