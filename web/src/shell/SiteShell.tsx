@@ -14,9 +14,25 @@ import { TruthLegend } from "./TruthLegend";
  * teaching bundle. That split is the reason the pages are separate modules; the
  * routing above it is only how a visitor gets between them.
  */
+export type PageLoader = () => Promise<{ readonly default: ComponentType }>;
+
+/**
+ * The route-id -> page-module binding, exported so it can be resolved and
+ * rendered by a test. `test/routing.test.mjs` awaits each loader and asserts
+ * the page it returns is the one the route names, which is the only thing that
+ * distinguishes a route that reaches its page from a route that reaches
+ * another page's component and still typechecks.
+ */
+export const PAGE_LOADERS: Record<RouteId, PageLoader> = {
+  main: () => import("../pages/MainPage").then((module) => ({ default: module.App })),
+  explainer: () => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage })),
+  minnesota: () => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom })),
+};
+
 const PAGES: Record<RouteId, ComponentType> = {
-  main: lazy(() => import("../pages/MainPage").then((module) => ({ default: module.App }))),
-  explainer: lazy(() => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage }))),
+  main: lazy(PAGE_LOADERS.main),
+  explainer: lazy(PAGE_LOADERS.explainer),
+  minnesota: lazy(PAGE_LOADERS.minnesota),
 };
 
 /** Keep failed lazy page imports inside the shared shell and recovery surface. */

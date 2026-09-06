@@ -1,0 +1,76 @@
+{
+  "format": "flux:minnesota-city-essentials-binding:v1",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "assets": [
+    {
+      "model": {
+        "archetype_id": "data_center_campus",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/data_center_campus/data_center_campus.glb",
+        "footprint_m": { "length": 220, "width": 150 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 28000, "lod1": 10000, "lod2": 3000 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "residential_neighborhood",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/residential_neighborhood/residential_neighborhood.glb",
+        "footprint_m": { "length": 180, "width": 180 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 36000, "lod1": 13000, "lod2": 3600 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "commercial_buildings",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/commercial_buildings/commercial_buildings.glb",
+        "footprint_m": { "length": 120, "width": 100 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 24000, "lod1": 9000, "lod2": 2600 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "factory_industrial_facility",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/factory_industrial_facility/factory_industrial_facility.glb",
+        "footprint_m": { "length": 200, "width": 140 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 30000, "lod1": 11000, "lod2": 3200 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "natural_gas_plant",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/natural_gas_plant/natural_gas_plant.glb",
+        "footprint_m": { "length": 200, "width": 140 },
+        "connectors": ["HV_OUT"],
+        "lod_triangles": { "lod0": 34000, "lod1": 12500, "lod2": 3600 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "wind_turbine",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/wind_turbine/wind_turbine.glb",
+        "footprint_m": { "length": 20, "width": 20 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 16000, "lod1": 6000, "lod2": 1800 }
+      }
+    },
+    {
+      "model": {
+        "archetype_id": "solar_array",
+        "contract_id": "flux:3d-asset-archetypes:v1",
+        "glb_uri": "/assets/flux-grid/solar_array/solar_array.glb",
+        "footprint_m": { "length": 150, "width": 120 },
+        "connectors": ["MV_FEED"],
+        "lod_triangles": { "lod0": 22000, "lod1": 8000, "lod2": 2400 }
+      }
+    }
+  ]
+}

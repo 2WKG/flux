@@ -1,0 +1,282 @@
+{
+  "controls": {
+    "candidate_county_fips": [
+      "27053"
+    ],
+    "frame_limit": "candidate control frame only; no regional representativeness claim",
+    "plan_id": "controls-preselection-v1",
+    "plan_sha256": "0e835a326d44f28a0591749cd26a82b962312e72fb3919d3aee43832ca5c48bc",
+    "status": "declared",
+    "weighting": "explicitly_unweighted"
+  },
+  "coverage": {
+    "control_weight": {},
+    "hazard": {},
+    "label_status": {},
+    "mode": {},
+    "region": {},
+    "season": {}
+  },
+  "declared_minimums": {
+    "accepted_rows": 12,
+    "non_empty_splits": [
+      "train",
+      "calibration",
+      "test"
+    ],
+    "non_singleton_groups": 1
+  },
+  "group_size_histogram": {},
+  "insufficient_corpus_reasons": [
+    "accepted county-window rows 0 < the declared minimum 12",
+    "every one of the 0 groups is a singleton, so no leakage check in this audit can fire",
+    "the train split is empty",
+    "the calibration split is empty",
+    "the test split is empty"
+  ],
+  "receipt": {
+    "capture_method": "generated",
+    "generator_commit": "28872f85148af4b440417e1b2f6bcf3d14aad0c4",
+    "generator_path": "scripts/data/event_baseline_split.py",
+    "generator_sha256": "96d2bdb9139d4cc2ab799406267667d14fe08dc7bd4f35a05b795f5c55ed8a2b",
+    "input_bundle_count": 58,
+    "input_bundles": [
+      {
+        "path": "docs/data/event-baseline/events/cold-snap/mn-2018-01-01-arctic.json",
+        "sha256": "cef837663c6b11d2fbd25fbf6124db4a718ad46344a725bf77b620e7d6bf0807"
+      },
+      {
+        "path": "docs/data/event-baseline/events/cold-snap/mn-2019-01-27-arctic.json",
+        "sha256": "11c13f12c49f10fed686bd797537b9e45896fabf9792d94a25bc1283600b7e98"
+      },
+      {
+        "path": "docs/data/event-baseline/events/cold-snap/mn-2020-02-12-arctic.json",
+        "sha256": "e055d3925b8bf80a057e07a6b38f42759ac31f8a88957b012bc00e09b90292b5"
+      },
+      {
+        "path": "docs/data/event-baseline/events/cold-snap/mn-2022-01-25-cold.json",
+        "sha256": "8ddec5c0568094b182bfbed2b6c17890019d7704607a10af247a35490c5d2ca8"
+      },
+      {
+        "path": "docs/data/event-baseline/events/cold-snap/mn-2022-12-21-arctic.json",
+        "sha256": "1e1b63d3890cbddcbe135e810a0d93b7235ff76fda6f1ff25a2e108a7d4aa5a9"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-autumn-01.json",
+        "sha256": "9ae81a1a9376c67ff4f86981477fac3d81eab5a986a05b293d393b16ff566821"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-spring-01.json",
+        "sha256": "6a59c56552d76d6347db9780bd578e999f6aed7673ceba2a4dd61618ff9de0d8"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-summer-01.json",
+        "sha256": "3ea65a421ec13216f6a875b90c933640cbaaf058d7155cbda7d865a7e7eb093d"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-autumn-01.json",
+        "sha256": "41f8fab8f2ff84714a0eed3f736962fedcc81f4e413f4a1666ec7a94658fb7af"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-spring-01.json",
+        "sha256": "6537f7a1ffbf8b728954167ffdbc57b2d210238ab4b272de4f2a023a589c24b8"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-11-nobles-wind.json",
+        "sha256": "15ce22e4f38014abf76d0afdd87d724b54260ba9b18897c3fd458e6e727bd6fa"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-16-nobles-hail.json",
+        "sha256": "5e582ca82520838929360b8c4dd95818bc17c08cd4f4cc4dd73504c86c402c05"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/near-miss-mn-2021-08-24-murray-hail.json",
+        "sha256": "b89b7dc1f3ba02ac2adbeb6367959a224532b6b2f3442c29beb147bd0c4187f8"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/near-miss-mn-2021-09-17-jackson-wind.json",
+        "sha256": "ececbe2a0cd880d885f3205abf937cda049850bafa30346eee4719dd009e472d"
+      },
+      {
+        "path": "docs/data/event-baseline/events/controls/near-miss-mn-2021-10-10-grant-wind.json",
+        "sha256": "5d8083f303c31b7c051000557652bfcf579aab47f658a9d4dcfa2988e9eefcaf"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/il-2022-03-05-convective-wind.json",
+        "sha256": "e24d223fac4ea73fea5bbe1e8d20bbf569215a59d8d40439f1578a6ac00ff52d"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/midwest-2020-08-10-corn-belt-derecho.json",
+        "sha256": "4fbb80ffb7a4f3c7c2d3330c183a76a86681d2e71ad0963aeea41714319077af"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/midwest-2021-12-15-serial-derecho.json",
+        "sha256": "4ff135d7c0321f5f023f02cbc16551315740cba66a6fc92aa528c1a278859437"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/midwest-2022-05-12-derecho.json",
+        "sha256": "dd62b0cc4d4dde0e145df09ff25591cafb3c78b662003d777a5f8830a0b2af85"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/minnesota-2019-07-19-northland-derecho.json",
+        "sha256": "00fa5c3a79177b5751fa6e7f1efb97781c5e9442d430b97fe6fa63457f4a497c"
+      },
+      {
+        "path": "docs/data/event-baseline/events/convective-wind/minnesota-2022-05-30-severe.json",
+        "sha256": "cef48e8118974ddecb0f98233d378c52292102e6889987617cfad7c509b5df63"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/caiso-2022-09-heat.json",
+        "sha256": "118ab85a15483a11b4f76842af64bff5f5c3742738a19925bd0e0cd930672000"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/ercot-2023-06-heat.json",
+        "sha256": "4b94908a1f8a66c36c35e130fb4b0eeca8deec0ac2e27d02949ed6507b8d5b10"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/mn-2021-06-heat.json",
+        "sha256": "075a7415fc4c9886adf14171170bc841599789af5b584d66fc3d810349e92717"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/pnw-2021-06-heat.json",
+        "sha256": "6398fa1992f2ea1abbfa3768f820316fa61a2ab1aefc9fbaf4de7d484689c5d9"
+      },
+      {
+        "path": "docs/data/event-baseline/events/heat-demand/southwest-2023-07-heat.json",
+        "sha256": "636e8e1e84dfd5115a79022b821b39af469eed6c7fb8e7ddc3e315e52f7ab1ea"
+      },
+      {
+        "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2019-04-10-ice.json",
+        "sha256": "08831feefdc179cb8635b401ac43f6c41d5ae2893bf6f17eaa6fcf744f7d98f4"
+      },
+      {
+        "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2020-11-10-ice.json",
+        "sha256": "39898cf478a7131b885822285cbdb4fe0f1f2a36364a66b2ac2df7aa03ccefdb"
+      },
+      {
+        "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2022-11-10-ice.json",
+        "sha256": "1fcc6ab6603e583a8ca12ecb8a7059cecdcfb321389ff86a9c559f7929ee8dfc"
+      },
+      {
+        "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2022-12-12-ice.json",
+        "sha256": "cd43eff0549fb232673a16642a6d0a0fea86e3d75a523a4f0e355fc61949df0b"
+      },
+      {
+        "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-wi-2022-03-29-ice.json",
+        "sha256": "272c7308b72a552e1bcc2b860acf0d3211108b4f26f2a390cbc1cfabaab12a1c"
+      },
+      {
+        "path": "docs/data/event-baseline/events/nontropical-wind/il-2022-04-14-high-wind.json",
+        "sha256": "b5b6740385d72a0e828174730c54f5b81ced418aea9086d592815d53a1c428b2"
+      },
+      {
+        "path": "docs/data/event-baseline/events/nontropical-wind/mn-2022-04-06-gradient-wind.json",
+        "sha256": "e2eb260b7ad9d064133c4447e5fe372fc5576957c2f6ecf0eea21c55eb74f7d9"
+      },
+      {
+        "path": "docs/data/event-baseline/events/nontropical-wind/mn-2022-04-23-high-wind.json",
+        "sha256": "78be13db0a5af9234ea58641907ec5219a512fcfffc866cfd0032ba54a56d277"
+      },
+      {
+        "path": "docs/data/event-baseline/events/nontropical-wind/mn-2024-11-11-lake-superior-gradient.json",
+        "sha256": "a34152c2f59a0b18a8c1031d85baed4dd5a043ece46399d53d363fda3f62124d"
+      },
+      {
+        "path": "docs/data/event-baseline/events/rain-flood/mi-2020-heavy-rain-flood.json",
+        "sha256": "332892a1a34d97cdeb5fb13de2f9829e13d42723424ddc4cf334b1a4e11ab891"
+      },
+      {
+        "path": "docs/data/event-baseline/events/rain-flood/mn-ia-2024-flood.json",
+        "sha256": "d5ca9bb16050dde99b690b1e52e8b2b9d4944e4f844e808aa26cde27bcdd293b"
+      },
+      {
+        "path": "docs/data/event-baseline/events/rain-flood/mn-sd-ia-2014-flood.json",
+        "sha256": "a05f037e87b2b4b9d0bbd839a5e76d5e3a6187a573fa5a9df0c4b48faa58abd0"
+      },
+      {
+        "path": "docs/data/event-baseline/events/rain-flood/upper-midwest-2019-snowmelt-flood.json",
+        "sha256": "67739657f75274ce715e198479be8cca2b99f918a927897f43c824ca6d5d6aaf"
+      },
+      {
+        "path": "docs/data/event-baseline/events/rain-flood/vt-2023-flood.json",
+        "sha256": "a94cce144093d19056112ea06a23392fa838d055aa7e97a158e41469f9466b27"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tornado-hail/mn-2022-06-12-marshall-tornado-hail.json",
+        "sha256": "008b00d78259838a35d71973b7ec1056cd060dd21da7b8d3ed9278e3656fe6c7"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tornado-hail/mn-2022-06-24-northern-plains.json",
+        "sha256": "31d7ee418f159a6ae22710674ab50ecc6a899799fc1c16dcc36db4f1e541003b"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tornado-hail/mn-2024-05-21-tornadoes.json",
+        "sha256": "96762eee15831a35dea58a5e2902180fe7dc02a2ef695b099e1fbbddcd4db8b6"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tornado-hail/mn-2024-06-12-northland.json",
+        "sha256": "c18df24f909000f67bd56f32e58a5079b4563c36624c2619370e9c7fbb001209"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tornado-hail/mn-2024-07-13-hail-tornado.json",
+        "sha256": "d4300eea3cd74945cbcb0761b5bb3d6e499099d6829e7fbb2d5f907f71e83952"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/florence-2018.json",
+        "sha256": "fc14f1e2fe73a4f9f4c9c05123a935c6c752eaa623ef859a2ae6bc9daf6ef3b5"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/ian-2022.json",
+        "sha256": "e63da3159a838215c619d48f4542d2c0fe478e6b7bea68f412375e677c3a0bfe"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/ida-2021.json",
+        "sha256": "df1f00f9daad32c1bb2893106ee617adbd2d1026cc0c685fa085cca1a545dee3"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/idalia-2023.json",
+        "sha256": "02f17a993b4da42b4c9f6aa1798a81864c49eed10249c9e9c8b79315a22e08c6"
+      },
+      {
+        "path": "docs/data/event-baseline/events/tropical/matthew-2016.json",
+        "sha256": "2771ac798af0509e15c8e0b85c3ead180d8da8d10e974a3baaef389e49b85570"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2019-kincade.json",
+        "sha256": "37d7836d1229d910a61a83cc72c3440b06f8981289b2d8852142cbee6e02b72c"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2020-czu.json",
+        "sha256": "d0384c565d564b8bdd252b48d03ee1eb3306bf1fb15db19dac35f3b41af1fd30"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2020-glass.json",
+        "sha256": "4cca1d284908ecf93be811b8db1ff1c6e9fc03e6f4d00982a921c73756e678b3"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2021-dixie.json",
+        "sha256": "bff3241b1ffff53eafade7742ec20d8def867e1e5d9fb8b1b339be8ac0a047c2"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/ca-2022-mosquito.json",
+        "sha256": "117bff243323efe3dc85c0f247c29ec7f62abdb9b4ed3cbc124b46de6b54091b"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2019-10-09-pge-napa.json",
+        "sha256": "0a6d3e06e127b42911a8c3dc61c68e11fbd5994f8d3dacad28fd3d852c8551c7"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2021-08-17-pge-shasta.json",
+        "sha256": "819cf86f3208fd5cbebb1aaee7bbf84d19b42b2eb6d3d86683b7c2456f1bdac4"
+      },
+      {
+        "path": "docs/data/event-baseline/events/wildfire-psps/psps-2023-09-20-pge-tehama.json",
+        "sha256": "3803043c4937eeb8e82270540d968fd2ee58d938e6fbc76d6b9f91dedbe61fc4"
+      }
+    ],
+    "input_events_dir": "docs/data/event-baseline/events"
+  },
+  "rows": 0,
+  "splits": {},
+  "status": "insufficient_corpus"
+}
