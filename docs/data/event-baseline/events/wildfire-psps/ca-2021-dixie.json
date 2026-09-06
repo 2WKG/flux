@@ -47,7 +47,14 @@
       "grid_index_mapping": "none",
       "gaps": [
         "Candidate discovery only."
-      ]
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     },
     {
       "receipt_id": "eaglei-dixie",
@@ -67,7 +74,28 @@
       "gaps": [
         "Complete annual scan has 15 of 24 expected observations; 9 missing timestamps are UncoveredLabel."
       ],
-      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547891","source_file":"eaglei_outages_2021.csv","source_file_id":42547891,"source_file_bytes":1141058232,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2021.csv","raw_artifact_sha256":"e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json","source_sidecar_sha256":"8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d","filtered_artifact_uri":"data/raw/event-baseline/ca-2021-dixie-06063-20210714000000_eaglei_2021_20210714T000000_20210714T060000.csv","filtered_artifact_sha256":"ada6bb1e57eb4c916ef4eb5499bce23972acf3edc51cb7594225f84fc0a1bdb2"}
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2021-dixie-06063-20210714000000_eaglei_2021_20210714T000000_20210714T060000.csv",
+        "filtered_artifact_sha256": "ada6bb1e57eb4c916ef4eb5499bce23972acf3edc51cb7594225f84fc0a1bdb2"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
     }
   ],
   "records": [
@@ -96,7 +124,17 @@
         ],
         "expected_samples": 24,
         "observed_samples": 15,
-        "missing_timestamps": ["2021-07-14T02:00:00Z","2021-07-14T02:15:00Z","2021-07-14T02:30:00Z","2021-07-14T02:45:00Z","2021-07-14T03:00:00Z","2021-07-14T03:15:00Z","2021-07-14T03:30:00Z","2021-07-14T03:45:00Z","2021-07-14T04:00:00Z"],
+        "missing_timestamps": [
+          "2021-07-14T02:00:00Z",
+          "2021-07-14T02:15:00Z",
+          "2021-07-14T02:30:00Z",
+          "2021-07-14T02:45:00Z",
+          "2021-07-14T03:00:00Z",
+          "2021-07-14T03:15:00Z",
+          "2021-07-14T03:30:00Z",
+          "2021-07-14T03:45:00Z",
+          "2021-07-14T04:00:00Z"
+        ],
         "event_report": null,
         "notes": "No eligible county-window weather evidence captured."
       },
@@ -109,7 +147,17 @@
         ],
         "expected_samples": 24,
         "observed_samples": 15,
-        "missing_timestamps": ["2021-07-14T02:00:00Z", "2021-07-14T02:15:00Z", "2021-07-14T02:30:00Z", "2021-07-14T02:45:00Z", "2021-07-14T03:00:00Z", "2021-07-14T03:15:00Z", "2021-07-14T03:30:00Z", "2021-07-14T03:45:00Z", "2021-07-14T04:00:00Z"],
+        "missing_timestamps": [
+          "2021-07-14T02:00:00Z",
+          "2021-07-14T02:15:00Z",
+          "2021-07-14T02:30:00Z",
+          "2021-07-14T02:45:00Z",
+          "2021-07-14T03:00:00Z",
+          "2021-07-14T03:15:00Z",
+          "2021-07-14T03:30:00Z",
+          "2021-07-14T03:45:00Z",
+          "2021-07-14T04:00:00Z"
+        ],
         "event_report": null,
         "notes": "Complete annual-source scan found 15 of 24; missing timestamps are UncoveredLabel, never zero."
       },
@@ -123,7 +171,8 @@
           "value": null
         },
         "outage_rate": null,
-        "positive": null
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
       },
       "forecast": {
         "prediction_cutoff_utc": null,
