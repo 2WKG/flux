@@ -31,6 +31,7 @@ test("every path the edge admits is a path this origin forwards, and vice versa"
     "/api/v1/grid/layers/mn",
     "/api/v1/grid/asset-placements",
     "/assets/flux-grid/manifest.json",
+    "/demo/model",
     "/scenarios",
     "/scenarios/heat-wave",
   ];

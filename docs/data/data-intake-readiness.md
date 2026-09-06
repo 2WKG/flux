@@ -138,3 +138,17 @@ uv run python -m pipelines.build_state_context `
 
 `ready_to_stage` means the declared public-context files are present; it is not
 a topology, power-flow, cascade, outage-replay, or dashboard-release verdict.
+
+## Executed runs
+
+[`texas-p0-rebuild-2wkg-416.md`](texas-p0-rebuild-2wkg-416.md) records a full
+execution of this procedure on 2026-09-06: legacy-DB preflight, receipt-driven
+acquisition of all 17 P0 raw inputs with SHA-256 verification, the build into a
+fresh output path, and the resulting quality/readiness results including every
+failure and unavailable check. It is Texas P0 legacy/research evidence and is
+neither dashboard-eligible nor hackathon-ready.
+
+`scripts/data/fetch_texas_p0_raw.py` acquires the P0 raw inputs from the tracked
+`data/sources/*.json` receipts into the layout the builder reads;
+`scripts/data/texas_p0_acquisition_probe.py --network` reports which inputs the
+catalog alone can and cannot supply.

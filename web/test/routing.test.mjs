@@ -79,10 +79,10 @@ test("each page has its own path, and an unmatched path falls back to the explor
  * would see rather than on the shape of the table.
  */
 test("each route id reaches its own page, asserted on what that page renders", async () => {
-  const fixture = JSON.parse(await readFile(new URL("../../data/demo/bundle.json", import.meta.url), "utf8"));
   const signatures = {
-    // Unique to the scenario page's module graph: the checked-in fixture digest.
-    main: { component: "App", markers: [fixture.fixtureHash] },
+    // Unique to the main model route: its Texas workspace mount and named API
+    // dependency. These catch a loader pointed back at the five-bus lesson.
+    main: { component: "App", markers: ["Full synthetic Texas topology workspace", "model API required"] },
     explainer: { component: "ExplainerPage", markers: ["The teaching simulation is not part of this build."] },
     minnesota: {
       component: "MinnesotaControlRoom",
