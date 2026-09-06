@@ -90,14 +90,14 @@
     "us-tx-distribution.json": {
       "bytes": 8066,
       "note": "data/physical-inventory/ is gitignored bulk output; regenerate with the command in capture_method",
-      "path": "data/physical-inventory/us-tx-distribution.json",
-      "sha256": "47bf157153d3d4bbe4ebb459f4b7e63c70b9c8f45fbc67a9b58ed38a8a068f7f",
+      "path": "/tmp/tx275/us-tx-distribution.json",
+      "sha256": "15001d632f9f74164213ead57768768f3525369f60b105e239aed71cf4a4f86d",
       "tracked": false
     }
   },
   "license_access": "Publisher terms as recorded per source in data/sources/texas-distribution-source-authority-ledger-v1.json",
   "provider": "Three Texas electric utility owners publishing their own service-area layers",
-  "retrieved_at": "2026-09-06T13:54:19+00:00",
+  "retrieved_at": "2026-09-06T14:57:20+00:00",
   "source_url": [
     "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/UTILITIESCOMMUNICATION_austin_energy_service_area/FeatureServer/0",
     "https://services.arcgis.com/yHSU3Q4NlapEfzn5/arcgis/rest/services/New_Braunfels_Utilities_Service_Boundaries/FeatureServer/0",
@@ -112,6 +112,7 @@
       "layer_url": "https://services.arcgis.com/0L95CJ0VTaxqcmED/arcgis/rest/services/UTILITIESCOMMUNICATION_austin_energy_service_area/FeatureServer/0",
       "native_crs": "EPSG:2277",
       "response_bytes": 70875,
+      "retrieved_at": "2026-09-06T14:57:19+00:00",
       "returned_features": 1,
       "source_id": "austin-energy-electric-service-area"
     },
@@ -123,6 +124,7 @@
       "layer_url": "https://services.arcgis.com/yHSU3Q4NlapEfzn5/arcgis/rest/services/New_Braunfels_Utilities_Service_Boundaries/FeatureServer/0",
       "native_crs": "EPSG:2278",
       "response_bytes": 68349,
+      "retrieved_at": "2026-09-06T14:57:19+00:00",
       "returned_features": 1,
       "source_id": "new-braunfels-utilities-electric-service-boundary"
     },
@@ -134,13 +136,14 @@
       "layer_url": "https://services6.arcgis.com/wHtOhDQeUxQY5fQy/arcgis/rest/services/Electric_Distribution/FeatureServer/90",
       "native_crs": "EPSG:2276",
       "response_bytes": 302796,
+      "retrieved_at": "2026-09-06T14:57:20+00:00",
       "returned_features": 42,
       "source_id": "granbury-electric-distribution-provider-areas"
     }
   ],
   "uncertainty": "Texas distribution geometry is owner-held and largely not public. Every distribution class here is unavailable with a null denominator, which is an unknown count and never zero. The retrieved service-area boundaries are owner footprints and were deliberately not converted into feeders, cables, devices, supports or service connections. Owner request routes are recorded in data/sources/texas-distribution-source-authority-ledger-v1.json.",
   "verification": {
-    "artifact_content_sha256": "12f06be1a289ea8ae42077a1b8bcf7578b77a78f252852b3df30176648d2b257",
+    "artifact_content_sha256": "8e21c40057e1f5928f093dbdef3ab36c6126f17f381d53100b89d5b15b0dd3d2",
     "artifact_validated_by": "pipelines.physical_inventory.validate_artifact",
     "connectivity_edges_created": 0,
     "coverage_rows": 7,
