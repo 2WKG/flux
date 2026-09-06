@@ -1,9 +1,12 @@
 # 2WKG-87 freeze-readiness handoff — 2026-09-06
 
-**Snapshot candidate:** `f8a3cfb228856d7fd2843b2acbedd3f06b41c6a8` (`origin/master`
-when this handoff began). This is a readiness receipt, not a tag or a request
-to stop parallel feature work. Freeze only a reviewed, immutable commit after
-the open acceptance dependencies below have completed.
+**Snapshot candidate:** `405f3b9bf15b3e43527fb7f0de5f0c4d3be31a75` (`origin/master`,
+merged into this branch on 2026-09-06). It supersedes the earlier candidate
+`f8a3cfb2288…`, which was 63 commits stale by the time this handoff was written;
+one SHA, and this is it. Every command below was re-run at this substrate. This
+is a readiness receipt, not a tag or a request to stop parallel feature work.
+Freeze only a reviewed, immutable commit after the open acceptance dependencies
+below have completed.
 
 ## What can be rehearsed locally
 
@@ -35,10 +38,36 @@ Both responses must be `200`; the root is HTML and the asset is JavaScript.
 Open the root in the presentation browser, select Baseline, Candidate A, and
 Candidate B, then open **Data, units & limits**. Confirm that the synthetic
 source, artifact hash, fixed four-hour assumption, and limitations are visible.
-`/api/demo` is intentionally not a demo API: it falls back to the SPA shell.
+`/api/demo` is intentionally not a demo API. The shipped origin (`web/server.mjs`)
+refuses every API-shaped path outright — `curl.exe -i http://127.0.0.1:4173/api/demo`
+returns `503 Service Unavailable`, `content-type: text/plain`, body
+`The static Flux demo does not serve API routes.` It does **not** fall back to the
+SPA shell; only non-API unknown paths do. `web/test/static-demo.test.mjs` boots
+`createApp()` from `web/server.mjs` and asserts that status, content type, and exact
+body, so this row and the origin cannot drift apart again.
 
 Stop the static origin with `Ctrl+C`. Do not start the optional FastAPI/Copilot
 service for this static rehearsal or describe it as part of the judge route.
+
+## Frozen file manifest
+
+The "freeze" above is enforced, not merely listed. `gate/spec-authority` in
+`.github/workflows/pr-gates.yml` re-hashes each file below on every pull request and
+fails when a listed file changes without its hash being updated in this document in
+the same PR. Changing a frozen file is therefore a deliberate, reviewable act rather
+than a 3 a.m. commit nobody notices.
+
+<!-- freeze-manifest:begin -->
+```
+7a59e2edc921aad536068bb62ab66c286e04aaea934b6115cccf6fa11378403a  data/demo/bundle.json
+5823a9c0b77adcdcc79e1c3e4adbb36424e937746b6874a20266deb6683d773b  README.md
+8cf0b9ed6e5a07558afac0cff7fd4efe6522594bf1d6e0350cbcdaf85d392430  web/server.mjs
+```
+<!-- freeze-manifest:end -->
+
+Regenerate after an intentional change with
+`shasum -a 256 data/demo/bundle.json README.md web/server.mjs`
+(`sha256sum` on Linux) and paste the result between the markers.
 
 ## Acceptance status at this snapshot
 
