@@ -229,3 +229,13 @@ Review this contract with [10-minnesota-demo.md](10-minnesota-demo.md) and verif
 Markdown diff with `git diff --check origin/master...HEAD`. 2WKG-98 adds executable
 schema tests for the handoff criteria; this documentation-only change does not claim an
 initializer or Minnesota artifact already exists.
+
+## Supplemental weather source-run helper
+
+`weather_source_runs` is a non-exported provenance helper at
+`(scenario_id, valid_ts)` grain. Each row records the paired f00 analysis and
+f01 accumulation initialization/lead, URLs, ETags, byte ranges, county-index
+version, receipt/retrieval metadata, and fallback status for an already
+persisted `weather_hourly` hour. The hour and its helper row are written
+atomically. This supplemental helper does not change exported contract tables,
+contract version, Minnesota geography, or availability claims.
