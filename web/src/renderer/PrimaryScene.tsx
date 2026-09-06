@@ -48,7 +48,7 @@ export function PrimaryScene({ scene, onRetry }: {
       <div>
         <p className="eyebrow">PRIMARY SIMULATION</p>
         <p className="hint">
-          The deck.gl scene, read from the versioned layer route. An orthographic schematic of the
+          The deck.gl scene, read from the read-only synthetic model route. An orthographic schematic of the
           topology's own published coordinates; it is not a map and asserts no geographic position.
         </p>
       </div>
@@ -63,14 +63,14 @@ export function PrimaryScene({ scene, onRetry }: {
             {scene.kind === "ready"
               ? "The simulation renderer loads in the browser."
               : scene.kind === "loading"
-                ? "Requesting the simulation release from the versioned layer route."
+                ? "Requesting the synthetic topology release from the read-only model route."
                 : "No simulation is drawn; the named state below is the whole of what this origin answered."}
           </p>}
     </div>
 
     <div className="primary-scene-note" role="status">
       {scene.kind === "loading"
-        ? <span>Requesting the simulation release from the versioned layer route.</span>
+        ? <span>Requesting the synthetic topology release from the read-only model route.</span>
         : scene.kind === "unavailable"
           ? <>
               <strong>{STATUS_COPY[scene.status]}</strong>
@@ -79,18 +79,27 @@ export function PrimaryScene({ scene, onRetry }: {
               <button type="button" onClick={onRetry}>Retry the simulation request</button>
             </>
           : <>
-              <strong className="primary-scene-release">{scene.release.artifactId} · {scene.release.artifactVersion}</strong>
+              <strong className="primary-scene-release">{scene.topology.label}{scene.topology.modelMode ? <> · {scene.topology.modelMode}</> : null}{scene.topology.solver ? <> · solver {scene.topology.solver}</> : null}</strong>
               <span>{nodes.length} node{nodes.length === 1 ? "" : "s"} drawn, each labelled from its own provenance.</span>
-              <span className="primary-scene-release">Release SHA-256: {scene.release.releaseSha256}</span>
-              {scene.excluded > 0
+              {scene.topology.coordinateSource
+                ? <span className="primary-scene-release">Coordinate source: {scene.topology.coordinateSource}</span>
+                : null}
+              {scene.topology.declaredBuses !== null || scene.topology.declaredBranches !== null
                 ? <span>
-                    {scene.excluded} loaded record{scene.excluded === 1 ? " is" : "s are"} not part of the asserted
-                    synthetic topology. {scene.excluded === 1 ? "It is" : "They are"} not drawn in the simulation and
-                    {scene.excluded === 1 ? " was" : " were"} not relabelled to fit it.
+                    The release declares {scene.topology.declaredBuses ?? "an unstated number of"} bus
+                    {scene.topology.declaredBuses === 1 ? "" : "es"} and{" "}
+                    {scene.topology.declaredBranches ?? "an unstated number of"} branch
+                    {scene.topology.declaredBranches === 1 ? "" : "es"}; branches carry no node position and are
+                    not drawn as nodes.
                   </span>
                 : null}
-              {scene.truncated
-                ? <span>The page walk stopped at its cap; more records exist after cursor <code>{scene.nextCursor}</code> and are neither drawn nor counted.</span>
+              {scene.excluded > 0
+                ? <span>
+                    {scene.excluded} loaded element{scene.excluded === 1 ? " is" : "s are"} not drawn as
+                    node{scene.excluded === 1 ? "" : "s"}, of which {scene.refusedTopology}{" "}
+                    {scene.refusedTopology === 1 ? "does" : "do"} not derive the asserted synthetic topology.
+                    Nothing was relabelled to fit it.
+                  </span>
                 : null}
             </>}
     </div>
@@ -105,7 +114,7 @@ export function PrimaryScene({ scene, onRetry }: {
           ))}
           {nodes.length > LISTED_NODES
             ? <li className="primary-scene-node" key="__remainder__">
-                <span className="primary-scene-label">
+                <span className="primary-scene-remainder">
                   Showing the first {LISTED_NODES} of {nodes.length} drawn nodes; the rest are on the canvas above.
                 </span>
               </li>
