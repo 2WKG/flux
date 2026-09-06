@@ -8,6 +8,7 @@ import duckdb
 import pytest
 from fastapi.testclient import TestClient
 
+from copilot.api import API_VERSION
 from copilot.app import create_app
 from copilot.config import Settings
 
@@ -52,6 +53,8 @@ def test_health_opens_a_fixture_database_without_claiming_model_availability(
         },
     }
     assert response.headers["X-Request-ID"] == "health-1"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
 
 
 def test_health_reports_a_sparse_fixture_without_claiming_dense_retrieval(
@@ -96,6 +99,45 @@ def test_health_returns_the_shared_unavailable_envelope_for_a_missing_fixture(
     }
     assert not (tmp_path / "missing.duckdb").exists()
     assert response.headers["X-Request-ID"] == "health-2"
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
+
+
+def test_cors_exposes_response_metadata_headers(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+    app = create_app(Settings(duckdb_path=database))
+
+    response = TestClient(app).get(
+        "/health", headers={"Origin": "http://localhost:5173"}
+    )
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Expose-Headers"] == (
+        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact, X-Flux-Attempt-Id"
+    )
+
+
+def test_internal_error_keeps_cors_and_response_metadata(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+    app = create_app(Settings(duckdb_path=database))
+
+    @app.get("/boom")
+    def boom() -> None:
+        raise RuntimeError("unexpected test failure")
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/boom", headers={"Origin": "http://localhost:5173"}
+    )
+
+    assert response.status_code == 500
+    assert response.headers["Access-Control-Allow-Origin"] == "http://localhost:5173"
+    assert response.headers["Access-Control-Expose-Headers"] == (
+        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact, X-Flux-Attempt-Id"
+    )
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
 
 
 def test_health_does_not_treat_a_configured_credential_as_model_availability(

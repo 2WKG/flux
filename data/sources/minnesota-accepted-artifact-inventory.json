@@ -1,0 +1,208 @@
+{
+  "schema_version": 1,
+  "inventory_id": "minnesota-accepted-artifacts-v1",
+  "scope": "Current, checked-in Minnesota evidence only. This is an inventory and policy boundary, not a topology conversion, source acquisition, or a claim that a renderable Minnesota map exists.",
+  "truth_labels": [
+    "source_backed",
+    "synthetic",
+    "illustrative",
+    "unavailable"
+  ],
+  "integrity_policy": {
+    "canonical_text_checksum": "For committed text evidence, SHA-256 is computed over UTF-8 content after CRLF is normalized to LF. This matches the checked-in manifest and prevents a Windows checkout line-ending conversion from changing an evidence identity.",
+    "upstream_source_checksum": "The aggregate manifest's upstream_sha256_unverified_offline values are recorded author-download claims. The upstream files are not committed here and their bytes are not re-verified by this inventory."
+  },
+  "accepted_product_artifacts": [
+    {
+      "artifact_id": "mn:aggregate:manifest:v1",
+      "kind": "source_manifest",
+      "source_path": "pipelines/fixtures/inputs/minnesota_aggregate_manifest_v1.json",
+      "content_sha256": "sha256:f287a1dfbafddff8bd9f0ec989d488ad6743609280b19338eca048c3d5858e05",
+      "truth_label_policy": {
+        "default": "source_backed",
+        "rule": "The manifest is source-backed metadata only. Its raw-source digests remain unverified_offline and must not be promoted to verified raw data."
+      },
+      "coverage": "Minnesota aggregate-mode source metadata: TIGER counties, MnGeo service areas, EIA-860 county capacity context, and MISO BA context.",
+      "coordinate_system": {
+        "status": "source_declared_only",
+        "details": "TIGER is declared EPSG:4269 and MnGeo service areas EPSG:26915; no corresponding geometry is checked in as a current renderable product artifact."
+      },
+      "license_or_terms": {
+        "status": "partially_recorded",
+        "details": "The checked-in manifest records source URLs but not reusable license terms. Consult and preserve source metadata before distribution."
+      },
+      "allowed_uses": [
+        "provenance and coverage display",
+        "aggregate-mode gating"
+      ],
+      "prohibited_uses": [
+        "rendering a Minnesota boundary or service-area geometry from absent raw files",
+        "topology, line, bus, flow, loading, trip, or outage claims"
+      ]
+    },
+    {
+      "artifact_id": "mn:facility_capacity:county:2024",
+      "kind": "county_capacity_aggregate",
+      "source_path": "pipelines/fixtures/inputs/mn_county_plant_capacity_2024.csv",
+      "content_sha256": "sha256:7757c6ece5c36a0ae15573acfe4dd2e02cb42e13a0aa9f8ac142663977e7d573",
+      "truth_label_policy": {
+        "default": "source_backed",
+        "rule": "County plant-count and operable summer-capacity values are source-backed aggregate context. A county absent from this file is not a zero-capacity claim."
+      },
+      "source": "EIA Form 860 2024, filtered to Minnesota operable generators through the checked-in aggregate manifest.",
+      "coverage": "73 Minnesota counties with at least one uniquely county-assigned plant; 836 assigned plants and 18,211.53 MW. The remaining 14 counties are explicitly not zero-capacity claims.",
+      "coordinate_system": {
+        "status": "not_applicable",
+        "details": "This file contains county FIPS aggregates, not geometry or facility coordinates."
+      },
+      "license_or_terms": {
+        "status": "partially_recorded",
+        "details": "The research inventory describes EIA data as public, but this checked-in output does not preserve a license text."
+      },
+      "allowed_uses": [
+        "aggregate capacity context by county FIPS",
+        "clearly labelled aggregate 3D encoding after an accepted county geometry exists"
+      ],
+      "prohibited_uses": [
+        "facility placement",
+        "demand, dispatch, topology, interconnection, flow, or loading inference"
+      ]
+    },
+    {
+      "artifact_id": "mn:facility_context:unassigned:2024",
+      "kind": "unassigned_facility_context",
+      "source_path": "pipelines/fixtures/inputs/mn_unassigned_plant_capacity_2024.csv",
+      "content_sha256": "sha256:926f6fb65715df19af1eb833df1560c6e592827d7ea47ed54091cf3cf08a4ed6",
+      "truth_label_policy": {
+        "default": "source_backed",
+        "rule": "The named EIA-860 facility and capacity context are source-backed. Its latitude/longitude fields have no retained coordinate-reference declaration in this product artifact, so coordinate use is unavailable."
+      },
+      "source": "EIA Form 860 2024 unassigned-plant output through the checked-in aggregate manifest.",
+      "coverage": "One Minnesota EIA-860 plant with 1.0 MW retained as unassigned because no exactly-one containing county was established; no nearest-county assignment is permitted.",
+      "coordinate_system": {
+        "status": "unavailable",
+        "details": "Latitude and Longitude columns are present, but this checked-in output does not retain their coordinate reference system; it is not an accepted spatial point artifact."
+      },
+      "license_or_terms": {
+        "status": "partially_recorded",
+        "details": "The research inventory describes EIA data as public, but this checked-in output does not preserve a license text."
+      },
+      "allowed_uses": [
+        "unassigned-facility completeness and limitation display"
+      ],
+      "prohibited_uses": [
+        "map or 3D point placement",
+        "county assignment",
+        "topology or interconnection inference"
+      ]
+    },
+    {
+      "artifact_id": "mn:ba_context:miso:2024-h1",
+      "kind": "balancing_authority_aggregate",
+      "source_path": "pipelines/fixtures/inputs/miso_ba_context_2024_h1.csv",
+      "content_sha256": "sha256:395dad9aea19226744f8be5f91ca30c783ab776d1720e6486ff64880b8366e6f",
+      "truth_label_policy": {
+        "default": "source_backed",
+        "rule": "Values are source-backed MISO balancing-authority context in UTC end-of-hour MW. Any Minnesota-only, county, service-area, facility, topology, or flow value derived from them is unavailable unless a separate accepted allocation artifact exists."
+      },
+      "source": "EIA-930 2024 H1, filtered to balancing authority MISO through the checked-in aggregate manifest.",
+      "coverage": "4,368 MISO balancing-authority hourly records for 2024 H1. It is explicitly not Minnesota demand.",
+      "coordinate_system": {
+        "status": "not_applicable",
+        "details": "Temporal balancing-authority aggregate; no geometry."
+      },
+      "license_or_terms": {
+        "status": "partially_recorded",
+        "details": "The research inventory describes EIA data as public, but this checked-in output does not preserve a license text."
+      },
+      "allowed_uses": [
+        "MISO-labelled regional time-series context"
+      ],
+      "prohibited_uses": [
+        "Minnesota demand allocation",
+        "county or service-area load allocation",
+        "facility dispatch, topology, flow, loading, or outage inference"
+      ]
+    }
+  ],
+  "not_accepted_as_current_product_coverage": [
+    {
+      "evidence_id": "synthetic_power_balance_preview",
+      "source_path": "data/demo/bundle.json",
+      "content_sha256": "sha256:85694b979717c893714927d8d67653cb12f49e9238be6f82bb192c7990d0bad0",
+      "truth_label_policy": {
+        "default": "synthetic",
+        "rule": "May be shown only as an abstract offline preview. It is not Minnesota, Texas, ERCOT, MISO, or an actual interconnection model."
+      },
+      "reason": "The checked-in fixture states this boundary directly; it cannot supply Minnesota topology, geography, facility, scenario, or conclusion coverage."
+    },
+    {
+      "evidence_id": "gridsfm_minnesota_feasibility",
+      "source_path": "docs/research/minnesota/solver-network-feasibility.md",
+      "truth_label_policy": {
+        "default": "unavailable",
+        "rule": "Feasibility observations are not product coverage. A source decision must separately verify fields, units, terms, version, and converter mapping before any topology value could be source_backed."
+      },
+      "reason": "The checked-in research record says GridSFM is promising feasibility evidence only; no GridSFM data artifact or validated adapter is accepted in this repository."
+    },
+    {
+      "evidence_id": "raw_minnesota_geometry",
+      "source_path": "pipelines/fixtures/inputs/minnesota_aggregate_manifest_v1.json",
+      "truth_label_policy": {
+        "default": "unavailable",
+        "rule": "A source-declared CRS without checked-in geometry is not renderable geographic coverage."
+      },
+      "reason": "The manifest records raw TIGER and MnGeo source declarations, but the raw files and a derived geometry artifact are absent from this repository."
+    }
+  ],
+  "asset_taxonomy": [
+    {
+      "class": "county_capacity_context",
+      "required_fields": ["county_fips", "plant_count", "summer_capacity_mw", "truth_label"],
+      "truth_label_policy": "source_backed only for the accepted EIA-860 county aggregate; an absent county is neither zero nor an asset.",
+      "current_availability": "available_without_geometry"
+    },
+    {
+      "class": "facility_point",
+      "required_fields": ["facility_id", "name", "longitude", "latitude", "coordinate_reference", "truth_label"],
+      "truth_label_policy": "source_backed only with accepted facility identity, coordinate reference, and source coverage; otherwise unavailable. Synthetic and illustrative points must never imply a Minnesota facility.",
+      "current_availability": "unavailable"
+    },
+    {
+      "class": "service_area_surface",
+      "required_fields": ["service_area_id", "geometry", "coordinate_reference", "source_artifact_id", "truth_label"],
+      "truth_label_policy": "source_backed only from an accepted, versioned service-area geometry. It represents retail service geography, never a BA map, network, or allocation crosswalk.",
+      "current_availability": "unavailable"
+    },
+    {
+      "class": "topology_node",
+      "required_fields": ["node_id", "geometry", "coordinate_reference", "source_artifact_id", "truth_label"],
+      "truth_label_policy": "source_backed only after the topology decision gate verifies identity, mapping, and source terms; otherwise unavailable.",
+      "current_availability": "unavailable"
+    },
+    {
+      "class": "topology_edge",
+      "required_fields": ["edge_id", "from_node_id", "to_node_id", "geometry", "source_artifact_id", "truth_label"],
+      "truth_label_policy": "source_backed only after accepted endpoints or unambiguous geometry and electrical-field provenance; otherwise unavailable.",
+      "current_availability": "unavailable"
+    },
+    {
+      "class": "operating_overlay",
+      "required_fields": ["asset_id", "metric", "unit", "time", "source_artifact_id", "truth_label"],
+      "truth_label_policy": "Flows, loading, trips, and outage values are unavailable unless supplied by an accepted artifact. They must never be inferred from service areas, county capacity, or MISO aggregates.",
+      "current_availability": "unavailable"
+    },
+    {
+      "class": "regional_time_context",
+      "required_fields": ["series_id", "balancing_authority", "time", "value", "unit", "truth_label"],
+      "truth_label_policy": "source_backed only when displayed as MISO balancing-authority context; any Minnesota geographic allocation is unavailable.",
+      "current_availability": "available_without_geometry"
+    },
+    {
+      "class": "synthetic_preview_network",
+      "required_fields": ["fixture_id", "model_mode", "truth_label"],
+      "truth_label_policy": "synthetic only. It is a non-Minnesota abstract preview and cannot be combined with Minnesota geography or used for Minnesota conclusions.",
+      "current_availability": "available_outside_minnesota_product_coverage"
+    }
+  ]
+}

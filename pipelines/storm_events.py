@@ -16,6 +16,10 @@ from pipelines.state_scope import scope
 _TEXAS_CZ_TIMEZONES = {
     "CST-6": "Etc/GMT+6",
     "MST-7": "Etc/GMT+7",
+    # NCEI's current files also emit daylight labels. Respect their explicit
+    # UTC offsets instead of rejecting an otherwise valid P0 event release.
+    "CDT-5": "Etc/GMT+5",
+    "MDT-6": "Etc/GMT+6",
 }
 
 

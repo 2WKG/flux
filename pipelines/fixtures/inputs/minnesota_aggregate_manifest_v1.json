@@ -1,0 +1,86 @@
+{
+  "allocation_limit": "No reviewed complete, non-overlapping BA-to-service-area crosswalk is available; MISO BA values are not allocated to Minnesota geography.",
+  "allocation_status": "unavailable",
+  "format": "flux-minnesota-aggregate-v1",
+  "model_mode": "aggregate",
+  "retrieved_at": "2026-09-06T02:11:00Z",
+  "sources": [
+    {
+      "crs": "EPSG:4269",
+      "filter": "STATEFP == '27'",
+      "id": "tiger_counties_2024",
+      "rows": 87,
+      "units": {
+        "ALAND": "m2",
+        "AWATER": "m2"
+      },
+      "upstream_sha256_unverified_offline": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b",
+      "url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip"
+    },
+    {
+      "crs": "EPSG:26915",
+      "id": "mngeo_service_areas_2026",
+      "limit": "retail service-area geometry; not a BA map, bus map, or allocation crosswalk",
+      "rows": 181,
+      "upstream_sha256_unverified_offline": "c9f62422fc96666445a8ae5de4364ed8e23f6e47808b8a0f75753f81f0bb8497",
+      "url": "https://operations.gis.data.mn.gov/api/publicdownload/download/518/util_eusa.gpkg"
+    },
+    {
+      "assigned_plant_count": 836,
+      "assigned_summer_capacity_mw": 18211.53,
+      "counties_without_assigned_plants": [
+        "27001",
+        "27011",
+        "27029",
+        "27055",
+        "27057",
+        "27069",
+        "27073",
+        "27077",
+        "27087",
+        "27089",
+        "27135",
+        "27153",
+        "27155",
+        "27159"
+      ],
+      "county_capacity_file": "mn_county_plant_capacity_2024.csv",
+      "county_capacity_rows": 73,
+      "county_coverage_note": "county_capacity_rows counts counties with at least one assigned operable plant. A county absent from the county capacity file appears in counties_without_assigned_plants; absence is not a zero-capacity claim and not an unavailable value, it means this source assigned no plant there.",
+      "file_sha256": {
+        "mn_county_plant_capacity_2024.csv": "7757c6ece5c36a0ae15573acfe4dd2e02cb42e13a0aa9f8ac142663977e7d573",
+        "mn_unassigned_plant_capacity_2024.csv": "926f6fb65715df19af1eb833df1560c6e592827d7ea47ed54091cf3cf08a4ed6"
+      },
+      "filter": "Plant/Generator State == 'MN'; Operable generators",
+      "geography_limit": "Plants without exactly one containing county remain unassigned or ambiguous; no nearest-county assignment is applied.",
+      "id": "eia860_2024",
+      "unassigned_capacity_file": "mn_unassigned_plant_capacity_2024.csv",
+      "unassigned_plant_count": 1,
+      "unassigned_summer_capacity_mw": 1.0,
+      "units": {
+        "summer_capacity_mw": "MW"
+      },
+      "upstream_sha256_unverified_offline": "0aaae04812cd4ab87a3e346bdf93848a3cc15053fd4dc2a4cf82d2aeac95f12b",
+      "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602024.zip"
+    },
+    {
+      "context_file": "miso_ba_context_2024_h1.csv",
+      "file_sha256": {
+        "miso_ba_context_2024_h1.csv": "395dad9aea19226744f8be5f91ca30c783ab776d1720e6486ff64880b8366e6f"
+      },
+      "filter": "Balancing Authority == 'MISO'",
+      "id": "eia930_balance_2024_h1",
+      "label": "MISO balancing authority (not Minnesota demand)",
+      "rows": 4368,
+      "time_basis": "UTC end of hour",
+      "units": {
+        "demand": "MW",
+        "interchange": "MW",
+        "net_generation": "MW"
+      },
+      "upstream_sha256_unverified_offline": "26768c495c3ba987e29d79df2e40d4e741f9dbcff086f53c12ff774465756a10",
+      "url": "https://www.eia.gov/electricity/gridmonitor/sixMonthFiles/EIA930_BALANCE_2024_Jan_Jun.csv"
+    }
+  ],
+  "upstream_checksum_status": "upstream_sha256_unverified_offline values are digests of the author's downloads at retrieved_at; the upstream files are not committed, so they cannot be re-verified from this repository. file_sha256 values pin the committed evidence files and are verified by tests."
+}

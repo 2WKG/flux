@@ -9,10 +9,11 @@ an artifact/retrieval chunk or represented as an explicit unavailable result.
 from __future__ import annotations
 
 import json
+import math
 from dataclasses import dataclass
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 type ScenarioId = Literal["uri_2021", "beryl_2024", "helene_2024", "forecast_72h"]
 type ToolStatus = Literal["available", "unavailable"]
@@ -128,8 +129,78 @@ class TopLinesInput(ContractModel):
     ] = 10
 
 
+_SQL_INPUT_XOR_SCHEMA = {
+    "oneOf": [
+        {
+            "properties": {
+                "query": {"type": "string"},
+                "template_id": {"type": "null"},
+                "parameters": {},
+            },
+            "required": ["query"],
+        },
+        {
+            "properties": {
+                "query": {"type": "null"},
+                "template_id": {"type": "string"},
+                "parameters": {},
+            },
+            "required": ["template_id"],
+        },
+    ]
+}
+
+
 class SqlInput(ContractModel):
-    query: Annotated[str, Field(min_length=1, max_length=5_000)]
+    # The strict model-facing schema requires both declared keys.  Its ``oneOf``
+    # then permits exactly one non-null value, matching the runtime validator.
+    model_config = ConfigDict(
+        extra="forbid", strict=True, json_schema_extra=_SQL_INPUT_XOR_SCHEMA
+    )
+
+    query: Annotated[
+        str | None,
+        Field(
+            min_length=1,
+            max_length=5_000,
+            description="Legacy free-form SQL; unavailable when a template registry is configured.",
+        ),
+    ] = None
+    template_id: Annotated[
+        str | None,
+        Field(
+            pattern=r"^[a-z][a-z0-9_]{0,63}$",
+            description="Named query advertised by the deployment's approved-template registry.",
+        ),
+    ] = None
+    parameters: Annotated[
+        list[str | int | float | bool | None],
+        Field(
+            default_factory=list,
+            max_length=25,
+            description="Bound values for positional placeholders in a deployment-owned template.",
+        ),
+    ]
+
+    @field_validator("parameters")
+    @classmethod
+    def _parameters_are_finite_json_scalars(
+        cls, values: list[str | int | float | bool | None]
+    ) -> list[str | int | float | bool | None]:
+        if any(
+            isinstance(value, float) and not math.isfinite(value) for value in values
+        ):
+            raise ValueError("SQL parameters must be finite JSON scalars")
+        return values
+
+    @model_validator(mode="after")
+    def _exactly_one_input(self) -> SqlInput:
+        # 00-overview A8 amendment: ``sql`` takes ``query`` XOR ``template_id``.
+        # Enforced at the pydantic boundary so neither ``{}`` nor both fields
+        # can reach an executor.
+        if (self.query is None) == (self.template_id is None):
+            raise ValueError("sql requires exactly one of query or template_id")
+        return self
 
 
 class CiteInput(ContractModel):
