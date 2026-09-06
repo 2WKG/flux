@@ -89,7 +89,7 @@ Settings → Secrets and variables → Actions → New repository secret →
 ### 2. Claude GitHub App
 
 `anthropics/claude-code-action` posts comments through the Claude GitHub App;
-install it on `Wyzard1004/flux` (from a checkout with Claude Code:
+install it on `2WKG/flux` (from a checkout with Claude Code:
 `claude /install-github-app`, or via <https://github.com/apps/claude>). Until the
 app is installed the `bobvi/review` job will fail at token exchange; it is not a
 required check, so nothing blocks.
@@ -109,7 +109,7 @@ workflow has run at least once).
 Or as one API call (needs admin; `gh auth status` must show the admin account):
 
 ```sh
-gh api -X POST repos/Wyzard1004/flux/rulesets --input - <<'JSON'
+gh api -X POST repos/2WKG/flux/rulesets --input - <<'JSON'
 {
   "name": "master-merge-gates",
   "target": "branch",
@@ -161,14 +161,14 @@ the file is documentation. To allow admins to bypass in an emergency, replace
 `[{"actor_id": 5, "actor_type": "RepositoryRole", "bypass_mode": "always"}]`
 (5 = repository admin role).
 
-Verify afterwards with `gh api repos/Wyzard1004/flux/rulesets --jq '.[].name'`
+Verify afterwards with `gh api repos/2WKG/flux/rulesets --jq '.[].name'`
 and by opening a PR whose branch lacks a Linear key: it must show
 `gate/linear-key` as a blocking red.
 
 ### 4. Admin checklist
 
 - [ ] `ANTHROPIC_API_KEY` repository secret added
-- [ ] Claude GitHub App installed on `Wyzard1004/flux`
+- [ ] Claude GitHub App installed on `2WKG/flux`
 - [ ] Ruleset `master-merge-gates` created (click-path or the `gh api` payload above), enforcement active
 - [ ] All eight `gate/...` contexts listed as required, "up to date" enabled
 - [ ] Code-owner review required (activates `CODEOWNERS`)

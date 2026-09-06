@@ -1,17 +1,9 @@
 import { useId, type CSSProperties } from "react";
 import { isAssetStatus, type AssetStatus } from "../labels";
+import { STATUS_COPY } from "../source-truth";
 import type { InspectorAsset, InspectorArtifactLabel, InspectorField, InspectorProps } from "./types";
 
 export type { AssetStatus, InspectorArtifactLabel, InspectorAsset, InspectorField, InspectorProps, InspectorProvenance, InspectorRelationship } from "./types";
-
-const statusText: Record<AssetStatus, string> = {
-  source_supported: "Source supported",
-  source_screened: "Source screened",
-  hypothetical: "Hypothetical",
-  synthetic: "Synthetic",
-  unavailable: "Unavailable",
-  request_failed: "Request failed",
-};
 
 const statusExplanation: Record<AssetStatus, string> = {
   source_supported: "The server supplied this status. Review the provenance before relying on a field.",
@@ -73,7 +65,7 @@ export function normalizeInspectorAsset(asset: unknown): InspectorAsset {
  * never as a label the vocabulary does not contain.
  */
 function artifactText(label: InspectorArtifactLabel | undefined, status: AssetStatus): string {
-  return statusText[label ?? status];
+  return STATUS_COPY[label ?? status];
 }
 
 function displayedField(field: InspectorField): string {
@@ -118,12 +110,12 @@ export function Inspector({ asset, onSelectRelationship, className, title = "Ins
         <h2 id={descriptionId} style={styles.title}>{safeAsset.name ?? "Identity unavailable"}</h2>
         <p style={styles.identity}>{safeAsset.kind ?? "Asset type unavailable"}{safeAsset.id ? ` · ${safeAsset.id}` : ""}</p>
       </div>
-      <span style={styles.badge}>{statusText[safeAsset.status]}</span>
+      <span style={styles.badge}>{STATUS_COPY[safeAsset.status]}</span>
     </header>
 
     <p style={styles.disclosure}>{safeAsset.message ?? statusExplanation[safeAsset.status]}</p>
     <dl style={styles.summary}>
-      <div><dt>Status</dt><dd>{statusText[safeAsset.status]}</dd></div>
+      <div><dt>Status</dt><dd>{STATUS_COPY[safeAsset.status]}</dd></div>
       <div><dt>Artifact</dt><dd>{artifactText(safeAsset.artifactLabel, safeAsset.status)}</dd></div>
       <div><dt>Scenario</dt><dd>{safeAsset.scenario ?? "Unavailable"}</dd></div>
       <div><dt>Readiness</dt><dd>{safeAsset.readiness ?? "Unavailable"}</dd></div>
@@ -151,7 +143,7 @@ export function Inspector({ asset, onSelectRelationship, className, title = "Ins
         {relationships.map((relationship) => <li key={relationship.id}>
           <button type="button" onClick={() => onSelectRelationship?.(relationship)} style={styles.relationshipButton}>
             <span><strong>{relationship.label}</strong><small>{relationship.relationship}</small></span>
-            <span>{relationship.status && isAssetStatus(relationship.status) ? statusText[relationship.status] : "Status unavailable"}</span>
+            <span>{relationship.status && isAssetStatus(relationship.status) ? STATUS_COPY[relationship.status] : "Status unavailable"}</span>
           </button>
         </li>)}
       </ul>}
