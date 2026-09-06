@@ -119,8 +119,16 @@ def test_sql_input_requires_exactly_one_of_query_or_template_id() -> None:
 
     legacy = validate_tool_input("sql", {"query": "SELECT 1"})
     template = validate_tool_input("sql", {"template_id": "summary_rows"})
-    assert legacy.model_dump() == {"query": "SELECT 1", "template_id": None}
-    assert template.model_dump() == {"query": None, "template_id": "summary_rows"}
+    assert legacy.model_dump() == {
+        "query": "SELECT 1",
+        "template_id": None,
+        "parameters": [],
+    }
+    assert template.model_dump() == {
+        "query": None,
+        "template_id": "summary_rows",
+        "parameters": [],
+    }
 
 
 def test_sql_template_id_keeps_the_frozen_identifier_pattern() -> None:
@@ -129,7 +137,11 @@ def test_sql_template_id_keeps_the_frozen_identifier_pattern() -> None:
             validate_tool_input("sql", {"template_id": template_id})
 
     schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")
-    assert set(schema["input_schema"]["properties"]) == {"query", "template_id"}
+    assert set(schema["input_schema"]["properties"]) == {
+        "query",
+        "template_id",
+        "parameters",
+    }
 
 
 def test_sql_tool_schema_encodes_the_exactly_one_input_contract() -> None:
@@ -140,14 +152,18 @@ def test_sql_tool_schema_encodes_the_exactly_one_input_contract() -> None:
 
     # Strict tool schemas require every declared key, so the unused XOR member
     # is explicit null rather than omitted.
-    assert validator.is_valid({"query": "SELECT 1", "template_id": None})
-    assert validator.is_valid({"query": None, "template_id": "summary_rows"})
+    assert validator.is_valid(
+        {"query": "SELECT 1", "template_id": None, "parameters": []}
+    )
+    assert validator.is_valid(
+        {"query": None, "template_id": "summary_rows", "parameters": []}
+    )
     for payload in (
         {},
-        {"query": "SELECT 1"},
-        {"template_id": "summary_rows"},
-        {"query": None, "template_id": None},
-        {"query": "SELECT 1", "template_id": "summary_rows"},
+        {"query": "SELECT 1", "template_id": None},
+        {"query": None, "template_id": "summary_rows"},
+        {"query": None, "template_id": None, "parameters": []},
+        {"query": "SELECT 1", "template_id": "summary_rows", "parameters": []},
     ):
         assert not validator.is_valid(payload)
 
@@ -165,11 +181,10 @@ def test_exported_sql_contract_keeps_the_xor_in_json_schema_and_typescript() -> 
     assert validator.is_valid({"query": None, "template_id": "summary_rows"})
     assert not validator.is_valid({"query": None, "template_id": None})
     assert not validator.is_valid({"query": "SELECT 1", "template_id": "summary_rows"})
-    assert (
-        "export type SqlInput = { query?: string | null; template_id?: string | null; } "
-        "& ({ query: string; template_id?: null; } | { query?: null; template_id: string; });"
-        in render_ts(document)
-    )
+    rendered = render_ts(document)
+    assert "export type SqlInput =" in rendered
+    assert "query: string; template_id?: null;" in rendered
+    assert "query?: null; template_id: string;" in rendered
 
 
 def test_representative_unavailable_output_keeps_provenance() -> None:

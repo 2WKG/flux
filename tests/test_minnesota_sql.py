@@ -129,6 +129,14 @@ def _summary_template(name: str = "summary_rows") -> ApprovedMinnesotaQuery:
     )
 
 
+def _parameterized_template(name: str = "summary_by_id") -> ApprovedMinnesotaQuery:
+    return ApprovedMinnesotaQuery(
+        name,
+        "SELECT id, label FROM mn_summary WHERE id = ?",
+        frozenset({"mn_summary"}),
+    )
+
+
 def _forbid_connect(monkeypatch: pytest.MonkeyPatch) -> list[object]:
     calls: list[object] = []
 
@@ -186,6 +194,73 @@ def test_executor_rejects_both_fields_before_the_registry_or_a_connection(
         assert result.unavailable.code == "unsupported_request"
         assert "exactly one" in result.unavailable.reason
     assert calls == []
+
+
+def test_template_parameters_bind_positionally_without_interpolating_sql(
+    db_path: Path,
+) -> None:
+    injection_template = ApprovedMinnesotaQuery(
+        "summary_by_label",
+        "SELECT id, label FROM mn_summary WHERE label = ?",
+        frozenset({"mn_summary"}),
+    )
+    executor = MinnesotaSqlExecutor(
+        db_path, [_view()], [_parameterized_template(), injection_template]
+    )
+
+    bound = asyncio.run(
+        executor.execute(SqlInput(template_id="summary_by_id", parameters=[4]))
+    )
+    injected = asyncio.run(
+        executor.execute(
+            SqlInput(template_id="summary_by_label", parameters=["' OR 1=1 --"])
+        )
+    )
+
+    assert bound.status == "available"
+    assert bound.rows == [[4, "row-4"]]
+    assert injected.status == "available"
+    assert injected.rows == []
+
+
+def test_parameter_arity_and_legacy_values_fail_before_a_connection(
+    db_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    calls = _forbid_connect(monkeypatch)
+    executor = MinnesotaSqlExecutor(db_path, [_view()], [_parameterized_template()])
+
+    missing = asyncio.run(
+        executor.execute(SqlInput(template_id="summary_by_id", parameters=[]))
+    )
+    extra = asyncio.run(
+        executor.execute(SqlInput(template_id="summary_by_id", parameters=[1, 2]))
+    )
+    legacy = asyncio.run(
+        MinnesotaSqlExecutor(db_path, [_view()]).execute(
+            SqlInput(query="SELECT id FROM mn_summary", parameters=[1])
+        )
+    )
+
+    for result in (missing, extra, legacy):
+        assert result.status == "unavailable"
+        assert result.unavailable is not None
+        assert result.unavailable.code == "unsupported_request"
+    assert calls == []
+
+
+@pytest.mark.parametrize(
+    "parameters",
+    [
+        [float("nan")],
+        [float("inf")],
+        [["nested"]],
+        [{"named": "value"}],
+        list(range(26)),
+    ],
+)
+def test_parameters_are_bounded_finite_json_scalars(parameters: object) -> None:
+    with pytest.raises(ValidationError):
+        SqlInput(template_id="summary_by_id", parameters=parameters)
 
 
 def test_legacy_mode_names_the_missing_registry_instead_of_dropping_template_id(
