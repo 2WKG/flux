@@ -209,6 +209,50 @@ test("an element whose provenance is not the synthetic topology is refused, neve
     /1 loaded element is not drawn as node, of which 1 does not derive the asserted synthetic topology/);
 });
 
+/**
+ * The regression this suite exists to prevent: the seam pointed at the wrong route.
+ *
+ * `GET /api/v1/grid/layers/{layer}` serves the committed **physical inventory**
+ * release below -- 11 949 Texas assets whose provenance is `eia860_2025er` and
+ * `hifld-lines-2024-09-30`. Not one of them derives `synthetic (ACTIVSg2000)`,
+ * which is why reading that route drew nothing while every mutation probe still
+ * went red. This test replays that release's own records through the seam and
+ * pins the two facts together: the source-backed route's real content is not
+ * drawable here, and the scene says so by name rather than rendering an empty
+ * simulation that looks fine.
+ */
+const INVENTORY_PATH = new URL("../../data/artifacts/physical_inventory/tx/physical-inventory-1.1.0.json.gz", import.meta.url);
+const INVENTORY = JSON.parse(gunzipSync(await readFile(INVENTORY_PATH)).toString("utf8"));
+
+test("the source-backed physical inventory cannot feed this scene, and is refused by name", async () => {
+  const assets = INVENTORY.assets;
+  assert.ok(assets.length > 10_000, `expected the real inventory release, got ${assets.length} assets`);
+  // Not one asset of the real release derives the asserted synthetic topology.
+  const derived = assets.filter((asset) => scene.deriveSourceTruth({
+    sourceId: String(asset.provenance?.source_id ?? ""),
+    sourceRef: String(asset.provenance?.source_ref ?? ""),
+  }).topology === TOPOLOGY);
+  assert.equal(derived.length, 0,
+    "the source-backed release derives no synthetic topology; that is why it cannot be this scene's route");
+
+  // Its records, carried in the model route's own envelope, draw nothing and are named.
+  const elements = assets.slice(0, 200).map((asset) => ({
+    element_id: String(asset.asset_id),
+    source_id: String(asset.provenance?.source_id ?? ""),
+    resolved: true,
+    role: "asset",
+    geometry: asset.display_geometry,
+    provenance: { coordinate_source: "source", topology: String(asset.provenance?.source_ref ?? "") },
+  }));
+  const { client } = transport([{ ...RELEASE_PAYLOAD, data: { ...RELEASE_PAYLOAD.data, elements } }]);
+  const state = await scene.loadPrimaryScene({}, client);
+  assert.equal(state.kind, "unavailable");
+  assert.equal(state.code, "no_synthetic_topology_nodes");
+  const markup = scene.renderScene(state);
+  assert.deepEqual(labelsIn(markup), []);
+  assert.ok(!plain(markup).includes(TOPOLOGY));
+});
+
 test("the primary simulation never draws a release that declares another topology", async () => {
   const foreignRelease = {
     ...RELEASE_PAYLOAD,
