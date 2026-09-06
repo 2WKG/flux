@@ -11,10 +11,16 @@ credentials-file: C:\Users\<USER>\.cloudflared\<TUNNEL-UUID>.json
 
 ingress:
   # The read-only FastAPI path surface. Cloudflared evaluates ingress in order,
-  # so this must precede the static fallback. It routes by path, not method;
-  # FastAPI rejects unsupported methods on these paths.
+  # so this must precede the static fallback -- which is exactly why it may not be
+  # wider than the same-origin forward behind it. There is ONE definition of the
+  # public path surface: the GET half of `PROXIED` in `web/server.mjs`, exported as
+  # `INGRESS_PATH_PATTERN`. The `path:` line below must be that string verbatim;
+  # `web/test/ingress-allowlist.test.mjs` reads this file and fails when it drifts.
+  # Regenerate with:
+  #   node -e 'import("./web/server.mjs").then(m=>console.log(m.INGRESS_PATH_PATTERN))'
+  # Cloudflared routes by path, not method; FastAPI rejects unsupported methods.
   - hostname: bouncepulse.com
-    path: ^/(health|layers(?:/.*)?|api/v1/grid/layers(?:/.*)?|lines/top|elements/critical|scenarios(?:/.*)?|predictions|cascade)$
+    path: ^/(api/v1/grid/layers/[^/]+|health|layers/[^/]+|scenarios|scenarios/[^/]+)$
     service: http://127.0.0.1:8000
 
   # The built static demo (web/server.mjs serving web/dist/).

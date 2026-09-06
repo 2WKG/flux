@@ -273,6 +273,31 @@ jobs:
           echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables, docs/data/event-baseline/README.md for the event baseline schema) in this PR."
           exit 1
 
+  deploy-preflight:
+    name: gate/deploy-preflight
+    # tunnel.ps1 is a Windows operator script: USERPROFILE, and Invoke-WebRequest
+    # throwing on a non-2xx response, are both real only here. Running it on ubuntu
+    # would test a different program from the one the operator runs.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Invoke-Pester over deploy/test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Windows ships Pester 3 in the box; the suite is Pester 5. Install only if
+          # the runner image does not already carry a 5.x.
+          if (-not (Get-Module Pester -ListAvailable | Where-Object { $_.Version.Major -eq 5 })) {
+            Install-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99 -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+          Import-Module Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99
+          Write-Host "Pester $((Get-Module Pester).Version)"
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'deploy/test'
+          $config.Run.Throw = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
+
   linear-key:
     name: gate/linear-key
     runs-on: ubuntu-latest
