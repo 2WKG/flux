@@ -3,12 +3,12 @@
 This is intentionally a small, checked-in fixture model. It is not a replacement
 for the Minnesota topology/aggregate-model prerequisite.
 """
+
 from __future__ import annotations
 
 import hashlib
 import json
 from pathlib import Path
-
 
 ROOT = Path(__file__).resolve().parents[1]
 INPUT = ROOT / "data" / "demo" / "synthetic-scenario-input-v1.json"
@@ -20,6 +20,14 @@ def load_inputs(path: Path = INPUT) -> dict:
 
 
 def artifact_hash(inputs: dict) -> str:
+    """Return the first 12 hex digits of sha256 over the *canonical JSON* of ``inputs``.
+
+    Canonical means ``sort_keys=True`` with compact separators, so the hash is
+    stable across whitespace, key order, and pretty-printing of the input file.
+    It is therefore NOT the hash of the committed file bytes: ``shasum -a 256
+    data/demo/synthetic-scenario-input-v1.json`` gives a different digest. This
+    value is written as ``fixtureHash`` and every ``provenance.inputHash``.
+    """
     payload = json.dumps(inputs, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(payload).hexdigest()[:12]
 
@@ -45,17 +53,35 @@ def execute_scenario(inputs: dict, intervention: dict | None) -> dict:
         "status": "available",
         "modelMode": assumptions["modelMode"],
         "assumptionSetId": assumptions["id"],
-        "intervention": None if intervention is None else {
-            "id": intervention["id"], "capacityMw": intervention["capacityMw"],
-            "modeledContributionMw": contribution, "description": intervention["description"],
+        "intervention": None
+        if intervention is None
+        else {
+            "id": intervention["id"],
+            "capacityMw": intervention["capacityMw"],
+            "modeledContributionMw": contribution,
+            "description": intervention["description"],
         },
         "metrics": {
-            "shedMw": shed, "shedMwh": shed * assumptions["durationHours"],
-            "availableGenerationMw": available, "demandMw": demand,
-            "improvementMw": baseline_shed - shed, "lineLoadings": line_loadings(inputs, intervention),
+            "shedMw": shed,
+            "shedMwh": shed * assumptions["durationHours"],
+            "availableGenerationMw": available,
+            "demandMw": demand,
+            "improvementMw": baseline_shed - shed,
+            "lineLoadings": line_loadings(inputs, intervention),
         },
-        "units": {"shedMw": "MW", "shedMwh": "MWh", "availableGenerationMw": "MW", "demandMw": "MW", "improvementMw": "MW", "lineLoading": "%"},
-        "provenance": {**inputs["provenance"], "artifactId": inputs["artifactId"], "inputHash": artifact_hash(inputs)},
+        "units": {
+            "shedMw": "MW",
+            "shedMwh": "MWh",
+            "availableGenerationMw": "MW",
+            "demandMw": "MW",
+            "improvementMw": "MW",
+            "lineLoading": "%",
+        },
+        "provenance": {
+            **inputs["provenance"],
+            "artifactId": inputs["artifactId"],
+            "inputHash": artifact_hash(inputs),
+        },
         "limitations": inputs["limitations"],
     }
 
@@ -63,15 +89,44 @@ def execute_scenario(inputs: dict, intervention: dict | None) -> dict:
 def result_payload(inputs: dict | None = None) -> dict:
     inputs = load_inputs() if inputs is None else inputs
     scenarios = {"baseline": execute_scenario(inputs, None)}
-    scenarios.update({item["id"]: execute_scenario(inputs, item) for item in inputs["interventions"]})
-    provenance = {**inputs["provenance"], "artifactId": inputs["artifactId"], "inputHash": artifact_hash(inputs)}
+    scenarios.update(
+        {item["id"]: execute_scenario(inputs, item) for item in inputs["interventions"]}
+    )
+    provenance = {
+        **inputs["provenance"],
+        "artifactId": inputs["artifactId"],
+        "inputHash": artifact_hash(inputs),
+    }
     return {
-        "schemaVersion": 2, "generatedFrom": inputs["artifactId"], "fixtureHash": artifact_hash(inputs),
-        "execution": {"status": "available", "modelMode": inputs["assumptions"]["modelMode"], "assumptionSetId": inputs["assumptions"]["id"], "assumptions": inputs["assumptions"], "provenance": provenance, "limitations": inputs["limitations"]},
+        "schemaVersion": 2,
+        "generatedFrom": inputs["artifactId"],
+        "fixtureHash": artifact_hash(inputs),
+        "execution": {
+            "status": "available",
+            "modelMode": inputs["assumptions"]["modelMode"],
+            "assumptionSetId": inputs["assumptions"]["id"],
+            "assumptions": inputs["assumptions"],
+            "provenance": provenance,
+            "limitations": inputs["limitations"],
+        },
         "network": {
             "buses": inputs["network"]["buses"],
-            "lines": [{key: value for key, value in line.items() if key != "baselineLoadingPct"} for line in inputs["network"]["lines"]],
-            "candidates": [{key: value for key, value in item.items() if key not in {"modeledContributionMw", "lineLoadingMultipliers"}} for item in inputs["interventions"]],
+            "lines": [
+                {
+                    key: value
+                    for key, value in line.items()
+                    if key != "baselineLoadingPct"
+                }
+                for line in inputs["network"]["lines"]
+            ],
+            "candidates": [
+                {
+                    key: value
+                    for key, value in item.items()
+                    if key not in {"modeledContributionMw", "lineLoadingMultipliers"}
+                }
+                for item in inputs["interventions"]
+            ],
         },
         "scenarios": scenarios,
     }
