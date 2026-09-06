@@ -1,0 +1,34 @@
+{
+  "format": "flux-physical-connectivity-readiness-v1",
+  "scope": "Access and evidence receipts only. These records do not establish class coverage or a published inventory; 2WKG-441 owns that contract.",
+  "receipts": [
+    {
+      "state": "TX",
+      "status": "blocked",
+      "source": {
+        "name": "ERCOT Network Operations Model / planning-model access",
+        "url": "https://www.ercot.com/gridinfo/modeling",
+        "version": "public access check",
+        "assessed_at": "2026-09-06T12:00:00Z"
+      },
+      "accepted_terminal_count": 0,
+      "accepted_edge_count": 0,
+      "reason": "ERCOT publishes modeling process and schema material, while the network-model data is handled under CEII/ECEII access controls. No authorized, versioned terminal-and-circuit release was obtained in this work.",
+      "prohibited_inferences": ["line endpoints", "line crossings", "proximity", "plant coordinates", "street geometry"]
+    },
+    {
+      "state": "MN",
+      "status": "blocked",
+      "source": {
+        "name": "Minnesota transmission and substation public GIS context",
+        "url": "https://www.mngeo.state.mn.us/chouse/utilities.html",
+        "version": "public catalog access check",
+        "assessed_at": "2026-09-06T12:00:00Z"
+      },
+      "accepted_terminal_count": 0,
+      "accepted_edge_count": 0,
+      "reason": "Minnesota's catalog says the former electric transmission-lines-and-substations dataset is no longer supported because of accuracy and current-information problems. The catalog is geometry/context evidence, not a terminal-and-circuit release.",
+      "prohibited_inferences": ["line endpoints", "line crossings", "proximity", "plant coordinates", "street geometry"]
+    }
+  ]
+}
