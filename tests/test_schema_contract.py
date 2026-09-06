@@ -124,7 +124,7 @@ def test_opening_a_v1_database_raises_the_named_migration_error_before_any_ddl(
 
     with pytest.raises(
         RuntimeError,
-        match=r"contract version is '1\.0\.0', expected '2\.0\.0'; migrate explicitly",
+        match=r"contract version is '1\.0\.0', expected '2\.1\.0'; migrate explicitly",
     ):
         connect(path)
 
@@ -144,3 +144,15 @@ def test_opening_a_v1_database_raises_the_named_migration_error_before_any_ddl(
         assert con.execute("SELECT count(*) FROM duckdb_indexes()").fetchone() == (0,)
     finally:
         con.close()
+
+
+def test_opening_a_v2_database_fails_at_the_version_guard(tmp_path: Path) -> None:
+    path = tmp_path / "grid.duckdb"
+    con = duckdb.connect(str(path))
+    con.execute("CREATE TABLE schema_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)")
+    con.execute("INSERT INTO schema_meta VALUES ('contract_version', '2.0.0')")
+    con.close()
+    with pytest.raises(
+        RuntimeError, match=r"contract version is '2\.0\.0', expected '2\.1\.0'"
+    ):
+        connect(path)

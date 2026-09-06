@@ -142,12 +142,18 @@ def load_storm_events(
             """DELETE FROM storm_events AS events
                WHERE EXISTS (SELECT 1 FROM storm_event_attributes AS attrs
                              WHERE attrs.source_year = ?
+                               AND ({scope})
                                AND attrs.event_id = events.event_id
-                               AND attrs.county_fips = events.county_fips)""",
+                               AND attrs.county_fips = events.county_fips)""".format(
+                scope=selected_scope.county_where("attrs.county_fips")
+            ),
             [year],
         )
         rows = replace_frame(
-            con, "storm_event_attributes", attributes, where=f"source_year = {year}"
+            con,
+            "storm_event_attributes",
+            attributes,
+            where=f"source_year = {year} AND ({selected_scope.county_where()})",
         )
         incoming = contract.copy()
         incoming["source_name"] = "noaa_storm_events"
@@ -166,6 +172,24 @@ def load_storm_events(
             "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
             ["noaa_storm_events", f"{year}:zone:%"],
         )
+        con.execute(
+            "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
+            ["noaa_storm_events", f"{year}:scope:%"],
+        )
+        if selected.empty:
+            # A scope with no rows is reported, never recorded as a clean load.
+            con.execute(
+                "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+                [
+                    "noaa_storm_events",
+                    f"{year}:scope:{selected_scope.slug}",
+                    (
+                        f"0 Storm Events rows in {path.name} for scope "
+                        f"{selected_scope.slug}; the source has no rows for "
+                        f"{', '.join(selected_scope.names)}"
+                    ),
+                ],
+            )
         scope_label = "Texas" if selected_scope.is_texas_only else "scoped"
         for zone, count in unmatched_zones.items():
             con.execute(
