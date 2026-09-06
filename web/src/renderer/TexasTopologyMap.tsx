@@ -6,7 +6,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LayersList } from "@deck.gl/core";
 import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
-import Map, { NavigationControl } from "react-map-gl/maplibre";
+import Map, { NavigationControl, type MapRef } from "react-map-gl/maplibre";
 import { OFFLINE_BASEMAP_STYLE } from "./basemap";
 import { DeckOverlay } from "./DeckOverlay";
 import { loadFluxGridPlacements, type AssetPlacementBounds } from "../data/flux-grid-assets";
@@ -84,6 +84,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   const [assetSource, setAssetSource] = useState<AssetSource | null>(null);
   const [assets, setAssets] = useState<AssetOverlay | null>(null);
   const cache = useRef<FluxAssetCache | null>(null);
+  const map = useRef<MapRef | null>(null);
   const lod = lodForZoom(zoom);
   useEffect(() => {
     cache.current = new FluxAssetCache("/assets/flux-grid/");
@@ -114,6 +115,10 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
       .catch(() => { if (!controller.signal.aborted) setAssets(null); });
     return () => controller.abort();
   }, [assetSource, lod]);
+  const focusPlacement = useMemo(() => assetSource?.placements.find((placement) =>
+    placement.status !== "unavailable" && placement.status !== "request_failed" &&
+    assetSource.manifest.assets.some((asset) => asset.archetype_id === placement.archetype_id),
+  ) ?? null, [assetSource]);
   const layers = useMemo<LayersList>(() => [
     new PathLayer<Line>({ id: "texas-model-branches", data: lines, getPath: (line) => line.path as Position[],
       getColor: [74, 222, 128, 170], getWidth: 1.5, widthUnits: "pixels", pickable: true }),
@@ -127,10 +132,15 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
   ], [assets, buses, generators, lines, loads, zoom]);
   if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
   return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"} data-visual-lod={zoom >= 17 ? "lod0" : zoom >= 15 ? "lod1" : zoom >= 12 ? "lod2" : "symbol"} data-map-zoom={zoom.toFixed(2)}>
-    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onLoad={(event) => setZoom(event.target.getZoom())} onMoveEnd={(event) => setZoom(event.viewState.zoom)} onZoomEnd={(event) => setZoom(event.target.getZoom())} onError={(event) => setError(event.error.message)}>
+    <Map ref={map} initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onLoad={(event) => setZoom(event.target.getZoom())} onMoveEnd={(event) => setZoom(event.viewState.zoom)} onZoomEnd={(event) => setZoom(event.target.getZoom())} onError={(event) => setError(event.error.message)}>
       <NavigationControl position="top-right" showCompass />
       <DeckOverlay layers={layers} />
     </Map>
+    <button className="texas-asset-focus" type="button" disabled={focusPlacement === null}
+      title={focusPlacement === null ? "No source-backed 3D placement is available." : `View ${focusPlacement.label} in 3D`}
+      onClick={() => focusPlacement && map.current?.flyTo({ center: focusPlacement.position, zoom: 17, pitch: 50, essential: true })}>
+      {focusPlacement === null ? "3D asset unavailable" : "View a 3D asset"}
+    </button>
     <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
   </section>;
 }

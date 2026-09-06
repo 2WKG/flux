@@ -352,6 +352,8 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .map-foundation .maplibregl-map { block-size: 100%; min-block-size: 28rem }
 .texas-topology-map { position: relative; min-block-size: 42rem; overflow: hidden; border-radius: 10px }
 .texas-topology-map .maplibregl-map { block-size: 42rem }
+.texas-asset-focus { position: absolute; z-index: 5; inset: 4.5rem .75rem auto auto; padding: .5rem .7rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); cursor: pointer }
+.texas-asset-focus:disabled { color: var(--muted); cursor: not-allowed }
 .texas-topology-map > p { position: absolute; z-index: 2; inset: auto .75rem .75rem .75rem; margin: 0; padding: .6rem .75rem; max-inline-size: 50rem; border: 1px solid var(--line-strong); border-radius: .45rem; background: rgb(9 17 29 / 93%); color: var(--ink); font-size: .78rem }
 .texas-model-intro { position: absolute; z-index: 4; inset: 3.8rem auto auto max(1rem, calc((100dvw - 1520px) / 2)); max-inline-size: min(34rem, calc(100dvw - 2rem)); margin: 0; padding: .65rem .8rem; border: 1px solid var(--line-strong); border-radius: .5rem; background: rgb(9 17 29 / 93%); pointer-events: none }
 .texas-model-intro h1 { margin: .15rem 0; font-size: clamp(1.15rem, 2vw, 1.65rem) }
