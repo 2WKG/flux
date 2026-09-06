@@ -21,7 +21,9 @@ test("the main-page bundle loads the server layer into the deck.gl scene", async
     assert.match(text, /\/layers\/buses/);
     assert.match(text, /ColumnLayer/);
     assert.match(text, /deck\.gl simulation scene/);
-    assert.match(text, /OFFLINE FALLBACK · SYNTHETIC FIVE-BUS FIXTURE/);
+    // esbuild escapes the middle-dot in the emitted string literal while the
+    // source intentionally keeps the readable character.
+    assert.match(text, /OFFLINE FALLBACK (?:·|\\xB7) SYNTHETIC FIVE-BUS FIXTURE/);
   }
   assert.match(source, /fixture provenance[\s\S]*cannot be used as the primary simulation/);
   assert.match(source, /column height is a scene marker, not a measured asset value/);

@@ -15,6 +15,9 @@ import { FailureState } from "../failure-states/FailureState";
 import { Inspector, type InspectorAsset } from "../inspector/Inspector";
 import { OFFLINE_BASEMAP_STYLE } from "../renderer/basemap";
 import { DeckOverlay } from "../renderer/DeckOverlay";
+import { CurrentAppComposition } from "../interactive/CurrentAppComposition";
+import { adaptTexasNodes } from "../texas-nodes/adapter";
+import { TexasNodeInspector, TexasNodesFailure } from "../texas-nodes/presentation";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 type Feature = {
@@ -139,6 +142,13 @@ function Simulation({ collection }: { readonly collection: LayerCollection }) {
   const [visible, setVisible] = useState(true);
   const [selected, setSelected] = useState<Feature | null>(null);
   const [rendererFailure, setRendererFailure] = useState<string | null>(null);
+  // 438 owns this strict adapter. The primary scene still renders the generic
+  // layer contract, while its role/draw/provenance inspector appears only when
+  // the actual annotated response validates.
+  const texasNodes = useMemo(() => adaptTexasNodes(collection), [collection]);
+  const selectedTexasNode = texasNodes.kind === "ready" && selected
+    ? texasNodes.nodes.find((node) => node.id === selected.id) ?? null
+    : null;
   const rendered = visible ? collection.features : [];
   const layers = useMemo<LayersList>(() => [
     new ColumnLayer<Feature>({
@@ -199,7 +209,10 @@ function Simulation({ collection }: { readonly collection: LayerCollection }) {
         <p>The API reports <code>{collection.provenance.topology ?? "synthetic topology"}</code>. This browser renders the reported geometry for simulation inspection and does not promote it to a source-supported grid.</p>
         <p>Sources: {collection.provenance.source_names?.join(", ") || "not supplied"}. Coordinate inputs: {collection.provenance.coord_sources?.join(", ") || "not supplied"}.</p>
       </section>
-      <Inspector asset={selected ? inspectorAsset(selected) : null} />
+      {texasNodes.kind === "ready" && selectedTexasNode && <TexasNodeInspector node={selectedTexasNode} />}
+      {texasNodes.kind === "ready" && !selectedTexasNode && <Inspector title="Texas node inspector" asset={null} />}
+      {texasNodes.kind !== "ready" && <TexasNodesFailure adaptation={texasNodes} />}
+      {texasNodes.kind !== "ready" && <Inspector asset={selected ? inspectorAsset(selected) : null} />}
     </div>
   </>;
 }
@@ -257,5 +270,6 @@ export function App() {
     {scene.kind === "ready" && <Simulation collection={scene.collection} />}
     {scene.kind === "unavailable" && <OfflineFallback message={scene.message} retry={retry} />}
     <ChatDock />
+    <CurrentAppComposition />
   </main>;
 }

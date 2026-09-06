@@ -84,7 +84,8 @@ test("the chat dock names its unavailable state without offering an answer", asy
 test("navigation preserves the URL and returns to the primary scene", async ({ page }) => {
   await supplySyntheticLayer(page);
   await page.goto("/explainer?scenario=uri_2021&h=3#method");
-  await expect(page.getByRole("heading", { name: /How the math works/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /follow a five-bus cascade, one equation at a time/i })).toBeVisible();
+  await expect(page.locator("main")).toHaveAttribute("data-source-status", "synthetic");
 
   await page.getByRole("link", { name: "Scenario explorer" }).click();
   await expect(page).toHaveURL(/\/?scenario=uri_2021&h=3#method$/);

@@ -31,11 +31,13 @@ export function adaptTexasNodes(response: unknown): TexasNodeAdaptation {
     if (!role(props.role) || !number(props.base_kv) || props.base_kv <= 0 || !number(props.generation_capacity_mw) || props.generation_capacity_mw < 0) return fail(index, "role, voltage, or capability is malformed.");
     if (props.draw_status !== "available" && props.draw_status !== "unavailable") return fail(index, "draw status is malformed.");
     if ((props.draw_status === "available" && (!number(props.draw_mw) || props.draw_mw < 0)) || (props.draw_status === "unavailable" && props.draw_mw !== null)) return fail(index, "draw value does not match its server status.");
-    if (!record(props.field_provenance) || REQUIRED_PROVENANCE.some((field) => typeof props.field_provenance[field] !== "string")) return fail(index, "per-field provenance is missing.");
+    const fieldProvenance = props.field_provenance;
+    if (!record(fieldProvenance) || REQUIRED_PROVENANCE.some((field) => typeof fieldProvenance[field] !== "string")) return fail(index, "per-field provenance is missing.");
     if (!Array.isArray(props.critical_loads) || !props.critical_loads.every((item) => record(item) && (typeof item.id === "string" || typeof item.cl_id === "number") && typeof item.name === "string" && typeof item.kind === "string")) return fail(index, "critical-facility binding is malformed.");
     const criticalFacilities: TexasNodeCriticalFacility[] = props.critical_loads.map((item) => { const bound = item as Record<string, unknown>; return { id: String(bound.id ?? bound.cl_id), name: bound.name as string, kind: bound.kind as string }; });
+    const typedFieldProvenance = fieldProvenance as Record<string, string>;
     const draw: TexasNodeDraw = props.draw_status === "available" ? { availability: "available", mw: props.draw_mw as number, scenarioId, hour } : { availability: "unavailable", reason: "ba_hour_unavailable", scenarioId, hour };
-    nodes.push({ id: feature.id, name: typeof props.name === "string" ? props.name : null, longitude: lon, latitude: lat, baseKv: props.base_kv, role: props.role, hourDraw: draw, generationCapacityMw: props.generation_capacity_mw, county: typeof props.county_name === "string" ? props.county_name : null, ba: typeof props.ba_code === "string" ? props.ba_code : null, criticalFacilities, fieldProvenance: props.field_provenance as Record<string, string>, truth: truthFor(response, props) });
+    nodes.push({ id: feature.id, name: typeof props.name === "string" ? props.name : null, longitude: lon, latitude: lat, baseKv: props.base_kv, role: props.role, hourDraw: draw, generationCapacityMw: props.generation_capacity_mw, county: typeof props.county_name === "string" ? props.county_name : null, ba: typeof props.ba_code === "string" ? props.ba_code : null, criticalFacilities, fieldProvenance: typedFieldProvenance, truth: truthFor(response, props) });
   }
   return { kind: "ready", nodes };
 }
