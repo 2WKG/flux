@@ -194,3 +194,101 @@ def test_latest_timestamp_beats_log_order_for_partial_status(tmp_path):
     ])
     report = run_quality_gate(path, _operations(tmp_path), ingest_log_path=log, previous_counts_path=baseline, now=now)
     assert any(alert["code"] == "partial_ingest" for alert in report["alerts"])
+
+
+def test_declared_provenance_mapping_allows_a_reconciled_release(tmp_path):
+    path = _database(tmp_path)
+    con = duckdb.connect(str(path))
+    # The production EIA-930 loader persists eia930; the operations/catalogue
+    # identity deliberately uses eia-930.
+    con.execute("UPDATE counties SET source_name = 'eia930', source_version = '2024_h2'")
+    con.close()
+    operations = tmp_path / "operations.json"
+    operations.write_text(json.dumps({
+        "sources": [{"id": "eia-930", "owner": "data-oncall", "freshness_sla_hours": None}],
+        "curated_source_mappings": [{"source_name": "eia930", "operation_ids": ["eia-930"]}],
+    }))
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps({"counties": 1}))
+    log = _log(tmp_path, [{
+        "source_id": "eia-930", "status": "ok", "row_count": 1,
+        "curated_row_count": 1, "retrieved_at_utc": datetime.now(UTC).isoformat(),
+    }])
+
+    report = run_quality_gate(path, operations, ingest_log_path=log, previous_counts_path=baseline)
+
+    codes = {alert["code"] for alert in report["alerts"]}
+    assert "unoperated_source" not in codes
+    assert "source_curated_mismatch" not in codes
+    assert report["dashboard_eligible"]
+
+
+def test_versioned_mapping_does_not_operate_an_unmapped_release(tmp_path):
+    path = _database(tmp_path)
+    con = duckdb.connect(str(path))
+    con.execute("UPDATE counties SET source_name = 'eaglei', source_version = '2025'")
+    con.close()
+    operations = tmp_path / "operations.json"
+    operations.write_text(json.dumps({
+        "sources": [{"id": "eaglei-2024", "owner": "data-oncall", "freshness_sla_hours": None}],
+        "curated_source_mappings": [{
+            "source_name": "eaglei", "source_version": "2024", "operation_ids": ["eaglei-2024"],
+        }],
+    }))
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps({"counties": 1}))
+
+    report = run_quality_gate(path, operations, previous_counts_path=baseline)
+
+    assert any(alert["code"] == "unoperated_source" for alert in report["alerts"])
+    assert not report["dashboard_eligible"]
+
+
+def test_composite_mapping_requires_all_inputs_without_double_counting(tmp_path):
+    path = _database(tmp_path)
+    con = duckdb.connect(str(path))
+    con.execute("UPDATE counties SET source_name = 'census_tiger_county+fema_nri'")
+    con.close()
+    operations = tmp_path / "operations.json"
+    operations.write_text(json.dumps({
+        "sources": [
+            {"id": "census-tiger-counties", "owner": "data-oncall", "freshness_sla_hours": None},
+            {"id": "fema-nri", "owner": "data-oncall", "freshness_sla_hours": None},
+        ],
+        "curated_source_mappings": [{
+            "source_name": "census_tiger_county+fema_nri",
+            "operation_ids": ["census-tiger-counties", "fema-nri"],
+            "reconciliation_operation_ids": ["census-tiger-counties"],
+        }],
+    }))
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps({"counties": 1}))
+    log = _log(tmp_path, [
+        {"source_id": "census-tiger-counties", "status": "ok", "row_count": 1,
+         "curated_row_count": 1, "retrieved_at_utc": datetime.now(UTC).isoformat()},
+        {"source_id": "fema-nri", "status": "ok", "row_count": 1,
+         "retrieved_at_utc": datetime.now(UTC).isoformat()},
+    ])
+
+    report = run_quality_gate(path, operations, ingest_log_path=log, previous_counts_path=baseline)
+
+    codes = {alert["code"] for alert in report["alerts"]}
+    assert "unoperated_source" not in codes
+    assert "source_curated_mismatch" not in codes
+    assert report["dashboard_eligible"]
+
+
+def test_invalid_mapping_is_an_explicit_release_blocker(tmp_path):
+    path = _database(tmp_path)
+    operations = tmp_path / "operations.json"
+    operations.write_text(json.dumps({
+        "sources": [{"id": "eia-930", "owner": "data-oncall", "freshness_sla_hours": None}],
+        "curated_source_mappings": [{"source_name": "eia930", "operation_ids": ["not-an-operation"]}],
+    }))
+    baseline = tmp_path / "baseline.json"
+    baseline.write_text(json.dumps({"counties": 1}))
+
+    report = run_quality_gate(path, operations, previous_counts_path=baseline)
+
+    assert any(alert["code"] == "invalid_source_mapping" for alert in report["alerts"])
+    assert not report["dashboard_eligible"]
