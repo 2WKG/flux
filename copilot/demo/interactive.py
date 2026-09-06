@@ -13,7 +13,8 @@ from copilot.routes.ask import AskRequest
 from copilot.runtime import AsyncNarrationProvider, ToolTurn
 from copilot.tools.schemas import ArtifactRef, Unavailable, unavailable_output
 
-Intent = Literal["balance", "redundancy", "siting_search", "scenario_edit"]
+Intent = Literal["balance", "redundancy", "siting_search", "scenario_edit", "cascade"]
+_CASCADE_TERMS = ("cascade", "outage", "trip", "fail", "simulate")
 
 
 @dataclass(frozen=True)
@@ -47,7 +48,7 @@ class InteractiveAskBackend:
     async def turn(self, payload: AskRequest) -> ToolTurn:
         intent = _intent(payload.question)
         if intent is None:
-            return _unavailable(payload, "This interactive agent supports balance, redundancy, placement search, and scenario edits.")
+            return _unavailable(payload, "This interactive agent supports balance, redundancy, placement search, scenario edits, and cascades.")
         evidence = await self._bridge.execute(intent, _context(payload))
         if evidence.status == "unavailable":
             return _unavailable(payload, evidence.reason or "The requested interactive tool is unavailable.", intent)
@@ -97,6 +98,8 @@ def _intent(question: str) -> Intent | None:
         return "siting_search"
     if "edit" in text or "scenario" in text or "remove" in text or "restore" in text:
         return "scenario_edit"
+    if any(term in text for term in _CASCADE_TERMS):
+        return "cascade"
     return None
 
 
@@ -106,6 +109,7 @@ def _summary(intent: Intent) -> str:
         "redundancy": "The model redundancy result is available in the tool card.",
         "siting_search": "The model placement comparison is available in the tool card.",
         "scenario_edit": "The scenario edit result is available in the tool card.",
+        "cascade": "The synthetic cascade result is available in the tool card.",
     }[intent]
 
 

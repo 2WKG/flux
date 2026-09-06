@@ -53,6 +53,17 @@ def test_texas_canonical_interactive_request_uses_shared_interactive_backend() -
     assert (demo.calls, interactive.calls) == (0, 1)
 
 
+def test_current_ui_failure_wording_uses_shared_interactive_backend() -> None:
+    demo, interactive = _Backend("demo"), _Backend("cascade")
+    result = asyncio.run(
+        ComposedAskBackend(demo=demo, interactive=interactive).turn(
+            _payload("Simulate this failure", "uri_2021", "line:973")
+        )
+    )
+    assert result == "cascade"
+    assert (demo.calls, interactive.calls) == (0, 1)
+
+
 def test_texas_redundancy_uses_an_explicit_model_bus_without_an_asset_join() -> None:
     demo, interactive = _Backend("demo"), _Backend("redundancy")
     result = asyncio.run(
