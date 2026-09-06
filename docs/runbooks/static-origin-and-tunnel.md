@@ -63,9 +63,9 @@ is no checked-in environment file or wrapper that overrides it.
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
 | local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route by design; this path falls back to the SPA shell like any unknown path (verified 2026-09-06: `200 text/html`). |
-| `https://bouncepulse.com/*` | Cloudflare public edge | No connector registered | Public check returned `530` / `error code: 1033` (2026-09-06): routed to a tunnel with no live connector. The intended target is `http://127.0.0.1:4173` on `WYZWORKSTATION` once a connector is attached below |
-| optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
-| optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
+| `https://bouncepulse.com/` and static assets | Cloudflare public edge | Node/Express on `127.0.0.1:4173` | Connector must be running; the static rule is the fallback after the API read rule below |
+| `https://bouncepulse.com/health` and read paths | Cloudflare public edge | `copilot.app:app` on `127.0.0.1:8000` | Mapped by `deploy/cloudflared/config.example.yml`: `/health`, `/layers/*`, `/api/v1/grid/layers/*`, `/lines/top`, `/elements/critical`, `/scenarios*`, `/predictions`, and `/cascade`; Cloudflared filters paths, not methods, and FastAPI rejects unsupported methods |
+| `https://bouncepulse.com/ask`, `/site-score`, `/compare` | No public tunnel owner | — | Explicitly excluded from ingress; the static fallback must not be treated as an API response. |
 
 The FastAPI paths are implemented for local use but are not evidence of a
 running API or a public mapping. `POST /ask` starts only the injected local SSE
@@ -238,6 +238,11 @@ The credentials file and the tunnel UUID stay on the host and out of Git; the
 | Local origin target | `http://127.0.0.1:4173` (Node/Express, `web/server.mjs`) |
 | Start/stop | `cloudflared tunnel run flux-demo` in the foreground; Ctrl+C to stop |
 
-Only the static origin is routed. No public rule targets the FastAPI copilot on
-port `8000`; API/SSE public routing must not be claimed until a second ingress
-rule is added and verified.
+The checked-in ingress template routes only `/health` and the API's read-path
+surface to `127.0.0.1:8000`; the static rule remains the fallback for every
+other path. Cloudflared selects by path rather than HTTP method, so FastAPI
+still rejects an unsupported method at an otherwise routed read path. The
+template intentionally does not publish `/ask`, `/site-score`, or `/compare`.
+Start the API before the connector; `deploy/tunnel.ps1` preflights `/health`
+and accepts its documented unavailable `503` response when no local database
+is present.
