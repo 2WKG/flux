@@ -261,7 +261,10 @@ class RetrievalHit(ContractModel):
     date: Annotated[str | None, Field(max_length=64)]
     doc: Annotated[str, Field(min_length=1, max_length=256)]
     locator: Annotated[str, Field(min_length=1, max_length=256)]
-    provenance: dict[Annotated[str, Field(min_length=1, max_length=128)], Annotated[str, Field(min_length=1, max_length=2_048)]]
+    provenance: dict[
+        Annotated[str, Field(min_length=1, max_length=128)],
+        Annotated[str, Field(min_length=1, max_length=2_048)],
+    ]
     source: Annotated[str, Field(min_length=1, max_length=2_048)]
     title: Annotated[str, Field(min_length=1, max_length=512)]
     page: Annotated[int, Field(ge=1)]

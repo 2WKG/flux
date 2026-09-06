@@ -311,7 +311,8 @@ class SparseIndex:
                     locator=_locator(chunk),
                     excerpt=_excerpt(chunk.text, limit=excerpt_characters),
                     version=chunk.version,
-                    date=_date_from_version(chunk.version) or _date_from_provenance(dict(chunk.provenance)),
+                    date=_date_from_version(chunk.version)
+                    or _date_from_provenance(dict(chunk.provenance)),
                     relevance=score,
                     relevance_rationale="BM25 sparse match for " + ", ".join(shared),
                     chunk_id=chunk.chunk_id,
