@@ -25,8 +25,9 @@ uv run --extra dev python scripts/run_eda.py data/duck/grid.duckdb \
 
 The script puts the repository root on `sys.path` itself, so it runs from any
 working directory without `PYTHONPATH`. It exits `2` with a named status on
-`stderr` (`artifact_missing`, `metric_views_missing`) instead of a traceback
-when the artifact path does not exist or the metric layer is absent.
+`stderr` (`artifact_missing`, `metric_views_missing`, `invalid_parameters`, or
+`artifact_contract_invalid`) instead of a traceback when the artifact path,
+metric layer, parameters, or canonical contract is invalid.
 
 | Parameter | Purpose |
 | --- | --- |
@@ -84,8 +85,12 @@ median, no scale exists and the test is reported unavailable rather than clean.
   resistant to a few extreme values, but a genuinely multimodal or heavily
   discretized KPI will produce candidates that review should dismiss.
 - **Change analysis assumes ordered snapshots within a series.** It compares
-  adjacent points inside one scenario/county or one cascade run only. Gaps in
-  the series are visible as large deltas, not interpolated away.
+  adjacent stored points inside one scenario/county or one cascade run only.
+  A series needs at least three non-null values before it contributes any delta,
+  pooled scale, or candidate; `series_analysed` counts only those qualifying
+  series. Missing values are not interpolated. The workflow does not infer a
+  regular cadence, so a delta spans the adjacent timestamps that are present
+  and is never presented as a rate.
 - **Prediction windows are not observations.** `outage_predictions.ts` starts a
   six-hour window, and `cascade_runs.hour` is a simulated offset. A change
   candidate on either is a change in modeled output, never observed history.
@@ -94,8 +99,14 @@ median, no scale exists and the test is reported unavailable rather than clean.
   load is recorded there it reads `synthetic ACTIVSg2000` (with the release and
   file), otherwise it is reported `unavailable` with a reason — never assumed.
   Each view also carries a `provenance` block with the distinct `scenario_kind`
-  values and `*_source_name` sources of record for the rows in scope, and the
-  summary prints both under "Topology and provenance".
+  values and deterministic source tuples (`source_name`, `source_ref`,
+  `source_version`, `source_retrieved_at`, `fixture_batch_id`, and row count).
+  Its `source_identity_sha256` changes when those in-scope source tuples change;
+  it is deliberately not a full database or freshness hash. Candidate findings
+  carry the exact source tuple from their flagged record, and the summary prints
+  it with the value, unit, and modified-z evidence. A `level_shift` also carries
+  the previous timestamp, value, and full source tuple: both operands of a
+  reported delta are therefore traceable (at most five candidates per KPI).
 
 ## Thresholds and their trade-offs
 

@@ -62,6 +62,12 @@ def main() -> int:
     except MissingMetricViewsError as error:
         print(f"status: {error.status}; {error}", file=sys.stderr)
         return 2
+    except ValueError as error:
+        print(f"status: invalid_parameters; {error}", file=sys.stderr)
+        return 2
+    except RuntimeError as error:
+        print(f"status: artifact_contract_invalid; {error}", file=sys.stderr)
+        return 2
     summary = render_summary(report)
     for path, text in (
         (args.report, json.dumps(report, indent=2) + "\n"),

@@ -186,7 +186,17 @@ def test_eda_profiles_canonical_kpis_and_ranks_a_planted_anomaly(
         == "outage_predictions → metric_outage_county_prediction_windows"
     )
     assert spike["unit"] == "customer accounts"
+    assert spike["record_provenance"] == {
+        "source_name": "fixture",
+        "source_ref": "test://fixture",
+        "source_version": "v1",
+        "source_retrieved_at": "2026-09-05T00:00:00",
+        "fixture_batch_id": "batch-1",
+    }
     assert spike["follow_up_question"] and spike["recommended_action"]
+    summary = render_summary(report)
+    assert "value=100000 customer accounts" in summary
+    assert "\\|z\\|=" in summary and "source_name=fixture" in summary
 
     assert outage["profiles"]["outage_customers_at_risk"]["outliers"]["scale"] == "mad"
     # Pin the Iglewicz-Hoaglin constant: modified z = 0.6745 * (x - median) / MAD.
@@ -225,6 +235,60 @@ def test_eda_profiles_canonical_kpis_and_ranks_a_planted_anomaly(
     assert ranks == sorted(ranks)
 
 
+def test_eda_level_shift_traces_both_operand_records(tmp_path: Path) -> None:
+    database = tmp_path / "grid.duckdb"
+    _seed(database)
+    con = duckdb.connect(str(database))
+    try:
+        for index, source_ref, source_version, fixture_batch_id in (
+            (4, "test://previous", "previous-v1", "previous-batch"),
+            (5, "test://current", "current-v2", "current-batch"),
+        ):
+            con.execute(
+                """UPDATE outage_predictions
+                   SET source_ref = ?, source_version = ?, fixture_batch_id = ?
+                   WHERE county_fips = '48453' AND ts = ?""",
+                (
+                    source_ref,
+                    source_version,
+                    fixture_batch_id,
+                    _naive(
+                        datetime(2021, 2, 13, tzinfo=UTC) + timedelta(hours=6 * index)
+                    ),
+                ),
+            )
+    finally:
+        con.close()
+
+    report = run_eda(
+        database, views=["outage_county_prediction_windows"], now=FIXED_NOW
+    )
+    shift = next(
+        finding
+        for finding in _findings(report, "level_shift")
+        if finding["metric"] == "outage_customers_at_risk"
+        and finding["record_provenance"]["source_ref"] == "test://current"
+    )
+    previous = shift["evidence"]["previous_record"]
+    assert shift["evidence"]["value"] == 99896
+    assert previous["timestamp"] == "2021-02-14T00:00:00"
+    assert previous["value"] == 104
+    assert shift["record_provenance"] == {
+        "source_name": "fixture",
+        "source_ref": "test://current",
+        "source_version": "current-v2",
+        "source_retrieved_at": "2026-09-05T00:00:00",
+        "fixture_batch_id": "current-batch",
+    }
+    assert previous["record_provenance"] == {
+        "source_name": "fixture",
+        "source_ref": "test://previous",
+        "source_version": "previous-v1",
+        "source_retrieved_at": "2026-09-05T00:00:00",
+        "fixture_batch_id": "previous-batch",
+    }
+
+
 def test_eda_rerun_after_a_refresh_is_deterministic_and_updates_findings(
     tmp_path: Path,
 ) -> None:
@@ -254,6 +318,7 @@ def test_eda_rerun_after_a_refresh_is_deterministic_and_updates_findings(
     assert "## Prioritized findings" in summary
     assert "## Follow-up questions" in summary
     assert "outage_customers_at_risk" in summary
+    assert "value=100000 customer accounts" in summary
 
 
 def test_eda_reports_unavailable_rather_than_zero_on_an_empty_artifact(
@@ -272,7 +337,7 @@ def test_eda_reports_unavailable_rather_than_zero_on_an_empty_artifact(
     assert {view["status"] for view in report["views"].values()} == {"no_rows"}
     assert all(view["profiles"] == {} for view in report["views"].values())
     empty = _findings(report, "no_rows")
-    assert len(empty) == 3
+    assert len(empty) == sum(len(view["measures"]) for view in report["views"].values())
     assert all(finding["severity"] == "high" for finding in empty)
     assert all("unavailable, not zero" in finding["description"] for finding in empty)
     assert {check["check"] for check in report["unavailable_checks"]} == {"view_scope"}
@@ -355,6 +420,19 @@ def test_eda_default_run_is_read_only_and_never_creates_an_artifact(
     with pytest.raises(FileNotFoundError):
         run_eda(missing, install_views=True, now=FIXED_NOW)
     assert not missing.exists()
+
+    # Existing view names do not make a stale contract acceptable in read-only mode.
+    con = duckdb.connect(str(database))
+    try:
+        con.execute(
+            "UPDATE schema_meta SET value = '0.0.0' WHERE key = 'contract_version'"
+        )
+    finally:
+        con.close()
+    stale_before = _sha256(database)
+    with pytest.raises(RuntimeError, match="requires DuckDB contract"):
+        run_eda(database, now=FIXED_NOW)
+    assert _sha256(database) == stale_before
 
 
 def test_eda_change_analysis_ignores_series_below_the_point_minimum(
@@ -492,7 +570,7 @@ def test_eda_scenario_filter_selects_one_scenario(tmp_path: Path) -> None:
 
 def test_eda_labels_topology_and_provenance_from_the_artifact(tmp_path: Path) -> None:
     database = tmp_path / "grid.duckdb"
-    _seed(database, windows=3, spike=False)
+    _seed(database)
 
     unknown = run_eda(
         database, views=["outage_county_prediction_windows"], now=FIXED_NOW
@@ -503,7 +581,19 @@ def test_eda_labels_topology_and_provenance_from_the_artifact(tmp_path: Path) ->
     )
     assert "Network topology: unavailable" in render_summary(unknown)
     provenance = unknown["views"]["outage_county_prediction_windows"]["provenance"]
-    assert provenance == {"scenario_kinds": ["historical"], "source_names": ["fixture"]}
+    assert provenance["scenario_kinds"] == ["historical"]
+    assert provenance["source_names"] == ["fixture"]
+    assert provenance["source_tuples"] == [
+        {
+            "source_name": "fixture",
+            "source_ref": "test://fixture",
+            "source_version": "v1",
+            "source_retrieved_at": "2026-09-05T00:00:00",
+            "fixture_batch_id": "batch-1",
+            "rows": 24,
+        }
+    ]
+    assert len(provenance["source_identity_sha256"]) == 64
 
     con = duckdb.connect(str(database))
     try:
@@ -538,6 +628,72 @@ def test_eda_labels_topology_and_provenance_from_the_artifact(tmp_path: Path) ->
     summary = render_summary(labelled)
     assert "**synthetic ACTIVSg2000**" in summary
     assert "scenario kinds `historical`; sources of record `fixture`" in summary
+
+    original_identity = labelled["views"]["outage_county_prediction_windows"][
+        "provenance"
+    ]["source_identity_sha256"]
+    original_finding = next(
+        finding
+        for finding in labelled["findings"]
+        if finding["code"] == "anomaly_candidate"
+        and finding["metric"] == "outage_customers_at_risk"
+    )
+    con = duckdb.connect(str(database))
+    try:
+        con.execute(
+            "UPDATE outage_predictions SET source_ref = 'test://fixture-refreshed'"
+        )
+    finally:
+        con.close()
+    refreshed = run_eda(
+        database, views=["outage_county_prediction_windows"], now=FIXED_NOW
+    )
+    refreshed_view = refreshed["views"]["outage_county_prediction_windows"]
+    refreshed_finding = next(
+        finding
+        for finding in refreshed["findings"]
+        if finding["code"] == "anomaly_candidate"
+        and finding["metric"] == "outage_customers_at_risk"
+    )
+    assert refreshed_view["provenance"]["source_identity_sha256"] != original_identity
+    assert original_finding["record_provenance"]["source_ref"] == "test://fixture"
+    assert (
+        refreshed_finding["record_provenance"]["source_ref"]
+        == "test://fixture-refreshed"
+    )
+    assert (
+        refreshed_finding["evidence"]["value"] == original_finding["evidence"]["value"]
+    )
+
+
+@pytest.mark.parametrize("threshold", [float("nan"), 0.0, -1.0])
+def test_eda_rejects_invalid_thresholds_before_opening_the_artifact(
+    tmp_path: Path, threshold: float
+) -> None:
+    missing = tmp_path / "missing.duckdb"
+    with pytest.raises(ValueError, match="robust_z_threshold"):
+        run_eda(missing, robust_z_threshold=threshold, now=FIXED_NOW)
+    assert not missing.exists()
+
+
+def test_eda_rejects_invalid_correlation_minimum_and_deduplicates_views(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "grid.duckdb"
+    _seed(database)
+    with pytest.raises(ValueError, match="min_correlation_rows"):
+        run_eda(database, min_correlation_rows=1, now=FIXED_NOW)
+
+    single = run_eda(
+        database, views=["outage_county_prediction_windows"], now=FIXED_NOW
+    )
+    duplicate = run_eda(
+        database,
+        views=["outage_county_prediction_windows", "outage_county_prediction_windows"],
+        now=FIXED_NOW,
+    )
+    assert duplicate["parameters"]["views"] == ["outage_county_prediction_windows"]
+    assert duplicate["findings"] == single["findings"]
 
 
 def test_run_eda_cli_runs_as_documented_from_any_cwd(tmp_path: Path) -> None:
@@ -585,3 +741,32 @@ def test_run_eda_cli_runs_as_documented_from_any_cwd(tmp_path: Path) -> None:
     )
     assert missing.returncode == 2 and "artifact_missing" in missing.stderr
     assert not (tmp_path / "typo.duckdb").exists()
+
+    invalid = subprocess.run(
+        [sys.executable, str(RUN_EDA), str(database), "--robust-z-threshold", "0"],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert invalid.returncode == 2 and "invalid_parameters" in invalid.stderr
+
+    con = duckdb.connect(str(database))
+    try:
+        con.execute(
+            "UPDATE schema_meta SET value = '0.0.0' WHERE key = 'contract_version'"
+        )
+    finally:
+        con.close()
+    stale_before = _sha256(database)
+    stale = subprocess.run(
+        [sys.executable, str(RUN_EDA), str(database)],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert stale.returncode == 2 and "artifact_contract_invalid" in stale.stderr
+    assert _sha256(database) == stale_before

@@ -13,6 +13,8 @@ never as a zero or a default.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import math
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -28,6 +30,7 @@ from pipelines.metrics import (
     METRIC_LAYER_VERSION,
     install_metric_layer,
     metric_view,
+    validate_metric_layer_contract,
 )
 
 EDA_VERSION = "1.0.0"
@@ -47,6 +50,13 @@ MIN_ROBUST_ROWS = 8
 MIN_CHANGE_POINTS = 3
 MAX_OUTLIERS_PER_MEASURE = 5
 MAX_SEGMENTS_PER_DIMENSION = 20
+PROVENANCE_FIELDS = (
+    "source_name",
+    "source_ref",
+    "source_version",
+    "source_retrieved_at",
+    "fixture_batch_id",
+)
 
 # Released KPI -> column in its metric view.  Analysing only released KPIs is
 # what keeps a finding traceable; unreleased view columns are left alone.
@@ -74,6 +84,7 @@ class ViewProfile:
     dimensions: tuple[str, ...]
     time_column: str | None
     series_key: tuple[str, ...]
+    provenance_prefix: str
 
 
 EDA_PROFILES = {
@@ -82,18 +93,21 @@ EDA_PROFILES = {
         dimensions=("state", "driver", "scenario_kind"),
         time_column="prediction_window_start_utc",
         series_key=("scenario_id", "county_fips"),
+        provenance_prefix="prediction",
     ),
     "cascade_run_hours": ViewProfile(
         grain=("run_id", "hour"),
         dimensions=("scenario_kind", "scenario_id"),
         time_column="snapshot_ts_utc",
         series_key=("run_id",),
+        provenance_prefix="cascade",
     ),
     "site_scorecards": ViewProfile(
         grain=("site_id", "scenario_id", "unit_mw"),
         dimensions=("state", "site_kind", "scenario_scope"),
         time_column=None,
         series_key=(),
+        provenance_prefix="score",
     ),
 }
 
@@ -183,6 +197,10 @@ def _columns(con: duckdb.DuckDBPyConnection, public_view: str) -> list[str]:
     ]
 
 
+def _provenance_columns(profile: ViewProfile) -> tuple[str, ...]:
+    return tuple(f"{profile.provenance_prefix}_{field}" for field in PROVENANCE_FIELDS)
+
+
 def _require_views(con: duckdb.DuckDBPyConnection, public_views: list[str]) -> None:
     present = {
         row[0] for row in con.execute("SELECT view_name FROM duckdb_views()").fetchall()
@@ -230,11 +248,21 @@ def _topology(con: duckdb.DuckDBPyConnection) -> dict[str, Any]:
 
 
 def _provenance(
-    con: duckdb.DuckDBPyConnection, base: str, params: list[Any], columns: list[str]
+    con: duckdb.DuckDBPyConnection,
+    base: str,
+    params: list[Any],
+    columns: list[str],
+    profile: ViewProfile,
+    public_view: str,
+    scenario_id: str | None,
 ) -> dict[str, Any]:
-    """Surface the scenario kinds and sources of record behind the rows in scope."""
-    source_columns = [column for column in columns if column.endswith("_source_name")]
-    provenance: dict[str, Any] = {"scenario_kinds": [], "source_names": []}
+    """Summarize source tuples without hashing the complete DuckDB artifact."""
+    provenance_columns = _provenance_columns(profile)
+    provenance: dict[str, Any] = {
+        "scenario_kinds": [],
+        "source_names": [],
+        "source_tuples": [],
+    }
     if "scenario_kind" in columns:
         provenance["scenario_kinds"] = [
             row[0]
@@ -244,16 +272,33 @@ def _provenance(
                 params,
             ).fetchall()
         ]
-    for column in source_columns:
-        quoted = _quote(column)
-        provenance["source_names"] += [
-            row[0]
-            for row in con.execute(
-                f"SELECT DISTINCT {quoted} FROM {base} WHERE {quoted} IS NOT NULL ORDER BY {quoted}",
-                params,
-            ).fetchall()
-        ]
-    provenance["source_names"] = sorted(set(provenance["source_names"]))
+    selected = ", ".join(_quote(column) for column in provenance_columns)
+    rows = con.execute(
+        f"""SELECT {selected}, count(*) FROM {base}
+            GROUP BY {selected} ORDER BY {selected}""",
+        params,
+    ).fetchall()
+    provenance["source_tuples"] = [
+        {
+            **{
+                field: _json_safe(value)
+                for field, value in zip(PROVENANCE_FIELDS, row[:-1])
+            },
+            "rows": row[-1],
+        }
+        for row in rows
+    ]
+    provenance["source_names"] = sorted(
+        {entry["source_name"] for entry in provenance["source_tuples"]}
+    )
+    identity_input = {
+        "view": public_view,
+        "scenario_id": scenario_id,
+        "source_tuples": provenance["source_tuples"],
+    }
+    provenance["source_identity_sha256"] = hashlib.sha256(
+        json.dumps(identity_input, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
     return provenance
 
 
@@ -299,8 +344,10 @@ def _outliers(
     params: list[Any],
     expr: str,
     keys: tuple[str, ...],
+    provenance_columns: tuple[str, ...],
     stats: dict[str, Any],
     *,
+    previous_context_columns: tuple[str, ...] = (),
     threshold: float,
     limit: int,
 ) -> dict[str, Any]:
@@ -329,7 +376,8 @@ def _outliers(
         }
 
     median = stats["median"]
-    selected = ", ".join(_quote(key) for key in keys)
+    selected_columns = (*keys, *provenance_columns, *previous_context_columns)
+    selected = ", ".join(_quote(key) for key in selected_columns)
     rows = con.execute(
         f"""SELECT {selected}, {expr},
                    {constant} * ({expr} - ?) / ? AS robust_z
@@ -340,14 +388,32 @@ def _outliers(
             LIMIT {limit}""",
         [median, spread, *params, median, spread, threshold],
     ).fetchall()
-    candidates = [
-        {
+    candidates = []
+    for row in rows:
+        candidate = {
             "keys": {key: _json_safe(value) for key, value in zip(keys, row)},
-            "value": _json_safe(row[len(keys)]),
-            "robust_z": round(row[len(keys) + 1], 4),
+            "record_provenance": {
+                field: _json_safe(value)
+                for field, value in zip(
+                    PROVENANCE_FIELDS,
+                    row[len(keys) : len(keys) + len(provenance_columns)],
+                )
+            },
+            "value": _json_safe(row[len(selected_columns)]),
+            "robust_z": round(row[len(selected_columns) + 1], 4),
         }
-        for row in rows
-    ]
+        if previous_context_columns:
+            prior_offset = len(keys) + len(provenance_columns)
+            prior = row[prior_offset : prior_offset + len(previous_context_columns)]
+            candidate["previous_record"] = {
+                "timestamp": _json_safe(prior[0]),
+                "value": _json_safe(prior[1]),
+                "record_provenance": {
+                    field: _json_safe(value)
+                    for field, value in zip(PROVENANCE_FIELDS, prior[2:])
+                },
+            }
+        candidates.append(candidate)
     return {"status": "ok", "reason": None, "scale": scale, "candidates": candidates}
 
 
@@ -449,6 +515,7 @@ def _changes(
     measure, time_column = _quote(column), _quote(profile.time_column)
     partition = ", ".join(_quote(key) for key in profile.series_key)
     keys = (*profile.series_key, profile.time_column)
+    provenance_columns = _provenance_columns(profile)
     eligible = con.execute(
         f"""SELECT count(*) FROM (
                 SELECT 1 FROM {base} WHERE {measure} IS NOT NULL
@@ -467,7 +534,20 @@ def _changes(
 
     # Only series that met the eligibility count contribute deltas: a shorter
     # series must neither inflate the pooled scale nor emit a level_shift.
-    lagged = f"""(SELECT {", ".join(_quote(key) for key in keys)},
+    previous_context_columns = (
+        "previous_timestamp",
+        "previous_value",
+        *(f"previous_{column}" for column in provenance_columns),
+    )
+    previous_provenance = ", ".join(
+        f"lag({_quote(field)}) OVER (PARTITION BY {partition} ORDER BY {time_column}) "
+        f"AS {_quote(f'previous_{field}')}"
+        for field in provenance_columns
+    )
+    lagged = f"""(SELECT {", ".join(_quote(key) for key in (*keys, *provenance_columns))},
+                    lag({time_column}) OVER (PARTITION BY {partition} ORDER BY {time_column}) AS previous_timestamp,
+                    lag({measure}) OVER (PARTITION BY {partition} ORDER BY {time_column}) AS previous_value,
+                    {previous_provenance},
                     {measure} - lag({measure}) OVER (PARTITION BY {partition} ORDER BY {time_column}) AS delta
              FROM {base}
              QUALIFY count({measure}) OVER (PARTITION BY {partition}) >= {MIN_CHANGE_POINTS})"""
@@ -478,7 +558,9 @@ def _changes(
         params,
         "delta",
         keys,
+        provenance_columns,
         stats,
+        previous_context_columns=previous_context_columns,
         threshold=threshold,
         limit=MAX_OUTLIERS_PER_MEASURE,
     )
@@ -499,6 +581,45 @@ def _evidence_label(evidence: dict[str, Any]) -> str:
     return ", ".join(f"{key}={value}" for key, value in keys.items())
 
 
+def _markdown_cell(value: Any) -> str:
+    return str(value).replace("|", "\\|").replace("\n", " ")
+
+
+def _finding_evidence_label(finding: dict[str, Any]) -> str:
+    evidence = finding["evidence"]
+    details = [_evidence_label(evidence)]
+    if "value" in evidence:
+        details.append(f"value={evidence['value']} {finding['unit']}")
+    if "robust_z" in evidence:
+        details.append(f"|z|={abs(evidence['robust_z']):.4g}")
+    if "null_fraction" in evidence:
+        details.append(
+            f"missing={evidence['non_null']}/{evidence['rows']} present ({evidence['null_fraction']:.1%} null)"
+        )
+    return _markdown_cell("; ".join(details))
+
+
+def _finding_provenance_label(finding: dict[str, Any]) -> str:
+    provenance = finding["record_provenance"]
+    scope = finding["scope_identity"][:12]
+    if provenance is None:
+        return f"scope `{scope}`"
+    fields = ", ".join(
+        f"{field}={provenance.get(field)}" for field in PROVENANCE_FIELDS
+    )
+    previous = finding["evidence"].get("previous_record")
+    if previous is None:
+        return _markdown_cell(f"{fields}; scope={scope}")
+    previous_fields = ", ".join(
+        f"previous_{field}={previous['record_provenance'].get(field)}"
+        for field in PROVENANCE_FIELDS
+    )
+    return _markdown_cell(
+        f"{fields}; previous_timestamp={previous['timestamp']}; "
+        f"previous_value={previous['value']}; {previous_fields}; scope={scope}"
+    )
+
+
 def _finding(
     code: str,
     view: str,
@@ -508,6 +629,7 @@ def _finding(
     severity: str,
     impact: float,
     evidence: dict[str, Any],
+    scope_identity: str,
 ) -> dict[str, Any]:
     """Attach KPI lineage so every finding is traceable to the metric layer."""
     definition = _DEFINITIONS[metric]
@@ -522,6 +644,8 @@ def _finding(
         "unit": definition.unit,
         "description": description,
         "evidence": evidence,
+        "record_provenance": evidence.get("record_provenance"),
+        "scope_identity": scope_identity,
         "recommended_action": RECOMMENDED_ACTIONS[code],
         "follow_up_question": FOLLOW_UPS[code].format(
             view=view, metric=metric, evidence=_evidence_label(evidence)
@@ -540,21 +664,28 @@ def _analyse_view(
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     base, params = _scope(public_view, scenario_id)
     measures = _measures_for(public_view)
+    columns = _columns(con, public_view)
     row_count = con.execute(f"SELECT count(*) FROM {base}", params).fetchone()[0]
+    provenance = _provenance(
+        con, base, params, columns, profile, public_view, scenario_id
+    )
+    scope_identity = provenance["source_identity_sha256"]
     findings: list[dict[str, Any]] = []
 
     if row_count == 0:
-        findings.append(
-            _finding(
-                "no_rows",
-                public_view,
-                measures[0][0],
-                f"{public_view} has no rows in scope; every KPI it releases is unavailable, not zero.",
-                severity="high",
-                impact=1.0,
-                evidence={"scenario_id": scenario_id, "rows": 0},
+        for metric, _ in measures:
+            findings.append(
+                _finding(
+                    "no_rows",
+                    public_view,
+                    metric,
+                    f"{public_view} has no rows in scope; {metric} is unavailable, not zero.",
+                    severity="high",
+                    impact=1.0,
+                    evidence={"scenario_id": scenario_id, "rows": 0},
+                    scope_identity=scope_identity,
+                )
             )
-        )
         return (
             {
                 "status": "no_rows",
@@ -564,12 +695,11 @@ def _analyse_view(
                 "missingness": {},
                 "profiles": {},
                 "correlations": [],
-                "provenance": {"scenario_kinds": [], "source_names": []},
+                "provenance": provenance,
             },
             findings,
         )
 
-    columns = _columns(con, public_view)
     missing_sql = ", ".join(
         f"sum(CASE WHEN {_quote(column)} IS NULL THEN 1 ELSE 0 END)"
         for column in columns
@@ -589,6 +719,7 @@ def _analyse_view(
             params,
             _quote(column),
             profile.grain,
+            _provenance_columns(profile),
             stats,
             threshold=threshold,
             limit=MAX_OUTLIERS_PER_MEASURE,
@@ -620,6 +751,7 @@ def _analyse_view(
                         "non_null": stats["non_null"],
                         "null_fraction": stats["null_fraction"],
                     },
+                    scope_identity=scope_identity,
                 )
             )
         if stats["non_null"] > 1 and stats["stddev"] == 0:
@@ -632,6 +764,7 @@ def _analyse_view(
                     severity="medium",
                     impact=0.5,
                     evidence={"value": stats["median"], "non_null": stats["non_null"]},
+                    scope_identity=scope_identity,
                 )
             )
         for candidate in outliers["candidates"]:
@@ -646,6 +779,7 @@ def _analyse_view(
                     else "medium",
                     impact=abs(candidate["robust_z"]),
                     evidence=candidate,
+                    scope_identity=scope_identity,
                 )
             )
         for candidate in changes["candidates"]:
@@ -661,6 +795,7 @@ def _analyse_view(
                     else "medium",
                     impact=abs(candidate["robust_z"]),
                     evidence=candidate,
+                    scope_identity=scope_identity,
                 )
             )
 
@@ -674,7 +809,7 @@ def _analyse_view(
         "correlations": _correlations(
             con, base, params, measures, min_correlation_rows
         ),
-        "provenance": _provenance(con, base, params, columns),
+        "provenance": provenance,
     }
     return summary, findings
 
@@ -731,13 +866,23 @@ def run_eda(
     metric layer then raises :class:`MissingMetricViewsError` instead of being
     written into the curated file.
     """
-    selected = sorted(views or EDA_PROFILES)
+    selected = sorted(set(EDA_PROFILES if views is None else views))
+    if not selected:
+        raise ValueError("Choose at least one canonical metric view.")
     unknown = sorted(set(selected) - set(EDA_PROFILES))
     if unknown:
         raise ValueError(
             f"Unknown metric view(s): {', '.join(unknown)}; "
             f"choose from {', '.join(sorted(EDA_PROFILES))}."
         )
+    if not math.isfinite(robust_z_threshold) or robust_z_threshold <= 0:
+        raise ValueError("robust_z_threshold must be a finite value greater than zero.")
+    if (
+        isinstance(min_correlation_rows, bool)
+        or not isinstance(min_correlation_rows, int)
+        or min_correlation_rows < 2
+    ):
+        raise ValueError("min_correlation_rows must be an integer of at least two.")
 
     generated_at = (now or datetime.now(UTC)).astimezone(UTC)
     if not Path(database).is_file():
@@ -747,6 +892,7 @@ def run_eda(
         if install_views:
             install_metric_layer(con)
         else:
+            validate_metric_layer_contract(con)
             _require_views(con, selected)
         topology = _topology(con)
         results: dict[str, Any] = {}
@@ -854,14 +1000,14 @@ def render_summary(report: dict[str, Any]) -> str:
         )
     else:
         lines += [
-            "| # | Severity | Code | KPI | Evidence | Recommended action |",
-            "| --- | --- | --- | --- | --- | --- |",
+            "| # | Severity | Code | KPI (unit) | Evidence | Source record | Recommended action |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
         for rank, finding in enumerate(report["findings"], start=1):
             lines.append(
                 f"| {rank} | {finding['severity']} | `{finding['code']}` | `{finding['metric']}` "
-                f"({finding['metric_view']}) | {_evidence_label(finding['evidence'])} "
-                f"| {finding['recommended_action']} |"
+                f"({finding['unit']}; {finding['metric_view']}) | {_finding_evidence_label(finding)} "
+                f"| {_finding_provenance_label(finding)} | {finding['recommended_action']} |"
             )
 
     lines += ["", "## Follow-up questions", ""]
