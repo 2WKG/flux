@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,7 +19,6 @@ from copilot.api import (
 )
 from copilot.api.errors import failure_response
 from copilot.config import Settings, load_settings
-from copilot.demo.data import create_demo_data_router
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.comparisons import router as comparisons_router
@@ -78,17 +75,6 @@ def create_app(
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
     app.include_router(ask_router)
-    # The experimental artifact ships with this application revision.  It is
-    # intentionally independent from the operator-selected DuckDB location so
-    # a stale neighboring checkout cannot silently change the demo forecast.
-    app_root = Path(__file__).resolve().parent.parent
-    app.include_router(
-        create_demo_data_router(
-            duckdb_path=app.state.settings.duckdb_path,
-            jepa_artifact_path=app_root
-            / "data/artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json",
-        )
-    )
     return app
 
 

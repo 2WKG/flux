@@ -11,6 +11,7 @@ from pathlib import Path
 
 from copilot.app import create_app
 from copilot.config import load_settings
+from copilot.demo.data import create_demo_data_router
 from copilot.demo.model import create_demo_model_router
 from copilot.demo.runtime import build_demo_ask_backend
 
@@ -30,6 +31,15 @@ app = create_app(
             / "data/artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json"
         ),
     ),
+)
+app.include_router(
+    create_demo_data_router(
+        duckdb_path=_settings.duckdb_path,
+        jepa_artifact_path=(
+            _repository_root
+            / "data/artifacts/jepa/eaglei-2024-count-v1/jepa_count_forecast_artifact.json"
+        ),
+    )
 )
 app.include_router(
     create_demo_model_router(duckdb_path=_settings.duckdb_path, case_path=_case_path)
