@@ -14,8 +14,10 @@ depends_on:
 
 This runbook hands off a local build and verification procedure. It does not
 publish a host, configure a tunnel or connector, assert a public endpoint, or
-authorize a live provider. The default explorer is a static, bundled synthetic
-fixture. The FastAPI/Copilot path is optional and separately configured.
+authorize a live provider. Its analysis UI is a static, bundled synthetic
+fixture. The FastAPI/Copilot path is optional and separately configured. The
+renderer additionally has the narrow basemap network boundary described below;
+static analysis behavior is not a promise of a wholly offline browser session.
 
 The source-receipt inventory
 [`data/sources/texas-p0-inventory.json`](../../data/sources/texas-p0-inventory.json)
@@ -92,6 +94,23 @@ OpenFreeMap/OpenMapTiles/OpenStreetMap attribution. An unavailable basemap is
 a separate renderer/network condition from unavailable feature data. A
 foundation that deliberately avoids a remote basemap fetch must disclose that
 it has not exercised external tiles, glyphs, or attribution delivery.
+
+### Approved basemap network boundary
+
+The static analysis interface may load its own same-origin built assets and
+MapLibre workers, plus only the configured OpenFreeMap resources: the dark
+style at `https://tiles.openfreemap.org/styles/dark`, its `planet` TileJSON and
+tile resources on `https://tiles.openfreemap.org`, and glyphs at
+`https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf`. That is online
+basemap access, separate from the static analysis fixture. It does not permit a
+model fetch, a provider connection, `/ask`, or `/api` request.
+
+Treat a style, tile, or glyph failure as a basemap-renderer condition, never as
+evidence about feature data or a reason to substitute geographic geometry. The
+renderer must preserve its explicit unavailable provenance/status disclosure.
+Record the exact visible basemap-unavailable behavior and the browser network
+test result only after the renderer owner confirms them; this runbook does not
+yet claim that proof.
 
 For the interleaved overlay, attach `MapboxOverlay({interleaved: true})` with
 `useControl`, update it with the layer list, and choose `beforeId` from the
@@ -183,6 +202,9 @@ candidate scenario/revision changes; modal keyboard/focus; and no desktop,
 laptop, or mobile overflow after fonts load. Its request monitor observed no
 `/ask` or `/api` request in the static run. Local supporting checks reported by
 that owner were typecheck/lint, data (33), rehearsal (2), and static-demo (3).
+That PR #204 observation predates the approved MapLibre mount, so it supports
+only the absence of `/ask` and `/api` in that earlier static run; it does not
+prove the current basemap network boundary or basemap-unavailable behavior.
 
 Those are dependency evidence, not a deployment certificate. They do **not**
 establish 3D geometry, source-backed geometry, live provider/SSE behavior,
@@ -197,7 +219,7 @@ Run the checks that apply to the selected mode and record the actual result.
 | Root route | required | required when a web origin is served | root returns the built application shell |
 | Deep refresh | required | required when a web origin is served | a direct refresh of a client route remains in the application shell, not a server 404 |
 | Browser/device | required | required | keyboard focus and desktop/laptop/mobile layouts are usable; record viewport and browser |
-| Static request boundary | required | required for static mode | browser monitoring shows no unapproved API/SSE dependency |
+| Static request boundary | required | required for static mode | browser monitoring permits same-origin built assets/workers and the configured OpenFreeMap style/tile/glyph resources only; it observes no model/provider, `/ask`, or `/api` request |
 | `/health` | not applicable | required before availability is claimed | documented health response confirms the configured local service; otherwise report unavailable |
 | SSE | not applicable | required only for a configured live-agent rehearsal | stream events and terminal/unavailable behavior are observed through the configured route; do not infer either from a build |
 | Connector routing/restart | blocked | blocked | only owner-supplied host, route, restart, and rollback instructions count as evidence |
@@ -205,7 +227,9 @@ Run the checks that apply to the selected mode and record the actual result.
 For local static checks, start the built server after the build and use its
 reported local origin. Verify a root route and one direct client route in the
 same browser profile. Observe the browser request log during the unavailable
-Ask flow before declaring the static path self-contained.
+Ask flow: distinguish allowed OpenFreeMap basemap requests from prohibited
+model/provider, `/ask`, and `/api` requests. Do not call the whole browser
+session offline while the configured basemap is reachable over the network.
 
 For configured API checks, make the `/health` request against the locally
 started service and exercise both the intended SSE interaction and the
