@@ -191,6 +191,36 @@ def test_county_event_report_can_support_weather_without_fake_samples() -> None:
     validator.validate_bundle(candidate)
 
 
+def test_zone_event_report_cannot_claim_covered_county_weather() -> None:
+    """A zone report is candidate context, not complete county weather evidence."""
+    candidate = copy.deepcopy(bundle())
+    candidate["records"][0]["weather"] = {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["source_receipt"],
+        "expected_samples": None,
+        "observed_samples": None,
+        "missing_timestamps": [],
+        "event_report": {
+            "source_event_ids": ["test-event-id"],
+            "source_window": {
+                "start_utc": "2021-01-01T05:00:00Z",
+                "end_utc": "2021-01-01T13:00:00Z",
+            },
+            "spatial_scope": "zone",
+            "scope_identifier": "MN zone",
+            "limitations": "not a county time series",
+        },
+        "notes": "fixture",
+    }
+    with pytest.raises(
+        validator.ValidationError,
+        match="covered weather requires a county-scoped report",
+    ):
+        validator.validate_bundle(candidate)
+
+
 def test_missing_denominator_is_honest_accepted_observation() -> None:
     candidate = copy.deepcopy(bundle())
     candidate["records"][0]["label"].update(
