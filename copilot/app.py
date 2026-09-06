@@ -18,7 +18,7 @@ from copilot.api import (
     request_id_of,
 )
 from copilot.api.errors import failure_response
-from copilot.config import Settings
+from copilot.config import Settings, load_settings
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
 from copilot.routes.health import router as health_router
@@ -35,7 +35,7 @@ def create_app(
 ) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
-    app.state.settings = settings or Settings()
+    app.state.settings = settings if settings is not None else load_settings()
     # Provider and tool orchestration stay deployment-injected.  The default is
     # deliberately unavailable rather than an implicit provider/network call.
     app.state.ask_backend = ask_backend

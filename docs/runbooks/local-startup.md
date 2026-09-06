@@ -9,8 +9,8 @@ this runbook does not repeat them.
 Commands are shown for bash. PowerShell differences are called out inline:
 `/dev/null` is `NUL`, and `VAR=value command` becomes `$env:VAR = "value"` on
 the line before. To unset a variable use `Remove-Item Env:VAR`; `$env:VAR = ""`
-sets an *empty* value, which for `DUCKDB_PATH` resolves to `.` and is not the
-default.
+sets an *empty* value, which for `DUCKDB_PATH` is now rejected by validation
+(`ValidationError` naming `duckdb_path`) rather than falling back to the default.
 
 ## Prerequisites
 
@@ -31,14 +31,17 @@ The repo root is `flux/`. All paths below are relative to it.
 ## Static demo
 
 `web/server.mjs` is a Node/Express server. It serves the built React client
-from `web/dist/` and exposes `GET /api/demo`, which reads
-`data/demo/bundle.json` on every request.
+from `web/dist/` and **exposes no API route**: the static origin returns the SPA
+shell for every path. 2WKG-300 (`db53a83`) deleted `GET /api/demo` together with
+its scenario selection and its failure envelope; `web/server.mjs` now carries an
+explicit comment telling you not to re-add one.
 
-The React client does **not** call `/api/demo`: the bundle is inlined at build
-time (`web/test/static-demo.test.mjs` asserts the built `web/dist/assets/app.js`
-contains no `fetch(` and no `api/demo`). The route exists for the recorded
-2WKG-296 question in `README.md` and for ingestion jobs to validate the same
-contract; the page renders even if you never request it.
+The React client needs no route: the bundle is inlined at build time
+(`web/test/static-demo.test.mjs` asserts the built `web/dist/assets/app.js`
+contains no `fetch(` and no `api/demo`). Requesting `/api/demo` today is not an
+error and not a payload — the Express catch-all answers `200 text/html` with the
+same `index.html` bytes as `/`. The Copilot API is the separate FastAPI service
+below.
 
 ### Configuration
 
@@ -85,29 +88,32 @@ still running.
 
 ```bash
 # SPA shell served
-curl -s -o /dev/null -w "%{http_code}\n" http://localhost:4173/
-# Expected: 200
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:4173/
+# Expected: 200 text/html; charset=utf-8
 
-# Demo route. Envelope is {status, selectedScenarioId, data}; the bundle is under `data`.
-curl -s http://localhost:4173/api/demo | uv run python -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='available'; print(d['selectedScenarioId'], d['data']['fixtureHash'])"
-# Expected: baseline f5b2c271416b
+# No API route: every unmatched path is the same SPA shell, /api/demo included.
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:4173/api/demo
+# Expected: 200 text/html; charset=utf-8
+curl -s http://localhost:4173/ | shasum -a 256
+curl -s http://localhost:4173/api/demo | shasum -a 256
+# Expected: the same digest twice
+#   4c9dc8d4c80841e07b5fd7d0c2c63364d78193f1233299e307ff31cc2e7bccd5
 
-# Scenario selection and validation (ids: baseline, a, b)
-curl -s "http://localhost:4173/api/demo?scenario=a" | uv run python -c "import sys,json; d=json.load(sys.stdin); print(d['status'], d['selectedScenarioId'])"
-# Expected: available a
-curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:4173/api/demo?scenario=bogus"
-# Expected: 404   (body: {"status":"unavailable","code":"SCENARIO_NOT_FOUND",...})
-curl -s -o /dev/null -w "%{http_code}\n" "http://localhost:4173/api/demo?scenario=a&scenario=b"
-# Expected: 400   (body: {"status":"unavailable","code":"SCENARIO_ID_INVALID",...})
+# The bundled asset is real (this is what distinguishes a served build from a shell alone)
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:4173/assets/app.js
+# Expected: 200 text/javascript; charset=utf-8
 
-# The built client makes no request to the route
-grep -c "api/demo" web/dist/assets/app.js
-# Expected: 0
+# The built client requests nothing at runtime
+grep -c "api/demo" web/dist/assets/app.js ; grep -c "fetch(" web/dist/assets/app.js
+# Expected: 0 ; 0
 ```
 
-`/api/demo` failures use the Node stopgap envelope
-`{status, code, message, nextStep}` (see the comment in `web/server.mjs`), not
-the FastAPI envelope below.
+Because the shell is returned for any path, a `200` from this origin proves only
+that the process is serving `web/dist/`; it never proves a route exists. Piping
+`/api/demo` into a JSON parser is now a failure — `json.decoder.JSONDecodeError:
+Expecting value: line 1 column 1 (char 0)` — because the response is HTML. The
+FastAPI envelope below belongs to the separate copilot service, not to this
+origin.
 
 ### Stop / restart
 
@@ -265,8 +271,8 @@ npm --prefix web run dev
 # Open http://localhost:4173 — the network comparison renders
 
 # 2. Smoke test (second shell)
-curl -s http://localhost:4173/api/demo | uv run python -c "import sys,json; d=json.load(sys.stdin); assert d['status']=='available'; print(d['selectedScenarioId'], d['data']['fixtureHash'])"
-# baseline f5b2c271416b
+curl -s -o /dev/null -w "%{http_code} %{content_type}\n" http://localhost:4173/
+# 200 text/html; charset=utf-8   (the same shell answers every path; there is no API route)
 
 # 3. (Optional) API
 uv run uvicorn copilot.app:app --port 8000
@@ -282,8 +288,8 @@ curl -s -w "\n%{http_code}\n" http://localhost:8000/health
 | `uv sync` fails | `uv` is installed; it needs a Python 3.12.x it can select (`uv python list`). |
 | `npm --prefix web ci` fails | Node 18+ and npm are installed; `web/package-lock.json` is present and in sync with `web/package.json`. |
 | `npm --prefix web run dev` stops before "Flux is running" | Read the `lint` (`scripts/check-browser-boundary.mjs`) or `tsc` output; `dev` runs both before starting the server. |
-| `/api/demo` returns 503 `DEMO_INPUT_UNAVAILABLE` | `data/demo/bundle.json` is missing; run `uv run python model/generate_demo.py`. |
-| `/api/demo` returns 404 `SCENARIO_NOT_FOUND` / 400 `SCENARIO_ID_INVALID` | Use exactly one `?scenario=` with an id from the bundle (`baseline`, `a`, `b`). |
+| `/api/demo` returns HTML, or a JSON parse of it fails | Expected. 2WKG-300 deleted the route; the static origin answers every path with the SPA shell. Scenario data is bundled into `web/dist/assets/app.js` at build time. |
+| The page shows stale scenario numbers | `data/demo/bundle.json` changed without a rebuild; re-run `uv run python model/generate_demo.py` and `npm --prefix web run build`. |
 | `/health`, `/scenarios`, `/layers/buses` return 503 `unavailable` with `reason: missing` | No database at `DUCKDB_PATH` (default `data/duck/grid.duckdb`). Expected on a fresh checkout; build one with the pipelines. |
 | `/scenarios` or `/layers/buses` return 503 `no_rows` with a database present | The table is empty; the API refuses to return an empty list or collection. |
 | `/layers/<name>` returns 503 `not_built` | A documented layer whose artifact is not implemented yet; only `buses` is. |
@@ -291,6 +297,7 @@ curl -s -w "\n%{http_code}\n" http://localhost:8000/health
 | `GET /site-score` or `GET /compare` returns 405 | Those routes are POST with a JSON body; see `copilot/routes/interventions.py`. |
 | `POST /ask` emits `lifecycle` then SSE `error` code `unavailable` | The local app has no injected backend. This is expected; no provider is contacted. |
 | An unknown path returns 404 `not_found` | Only the nine routes listed above are registered. |
+| `ConfigError: Invalid Flux configuration -> duckdb_path: ...` at startup | `DUCKDB_PATH` is empty, names a directory, or is a DuckDB connection target (`md:`, `ducklake:`, `:memory:`, `scheme://`). This service opens a *local* file read-only; a remote target would take it off the filesystem onto a network. Set `DUCKDB_PATH` to a `.duckdb` file path, or unset it for the default `data/duck/grid.duckdb`. The rejected value is never echoed back. |
 
 ## Current local API handoff verification
 
@@ -314,6 +321,10 @@ contract. This verification does not provide the separate 2WKG-418 fixture
 preparation path or any live HTTPS/tunnel/provider evidence.
 
 ## Historical verification on master `e67b435` (merged into this branch as `7cf30d3`) on 2026-09-05
+
+Read this section as a dated record, not as current behaviour: every `/api/demo`
+line below predates 2WKG-300 (`db53a83`, 2026-09-05) and cannot be reproduced on
+master today — that path now returns the SPA shell.
 
 macOS (Darwin 25.6.0), Node v26.0.0, npm 11.12.1, uv 0.11.16, `uv run python`
 3.12.13, no `python` on `PATH` (`python3` is 3.9.6). The following original
@@ -380,7 +391,14 @@ $ DUCKDB_PATH=/nonexistent/grid.duckdb uv run python -c "from copilot.config imp
 $ FLUX_DUCKDB_PATH=/nonexistent/grid.duckdb uv run python -c "from copilot.config import Settings; print(Settings().duckdb_path)"
 data/duck/grid.duckdb                                            (not honoured)
 $ DUCKDB_PATH='' uv run python -c "from copilot.config import Settings; print(repr(str(Settings().duckdb_path)))"
-'.'                                                              (empty is not "unset"; /health -> 503)
+pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+duckdb_path
+  Value error, DUCKDB_PATH must be a non-empty local file path [type=value_error]
+                                                                 (empty is not "unset": it now fails validation instead of resolving to '.')
+$ DUCKDB_PATH='' uv run python -c "import copilot.app"
+copilot.config.ConfigError: Invalid Flux configuration -> duckdb_path: Value error, DUCKDB_PATH must be a non-empty local file path
+$ DUCKDB_PATH=md:my_db uv run python -c "import copilot.app"
+copilot.config.ConfigError: Invalid Flux configuration -> duckdb_path: Value error, DUCKDB_PATH must be a local file path, not a DuckDB connection target (md:, ducklake:, :memory:, or scheme://)
 $ uv run python -c "from copilot.config import Settings; print(Settings().model_is_configured)" ; ANTHROPIC_API_KEY=x COPILOT_MODEL=m uv run python -c "..."
 False ; True
 $ uv run python -c "from pipelines.db import connect; connect('/tmp/f124/grid.duckdb').close()"
