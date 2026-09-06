@@ -18,12 +18,13 @@ from __future__ import annotations
 from typing import Annotated, Any, Final
 
 import duckdb
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi import Path as FastAPIPath
 from fastapi.responses import JSONResponse
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from pipelines.node_annotations import read_node_annotations
 
 DOCUMENTED_LAYERS: Final = frozenset(
     {
@@ -188,6 +189,102 @@ def _read_buses(path: str) -> list[tuple[Any, ...]]:
         connection.close()
 
 
+def _draws_for_hour(
+    connection: duckdb.DuckDBPyConnection, scenario_id: str, hour: int
+) -> dict[str, float | None]:
+    """Return BA scaling factors, with ``None`` for an unavailable hour."""
+    rows = connection.execute(
+        """
+        WITH scenario AS (SELECT ts_start FROM scenarios WHERE scenario_id = ?),
+        baseline AS (
+          SELECT ba_code, demand_mw FROM ba_load_hourly
+          WHERE ts = (SELECT ts_start FROM scenario)
+        ), current AS (
+          SELECT ba_code, demand_mw FROM ba_load_hourly
+          WHERE ts = (SELECT ts_start + (? * INTERVAL '1 hour') FROM scenario)
+        )
+        SELECT b.ba_code,
+               CASE WHEN baseline.demand_mw > 0 AND current.demand_mw IS NOT NULL
+                    THEN current.demand_mw / baseline.demand_mw ELSE NULL END
+        FROM (SELECT DISTINCT ba_code FROM buses WHERE ba_code IS NOT NULL) AS b
+        LEFT JOIN baseline USING (ba_code)
+        LEFT JOIN current USING (ba_code)
+        """,
+        [scenario_id, hour],
+    ).fetchall()
+    return {
+        str(code): None if factor is None else float(factor) for code, factor in rows
+    }
+
+
+def _annotated_buses_collection(
+    rows: list[tuple[Any, ...]],
+    connection: duckdb.DuckDBPyConnection,
+    scenario_id: str,
+    hour: int,
+) -> dict[str, Any]:
+    collection = _buses_collection(rows)
+    annotations = {item.bus_id: item for item in read_node_annotations(connection)}
+    factors = _draws_for_hour(connection, scenario_id, hour)
+    for feature in collection["features"]:
+        props = feature["properties"]
+        annotation = annotations[int(props["bus_id"])]
+        factor = factors.get(annotation.ba_code) if annotation.ba_code else None
+        draw_mw = (
+            None
+            if annotation.nominal_draw_mw is None or factor is None
+            else annotation.nominal_draw_mw * factor
+        )
+        props.update(
+            {
+                "base_kv": props["kv"],
+                "role": annotation.role,
+                "generation_capacity_mw": annotation.generation_capacity_mw,
+                "fuel_mix": list(annotation.fuel_mix),
+                "nominal_draw_mw": annotation.nominal_draw_mw,
+                "draw_mw": draw_mw,
+                "draw_status": "available" if draw_mw is not None else "unavailable",
+                "county_name": annotation.county_name,
+                "critical_loads": list(annotation.critical_loads),
+                "field_provenance": {
+                    **annotation.field_provenance,
+                    "lon": "synthetic",
+                    "lat": "synthetic",
+                    "base_kv": "synthetic",
+                    "draw_mw": "derived" if draw_mw is not None else "unavailable",
+                },
+            }
+        )
+    collection["attributes"].update(
+        {
+            "base_kv": {"unit": "kV", "kind": "measure", "source": "buses.base_kv"},
+            "role": {
+                "unit": None,
+                "kind": "derived classification",
+                "source": "gens, loads",
+            },
+            "generation_capacity_mw": {
+                "unit": "MW",
+                "kind": "measure",
+                "source": "gens.pmax_mw",
+            },
+            "draw_mw": {
+                "unit": "MW",
+                "kind": "hour-scaled measure",
+                "source": "loads.p_mw_nominal, ba_load_hourly",
+            },
+            "field_provenance": {
+                "unit": None,
+                "kind": "truth label",
+                "source": "derived adapter",
+            },
+        }
+    )
+    collection["scenario_id"] = scenario_id
+    collection["hour"] = hour
+    return collection
+
+
 def _buses_collection(rows: list[tuple[Any, ...]]) -> dict[str, Any]:
     features: list[dict[str, Any]] = []
     source_names: set[str] = set()
@@ -224,7 +321,12 @@ def _buses_collection(rows: list[tuple[Any, ...]]) -> dict[str, Any]:
 
 
 @router.get("/{layer_name}")
-def get_layer(layer_name: LayerName, request: Request) -> JSONResponse:
+def get_layer(
+    layer_name: LayerName,
+    request: Request,
+    scenario_id: str | None = Query(default=None, min_length=1, max_length=128),
+    hour: int | None = Query(default=None, ge=0),
+) -> JSONResponse:
     """Return a bare GeoJSON layer or the shared named failure envelope."""
 
     # Shape is validated by ``LayerName`` (422 invalid_input); this decides
@@ -237,7 +339,27 @@ def get_layer(layer_name: LayerName, request: Request) -> JSONResponse:
         raise _unavailable("not_built", artifact=layer_name)
 
     settings: Settings = request.app.state.settings
+    if (scenario_id is None) != (hour is None):
+        raise _unavailable(
+            "schema_mismatch", detail="scenario_id and hour must be supplied together"
+        )
     rows = _read_buses(str(settings.duckdb_path))
     if not rows:
         raise _unavailable("no_rows")
-    return JSONResponse(content=_buses_collection(rows), media_type=GEOJSON_MEDIA_TYPE)
+    if scenario_id is None:
+        return JSONResponse(
+            content=_buses_collection(rows), media_type=GEOJSON_MEDIA_TYPE
+        )
+    try:
+        connection = duckdb.connect(str(settings.duckdb_path), read_only=True)
+        try:
+            body = _annotated_buses_collection(rows, connection, scenario_id, hour)
+        finally:
+            connection.close()
+    except duckdb.CatalogException as exc:
+        raise _unavailable("missing") from exc
+    except duckdb.BinderException as exc:
+        raise _unavailable("schema_mismatch") from exc
+    except duckdb.Error as exc:
+        raise _unavailable("query_failed") from exc
+    return JSONResponse(content=body, media_type=GEOJSON_MEDIA_TYPE)
