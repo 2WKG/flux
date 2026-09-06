@@ -5,7 +5,6 @@ import { type ClientState } from "../data/client-state";
 import { FailureState } from "../failure-states/FailureState";
 import { fromClientState } from "../failure-states/adapters";
 import type { RunIdentity } from "../ask/run-state/types";
-import "./MinnesotaControlRoom.css";
 import { FailureTimelinePanel, type MinnesotaFailureTimelineResult } from "./FailureTimelinePanel";
 import {
   requestMinnesotaComparison,
@@ -13,7 +12,9 @@ import {
 } from "./comparison-client";
 import {
   MINNESOTA_AGGREGATE_ARTIFACT_ID,
+  MINNESOTA_AGGREGATE_MANIFEST_SHA256,
   MINNESOTA_AGGREGATE_SCENE_ID,
+  MINNESOTA_BASELINE_CONTEXT_ID,
   MINNESOTA_BASELINE_RUN_CONTEXT,
   MINNESOTA_COMPARISON_CONTEXT_IDS,
   acceptMinnesotaRunResult,
@@ -124,6 +125,8 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <p><strong>Baseline:</strong> aggregate coverage</p>
         <p><strong>Artifact:</strong> <code>{MINNESOTA_AGGREGATE_ARTIFACT_ID}</code></p>
         <p><strong>Scene:</strong> <code>{MINNESOTA_AGGREGATE_SCENE_ID}</code></p>
+        <p><strong>Server context:</strong> <code>{MINNESOTA_BASELINE_CONTEXT_ID}</code></p>
+        <p><strong>Manifest digest:</strong> <code>{MINNESOTA_AGGREGATE_MANIFEST_SHA256}</code></p>
         <p><strong>Run:</strong> <code>{run.identity.contextRevision}</code></p>
         <p><strong>Comparison contexts:</strong> <code>{MINNESOTA_COMPARISON_CONTEXT_IDS.baseline}</code> → <code>{MINNESOTA_COMPARISON_CONTEXT_IDS.candidate}</code></p>
         <button type="button" onClick={reset}>Reset to baseline</button>

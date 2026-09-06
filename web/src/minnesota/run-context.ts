@@ -11,7 +11,25 @@ import type { RunIdentity } from "../ask/run-state/types";
 import type { SceneContext } from "../chat/ask-contract";
 
 export const MINNESOTA_BOOKMARK_VERSION = "v1";
-export const MINNESOTA_AGGREGATE_SCENE_ID = "mn:coverage:aggregate:v1";
+
+/**
+ * The server's own aggregate-context id. `copilot/routes/mn_comparisons.py`
+ * takes it as `baseline_context_id` and reads it back out of the persisted
+ * manifest's `source_identity.context_id`; the pinned server fixture is
+ * `copilot/test_mn_comparisons.py`.
+ */
+export const MINNESOTA_BASELINE_CONTEXT_ID = "mn:baseline:v1";
+
+/**
+ * The scene id the browser puts in a shareable link is the server's own
+ * highlight id, not a client label. `mn_comparisons.py` returns
+ * `highlight_ids` verbatim from `source_identity.highlight_ids`, and the
+ * server fixture spells them `scene:<context_id>`. `run-context.test.mjs`
+ * asserts this literal still occurs in the server tier, so renaming it here
+ * fails rather than silently inventing a vocabulary the server never issues.
+ */
+export const MINNESOTA_AGGREGATE_SCENE_ID = `scene:${MINNESOTA_BASELINE_CONTEXT_ID}` as const;
+
 export const MINNESOTA_AGGREGATE_ARTIFACT_ID = "mn:aggregate:manifest:v1";
 
 /**
@@ -24,12 +42,24 @@ export const MINNESOTA_COMPARISON_CONTEXT_IDS = Object.freeze({
   candidate: "mn:candidate:v1",
 });
 
+/**
+ * The accepted manifest's content digest, copied from
+ * `data/sources/minnesota-accepted-artifact-inventory.json`. A shareable link
+ * carries it so a link made against one manifest cannot silently be read as
+ * reproducing a different one. `run-context.test.mjs` binds both this value
+ * and the artifact id to that inventory file.
+ */
+export const MINNESOTA_AGGREGATE_MANIFEST_SHA256 =
+  "sha256:f287a1dfbafddff8bd9f0ec989d488ad6743609280b19338eca048c3d5858e05";
+
 /** The one Minnesota scene this branch can identify without inventing geometry. */
 export const MINNESOTA_AGGREGATE_SCENE = Object.freeze({
   id: MINNESOTA_AGGREGATE_SCENE_ID,
+  contextId: MINNESOTA_BASELINE_CONTEXT_ID,
   geographyId: "mn" as const,
   mode: "aggregate" as const,
   artifactId: MINNESOTA_AGGREGATE_ARTIFACT_ID,
+  artifactSha256: MINNESOTA_AGGREGATE_MANIFEST_SHA256,
 });
 
 export interface MinnesotaRunContext {
@@ -37,7 +67,11 @@ export interface MinnesotaRunContext {
   readonly geographyId: "mn";
   readonly mode: "aggregate";
   readonly sceneId: typeof MINNESOTA_AGGREGATE_SCENE_ID;
+  /** The server context id the scene id is derived from and `/mn/comparisons` takes. */
+  readonly contextId: typeof MINNESOTA_BASELINE_CONTEXT_ID;
   readonly artifactId: typeof MINNESOTA_AGGREGATE_ARTIFACT_ID;
+  /** The accepted manifest digest, so a link names the bytes it was made against. */
+  readonly artifactSha256: typeof MINNESOTA_AGGREGATE_MANIFEST_SHA256;
   /**
    * The existing `/ask` contract is retained verbatim. Every field is null
    * because this shell has no server contract that can select a Minnesota
@@ -64,7 +98,9 @@ export const MINNESOTA_BASELINE_RUN_CONTEXT: Readonly<MinnesotaRunContext> = Obj
   geographyId: "mn",
   mode: "aggregate",
   sceneId: MINNESOTA_AGGREGATE_SCENE_ID,
+  contextId: MINNESOTA_BASELINE_CONTEXT_ID,
   artifactId: MINNESOTA_AGGREGATE_ARTIFACT_ID,
+  artifactSha256: MINNESOTA_AGGREGATE_MANIFEST_SHA256,
   sceneContext: emptySceneContext,
 });
 
@@ -86,7 +122,7 @@ export type MinnesotaBookmarkRead =
   | { readonly kind: "valid"; readonly bookmark: MinnesotaBookmark }
   | { readonly kind: "invalid"; readonly message: string };
 
-const BOOKMARK_KEYS = ["mn", "mode", "scene", "artifact"] as const;
+const BOOKMARK_KEYS = ["mn", "mode", "scene", "artifact", "hash"] as const;
 
 /**
  * Serialize every baseline field, including mode, rather than relying on a
@@ -101,6 +137,7 @@ export function serializeMinnesotaBookmark(context: Readonly<MinnesotaRunContext
   params.set("mode", context.mode);
   params.set("scene", context.sceneId);
   params.set("artifact", context.artifactId);
+  params.set("hash", context.artifactSha256);
   return params.toString();
 }
 
@@ -137,7 +174,8 @@ export function readMinnesotaBookmark(search: string): MinnesotaBookmarkRead {
     params.get("mn") !== MINNESOTA_BOOKMARK_VERSION ||
     params.get("mode") !== "aggregate" ||
     params.get("scene") !== MINNESOTA_AGGREGATE_SCENE_ID ||
-    params.get("artifact") !== MINNESOTA_AGGREGATE_ARTIFACT_ID
+    params.get("artifact") !== MINNESOTA_AGGREGATE_ARTIFACT_ID ||
+    params.get("hash") !== MINNESOTA_AGGREGATE_MANIFEST_SHA256
   ) {
     return { kind: "invalid", message: "This Minnesota bookmark does not name a supported aggregate baseline." };
   }
@@ -185,29 +223,14 @@ export type MinnesotaRunResultAcceptance<T> =
   | { readonly kind: "stale" };
 
 /**
- * Retained for consumers that need to name an unavailable comparison without
- * deriving a delta, ranking, or effect from the aggregate manifest.
+ * The server route that owns Minnesota aggregate comparison.
+ * `copilot/routes/mn_comparisons.py` serves it and returns the signed delta,
+ * unit, provenance and highlight ids; `./comparison-client.ts` is the only
+ * caller. The stand-in `unavailableMinnesotaComparison` this module used to
+ * export was deleted with its last consumer -- a hand-written "no such
+ * contract" state is a false statement now that the contract exists.
  */
-export interface MinnesotaComparisonUnavailable {
-  readonly kind: "unavailable";
-  readonly code: "mn_server_compare_contract_missing";
-  readonly baseline: Readonly<MinnesotaRunContext>;
-  readonly candidate: Readonly<MinnesotaRunContext>;
-  readonly message: string;
-}
-
-export function unavailableMinnesotaComparison(
-  baseline: Readonly<MinnesotaRunContext>,
-  candidate: Readonly<MinnesotaRunContext>,
-): MinnesotaComparisonUnavailable {
-  return {
-    kind: "unavailable",
-    code: "mn_server_compare_contract_missing",
-    baseline,
-    candidate,
-    message: "No server comparison contract supplies a Minnesota aggregate baseline, candidate, or effect.",
-  };
-}
+export const MINNESOTA_COMPARISON_ROUTE = "POST /mn/comparisons";
 
 /** Consumers use this seam before rendering any future server response. */
 export function acceptMinnesotaRunResult<T>(
