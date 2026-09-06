@@ -7,8 +7,10 @@
   "export": {
     "container": "glb",
     "specification": "glTF 2.0",
-    "model_file": "water_treatment_plant.glb",
-    "preview_file": "water_treatment_plant.preview.png",
+    "pipeline_outputs": {
+      "model_file": "water_treatment_plant.glb",
+      "preview_file": "water_treatment_plant.preview.png"
+    },
     "preview_source": "water_treatment_plant.preview.svg",
     "preview_pixels": 512,
     "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
@@ -32,6 +34,9 @@
     "allowed_labels": ["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]
   }],
   "triangles": {"lod0": 28000, "lod1": 10500, "lod2": 3000},
+  "triangles_lod0": 28000,
+  "triangles_lod1": 10500,
+  "triangles_lod2": 3000,
   "author": "Flux team",
   "license": "MIT",
   "source_of_shape": "Original generic Flux procedural water-treatment archetype; it depicts no real facility, process capacity, service population, operator, or Minnesota placement.",
