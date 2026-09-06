@@ -107,10 +107,19 @@ def _attach_element_ids(net: Any) -> None:
     gen_lookup = net.get("_from_ppc_lookups", {}).get("gen")
     if gen_lookup is not None:
         for source_index, row in gen_lookup.iterrows():
-            if str(row["element_type"]) == "gen":
-                net.gen.loc[int(row["element"]), "flux_element_id"] = f"generator:{int(source_index) + 1}"
+            element_type = str(row["element_type"])
+            element = int(row["element"])
+            source_id = int(source_index) + 1
+            if element_type in {"gen", "sgen"}:
+                net[element_type].loc[element, "flux_element_id"] = f"generator:{source_id}"
+            elif element_type == "ext_grid":
+                net.ext_grid.loc[element, "flux_element_id"] = f"slack:{source_id}"
     if "flux_element_id" not in net.gen:
         net.gen["flux_element_id"] = [f"generator:{index + 1}" for index in net.gen.index]
+    if "flux_element_id" not in net.sgen:
+        net.sgen["flux_element_id"] = [f"generator:{index + 1}" for index in net.sgen.index]
+    if "flux_element_id" not in net.ext_grid:
+        net.ext_grid["flux_element_id"] = [f"slack:{index + 1}" for index in net.ext_grid.index]
     net.load["flux_element_id"] = [f"load:{index + 1}" for index in net.load.index]
 
 
@@ -200,17 +209,17 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             "model geometry requires build_network(..., db_path=<validated current AUX database>)"
         )
     all_elements: dict[str, tuple[str, int]] = {}
-    for table in ("line", "impedance", "gen", "load"):
+    for table in ("line", "impedance", "gen", "sgen", "ext_grid", "load"):
         if "flux_element_id" not in net[table]:
             raise SimulationUnavailableError("model geometry requires flux element identifiers")
         for index, element_id in net[table].flux_element_id.items():
             all_elements[str(element_id)] = (table, int(index))
     selected = sorted(all_elements) if element_ids is None else [str(value) for value in element_ids]
     elements: list[dict[str, Any]] = []
-    for element_id in selected:
-        record = all_elements.get(element_id)
+    for requested_element_id in selected:
+        element_id, record = _resolve_geometry_element(net, all_elements, requested_element_id)
         if record is None:
-            elements.append({"element_id": element_id, "resolved": False, "reason": "unknown synthetic model element"})
+            elements.append({"element_id": requested_element_id, "resolved": False, "reason": "unknown synthetic model element"})
             continue
         table, index = record
         frame = net[table]
@@ -237,8 +246,12 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             source_bus_ids = [int(net.bus.at[bus, "flux_source_bus_id"])]
         elements.append({
             "element_id": element_id,
+            **({"requested_element_id": requested_element_id} if requested_element_id != element_id else {}),
             "resolved": True,
-            "role": {"line": "line", "impedance": "impedance_branch", "gen": "generator", "load": "load"}[table],
+            "role": {
+                "line": "line", "impedance": "impedance_branch", "gen": "generator",
+                "sgen": "static_generator", "ext_grid": "grid_forming_slack", "load": "load",
+            }[table],
             "pandapower_index": index,
             "source_id": element_id,
             "source_bus_ids": source_bus_ids,
@@ -265,6 +278,29 @@ def model_geometry(net: Any, element_ids: list[str] | None = None) -> dict[str, 
             },
         },
     }
+
+
+def _resolve_geometry_element(
+    net: Any, all_elements: dict[str, tuple[str, int]], requested_element_id: str,
+) -> tuple[str, tuple[str, int] | None]:
+    """Resolve the same one-based table aliases accepted by ``run_cascade``."""
+    if requested_element_id in all_elements:
+        return requested_element_id, all_elements[requested_element_id]
+    prefix, separator, raw_index = requested_element_id.partition(":")
+    table = {
+        "line": "line", "impedance": "impedance", "gen": "gen", "sgen": "sgen",
+        "slack": "ext_grid", "load": "load",
+    }.get(prefix)
+    if not separator or table is None:
+        return requested_element_id, None
+    try:
+        index = int(raw_index) - 1
+    except ValueError:
+        return requested_element_id, None
+    if index not in net[table].index:
+        return requested_element_id, None
+    canonical = str(net[table].at[index, "flux_element_id"])
+    return canonical, (table, index)
 
 
 def _bus_point(net: Any, bus_id: int) -> list[float] | None:

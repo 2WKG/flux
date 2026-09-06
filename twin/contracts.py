@@ -38,7 +38,7 @@ class CascadeEvent:
     """An ordered outage event that can be serialized into ``cascade_runs``."""
 
     element_id: str
-    kind: Literal["line", "impedance", "generator", "load"]
+    kind: Literal["line", "impedance", "generator", "static_generator", "load"]
     stage: int
     cause: Literal["forced", "overload", "island"]
     loading_percent: float | None = None
