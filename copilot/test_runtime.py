@@ -1,3 +1,4 @@
+import json
 from asyncio import CancelledError
 
 from copilot.narration import narrate
@@ -64,6 +65,20 @@ def test_injected_provider_emits_ordered_tool_citation_text_done():
     ]
     assert [event.seq for event in events] == list(range(1, 7))
     assert events[3].data["source"] == "https://example.test/d"
+
+
+def test_immutable_narration_evidence_is_copied_only_for_the_sse_payload():
+    turn = _turn()
+    assert type(turn.narration.evidence).__name__ == "mappingproxy"
+
+    event = run_turn(FakeProvider(), turn)[2]
+
+    assert isinstance(event.data["result"], dict)
+    assert isinstance(event.data["result"]["hits"], list)
+    assert (
+        json.loads(event.encode().split("data: ", 1)[1])["result"]["hits"][0]["source"]
+        == "https://example.test/d"
+    )
 
 
 def test_missing_provider_is_explicit_unavailable_terminal():
