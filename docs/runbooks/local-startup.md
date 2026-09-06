@@ -124,7 +124,7 @@ origin.
 ## Optional API (copilot)
 
 `copilot.app:app` is a FastAPI app with the nine registered local routes listed
-by `copilot/test_api_route_inventory.py`: `GET /health`; `GET /layers/{name}`;
+by `copilot/test_read_route_contracts.py`: `GET /health`; `GET /layers/{name}`;
 `POST /site-score` and `POST /compare` (persisted site scores, JSON body);
 `GET /scenarios` and `GET /scenarios/{id}`; `GET /predictions`; `GET /cascade`;
 and `POST /ask`. The default `/ask` backend is deliberately unconfigured: it
