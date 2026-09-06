@@ -1,0 +1,10 @@
+{
+  "retrieved_at": "2026-09-06T04:40:00Z",
+  "provider": "National Transportation Atlas Database",
+  "source_url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27TX%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+  "vintage": "FY2024 dataset, metadata updated 2025-11-11",
+  "license_access": "U.S. government work; unrestricted public use",
+  "files": {"texas.geojson": {"bytes": 534134, "sha256": "5d8064bab8b36bd5a36d8a4621ca4bffc66d28b40c1b66ef6349eefa4f165a9c", "etag": "sd24400_897990497", "last_modified": "2025-11-13T18:19:52Z"}},
+  "validation": {"loader": "pipelines.critical_loads.load_dod", "scope": "TX", "source_features": 32, "active_features": 31, "loaded_features_at_least_1_km2": 21, "geometry_crs": "EPSG:4326", "identity": "OBJECTID unique; mirtaLocationsIdpk blank", "result": "passed"},
+  "uncertainty": "These installation boundaries are public screening geometry. Their nearest synthetic-bus association is not a service-connection claim."
+}
