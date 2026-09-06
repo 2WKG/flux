@@ -1,0 +1,23 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "U.S. Census Bureau",
+ "source_url": "https://www2.census.gov/geo/tiger/TIGER2024/COUNTY/tl_2024_us_county.zip",
+ "vintage": "TIGER/Line 2024",
+ "license_access": "U.S. government public data",
+ "files": {
+  "tl_2024_us_county.zip": {
+   "bytes": 83913260,
+   "sha256": "04e668d3502757c837c13444730547cd967f28a2c49aeffb873d1792ab2cb97b"
+  }
+ },
+ "validation": {
+  "loader": "pipelines.counties.load_counties",
+  "scope": "MN",
+  "curated_crs": "EPSG:4326",
+  "minnesota_counties_loaded": 87,
+  "missing_population": 0,
+  "result": "passed"
+ },
+ "uncertainty": "This receipt validates county geometry intake only. County boundaries do not establish electrical topology or service connections.",
+ "shared_artifact_note": "The same national archive backs texas-tiger-2024.json. Each state's load is recorded separately in ingest_log as 2024;scope=mn and 2024;scope=tx."
+}

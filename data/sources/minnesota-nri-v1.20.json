@@ -1,0 +1,26 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "Federal Emergency Management Agency",
+ "source_url": "https://services.arcgis.com/XG15cJAlne2vxtgt/arcgis/rest/services/National_Risk_Index_Counties/FeatureServer/0/query?where=STATEABBRV%3D%27MN%27&outFields=*&returnGeometry=false&f=json",
+ "vintage": "National Risk Index v1.20",
+ "license_access": "U.S. government public data",
+ "files": {
+  "NRI_Counties_MN.json": {
+   "bytes": 1171237,
+   "sha256": "0c0bb29c10e92e553253506f900f9e1fc4ac7feed79e5477733c802e225b9d79",
+   "attributes_per_feature": 467
+  }
+ },
+ "validation": {
+  "loader": "pipelines.nri.load_nri",
+  "scope": "MN",
+  "minnesota_counties_loaded": 87,
+  "hazard_rows": 870,
+  "hazards": 10,
+  "missing_population": 0,
+  "missing_nri_score": 0,
+  "result": "passed"
+ },
+ "access_note": "The bulk archive at https://www.fema.gov/about/reports-and-data/openfema/nri/v120/NRI_Table_Counties.zip returns HTTP 403 to scripted clients (verified 2026-09-06, Akamai edge). The ArcGIS FeatureServer query above is the working route and returns the identical 467-attribute county records that back NRI_Counties_TX.json.",
+ "uncertainty": "NRI is county screening context, not site-specific engineering analysis or a power-system model."
+}

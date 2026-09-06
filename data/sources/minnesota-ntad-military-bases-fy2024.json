@@ -1,0 +1,22 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "National Transportation Atlas Database",
+ "source_url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27MN%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson",
+ "vintage": "FY2024 dataset, metadata updated 2025-11-11",
+ "license_access": "U.S. government work; unrestricted public use",
+ "files": {
+  "minnesota.geojson": {
+   "bytes": 444230,
+   "sha256": "9df6d352ec9f8e46d8122747e93ca5c4b760c9acf75c74da708b8a49d98cea06"
+  }
+ },
+ "validation": {
+  "loader": "pipelines.critical_loads.load_dod",
+  "scope": "MN",
+  "source_features": 10,
+  "geometry_crs": "EPSG:4326",
+  "loaded_features": 0,
+  "result": "acquired_not_ingested"
+ },
+ "uncertainty": "Acquired and digest-recorded, not loaded. `load_dod` associates each installation with a nearest synthetic bus, and the synthetic bus model is Texas-only, so a Minnesota load would have no defensible association to make. The named installations are Arden Hills ATS, Camp Ripley, Duluth and Rochester armories, Rosemount, St Cloud AASF and armory, Minneapolis-St Paul, Duluth IAP, and Twin Cities AAP."
+}
