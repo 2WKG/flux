@@ -98,3 +98,23 @@ def test_final_output_separates_tech_filters_and_simulated_source_class(tmp_path
     assert result.lines[0].intervention_type == "reconductor"
     assert result.lines[0].source_class == "simulated"
     assert TopLinesReader(path).top_lines("ERCOT", "dlr", 1).lines == []
+
+
+def test_multi_row_partition_orders_ties_and_truncates_without_mixing_sources(tmp_path):
+    path = tmp_path / "grid.duckdb"
+    _db(path)
+    with duckdb.connect(str(path)) as con:
+        con.execute("INSERT INTO lines VALUES (2, 3, 4, 230)")
+        con.execute(
+            "INSERT INTO line_upgrade_scores VALUES (2, 'uri_2021', 'v1', ?, 'fixture', 'fixture-ref', 'fixture', 100, 20, 10, 1000000, 2000000, 19, true, false, 'run-2')",
+            [datetime(2026, 1, 1, tzinfo=UTC)],
+        )
+        con.execute(
+            "INSERT INTO line_upgrade_detail VALUES (2, 'uri_2021', 'dlr', 'exact', 'ERCOT')"
+        )
+        con.execute("UPDATE line_upgrade_scores SET mw_per_musd = 20")
+    result = TopLinesReader(path).top_lines("ERCOT", "any", 1)
+    assert [line.line_id for line in result.lines] == ["1"]
+    full = TopLinesReader(path).top_lines("ERCOT", "any", 2)
+    assert [line.line_id for line in full.lines] == ["1", "2"]
+    assert [line.source_class for line in full.lines] == ["observed", "simulated"]
