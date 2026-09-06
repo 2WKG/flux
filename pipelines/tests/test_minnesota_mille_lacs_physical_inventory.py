@@ -13,7 +13,7 @@ def test_mille_lacs_inventory_keeps_native_crs_and_never_creates_connectivity(tm
     artifact = build_artifact(lines_path=lines_path, substations_path=substations_path, retrieved_at="2026-09-06T00:00:00+00:00")
     validate_artifact(artifact)
     assert len(artifact["assets"]) == 2
-    assert {row["geometry_crs"] for row in artifact["assets"]} == {"EPSG:103705"}
+    assert {row["geometry_crs"] for row in artifact["assets"]} == {"ESRI:103705"}
     assert {row["geometry_precision_m"] for row in artifact["assets"]} == {None}
     assert artifact["terminals"] == []
     assert artifact["connectivity_edges"] == []
