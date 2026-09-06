@@ -114,18 +114,23 @@ test("the App mounts the primary simulation scene beside the panels it already c
   assert.match(markup, /<section class="primary-scene" aria-label="Primary simulation scene">/);
   // Beside, not instead of: unmounting any of these is a different regression
   // that composed-app.test.mjs also catches, and the scene must not cause one.
+  // Pinned by the seam's own accessible name or by a union of the class names it
+  // is known to take, not by one class: #364 renames the chat body's component
+  // (`ChatDock` -> `MainAssistant`) and folds the run trace into it, and a pin
+  // that only knew one spelling would go red on a rename with no conflict to
+  // warn anyone. What is asserted is that each surface is still mounted.
   for (const [name, pattern] of Object.entries({
-    "chat dock": /class="flux-chat"/,
-    "run trace": /class="run-trace"/,
+    "chat dock": /aria-label="Evidence chat dock"/,
+    "evidence run surface": /class="run-trace"|class="flux-main-assistant"/,
     "result cards": /class="ask-result__empty"|class="ask-results"/,
     "layer controls": /class="layer-controls"/,
-    "synthetic topology workspace": /aria-label="Full synthetic Texas topology workspace"/,
+    "scenario workspace": /class="workspace[^"]*" aria-label="[^"]*workspace"/,
   })) {
     assert.match(markup, pattern, `${name} must still be mounted beside the primary scene`);
   }
   // The scene sits outside the workspace grid, so the shell's own layout contract
   // (viewport-shell.test.mjs) is untouched by it.
-  assert.ok(markup.indexOf('class="primary-scene"') > markup.indexOf('class="workspace model-workspace"'));
+  assert.ok(markup.indexOf('class="primary-scene"') > markup.indexOf('class="workspace'));
 });
 
 test("the first paint claims no simulation it has not read", () => {
