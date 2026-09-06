@@ -17,6 +17,10 @@
     "length": 12,
     "width": 12
   },
+  "bounds_m": {
+    "min": [-5.5, 0.0, -6.0],
+    "max": [5.5, 20.0, 6.0]
+  },
   "connectors": [
     {
       "name": "CONN_HV_IN_0",
