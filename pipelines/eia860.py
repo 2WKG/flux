@@ -9,6 +9,16 @@ import pandas as pd
 from shapely import Point, from_wkb
 
 from pipelines.db import log_artifact, replace_frame
+from pipelines.state_scope import scope
+
+
+def _state_where(states) -> str:
+    return "state IN (" + ", ".join(repr(code) for code in states.usps) + ")"
+
+
+def _scope_plants(frame: pd.DataFrame, states=None) -> pd.DataFrame:
+    """Select only explicitly requested plant states."""
+    return frame[frame["state"].isin(scope(states).usps)].copy()
 
 
 def _first(frame: pd.DataFrame, *names: str) -> pd.Series:
@@ -73,7 +83,8 @@ def _candidate_bus_ids(con, candidates: pd.DataFrame, min_kv: float = 230.0) -> 
     return pd.Series(assignments, index=candidates.index, dtype="Int64")
 
 
-def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0") -> int:
+def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, release: str = "v2026.2.0", states=None) -> int:
+    selected_scope = scope(states)
     plants_path, generators_path = Path(plants_parquet), Path(generators_parquet)
     plants = pd.read_parquet(plants_path)
     generators = pd.read_parquet(generators_path)
@@ -110,7 +121,7 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
                                planned_retirement_year=("planned_retirement_date", lambda values: pd.to_datetime(values, errors="coerce").dt.year.min()),
                                operational_status=("operational_status", lambda values: values.dropna().mode().iat[0] if not values.dropna().empty else pd.NA))
     curated = latest.merge(aggregate, on="plant_id_eia", how="left")
-    curated = curated[curated["state"].eq("TX")].copy()
+    curated = _scope_plants(curated, selected_scope)
     curated["retirement_year"] = curated["retirement_year"].combine_first(curated["planned_retirement_year"])
     plant_frame = pd.DataFrame({
         "plant_id_eia": curated["plant_id_eia"].astype(int), "plant_name": _first(curated, "plant_name_eia").astype(str),
@@ -120,7 +131,7 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
         "primary_fuel": curated["primary_fuel"], "retirement_year": curated["retirement_year"].astype("Int64"),
         "operational_status": curated["operational_status"], "report_date": pd.to_datetime(curated["report_date"]).dt.date,
     }).dropna(subset=["lon", "lat"])
-    rows = replace_frame(con, "eia_plants", plant_frame, where="state = 'TX'")
+    rows = replace_frame(con, "eia_plants", plant_frame, where=_state_where(selected_scope))
     log_artifact(con, source="pudl_eia860", source_release=release, path=plants_path, rows_loaded=rows,
                  schema_fingerprint="out_eia__yearly_plants version-pinned")
     log_artifact(con, source="pudl_eia860", source_release=release, path=generators_path, rows_loaded=len(inventory),
@@ -128,9 +139,10 @@ def load_eia860_plants(con, plants_parquet: str, generators_parquet: str, releas
     return rows
 
 
-def seed_site_candidates(con) -> int:
+def seed_site_candidates(con, states=None) -> int:
     """Seed only documented coal/nuclear candidate classes from EIA inventory."""
-    plants = con.execute("SELECT * FROM eia_plants WHERE state = 'TX'").fetchdf()
+    selected_scope = scope(states)
+    plants = con.execute(f"SELECT * FROM eia_plants WHERE {_state_where(selected_scope)}").fetchdf()
     inventory = con.execute("SELECT * FROM eia_generator_inventory").fetchdf()
     latest_units = _latest_generator_reports(inventory)
     latest_units["fuel_type_code_pudl"] = latest_units["fuel_type_code_pudl"].astype("string").str.lower()
