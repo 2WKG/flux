@@ -22,6 +22,14 @@ function assertNoRequestLeavesTheOrigin(requests: readonly { url: string; method
 test("static explorer supports scenario selection, inspection, and honest unavailable agent state", async ({ page }) => {
   const requests: { url: string; method: string }[] = [];
   page.on("request", (request) => requests.push({ url: request.url(), method: request.method() }));
+  // A request the CSP blocks never reaches page.on("request"), so the monitor alone
+  // cannot see an off-origin URL the shell's own policy refused. Record the refusals too.
+  const cspViolations: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error" && /Content Security Policy/i.test(message.text())) cspViolations.push(message.text());
+  });
+  const failedRequests: string[] = [];
+  page.on("requestfailed", (request) => failedRequests.push(request.url()));
 
   await page.goto("/");
   await expect(page.getByText(fixtureDisclosure)).toBeVisible();
@@ -59,6 +67,8 @@ test("static explorer supports scenario selection, inspection, and honest unavai
 
   await expect(page.getByText(/Deck overlay: initialized with 0 accepted feature layers/i)).toBeVisible();
   assertNoRequestLeavesTheOrigin(requests, new URL(page.url()).origin);
+  expect(cspViolations).toEqual([]);
+  expect(failedRequests).toEqual([]);
 });
 
 test("the demo is unaffected when every off-origin request is cut", async ({ page }) => {

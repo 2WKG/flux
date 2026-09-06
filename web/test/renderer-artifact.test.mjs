@@ -82,3 +82,22 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
   assert.ok(directives["connect-src"].includes("'self'"));
   assert.ok(!directives["connect-src"].includes("*"));
 });
+
+test("the overlay's initialized signal comes from deck's own load event, not from mount", async () => {
+  // Structural, not behavioural, and labelled as such: deck's onLoad fires in every
+  // runtime state I could produce (WebGL denied, worker 404, rAF disabled, extensions
+  // denied, shader/program failure, CSP-blocked style), so no browser probe separates
+  // it from a mount effect. What is checkable is where the signal is wired from.
+  const source = await readFile(new URL("../src/renderer/DeckOverlay.tsx", import.meta.url), "utf8");
+  const construction = /new MapboxOverlay\(\{[\s\S]*?\}\)/.exec(source)?.[0];
+  assert.ok(construction, "DeckOverlay no longer constructs a MapboxOverlay");
+  assert.match(construction, /onLoad:/, "deck's onLoad must carry the initialized signal");
+  assert.match(construction, /onError:/, "deck's onError must carry the failure signal");
+  for (const effect of source.matchAll(/useEffect\(\(\) => \{[\s\S]*?\}, \[[^\]]*\]\)/g)) {
+    assert.doesNotMatch(
+      effect[0],
+      /initialized\.current|onInitialized/,
+      "an effect must not report initialization; only deck's onLoad may",
+    );
+  }
+});
