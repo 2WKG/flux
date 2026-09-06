@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         valid artifact is reported as the documented unavailable health state.
         """
         value_text = str(value).strip()
-        if not value_text or "://" in value_text:
+        if not value_text or "://" in value_text or value_text.lower() == ":memory:":
             raise ValueError("DUCKDB_PATH must be a non-empty local file path")
 
         path = Path(value_text)
