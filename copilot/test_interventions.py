@@ -17,12 +17,12 @@ def db(path):
         "CREATE TABLE site_candidates (site_id BIGINT,name TEXT,kind TEXT,county_fips TEXT,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
     )
     c.execute(
-        "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE)"
+        "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE,model_mode TEXT,limitations_json JSON,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
     )
     c.execute(
-        "INSERT INTO site_candidates VALUES (1,'fixture site','coal_retired','27001','fixture','test','1','2026-01-01','batch')"
+        "INSERT INTO site_candidates VALUES (1,'fixture site','coal_retired','27001','fixture:site','test','1','2026-01-01','batch')"
     )
-    c.execute("INSERT INTO site_scores VALUES (1,'mn_fixture',300,10,'[]',2,3,4,5)")
+    c.execute("INSERT INTO site_scores VALUES (1,'mn_fixture',300,10,'[]',2,3,4,5,'topology','[\"fixture limitation\"]','fixture:site-score','site-score-test','1','2026-01-01','batch')")
     c.close()
 
 
@@ -34,7 +34,10 @@ def test_site_and_comparison_reads_are_server_side(tmp_path: Path):
         json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
     )
     assert r.status_code == 200
-    assert r.json()["provenance"]["source_name"] == "fixture"
+    assert r.json()["model_mode"] == "topology"
+    assert r.json()["limitations"] == ["fixture limitation"]
+    assert r.json()["source_kind"] == "fixture"
+    assert r.json()["provenance"]["site_score"]["source_name"] == "fixture:site-score"
     q = client(p).post(
         "/compare",
         json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
@@ -92,3 +95,27 @@ def test_malformed_safety_flags_fail_closed(tmp_path: Path):
         .status_code
         == 503
     )
+
+
+def test_site_score_rejects_aggregate_outcomes(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p)
+    with duckdb.connect(str(p)) as con:
+        con.execute("UPDATE site_scores SET model_mode='aggregate'")
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "unsupported_model_mode"
+
+
+def test_site_score_without_persisted_outcome_is_unavailable(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p)
+    response = client(p).post(
+        "/site-score",
+        json={"site_id": "99", "unit_mw": 300, "scenario_id": "mn_fixture"},
+    )
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "no_persisted_outcome"
