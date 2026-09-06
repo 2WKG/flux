@@ -100,3 +100,52 @@ def test_ingest_rejects_page_less_or_mixed_evidence_instead_of_inventing_citatio
             )
     finally:
         con.close()
+
+
+@pytest.mark.parametrize(
+    ("tamper_sql", "error"),
+    [
+        (
+            "UPDATE mn_artifact_provenance SET source_name = 'tampered' WHERE artifact_id = ?",
+            "conflicts with its provenance",
+        ),
+        (
+            "UPDATE mn_citation_chunks SET text = 'tampered evidence' WHERE corpus_artifact_id = ?",
+            "conflicts with its chunks",
+        ),
+    ],
+)
+def test_conflicting_reingest_never_replaces_existing_evidence(
+    tamper_sql: str, error: str
+) -> None:
+    con = duckdb.connect(":memory:")
+    try:
+        created_at = datetime.fromisoformat("2026-09-05T19:00:00+00:00")
+        ingested = ingest_corpus(
+            con, [SOURCE], created_at=created_at, chunk_tokens=20, overlap_tokens=2
+        )
+        con.execute(tamper_sql, [ingested.artifact_id])
+        before_provenance = con.execute(
+            "SELECT * FROM mn_artifact_provenance ORDER BY artifact_id, provenance_ordinal"
+        ).fetchall()
+        before_chunks = con.execute(
+            "SELECT * FROM mn_citation_chunks ORDER BY chunk_id"
+        ).fetchall()
+
+        with pytest.raises(CorpusIngestError, match=error):
+            ingest_corpus(
+                con, [SOURCE], created_at=created_at, chunk_tokens=20, overlap_tokens=2
+            )
+
+        assert (
+            con.execute(
+                "SELECT * FROM mn_artifact_provenance ORDER BY artifact_id, provenance_ordinal"
+            ).fetchall()
+            == before_provenance
+        )
+        assert (
+            con.execute("SELECT * FROM mn_citation_chunks ORDER BY chunk_id").fetchall()
+            == before_chunks
+        )
+    finally:
+        con.close()
