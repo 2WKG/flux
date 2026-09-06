@@ -1,0 +1,1491 @@
+{
+  "accepted_weather_proof": [
+    {
+      "event_id": "caiso-2022-09-heat",
+      "proof": [
+        {
+          "declared_bytes": 54530,
+          "event_id": "caiso-2022-09-heat",
+          "filtered_sha256": null,
+          "filters": "September 2022 California heat and CAISO demand context",
+          "provider": "U.S. Energy Information Administration",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/9d1a820c8c32e247cb22b9272223556ade5a737753d430a3abcf2b3d52dc42c1.html",
+          "raw_sha256": "9d1a820c8c32e247cb22b9272223556ade5a737753d430a3abcf2b3d52dc42c1",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/heat-demand/caiso-2022-09-heat.json",
+          "receipt_id": "eia-caiso-202209",
+          "source_url": "https://www.eia.gov/todayinenergy/detail.php?id=54039"
+        },
+        {
+          "declared_bytes": 11817849,
+          "event_id": "caiso-2022-09-heat",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 1057556; California Central Sacramento Valley zone CAZ016; Excessive Heat",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+          "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/heat-demand/caiso-2022-09-heat.json",
+          "receipt_id": "ncei-stormevents-2022-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "florence-2018",
+      "proof": [
+        {
+          "declared_bytes": null,
+          "event_id": "florence-2018",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 786760, Inland New Hanover Hurricane report",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4.csv.gz",
+          "raw_sha256": "19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/tropical/florence-2018.json",
+          "receipt_id": "ncei-florence-2018-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "ian-2022",
+      "proof": [
+        {
+          "declared_bytes": 11817849,
+          "event_id": "ian-2022",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 1058654 and 1058659, coastal and inland Lee Hurricane reports",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+          "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/tropical/ian-2022.json",
+          "receipt_id": "ncei-ian-2022-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "ida-2021",
+      "proof": [
+        {
+          "declared_bytes": 10563953,
+          "event_id": "ida-2021",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 978969 and 978970, Lafourche hurricane zones",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715.csv.gz",
+          "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/tropical/ida-2021.json",
+          "receipt_id": "ncei-ida-2021-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "idalia-2023",
+      "proof": [
+        {
+          "declared_bytes": 12888092,
+          "event_id": "idalia-2023",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 1131846, Coastal Taylor Hurricane report",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/713784bed40d9e5a95b1d6240a654f865f3ef97703713105c7b35437270da134.csv.gz",
+          "raw_sha256": "713784bed40d9e5a95b1d6240a654f865f3ef97703713105c7b35437270da134",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/tropical/idalia-2023.json",
+          "receipt_id": "ncei-idalia-2023-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "il-2022-04-14-high-wind",
+      "proof": [
+        {
+          "declared_bytes": 11817849,
+          "event_id": "il-2022-04-14-high-wind",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID=1015187; STATE=ILLINOIS; CZ_TYPE=Z; CZ_NAME=CENTRAL COOK COUNTY; EVENT_TYPE=High Wind.",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+          "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/nontropical-wind/il-2022-04-14-high-wind.json",
+          "receipt_id": "ncei-stormevents-2022",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "matthew-2016",
+      "proof": [
+        {
+          "declared_bytes": 9065715,
+          "event_id": "matthew-2016",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID 659040, Flagler Tropical Storm report",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/d8e1389897df3557e74ba36820357f6962a7c0ca922595400fe74d883f7a5036.csv.gz",
+          "raw_sha256": "d8e1389897df3557e74ba36820357f6962a7c0ca922595400fe74d883f7a5036",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/tropical/matthew-2016.json",
+          "receipt_id": "ncei-matthew-2016-details",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2016_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "midwest-2020-08-10-corn-belt-derecho",
+      "proof": [
+        {
+          "declared_bytes": null,
+          "event_id": "midwest-2020-08-10-corn-belt-derecho",
+          "filtered_sha256": null,
+          "filters": "EVENT_ID=915999,916103; STATE=IOWA; CZ_NAME=LINN; EVENT_TYPE=Tornado or Thunderstorm Wind.",
+          "provider": "NOAA National Centers for Environmental Information",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d.csv.gz",
+          "raw_sha256": "895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/convective-wind/midwest-2020-08-10-corn-belt-derecho.json",
+          "receipt_id": "ncei-stormevents-2020",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "mn-2018-04-14-blizzard",
+      "proof": [
+        {
+          "declared_bytes": 9585982,
+          "event_id": "mn-2018-04-14-blizzard",
+          "filtered_sha256": null,
+          "filters": "STATE=MINNESOTA; EPISODE_ID=123370; EVENT_ID in (740148,740083); CZ_NAME=HENNEPIN.",
+          "provider": "NOAA NCEI",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4.csv.gz",
+          "raw_sha256": "19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/snow-blizzard/mn-2018-04-14-blizzard.json",
+          "receipt_id": "ncei-stormevents-2018",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "mn-2019-01-27-arctic",
+      "proof": [
+        {
+          "declared_bytes": 11602648,
+          "event_id": "mn-2019-01-27-arctic",
+          "filtered_artifact_uri": "data/raw/event-baseline/weather-or-context/3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6.csv",
+          "filtered_sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6",
+          "filtered_verification_status": "verified_sha256",
+          "filters": "MINNESOTA; EPISODE_ID=132801; EVENT_ID=800140; EVENT_TYPE=Extreme Cold/Wind Chill.",
+          "provider": "NOAA NCEI",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz",
+          "raw_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/cold-snap/mn-2019-01-27-arctic.json",
+          "receipt_id": "ncei_stormevents_2019",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "mn-2022-12-14-blizzard",
+      "proof": [
+        {
+          "declared_bytes": 11817849,
+          "event_id": "mn-2022-12-14-blizzard",
+          "filtered_artifact_uri": "data/raw/event-baseline/weather-or-context/171d614ee0b03a4c9b12089dc53ceb1e6f5324f18b260d9690a4b29e8d98e0da.json",
+          "filtered_sha256": "171d614ee0b03a4c9b12089dc53ceb1e6f5324f18b260d9690a4b29e8d98e0da",
+          "filtered_verification_status": "verified_sha256",
+          "filters": "STATE=MINNESOTA; EPISODE_ID=176346; EVENT_ID in (1071492,1071529); CZ_NAME in (CENTRAL ST. LOUIS,SOUTHERN ST. LOUIS / CARLTON).",
+          "provider": "NOAA NCEI",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+          "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/snow-blizzard/mn-2022-12-14-blizzard.json",
+          "receipt_id": "ncei-stormevents-2022",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "mn-2022-12-21-winter-storm",
+      "proof": [
+        {
+          "declared_bytes": 11817849,
+          "event_id": "mn-2022-12-21-winter-storm",
+          "filtered_artifact_uri": "data/raw/event-baseline/weather-or-context/864bc2a451dcc2044a9334f3b92a99ea99c62062be199dc84c1f057fef67d85c.json",
+          "filtered_sha256": "864bc2a451dcc2044a9334f3b92a99ea99c62062be199dc84c1f057fef67d85c",
+          "filtered_verification_status": "verified_sha256",
+          "filters": "STATE=MINNESOTA; EPISODE_ID=175134; EVENT_ID=1064167; CZ_NAME=HENNEPIN.",
+          "provider": "NOAA NCEI",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+          "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/snow-blizzard/mn-2022-12-21-winter-storm.json",
+          "receipt_id": "ncei-stormevents-2022",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+        }
+      ],
+      "status": "linked"
+    },
+    {
+      "event_id": "pnw-2021-06-heat",
+      "proof": [
+        {
+          "declared_bytes": 97120,
+          "event_id": "pnw-2021-06-heat",
+          "filtered_sha256": null,
+          "filters": "late-June 2021 Pacific Northwest heat event",
+          "provider": "NOAA Climate.gov",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a.html",
+          "raw_sha256": "664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/heat-demand/pnw-2021-06-heat.json",
+          "receipt_id": "climategov-pnw-2021",
+          "source_url": "https://www.climate.gov/news-features/event-tracker/astounding-heat-obliterates-all-time-records-across-pacific-northwest"
+        },
+        {
+          "declared_bytes": 10563953,
+          "event_id": "pnw-2021-06-heat",
+          "filtered_artifact_uri": "data/raw/event-baseline/weather-or-context/8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124.json",
+          "filtered_sha256": "8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124",
+          "filtered_verification_status": "verified_sha256",
+          "filters": "EVENT_ID=961302",
+          "provider": "NOAA NCEI Storm Events",
+          "raw_artifact_uri": "data/raw/event-baseline/weather-or-context/60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715.csv.gz",
+          "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+          "raw_verification_status": "verified_sha256",
+          "receipt_file": "docs/data/event-baseline/events/heat-demand/pnw-2021-06-heat.json",
+          "receipt_id": "ncei-stormevents-2021-961302",
+          "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+        }
+      ],
+      "status": "linked"
+    }
+  ],
+  "approved_artifact_root": "data/raw/event-baseline/weather-or-context",
+  "artifacts": [
+    {
+      "actual_bytes": 6429,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/171d614ee0b03a4c9b12089dc53ceb1e6f5324f18b260d9690a4b29e8d98e0da.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2022-12-14-blizzard"
+      ],
+      "filters": [
+        "STATE=MINNESOTA; EPISODE_ID=176346; EVENT_ID in (1071492,1071529); CZ_NAME in (CENTRAL ST. LOUIS,SOUTHERN ST. LOUIS / CARLTON)."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei-stormevents-2022"
+      ],
+      "sha256": "171d614ee0b03a4c9b12089dc53ceb1e6f5324f18b260d9690a4b29e8d98e0da",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 1696,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/2ccb4a5b0f01e31eff30316ac5b37f8efd20515d625806ddff068a4a76d39dfe.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-wi-2022-03-29-ice"
+      ],
+      "filters": [
+        "EVENT_ID=1014369; EPISODE_ID=167599; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2022_c20260625_mar"
+      ],
+      "sha256": "2ccb4a5b0f01e31eff30316ac5b37f8efd20515d625806ddff068a4a76d39dfe",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 4473,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6.csv",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2019-01-27-arctic"
+      ],
+      "filters": [
+        "MINNESOTA; EPISODE_ID=132801; EVENT_ID=800140; EVENT_TYPE=Extreme Cold/Wind Chill."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2019"
+      ],
+      "sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 3654,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/55826b13faf991b469cf0587b8ec3c665653aeb0af95e0fa489bbd155231227a.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2020-11-10-ice"
+      ],
+      "filters": [
+        "EVENT_ID=920540; EPISODE_ID=152799; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2020_c20260323"
+      ],
+      "sha256": "55826b13faf991b469cf0587b8ec3c665653aeb0af95e0fa489bbd155231227a",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 2539,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/864bc2a451dcc2044a9334f3b92a99ea99c62062be199dc84c1f057fef67d85c.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2022-12-21-winter-storm"
+      ],
+      "filters": [
+        "STATE=MINNESOTA; EPISODE_ID=175134; EVENT_ID=1064167; CZ_NAME=HENNEPIN."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei-stormevents-2022"
+      ],
+      "sha256": "864bc2a451dcc2044a9334f3b92a99ea99c62062be199dc84c1f057fef67d85c",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 2062,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "pnw-2021-06-heat"
+      ],
+      "filters": [
+        "EVENT_ID=961302"
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei-stormevents-2021-961302"
+      ],
+      "sha256": "8a4b00a78e43571019822deda44241e82dd4b4c2837d75457f538249d9bed124",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 2210,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/a8501fc9fa34e41588a31fdaee738211a6e94cdb756de00bc3f7e5c90d5a13a9.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2022-11-10-ice"
+      ],
+      "filters": [
+        "EVENT_ID=1065063; EPISODE_ID=175528; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2022_c20260625_nov"
+      ],
+      "sha256": "a8501fc9fa34e41588a31fdaee738211a6e94cdb756de00bc3f7e5c90d5a13a9",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 1437,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/c966ce69d7b0ad9df3508d7e05b1542273123a70262dcd493401ba568564c7d2.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2022-12-12-ice"
+      ],
+      "filters": [
+        "EVENT_ID=1071180; EPISODE_ID=176409; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2022_c20260625_dec"
+      ],
+      "sha256": "c966ce69d7b0ad9df3508d7e05b1542273123a70262dcd493401ba568564c7d2",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 3606,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/e14355cf010b144584b0b3cc0792fa528daa9fd80e3cd27f0683284b29415d13.json",
+      "declared_raw_bytes": [],
+      "events": [
+        "mn-2019-04-10-ice"
+      ],
+      "filters": [
+        "EVENT_ID=840941; EPISODE_ID=139802; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "filtered",
+      "receipt_ids": [
+        "ncei_stormevents_2019_c20260323"
+      ],
+      "sha256": "e14355cf010b144584b0b3cc0792fa528daa9fd80e3cd27f0683284b29415d13",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 14276,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/177f8183f4681857cab830afbe734e4999cfe380188f65b4220061ad5e16cef2.pdf",
+      "declared_raw_bytes": [
+        14276
+      ],
+      "events": [
+        "mn-2021-06-heat"
+      ],
+      "filters": [
+        "June 2021 Twin Cities report"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "nws-mpx-jun2021"
+      ],
+      "sha256": "177f8183f4681857cab830afbe734e4999cfe380188f65b4220061ad5e16cef2",
+      "source_urls": [
+        "https://www.weather.gov/media/mpx/Climate/MSP/jun2021.pdf"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 9585982,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4.csv.gz",
+      "declared_raw_bytes": [
+        9585982,
+        null
+      ],
+      "events": [
+        "florence-2018",
+        "mn-2018-04-14-blizzard"
+      ],
+      "filters": [
+        "EVENT_ID 786760, Inland New Hanover Hurricane report",
+        "STATE=MINNESOTA; EPISODE_ID=123370; EVENT_ID in (740148,740083); CZ_NAME=HENNEPIN."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-florence-2018-details",
+        "ncei-stormevents-2018"
+      ],
+      "sha256": "19702480f50cd2a8dacce5e57891feba156afb87b1ea5cbb4eaeda69d2b964a4",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 12693243,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c.csv.gz",
+      "declared_raw_bytes": [
+        12693243
+      ],
+      "events": [
+        "mn-2024-05-21-tornadoes",
+        "mn-2024-06-12-northland",
+        "mn-2024-07-13-hail-tornado",
+        "mn-2024-11-11-lake-superior-gradient"
+      ],
+      "filters": [
+        "EVENT_ID=1189664,1189830; STATE=MINNESOTA; CZ_NAME=ST. LOUIS; EVENT_TYPE=Hail or Thunderstorm Wind.",
+        "EVENT_ID=1204575,1208467,1200955; STATE=MINNESOTA; CZ_NAME=RICE; EVENT_TYPE=Tornado or Hail.",
+        "EVENT_ID=1207982,1207983; STATE=MINNESOTA; CZ_NAME=MARTIN; EVENT_TYPE=Tornado or Thunderstorm Wind.",
+        "EVENT_ID=1225278; STATE=MINNESOTA; CZ_NAME=SOUTHERN COOK; EVENT_TYPE=Strong Wind."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-stormevents-2024"
+      ],
+      "sha256": "2070b83eccab041b36360ab73645b9a249c3eefc5b92b5b3fc0cbba4d9fcc09c",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 3070897,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/3bbd9a51717669387b8a51596189879bb6f5843c35cbf804039fada9a96c2de3.pdf",
+      "declared_raw_bytes": [
+        3070897
+      ],
+      "events": [
+        "ca-2023-09-20-pge-psps"
+      ],
+      "filters": [
+        "Retrieved post-event PDF only; candidate record selects Tehama County (FIPS 06103) and the UTC six-hour interval containing the CORNING 1101 first-customer de-energization."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "cpuc-pge-2023-09-20-21-pdf"
+      ],
+      "sha256": "3bbd9a51717669387b8a51596189879bb6f5843c35cbf804039fada9a96c2de3",
+      "source_urls": [
+        "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2023/pge-post-event-report-9-20-2023.pdf"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 76672,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/42b4e23e6cd011dce63954d0592d8188bf11d9a7fb9a4c94d62fe6359ad48e09.html",
+      "declared_raw_bytes": [
+        76672
+      ],
+      "events": [
+        "ca-2019-kincade"
+      ],
+      "filters": [
+        "Sonoma County (FIPS 06097), canonical six-hour window"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "calfire-kincade"
+      ],
+      "sha256": "42b4e23e6cd011dce63954d0592d8188bf11d9a7fb9a4c94d62fe6359ad48e09",
+      "source_urls": [
+        "https://www.fire.ca.gov/incidents/2019/10/23/kincade-fire/"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 95766,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/44f04f89b627ce913a863ffe677c1c35788418c525e92ec8ff3d8ba09c0d9da6.html",
+      "declared_raw_bytes": [
+        95766
+      ],
+      "events": [
+        "southwest-2023-07-heat"
+      ],
+      "filters": [
+        "July 2023 Southwest heat-wave candidate"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-usclimate-202307"
+      ],
+      "sha256": "44f04f89b627ce913a863ffe677c1c35788418c525e92ec8ff3d8ba09c0d9da6",
+      "source_urls": [
+        "https://www.climate.gov/news-features/understanding-climate/us-climate-summary-july-2023"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 60996,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/4a5bbff256e2ff61388527db5cedad444a34ba0017ecb452cc0252dd3ebacce0.html",
+      "declared_raw_bytes": [
+        60996
+      ],
+      "events": [
+        "ca-2020-czu"
+      ],
+      "filters": [
+        "Santa Cruz County FIPS 06087"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "calfire-czu"
+      ],
+      "sha256": "4a5bbff256e2ff61388527db5cedad444a34ba0017ecb452cc0252dd3ebacce0",
+      "source_urls": [
+        "https://www.fire.ca.gov/incidents/2020/8/16/czu-lightning-complex/"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 72110,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/4fa4e8e11116a5a3334f53d80e7397be67ae377b2e1e0f3d8a228aff9c8b1b84.html",
+      "declared_raw_bytes": [
+        72110
+      ],
+      "events": [
+        "ca-2020-glass"
+      ],
+      "filters": [
+        "Napa County FIPS 06055"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "calfire-glass"
+      ],
+      "sha256": "4fa4e8e11116a5a3334f53d80e7397be67ae377b2e1e0f3d8a228aff9c8b1b84",
+      "source_urls": [
+        "https://www.fire.ca.gov/incidents/2020/9/27/glass-fire/"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 55220,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/534d725a45dc008f99321c7f4da095293d35b7484392a208e16134c92a82e114.html",
+      "declared_raw_bytes": [
+        55220
+      ],
+      "events": [
+        "ercot-2023-06-heat"
+      ],
+      "filters": [
+        "late June and July 2023 Texas heat and ERCOT demand"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "eia-ercot-202307"
+      ],
+      "sha256": "534d725a45dc008f99321c7f4da095293d35b7484392a208e16134c92a82e114",
+      "source_urls": [
+        "https://www.eia.gov/todayinenergy/detail.php?id=57240"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 10563953,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715.csv.gz",
+      "declared_raw_bytes": [
+        10563953
+      ],
+      "events": [
+        "ida-2021",
+        "midwest-2021-12-15-serial-derecho",
+        "mn-2021-12-10-heavy-snow",
+        "pnw-2021-06-heat"
+      ],
+      "filters": [
+        "EVENT_ID 978969 and 978970, Lafourche hurricane zones",
+        "EVENT_ID=989994,994707; STATE=MINNESOTA; CZ_NAME=FARIBAULT; EVENT_TYPE=High Wind or Tornado.",
+        "STATE=MINNESOTA; EPISODE_ID=163749; EVENT_ID=989953; CZ_NAME=HENNEPIN",
+        "EVENT_ID=961302"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-ida-2021-details",
+        "ncei-stormevents-2021",
+        "ncei-stormevents-2021-c20260323",
+        "ncei-stormevents-2021-961302"
+      ],
+      "sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 97120,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a.html",
+      "declared_raw_bytes": [
+        97120
+      ],
+      "events": [
+        "pnw-2021-06-heat"
+      ],
+      "filters": [
+        "late-June 2021 Pacific Northwest heat event"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "climategov-pnw-2021"
+      ],
+      "sha256": "664b096e0817d01cfef598a3247e0a0eac75d3787e493f61f44596d7268b788a",
+      "source_urls": [
+        "https://www.climate.gov/news-features/event-tracker/astounding-heat-obliterates-all-time-records-across-pacific-northwest"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 12888092,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/713784bed40d9e5a95b1d6240a654f865f3ef97703713105c7b35437270da134.csv.gz",
+      "declared_raw_bytes": [
+        12888092
+      ],
+      "events": [
+        "idalia-2023"
+      ],
+      "filters": [
+        "EVENT_ID 1131846, Coastal Taylor Hurricane report"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-idalia-2023-details"
+      ],
+      "sha256": "713784bed40d9e5a95b1d6240a654f865f3ef97703713105c7b35437270da134",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2023_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 11817849,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e.csv.gz",
+      "declared_raw_bytes": [
+        11817849
+      ],
+      "events": [
+        "caiso-2022-09-heat",
+        "ian-2022",
+        "il-2022-03-05-gradient-wind",
+        "il-2022-04-14-high-wind",
+        "midwest-2022-05-12-derecho",
+        "minnesota-2022-05-30-severe",
+        "mn-2022-04-05-gradient-wind",
+        "mn-2022-04-23-high-wind",
+        "mn-2022-06-12-marshall-tornado-hail",
+        "mn-2022-06-24-northern-plains",
+        "mn-2022-11-10-ice",
+        "mn-2022-12-12-ice",
+        "mn-2022-12-14-blizzard",
+        "mn-2022-12-21-winter-storm",
+        "mn-wi-2022-03-29-ice"
+      ],
+      "filters": [
+        "EVENT_ID 1057556; California Central Sacramento Valley zone CAZ016; Excessive Heat",
+        "EVENT_ID 1058654 and 1058659, coastal and inland Lee Hurricane reports",
+        "EVENT_ID=1012888; STATE=ILLINOIS; CZ_NAME=KANE; EVENT_TYPE=Thunderstorm Wind.",
+        "EVENT_ID=1014369; EPISODE_ID=167599; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+        "EVENT_ID=1015187; STATE=ILLINOIS; CZ_TYPE=Z; CZ_NAME=CENTRAL COOK COUNTY; EVENT_TYPE=High Wind.",
+        "EVENT_ID=1023702; STATE=MINNESOTA; CZ_NAME=MN NOBLES; EVENT_TYPE=High Wind.",
+        "EVENT_ID=1025512; STATE=MINNESOTA; CZ_NAME=EAST POLK; EVENT_TYPE=High Wind.",
+        "EVENT_ID=1031070,1031071; STATE=MINNESOTA; CZ_NAME=STEARNS; EVENT_TYPE=Thunderstorm Wind.",
+        "EVENT_ID=1033188; STATE=MINNESOTA; CZ_TYPE=C; CZ_NAME=LAC QUI PARLE; EVENT_TYPE=Thunderstorm Wind.",
+        "EVENT_ID=1041821,1041826,1041828; STATE=MINNESOTA; CZ_NAME=MARSHALL; EVENT_TYPE=Thunderstorm Wind, Tornado, or Hail.",
+        "EVENT_ID=1042825,1042829; STATE=MINNESOTA; CZ_NAME=MAHNOMEN; EVENT_TYPE=Thunderstorm Wind or Tornado.",
+        "EVENT_ID=1065063; EPISODE_ID=175528; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+        "EVENT_ID=1071180; EPISODE_ID=176409; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+        "STATE=MINNESOTA; EPISODE_ID=175134; EVENT_ID=1064167; CZ_NAME=HENNEPIN.",
+        "STATE=MINNESOTA; EPISODE_ID=176346; EVENT_ID in (1071492,1071529); CZ_NAME in (CENTRAL ST. LOUIS,SOUTHERN ST. LOUIS / CARLTON)."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-ian-2022-details",
+        "ncei-stormevents-2022",
+        "ncei-stormevents-2022-details",
+        "ncei_stormevents_2022_c20260625_dec",
+        "ncei_stormevents_2022_c20260625_mar",
+        "ncei_stormevents_2022_c20260625_nov"
+      ],
+      "sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 10444606,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d.csv.gz",
+      "declared_raw_bytes": [
+        10444606,
+        null
+      ],
+      "events": [
+        "midwest-2020-08-10-corn-belt-derecho",
+        "mn-2020-11-10-ice"
+      ],
+      "filters": [
+        "EVENT_ID=915999,916103; STATE=IOWA; CZ_NAME=LINN; EVENT_TYPE=Tornado or Thunderstorm Wind.",
+        "EVENT_ID=920540; EPISODE_ID=152799; STATE=MINNESOTA; EVENT_TYPE=Ice Storm."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-stormevents-2020",
+        "ncei_stormevents_2020_c20260323"
+      ],
+      "sha256": "895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 249045,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/8f49d053c6f6bfd88484a914e8063c419d6b5ff54fb36b930e2e01eb2048d024.html",
+      "declared_raw_bytes": [
+        249045
+      ],
+      "events": [
+        "mn-ia-2024-flood"
+      ],
+      "filters": [
+        "Candidate discovery: multiday rainfall June 20\u201322, 2024; no county-row extraction."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "usgs-mn-ia-2024-flood"
+      ],
+      "sha256": "8f49d053c6f6bfd88484a914e8063c419d6b5ff54fb36b930e2e01eb2048d024",
+      "source_urls": [
+        "https://pubs.usgs.gov/publication/ofr20261066/full"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 54530,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/9d1a820c8c32e247cb22b9272223556ade5a737753d430a3abcf2b3d52dc42c1.html",
+      "declared_raw_bytes": [
+        54530
+      ],
+      "events": [
+        "caiso-2022-09-heat"
+      ],
+      "filters": [
+        "September 2022 California heat and CAISO demand context"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "eia-caiso-202209"
+      ],
+      "sha256": "9d1a820c8c32e247cb22b9272223556ade5a737753d430a3abcf2b3d52dc42c1",
+      "source_urls": [
+        "https://www.eia.gov/todayinenergy/detail.php?id=54039"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 5850090,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/b6ed0ae54352a34967ddc019a8690f89166fce99d518ef096065fc5e67cfd55d.pdf",
+      "declared_raw_bytes": [
+        5850090
+      ],
+      "events": [
+        "ca-2019-10-09-pge-psps"
+      ],
+      "filters": [
+        "Retrieved amended PDF only; candidate record selects Napa County (FIPS 06055) and the UTC six-hour interval containing the system-wide first-circuit start."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "cpuc-pge-2019-10-09-12-amended-pdf"
+      ],
+      "sha256": "b6ed0ae54352a34967ddc019a8690f89166fce99d518ef096065fc5e67cfd55d",
+      "source_urls": [
+        "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2019-and-earlier/pge-public-safety-power-shutoff-oct-912-reportamended.pdf"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 4674,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/cc2a18b3324e4a69d4af2f8de68d99d76b45098a9b9203d9bf59f1d0a3a5a7ae.html",
+      "declared_raw_bytes": [
+        4674
+      ],
+      "events": [
+        "upper-midwest-2019-snowmelt-flood"
+      ],
+      "filters": [
+        "Candidate discovery: rainfall and snowmelt flooding, March 2019; no county-row extraction."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "usgs-upper-midwest-2019-snowmelt"
+      ],
+      "sha256": "cc2a18b3324e4a69d4af2f8de68d99d76b45098a9b9203d9bf59f1d0a3a5a7ae",
+      "source_urls": [
+        "https://water.usgs.gov/alerts/2019/item_2019-03-15_10%3A01%3A39.html"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 9065715,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/d8e1389897df3557e74ba36820357f6962a7c0ca922595400fe74d883f7a5036.csv.gz",
+      "declared_raw_bytes": [
+        9065715
+      ],
+      "events": [
+        "matthew-2016"
+      ],
+      "filters": [
+        "EVENT_ID 659040, Flagler Tropical Storm report"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-matthew-2016-details"
+      ],
+      "sha256": "d8e1389897df3557e74ba36820357f6962a7c0ca922595400fe74d883f7a5036",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2016_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 81504,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/e19b3e3c7cf7f6c45b55dce56248ad03ee1371d633276ee5b77beb50d7db8a3f.html",
+      "declared_raw_bytes": [
+        81504
+      ],
+      "events": [
+        "ca-2021-dixie"
+      ],
+      "filters": [
+        "Plumas County FIPS 06063"
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "calfire-dixie"
+      ],
+      "sha256": "e19b3e3c7cf7f6c45b55dce56248ad03ee1371d633276ee5b77beb50d7db8a3f",
+      "source_urls": [
+        "https://www.fire.ca.gov/incidents/2021/7/13/dixie-fire/"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 11602648,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz",
+      "declared_raw_bytes": [
+        11602648,
+        null
+      ],
+      "events": [
+        "minnesota-2019-07-19-northland-derecho",
+        "mn-2019-01-27-arctic",
+        "mn-2019-02-24-blizzard",
+        "mn-2019-04-10-ice",
+        "upper-midwest-2019-snowmelt-flood"
+      ],
+      "filters": [
+        "EVENT_ID=813204; CZ_TYPE=C; STATE=NEBRASKA; CZ_FIPS=041; CZ_NAME=CUSTER.",
+        "EVENT_ID=840941; EPISODE_ID=139802; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+        "EVENT_ID=843853,843854; STATE=MINNESOTA; CZ_NAME=PINE; EVENT_TYPE=Thunderstorm Wind.",
+        "MINNESOTA; EPISODE_ID=132801; EVENT_ID=800140; EVENT_TYPE=Extreme Cold/Wind Chill.",
+        "STATE=MINNESOTA; EPISODE_ID=133446; EVENT_ID=803577; CZ_NAME=DAKOTA."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "ncei-stormevents-2019",
+        "ncei_stormevents_2019",
+        "ncei_stormevents_2019_c20260323",
+        "noaa-ncei-stormevents-2019"
+      ],
+      "sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+      "source_urls": [
+        "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 6928573,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/fd57b5031c7c62412e6867dbe61ffbb50fc9a1999a4670bdc1c79ce24691f3bf.pdf",
+      "declared_raw_bytes": [
+        6928573
+      ],
+      "events": [
+        "ca-2021-08-17-pge-psps"
+      ],
+      "filters": [
+        "Retrieved post-event PDF only; candidate record selects Shasta County (FIPS 06089) and the UTC six-hour interval beginning at the report-wide planned activation."
+      ],
+      "kind": "raw",
+      "receipt_ids": [
+        "cpuc-pge-2021-08-17-19-pdf"
+      ],
+      "sha256": "fd57b5031c7c62412e6867dbe61ffbb50fc9a1999a4670bdc1c79ce24691f3bf",
+      "source_urls": [
+        "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2021/pspsreportletter081721.pdf?hash=40C00AEF46FB34D8E3EDE5AC4F604A99&sc_lang=en"
+      ],
+      "verification_status": "verified_sha256"
+    },
+    {
+      "actual_bytes": 323923,
+      "approved_artifact_uri": "data/raw/event-baseline/weather-or-context/847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595.dbx",
+      "declared_raw_bytes": [
+        323923
+      ],
+      "events": [
+        "pnw-2021-06-heat"
+      ],
+      "filters": [
+        "OR|006|PQR|Greater Portland Metro Area|OR006|Multnomah|41051|P|nw|45.4883|-122.7818"
+      ],
+      "kind": "supporting_mapping",
+      "provenance_note": "Wayback archival acquisition pinned to matching bytes; current primary URL differs.",
+      "receipt_ids": [
+        "nws-county-zone-crosswalk-bp30mr21"
+      ],
+      "sha256": "847aaa85ef64b7e88e15b0ef0c06682f0aec0b93e69559abf303b0445db07595",
+      "source_urls": [
+        "https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx",
+        "https://web.archive.org/web/20210322064256id_/https://www.weather.gov/source/gis/Shapefiles/County/bp30mr21.dbx"
+      ],
+      "verification_status": "verified_sha256"
+    }
+  ],
+  "corpus_path": "/private/tmp/flux-473-final-combined/docs/data/event-baseline/events",
+  "generated_at_utc": "2026-09-06",
+  "missing_or_unverifiable_receipts": [
+    {
+      "event_id": "midwest-2021-12-15-serial-derecho",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/convective-wind/midwest-2021-12-15-serial-derecho.json",
+      "receipt_id": "nws-mpx-dec-2021",
+      "source_url": "https://www.weather.gov/mpx/HistoricStormDecember2021",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "minnesota-2022-05-30-severe",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/convective-wind/minnesota-2022-05-30-severe.json",
+      "receipt_id": "nws-mpx-events",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "minnesota-2019-07-19-northland-derecho",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Duluth",
+      "receipt_file": "docs/data/event-baseline/events/convective-wind/minnesota-2019-07-19-northland-derecho.json",
+      "receipt_id": "nws-dlh-events",
+      "source_url": "https://www.weather.gov/dlh/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "midwest-2022-05-12-derecho",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/convective-wind/midwest-2022-05-12-derecho.json",
+      "receipt_id": "nws-mpx-may-2022",
+      "source_url": "https://www.weather.gov/mpx/May12th2022DerechoSummary",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "midwest-2020-08-10-corn-belt-derecho",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Central Region",
+      "receipt_file": "docs/data/event-baseline/events/convective-wind/midwest-2020-08-10-corn-belt-derecho.json",
+      "receipt_id": "nws-crh-aar",
+      "source_url": "https://www.weather.gov/media/crh/publications/AAR/20211210/AAR_August_2020_CRH_Corn_Belt_Derecho.pdf",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2024-07-13-hail-tornado",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/tornado-hail/mn-2024-07-13-hail-tornado.json",
+      "receipt_id": "nws-mpx-jul-2024",
+      "source_url": "https://www.weather.gov/mpx/2024-07-13-SignificantWindandHail",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2024-06-12-northland",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Duluth",
+      "receipt_file": "docs/data/event-baseline/events/tornado-hail/mn-2024-06-12-northland.json",
+      "receipt_id": "nws-dlh-top-2024",
+      "source_url": "https://www.weather.gov/dlh/2024-top-ten",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2024-05-21-tornadoes",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/tornado-hail/mn-2024-05-21-tornadoes.json",
+      "receipt_id": "nws-mpx-may-2024",
+      "source_url": "https://www.weather.gov/mpx/21May2024",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-06-24-northern-plains",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Grand Forks",
+      "receipt_file": "docs/data/event-baseline/events/tornado-hail/mn-2022-06-24-northern-plains.json",
+      "receipt_id": "nws-fgf-jun24-2022",
+      "source_url": "https://www.weather.gov/fgf/June242022Severe",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-06-12-marshall-tornado-hail",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Grand Forks",
+      "receipt_file": "docs/data/event-baseline/events/tornado-hail/mn-2022-06-12-marshall-tornado-hail.json",
+      "receipt_id": "nws-fgf-jun-2022",
+      "source_url": "https://www.weather.gov/fgf/June12th2022SevereStorms",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-04-05-gradient-wind",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Aberdeen",
+      "receipt_file": "docs/data/event-baseline/events/nontropical-wind/mn-2022-04-05-gradient-wind.json",
+      "receipt_id": "nws-abr-apr-2022",
+      "source_url": "https://www.weather.gov/abr/2022WindInPerspective",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-04-23-high-wind",
+      "filters": "Candidate discovery only; non-thunderstorm phase only.",
+      "provider": "NOAA National Weather Service Sioux Falls",
+      "receipt_file": "docs/data/event-baseline/events/nontropical-wind/mn-2022-04-23-high-wind.json",
+      "receipt_id": "nws-fsd-apr-2022",
+      "source_url": "https://www.weather.gov/fsd/20220422-23--hail-highwind",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2024-11-11-lake-superior-gradient",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Duluth",
+      "receipt_file": "docs/data/event-baseline/events/nontropical-wind/mn-2024-11-11-lake-superior-gradient.json",
+      "receipt_id": "nws-dlh-top-2024",
+      "source_url": "https://www.weather.gov/dlh/2024-top-ten",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "il-2022-04-14-high-wind",
+      "filters": "Candidate discovery only.",
+      "provider": "NOAA National Weather Service Chicago",
+      "receipt_file": "docs/data/event-baseline/events/nontropical-wind/il-2022-04-14-high-wind.json",
+      "receipt_id": "nws-lot-annual-2022",
+      "source_url": "https://www.weather.gov/lot/Annual2022",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "il-2022-03-05-gradient-wind",
+      "filters": "Non-thunderstorm phase candidate only.",
+      "provider": "NOAA National Weather Service Chicago",
+      "receipt_file": "docs/data/event-baseline/events/nontropical-wind/il-2022-03-05-gradient-wind.json",
+      "receipt_id": "nws-lot-mar-2022",
+      "source_url": "https://www.weather.gov/lot/2022mar0506",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2022-autumn-01",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-autumn-01.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2022-autumn-01",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-autumn-01.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-08-24-murray-hail",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-08-24-murray-hail.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-08-24-murray-hail",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-08-24-murray-hail.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-autumn-01",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-autumn-01.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-autumn-01",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-autumn-01.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2022-spring-01",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-spring-01.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2022-spring-01",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2022-spring-01.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-09-17-jackson-wind",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-09-17-jackson-wind.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-09-17-jackson-wind",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-09-17-jackson-wind.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-10-10-grant-wind",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-10-10-grant-wind.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-10-10-grant-wind",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-10-10-grant-wind.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-summer-01",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-summer-01.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-summer-01",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-summer-01.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-06-16-nobles-hail",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-16-nobles-hail.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-06-16-nobles-hail",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-16-nobles-hail.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-06-11-nobles-wind",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-11-nobles-wind.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "near-miss-mn-2021-06-11-nobles-wind",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/near-miss-mn-2021-06-11-nobles-wind.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-spring-01",
+      "filters": "Used only to identify documented candidate-event exclusion envelopes; no outage values queried.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-spring-01.json",
+      "receipt_id": "ncei-stormevents-index",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "calendar-control-mn-2021-spring-01",
+      "filters": "Used as a documented regional event-candidate/exclusion source only.",
+      "provider": "National Weather Service Twin Cities/Chanhassen",
+      "receipt_file": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-spring-01.json",
+      "receipt_id": "nws-mpx-events-archive",
+      "source_url": "https://www.weather.gov/mpx/events",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "ian-2022",
+      "filters": "Ian advisory archive; 2022-09-28 representative Florida coastal county-window",
+      "provider": "NOAA National Hurricane Center",
+      "receipt_file": "docs/data/event-baseline/events/tropical/ian-2022.json",
+      "receipt_id": "nhc-ian-2022-archive",
+      "source_url": "https://www.nhc.noaa.gov/archive/2022/al09/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "ida-2021",
+      "filters": "Ida advisory archive; 2021-08-29 representative Louisiana county-window",
+      "provider": "NOAA National Hurricane Center",
+      "receipt_file": "docs/data/event-baseline/events/tropical/ida-2021.json",
+      "receipt_id": "nhc-ida-2021-archive",
+      "source_url": "https://www.nhc.noaa.gov/archive/2021/IDA.shtml",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "idalia-2023",
+      "filters": "Idalia advisory archive; 2023-08-30 representative Florida coastal county-window",
+      "provider": "NOAA National Hurricane Center",
+      "receipt_file": "docs/data/event-baseline/events/tropical/idalia-2023.json",
+      "receipt_id": "nhc-idalia-2023-archive",
+      "source_url": "https://www.nhc.noaa.gov/archive/2023/al10/",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "matthew-2016",
+      "filters": "Matthew advisory archive; representative Florida coastal county-window",
+      "provider": "NOAA National Hurricane Center",
+      "receipt_file": "docs/data/event-baseline/events/tropical/matthew-2016.json",
+      "receipt_id": "nhc-matthew-2016-archive",
+      "source_url": "https://www.nhc.noaa.gov/archive/2016/MATTHEW.shtml",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "florence-2018",
+      "filters": "Florence advisory archive; representative North Carolina coastal county-window",
+      "provider": "NOAA National Hurricane Center",
+      "receipt_file": "docs/data/event-baseline/events/tropical/florence-2018.json",
+      "receipt_id": "nhc-florence-2018-archive",
+      "source_url": "https://www.nhc.noaa.gov/archive/2018/FLORENCE.shtml",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-12-21-arctic",
+      "filters": "MINNESOTA; EPISODE_ID=175466; EVENT_ID=1064375; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/cold-snap/mn-2022-12-21-arctic.json",
+      "receipt_id": "ncei_stormevents_2022",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2018-01-01-arctic",
+      "filters": "MINNESOTA; EPISODE_ID=121337; EVENT_ID=726380; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/cold-snap/mn-2018-01-01-arctic.json",
+      "receipt_id": "ncei_stormevents_2018",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2018_c20260323.csv.gz",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2020-02-12-arctic",
+      "filters": "MINNESOTA; EPISODE_ID=144637; EVENT_ID=868457; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/cold-snap/mn-2020-02-12-arctic.json",
+      "receipt_id": "ncei_stormevents_2020",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2022-01-25-cold",
+      "filters": "MINNESOTA; EPISODE_ID=164673; EVENT_ID=1002375; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "provider": "NOAA NCEI",
+      "receipt_file": "docs/data/event-baseline/events/cold-snap/mn-2022-01-25-cold.json",
+      "receipt_id": "ncei_stormevents_2022",
+      "source_url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-sd-ia-2014-flood",
+      "filters": "Candidate discovery only; no county-row extraction.",
+      "provider": "U.S. Geological Survey",
+      "receipt_file": "docs/data/event-baseline/events/rain-flood/mn-sd-ia-2014-flood.json",
+      "receipt_id": "usgs-mn-sd-ia-2014-flood",
+      "source_url": "https://www.usgs.gov/mission-areas/water-resources/science/june-2014-floods-south-dakota-minnesota-and-iowa",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "vt-2023-flood",
+      "filters": "Candidate discovery only; no county-row extraction.",
+      "provider": "U.S. Geological Survey",
+      "receipt_file": "docs/data/event-baseline/events/rain-flood/vt-2023-flood.json",
+      "receipt_id": "usgs-vt-2023-flood",
+      "source_url": "https://www.usgs.gov/centers/new-england-water-science-center/science/july-2023-flood-vermont",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mi-2020-heavy-rain-flood",
+      "filters": "Candidate discovery only; no county-row extraction.",
+      "provider": "U.S. Geological Survey",
+      "receipt_file": "docs/data/event-baseline/events/rain-flood/mi-2020-heavy-rain-flood.json",
+      "receipt_id": "usgs-mi-2020-flood",
+      "source_url": "https://www.usgs.gov/news/state-news-release/usgs-crews-measure-major-flooding-lower-michigan",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    },
+    {
+      "event_id": "mn-2019-04-10-ice",
+      "filters": "Archive ice amounts and southwest Minnesota context.",
+      "provider": "National Weather Service Sioux Falls",
+      "receipt_file": "docs/data/event-baseline/events/ice-freezing-rain/mn-2019-04-10-ice.json",
+      "receipt_id": "nws_fsd_20190410_ice",
+      "source_url": "https://www.weather.gov/fsd/20190411-BlizzardIcestorm-CWA",
+      "verification_status": "receipt_has_no_hash_or_artifact_bytes"
+    }
+  ],
+  "schema_version": "flux-460/source-artifacts/v1",
+  "scope": "Non-EAGLE source receipts only.",
+  "summary": {
+    "accepted_events_missing_hashed_non_eagle_weather_receipt": 0,
+    "accepted_events_with_linked_hashed_weather_receipt": 13,
+    "distinct_filtered_hashes": 9,
+    "distinct_raw_hashes": 22,
+    "missing_artifacts": 0,
+    "receipt_entries_without_hash": 48,
+    "verified_artifacts": 32
+  }
+}
