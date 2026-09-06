@@ -151,7 +151,11 @@ def _generator_rows(lookup: Mapping[object, object]) -> list[tuple[str, str, int
                 f"{raw_element_id} lacks a declared generator row"
             )
         rows.append(
-            (raw_element_id, str(raw_location[0]), _integer(raw_location[1], raw_element_id))
+            (
+                raw_element_id,
+                str(raw_location[0]),
+                _integer(raw_location[1], raw_element_id),
+            )
         )
     if not rows:
         raise SyntheticCandidateSourceUnavailable(
@@ -180,10 +184,14 @@ def _row(table: Any, index: int, label: str) -> dict[str, object]:
             f"declared source row {label!r} is unavailable"
         ) from exc
     if not hasattr(raw, "to_dict"):
-        raise SyntheticCandidateSourceUnavailable(f"declared source row {label!r} is invalid")
+        raise SyntheticCandidateSourceUnavailable(
+            f"declared source row {label!r} is invalid"
+        )
     value = raw.to_dict()
     if not isinstance(value, Mapping):
-        raise SyntheticCandidateSourceUnavailable(f"declared source row {label!r} is invalid")
+        raise SyntheticCandidateSourceUnavailable(
+            f"declared source row {label!r} is invalid"
+        )
     return dict(value)
 
 
@@ -193,7 +201,9 @@ def _integer(value: object, label: str) -> int:
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
-        raise SyntheticCandidateSourceUnavailable(f"{label} must be an integer") from exc
+        raise SyntheticCandidateSourceUnavailable(
+            f"{label} must be an integer"
+        ) from exc
     if not isfinite(number) or number != int(number):
         raise SyntheticCandidateSourceUnavailable(f"{label} must be an integer")
     return int(number)
@@ -201,7 +211,9 @@ def _integer(value: object, label: str) -> int:
 
 def _positive_number(value: object, label: str) -> float:
     if isinstance(value, bool):
-        raise SyntheticCandidateSourceUnavailable(f"{label} must be a finite positive number")
+        raise SyntheticCandidateSourceUnavailable(
+            f"{label} must be a finite positive number"
+        )
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
@@ -223,7 +235,9 @@ def _candidate_capacity(value: object, label: str) -> float | None:
     try:
         number = float(value)
     except (TypeError, ValueError) as exc:
-        raise SyntheticCandidateSourceUnavailable(f"{label} must be a finite number") from exc
+        raise SyntheticCandidateSourceUnavailable(
+            f"{label} must be a finite number"
+        ) from exc
     if not isfinite(number):
         raise SyntheticCandidateSourceUnavailable(f"{label} must be a finite number")
     return number if number > 0.0 else None

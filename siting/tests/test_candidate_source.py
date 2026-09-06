@@ -26,18 +26,32 @@ def _source_db(tmp_path: Path, *, generators: int = 7) -> Path:
         con.execute(
             "CREATE TABLE lines(line_id BIGINT, from_bus BIGINT, to_bus BIGINT, base_kv DOUBLE, r_pu DOUBLE, x_pu DOUBLE, rate_a_mw DOUBLE, length_km DOUBLE, is_transformer BOOLEAN)"
         )
-        con.execute("CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT, fuel TEXT, pmax_mw DOUBLE)")
-        con.execute("CREATE TABLE loads(load_id BIGINT, bus_id BIGINT, p_mw_nominal DOUBLE)")
+        con.execute(
+            "CREATE TABLE gens(gen_id BIGINT, bus_id BIGINT, fuel TEXT, pmax_mw DOUBLE)"
+        )
+        con.execute(
+            "CREATE TABLE loads(load_id BIGINT, bus_id BIGINT, p_mw_nominal DOUBLE)"
+        )
         con.executemany(
             "INSERT INTO buses VALUES (?, ?, ?, ?, ?, ?)",
             [
-                (index, f"synthetic bus {index}", 230.0, -100.0 - index, 30.0 + index, "48001")
+                (
+                    index,
+                    f"synthetic bus {index}",
+                    230.0,
+                    -100.0 - index,
+                    30.0 + index,
+                    "48001",
+                )
                 for index in range(1, generators + 1)
             ],
         )
         con.executemany(
             "INSERT INTO gens VALUES (?, ?, ?, ?)",
-            [(index, index, "synthetic", float(100 + index)) for index in range(1, generators + 1)],
+            [
+                (index, index, "synthetic", float(100 + index))
+                for index in range(1, generators + 1)
+            ],
         )
         con.execute("INSERT INTO loads VALUES (1, 1, 20.0)")
     return path
@@ -46,10 +60,16 @@ def _source_db(tmp_path: Path, *, generators: int = 7) -> Path:
 def _screening_adapters() -> SearchAdapters:
     def cascade(**kwargs):
         candidate = next(
-            (edit["element_id"] for edit in kwargs["edits"] if edit["kind"] == "add_gen"),
+            (
+                edit["element_id"]
+                for edit in kwargs["edits"]
+                if edit["kind"] == "add_gen"
+            ),
             "baseline",
         )
-        generator_id = int(candidate.rsplit(":", 1)[-1]) if candidate != "baseline" else 0
+        generator_id = (
+            int(candidate.rsplit(":", 1)[-1]) if candidate != "baseline" else 0
+        )
         return {
             "lost_load_mwh": float(100 - generator_id),
             "congestion_mwh": 100.0,
@@ -66,7 +86,9 @@ def _screening_adapters() -> SearchAdapters:
     )
 
 
-def test_candidates_are_bounded_deterministic_json_safe_and_duckdb_derived(tmp_path: Path) -> None:
+def test_candidates_are_bounded_deterministic_json_safe_and_duckdb_derived(
+    tmp_path: Path,
+) -> None:
     net = build_network(_source_db(tmp_path))
 
     first = producer_candidates(net)
@@ -115,7 +137,9 @@ def test_zero_capacity_generator_is_not_an_attachment_candidate(tmp_path: Path) 
     ]
 
 
-def test_search_uses_synthetic_generator_bus_source_without_candidate_tables(tmp_path: Path) -> None:
+def test_search_uses_synthetic_generator_bus_source_without_candidate_tables(
+    tmp_path: Path,
+) -> None:
     net = build_network(_source_db(tmp_path))
     assert net.get("site_candidates") is None
     assert net.get("producer_candidates") is None
