@@ -14,6 +14,7 @@ import csv
 import hashlib
 import io
 import json
+import re
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -71,16 +72,25 @@ def _complete_csv_rows(payload: bytes, fieldnames: list[str]) -> list[dict[str, 
 
 
 def _range_get(
-    session: requests.Session, url: str, start: int, end: int
+    session: requests.Session, url: str, start: int, end: int, expected_etag: str | None = None
 ) -> tuple[bytes, RangeReceipt]:
-    response = session.get(url, headers={"Range": f"bytes={start}-{end}"}, timeout=60)
+    headers = {"Range": f"bytes={start}-{end}"}
+    if expected_etag:
+        headers["If-Match"] = expected_etag
+    response = session.get(url, headers=headers, timeout=60)
     response.raise_for_status()
     payload = response.content
     content_range = response.headers.get("Content-Range")
-    if response.status_code != 206 or not content_range:
+    match = re.fullmatch(r"bytes (\d+)-(\d+)/(\d+)", content_range or "")
+    if response.status_code != 206 or not match:
         raise EagleiError(
             "source did not honor HTTP Range; refusing a full annual download"
         )
+    actual_start, actual_end = int(match.group(1)), int(match.group(2))
+    if (actual_start, actual_end) != (start, end) or len(payload) != end - start + 1:
+        raise EagleiError("source returned a mismatched or truncated HTTP range")
+    if expected_etag and response.headers.get("ETag") != expected_etag:
+        raise EagleiError("source ETag changed during acquisition")
     receipt = RangeReceipt(
         start=start,
         end=end,
@@ -92,20 +102,38 @@ def _range_get(
     return payload, receipt
 
 
-def source_columns(session: requests.Session, url: str) -> tuple[list[str], RangeReceipt]:
+def source_columns(
+    session: requests.Session, url: str
+) -> tuple[list[str], RangeReceipt]:
     payload, receipt = _range_get(session, url, 0, 4095)
     header = payload.split(b"\n", 1)[0].decode("utf-8-sig", errors="strict").strip("\r")
     columns = next(csv.reader([header]))
-    required = {"fips_code", "county", "state", "customers_out", "run_start_time"}
+    required = {"fips_code", "county", "state", "run_start_time"}
     if not required.issubset(columns):
-        raise EagleiError(f"source header is missing required columns: {sorted(required - set(columns))}")
+        raise EagleiError(
+            f"source header is missing required columns: {sorted(required - set(columns))}"
+        )
+    outage_fields = {"customers_out", "sum"} & set(columns)
+    if len(outage_fields) != 1:
+        raise EagleiError(
+            "source header must contain exactly one documented outage field: customers_out or sum"
+        )
     return columns, receipt
 
 
+def outage_field(fieldnames: list[str]) -> str:
+    """Return the documented annual-file spelling for customer outages."""
+    if "customers_out" in fieldnames:
+        return "customers_out"
+    if "sum" in fieldnames:
+        return "sum"
+    raise EagleiError("no documented customer-outage field is present")
+
+
 def probe_at(
-    session: requests.Session, url: str, offset: int, size: int, fieldnames: list[str]
+    session: requests.Session, url: str, offset: int, size: int, fieldnames: list[str], expected_etag: str
 ) -> tuple[list[dict[str, str]], RangeReceipt]:
-    payload, receipt = _range_get(session, url, offset, offset + size - 1)
+    payload, receipt = _range_get(session, url, offset, offset + size - 1, expected_etag)
     rows = _complete_csv_rows(payload, fieldnames)
     if not rows:
         raise EagleiError(f"no complete CSV rows in range beginning at {offset}")
@@ -116,7 +144,12 @@ def probe_at(
 
 
 def locate_time(
-    session: requests.Session, url: str, size: int, target: datetime, fieldnames: list[str]
+    session: requests.Session,
+    url: str,
+    size: int,
+    target: datetime,
+    fieldnames: list[str],
+    expected_etag: str,
 ) -> tuple[int, list[RangeReceipt]]:
     """Binary-search a time-ordered file and return a nearby byte offset."""
     lo, hi = 0, size - PROBE_BYTES
@@ -125,7 +158,7 @@ def locate_time(
         if hi - lo <= PROBE_BYTES:
             return lo, receipts
         middle = ((lo + hi) // 2) // PROBE_BYTES * PROBE_BYTES
-        rows, receipt = probe_at(session, url, middle, PROBE_BYTES, fieldnames)
+        rows, receipt = probe_at(session, url, middle, PROBE_BYTES, fieldnames, expected_etag)
         receipts.append(receipt)
         first = parse_source_time(rows[0]["run_start_time"])
         last = parse_source_time(rows[-1]["run_start_time"])
@@ -158,15 +191,24 @@ def acquire(
     source_size = int(file["size"])
     source_url = str(file["download_url"])
     fieldnames, header_receipt = source_columns(session, source_url)
+    customers_out_field = outage_field(fieldnames)
+    if not header_receipt.etag:
+        raise EagleiError("source response omitted ETag; cannot pin a multi-range acquisition")
 
     start_offset, start_probes = locate_time(
-        session, source_url, source_size, start, fieldnames
+        session, source_url, source_size, start, fieldnames, header_receipt.etag
     )
-    end_offset, end_probes = locate_time(session, source_url, source_size, end, fieldnames)
+    end_offset, end_probes = locate_time(
+        session, source_url, source_size, end, fieldnames, header_receipt.etag
+    )
     raw_start = max(0, start_offset - 2 * PROBE_BYTES)
     raw_end = min(source_size - 1, end_offset + 3 * PROBE_BYTES - 1)
-    payload, raw_receipt = _range_get(session, source_url, raw_start, raw_end)
+    payload, raw_receipt = _range_get(session, source_url, raw_start, raw_end, header_receipt.etag)
     rows = _complete_csv_rows(payload, fieldnames)
+    expected_times = {start + timedelta(minutes=15 * index) for index in range(int((end - start).total_seconds() // 900))}
+    raw_times = {parse_source_time(row["run_start_time"]) for row in rows}
+    if not raw_times or min(raw_times) > start or max(raw_times) < max(expected_times):
+        raise EagleiError("final range does not bracket requested window; acquisition may be truncated")
     selected = [
         row
         for row in rows
@@ -174,11 +216,6 @@ def acquire(
         and (not fips or row["fips_code"] in fips)
         and start <= parse_source_time(row["run_start_time"]) < end
     ]
-    expected_times = []
-    cursor = start
-    while cursor < end:
-        expected_times.append(cursor)
-        cursor += timedelta(minutes=15)
     observed_by_fips = {
         code: {
             parse_source_time(row["run_start_time"])
@@ -191,10 +228,51 @@ def acquire(
         code: {
             "observed_intervals": len(times),
             "expected_intervals_at_15_min": len(expected_times),
-            "missing_intervals": len(set(expected_times) - times),
+            "missing_intervals": len(expected_times - times),
             "availability": "Available" if times else "UncoveredLabel",
+            "coverage_state": (
+                "complete_15_min_observation"
+                if times == expected_times
+                else "partial_15_min_observation"
+                if times
+                else "UncoveredLabel"
+            ),
         }
         for code, times in sorted(observed_by_fips.items())
+    }
+    denominator_summary = {
+        code: {
+            "observed_rows_with_total_customers": sum(
+                1
+                for row in selected
+                if row["fips_code"] == code
+                and row.get("total_customers") not in (None, "")
+            ),
+            "missing_total_customers_rows": sum(
+                1
+                for row in selected
+                if row["fips_code"] == code and row.get("total_customers") in (None, "")
+            ),
+            "min": min(
+                (
+                    int(row["total_customers"])
+                    for row in selected
+                    if row["fips_code"] == code
+                    and row.get("total_customers") not in (None, "")
+                ),
+                default=None,
+            ),
+            "max": max(
+                (
+                    int(row["total_customers"])
+                    for row in selected
+                    if row["fips_code"] == code
+                    and row.get("total_customers") not in (None, "")
+                ),
+                default=None,
+            ),
+        }
+        for code in sorted(fips)
     }
 
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -248,7 +326,7 @@ def acquire(
             code: {
                 "min": min(
                     (
-                        int(row["customers_out"])
+                        int(row[customers_out_field])
                         for row in selected
                         if row["fips_code"] == code
                     ),
@@ -256,7 +334,7 @@ def acquire(
                 ),
                 "max": max(
                     (
-                        int(row["customers_out"])
+                        int(row[customers_out_field])
                         for row in selected
                         if row["fips_code"] == code
                     ),
@@ -265,14 +343,19 @@ def acquire(
             }
             for code in sorted(fips)
         },
-        "units": {"customers_out": "customers", "run_start_time": "UTC"},
+        "total_customers_summary": denominator_summary
+        if "total_customers" in fieldnames
+        else None,
+        "outage_field_source": customers_out_field,
+        "outage_field_semantics": "total customers without electricity at the source timestamp",
+        "units": {customers_out_field: "customers", "run_start_time": "UTC"},
         "filters": {
             "states": sorted(states),
             "county_fips": sorted(fips),
             "window": "UTC half-open",
         },
         "grid_index_mapping": None,
-        "gaps": "EAGLE-I omits zero-outage observations and does not distinguish zero from collection gaps; contract classification is UncoveredLabel.",
+        "gaps": "Explicit zero values are retained observations. A missing row has unknown meaning (zero or collection gap) and contract classification is UncoveredLabel.",
         "customer_denominator": (
             "native `total_customers` present in selected rows; retain per-row values and missingness"
             if "total_customers" in fieldnames and selected
@@ -280,7 +363,7 @@ def acquire(
             if "total_customers" in fieldnames
             else "unavailable in this annual slice; do not substitute population"
         ),
-        "absence_rule": "missing rows are UncoveredLabel, never zero",
+        "absence_rule": "explicit source zeros are observations; missing rows are UncoveredLabel, never imputed zero",
     }
     receipt_path = cache_dir / f"{slug}.receipt.json"
     receipt_path.write_text(

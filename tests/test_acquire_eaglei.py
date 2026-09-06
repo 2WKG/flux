@@ -1,6 +1,10 @@
 from datetime import UTC, datetime
 
-from scripts.event_baseline.acquire_eaglei import _complete_csv_rows, parse_source_time
+from scripts.event_baseline.acquire_eaglei import (
+    _complete_csv_rows,
+    outage_field,
+    parse_source_time,
+)
 
 
 def test_complete_rows_discards_partial_boundary_records() -> None:
@@ -26,7 +30,14 @@ def test_complete_rows_keeps_native_total_customers_when_present() -> None:
     payload = b"partial\n27049,Goodhue,Minnesota,9,2024-05-21 18:00:00,1234\ntruncated"
     rows = _complete_csv_rows(
         payload,
-        ["fips_code", "county", "state", "customers_out", "run_start_time", "total_customers"],
+        [
+            "fips_code",
+            "county",
+            "state",
+            "customers_out",
+            "run_start_time",
+            "total_customers",
+        ],
     )
     assert rows == [
         {
@@ -38,3 +49,9 @@ def test_complete_rows_keeps_native_total_customers_when_present() -> None:
             "total_customers": "1234",
         }
     ]
+
+
+def test_sum_is_recognized_as_the_documented_legacy_outage_field() -> None:
+    assert (
+        outage_field(["fips_code", "county", "state", "sum", "run_start_time"]) == "sum"
+    )
