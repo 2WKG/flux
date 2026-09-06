@@ -5,7 +5,7 @@ exports the populated Texas adapter as a graph dataset. The source database is o
 The output cannot be the source database's directory (or another directory containing it). A rerun
 refuses any existing output path; the caller must remove a prior export explicitly.
 
-The manifest labels the dataset `synthetic (ACTIVSg2000)`: it is a Texas-shaped research topology,
+The manifest and every individual node and edge record label the dataset `synthetic (ACTIVSg2000)`: it is a Texas-shaped research topology,
 not ERCOT topology or a physical asset inventory. The exporter verifies that every source row it reads
 is tagged `activsg2000`. It refuses an absent or empty source database instead of writing a
 fixture-looking result.
@@ -16,7 +16,8 @@ fixture-looking result.
 - `edges.json` contains every `lines` branch. `source_edge_type` distinguishes lines from voltage-transition
   transformers; `solver_edge_type` records that those transformer branches import as pandapower impedance branches.
 - `manifest.json` contains per-file SHA-256 values and a dataset SHA-256 over the schema, topology label, and
-  content hashes. Loaders must read the manifest alongside the node and edge files.
+  content hashes. Loaders must read the manifest alongside the node and edge files, though each record also
+  carries `topology_label` so a file copied out of the directory keeps its label.
 
 All JSON is canonical (sorted keys, compact UTF-8, trailing newline), and source rows are ordered by their stable
 IDs. Repeating an export from unchanged DuckDB content on the same machine and Python produces byte-identical files.

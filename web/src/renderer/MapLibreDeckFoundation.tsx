@@ -48,7 +48,8 @@ function assetManifest(value: unknown): FluxAssetManifest | null {
   if (!record(value) || value.schema_version !== 1 || value.contract_id !== "flux:3d-asset-archetypes:v1" ||
     !record(value.transform) || value.transform.unit !== "meter" || value.transform.up !== "Y" ||
     value.transform.forward !== "-Z" || value.transform.pivot !== "ground_center" || !Array.isArray(value.assets) || value.assets.length === 0) return null;
-  const validFile = (file: unknown) => record(file) && typeof file.path === "string" && typeof file.sha256 === "string" &&
+  const validFile = (file: unknown): file is Record<string, unknown> =>
+    record(file) && typeof file.path === "string" && typeof file.sha256 === "string" &&
     typeof file.bytes === "number" && Number.isFinite(file.bytes);
   const validAsset = (asset: unknown) => {
     if (!record(asset) || typeof asset.archetype_id !== "string" || typeof asset.semantic_name !== "string" ||

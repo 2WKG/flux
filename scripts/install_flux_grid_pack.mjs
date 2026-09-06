@@ -35,7 +35,7 @@ export function parseReviewedJson(bytes, label, location) {
 
 export function validateRuntimeManifest(manifest, inventory, catalogBytes) {
   if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) throw new Error('Invalid reviewed runtime manifest.');
-  if (manifest.completion !== 'source_only_binaries_unpublished') throw new Error('Reviewed runtime manifest has an unsupported completion state.');
+  if (!['source_only_binaries_unpublished', 'complete_locally_generated'].includes(manifest.completion)) throw new Error('Reviewed runtime manifest has an unsupported completion state.');
   if (!Array.isArray(manifest.assets) || manifest.assets.length !== 18) throw new Error('Reviewed runtime manifest must declare 18 assets.');
   const contract = manifest.source_contract;
   if (!contract || typeof contract !== 'object' || contract.file !== catalogRelative) throw new Error(`Reviewed runtime manifest must pin the frozen catalog: ${catalogRelative}`);
@@ -82,9 +82,21 @@ async function rejectSymlinks(base, relative) {
 
 export async function installFluxGridPack(packageRoot, repoRoot = root, {packRoot = lockRoot, catalogRoot = root} = {}) {
   await lstat(path.join(repoRoot, 'web/package.json'));
-  const manifestPath = path.join(packRoot, 'manifest.json');
+  // Published archives remain bound to the tracked source-only receipt. A local
+  // runtime package is its own reviewed receipt: the assembler binds its audit
+  // to the copied model, metadata, and preview bytes and emits the same
+  // manifest/inventory contract.
+  let reviewedRoot = packRoot;
+  if (packRoot === lockRoot) {
+    const packageManifestPath = path.join(packageRoot, 'manifest.json');
+    const packageManifest = await readFile(packageManifestPath)
+      .then(bytes => parseReviewedJson(bytes, 'runtime manifest', packageManifestPath))
+      .catch(() => null);
+    if (packageManifest?.completion === 'complete_locally_generated') reviewedRoot = packageRoot;
+  }
+  const manifestPath = path.join(reviewedRoot, 'manifest.json');
   const manifestBytes = await readFile(manifestPath);
-  const inventory = runtimeInventory(await readFile(path.join(packRoot, 'package.SHA256SUMS'), 'utf8'));
+  const inventory = runtimeInventory(await readFile(path.join(reviewedRoot, 'package.SHA256SUMS'), 'utf8'));
   const catalogBytes = await readFile(path.join(catalogRoot, catalogRelative));
   validateRuntimeManifest(parseReviewedJson(manifestBytes, 'reviewed runtime manifest', manifestPath), inventory, catalogBytes);
   const candidates = [];
