@@ -110,12 +110,15 @@ from a third-party asset names that asset and its licence in `source_of_shape`.
 
 **Binaries are not committed to Git.** This contract governs their shape; the
 asset pipeline (2WKG-374 Minnesota / 2WKG-320 Texas) produces, stores, and
-verifies them. The boundary is enforced two ways rather than described:
-`data/3d/**/*.glb` and `*.gltf` are git-ignored, and
+verifies them. The boundary is enforced two ways rather than described, on both
+scanned trees: `data/3d/**` and `web/public/**` `.glb`/`.gltf` are git-ignored,
+and `tests/test_asset_archetypes.py` asserts `git ls-files` tracks no `.glb` or
+`.gltf` at all — so committing one (which takes a deliberate `git add -f`) turns
+the suite red. Presence is reported separately and without judgement:
 `validate_asset_archetypes.py` *derives* `modelFilesPresent` by walking `data/`
-and `web/` for `.glb`/`.gltf` — every hit is listed in the report's `modelFiles`
-— so `tests/test_asset_archetypes.py` goes red the moment a model appears
-anywhere under those trees, not merely alongside the catalog.
+and `web/` for `.glb`/`.gltf` and lists every hit in the report's `modelFiles`,
+so a model the pipeline writes locally is visible in the report while a
+developer's suite stays green, exactly as it does in CI.
 
 ## The eighteen archetypes
 

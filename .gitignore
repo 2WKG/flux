@@ -25,3 +25,5 @@ data/demo/*.local.json
 # scripts/validate_asset_archetypes.py reports any that appear anyway.
 data/3d/**/*.glb
 data/3d/**/*.gltf
+web/public/**/*.glb
+web/public/**/*.gltf

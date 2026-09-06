@@ -4,6 +4,8 @@ import ast
 import copy
 import inspect
 import json
+import re
+import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
@@ -24,6 +26,31 @@ def _catalog() -> dict:
     return json.loads(DEFAULT_CATALOG.read_text(encoding="utf-8"))
 
 
+def _repo_root() -> Path:
+    return Path(DEFAULT_CATALOG).resolve().parents[2]
+
+
+def _tracked_model_files() -> list[str]:
+    """Model binaries git actually tracks — the honest reading of "committed".
+
+    find_model_files() answers "is one present?", which is what the report
+    needs. "Is one committed?" is a question about the index, and only git can
+    answer it: data/3d and web/public binaries are ignored, so a locally
+    produced model is present but not committed.
+    """
+    root = _repo_root()
+    if not (root / ".git").exists():
+        pytest.skip("not a git checkout; the committed-binary boundary is unmeasurable")
+    result = subprocess.run(
+        ["git", "ls-files", "--", "*.glb", "*.gltf"],
+        cwd=root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return sorted(line for line in result.stdout.splitlines() if line)
+
+
 def test_committed_catalog_conforms_and_covers_every_asset_work_item():
     catalog = _catalog()
 
@@ -36,13 +63,14 @@ def test_committed_catalog_conforms_and_covers_every_asset_work_item():
     minnesota = [entry["minnesota_issue"] for entry in catalog["archetypes"]]
     assert len(set(texas)) == len(set(minnesota)) == EXPECTED_ARCHETYPES
     assert set(texas).isdisjoint(minnesota)
-    # No binary is committed; the contract governs shape, not hosting. Both
-    # sides of this are derived from the tree, not declared: find_model_files
-    # walks data/ and web/ recursively, so a model in data/3d/models/ or
-    # web/public/ turns modelFilesPresent true and turns this red.
-    assert find_model_files() == []
-    assert report["modelFilesPresent"] is False
-    assert report["modelFiles"] == []
+    # No binary is COMMITTED; the contract governs shape, not hosting. That is a
+    # statement about the index, so it is measured against the index: data/3d
+    # and web/public binaries are git-ignored, so a model the asset pipeline
+    # writes locally must not turn this red while CI stays green. The
+    # working-tree walk still feeds the report, and the report stays derived.
+    assert _tracked_model_files() == []
+    assert report["modelFiles"] == find_model_files()
+    assert report["modelFilesPresent"] == bool(report["modelFiles"])
 
 
 def test_import_invariants_are_pinned_not_merely_described():
@@ -297,12 +325,32 @@ def test_each_validator_rule_rejects_its_own_violation(
     )
 
 
-def test_every_validator_rule_has_a_negative_case():
-    """A rule added without a RULE_CASES row turns this red.
+def _message_chunks(node: ast.AST) -> list[str] | None:
+    """The literal text of an error message, split at its interpolations.
 
-    Counts `errors.append(...)` sites in validate_catalog. Before this change
-    the validator had 24 rules and 12 of them could be deleted outright with
-    the suite staying green.
+    ``f"{label}: lod1 must be <= {share} of lod0"`` yields
+    ``["", ": lod1 must be <= ", " of lod0"]``. None means the message is not a
+    literal at all, which the rule inventory refuses to guess at.
+    """
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return [node.value]
+    if isinstance(node, ast.JoinedStr):
+        chunks = [""]
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                chunks[-1] += part.value
+            else:
+                chunks.append("")
+        return chunks
+    return None
+
+
+def _validator_rule_sites() -> list[tuple[int, list[str]]]:
+    """Every place validate_catalog records a violation, as (line, chunks).
+
+    Counted forms: ``errors.append(msg)``, ``errors.extend([...])`` and
+    ``errors += [...]``. A rule written in any of them is a rule; matching only
+    ``.append`` let a new rule hide from the inventory entirely.
     """
     tree = ast.parse(inspect.getsource(validator))
     (function,) = [
@@ -310,20 +358,123 @@ def test_every_validator_rule_has_a_negative_case():
         for node in ast.walk(tree)
         if isinstance(node, ast.FunctionDef) and node.name == "validate_catalog"
     ]
-    appends = [
-        node
-        for node in ast.walk(function)
-        if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == "append"
-        and isinstance(node.func.value, ast.Name)
-        and node.func.value.id == "errors"
-    ]
 
-    assert len(appends) == len(RULE_CASES), (
-        f"{len(appends)} validator rules but {len(RULE_CASES)} negative cases: "
-        "every rule needs one, or it can be deleted without a test noticing"
+    sites: list[tuple[int, list[str]]] = []
+    unreadable: list[int] = []
+
+    def record(node: ast.AST) -> None:
+        chunks = _message_chunks(node)
+        if chunks is None:
+            unreadable.append(getattr(node, "lineno", -1))
+        else:
+            sites.append((node.lineno, chunks))
+
+    for node in ast.walk(function):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr in {"append", "extend"}
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "errors"
+        ):
+            if node.func.attr == "append":
+                for arg in node.args:
+                    record(arg)
+            else:
+                for arg in node.args:
+                    if isinstance(arg, (ast.List, ast.Tuple, ast.Set)):
+                        for element in arg.elts:
+                            record(element)
+                    else:
+                        unreadable.append(node.lineno)
+        elif (
+            isinstance(node, ast.AugAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "errors"
+        ):
+            if isinstance(node.value, (ast.List, ast.Tuple, ast.Set)):
+                for element in node.value.elts:
+                    record(element)
+            else:
+                unreadable.append(node.lineno)
+
+    assert not unreadable, (
+        f"validate_catalog records a violation with a non-literal message at "
+        f"lines {sorted(unreadable)}; the rule inventory cannot pair it with a "
+        "negative case"
     )
+    return sorted(sites)
+
+
+def _fragment_can_come_from(expected: str, chunks: list[str]) -> bool:
+    """Could `expected` appear in a message built from these literal chunks?
+
+    Either it sits inside one literal run, or it spans an interpolation — in
+    which case it must still be anchored on real literal text at both ends, so
+    a message ending in `{value}` cannot absorb an arbitrary tail.
+    """
+    if any(expected in chunk for chunk in chunks):
+        return True
+
+    def alternatives(options: list[str]) -> str:
+        return "(?:" + "|".join(re.escape(option) for option in options) + ")"
+
+    for i in range(len(chunks)):
+        suffixes = [chunks[i][k:] for k in range(len(chunks[i]))]
+        if not suffixes:
+            continue
+        for j in range(i + 1, len(chunks)):
+            prefixes = [chunks[j][:k] for k in range(len(chunks[j]), 0, -1)]
+            if not prefixes:
+                continue
+            middle = "".join(f"(?s:.*){re.escape(c)}" for c in chunks[i + 1 : j])
+            pattern = (
+                alternatives(suffixes) + middle + "(?s:.*)" + alternatives(prefixes)
+            )
+            if re.fullmatch(pattern, expected):
+                return True
+    return False
+
+
+def test_every_validator_rule_has_exactly_one_negative_case():
+    """RULE_CASES and the validator's rules are a bijection, not a count.
+
+    A count is bypassable two ways, and both were: a new rule plus a duplicated
+    RULE_CASES row satisfied it, and a rule written `errors += [...]` was not
+    counted at all. So: every `expected` is distinct, every `expected` matches
+    exactly one rule site, and every rule site is claimed by exactly one case.
+    """
+    sites = _validator_rule_sites()
+
+    expectations = [expected for _, _, expected in RULE_CASES]
+    assert len(set(expectations)) == len(expectations), (
+        "RULE_CASES expectations must be distinct; a duplicated row lets a new "
+        "validator rule ride in on another rule's coverage"
+    )
+
+    claimed: dict[int, str] = {}
+    for rule_id, _, expected in RULE_CASES:
+        matches = [
+            line for line, chunks in sites if _fragment_can_come_from(expected, chunks)
+        ]
+        assert len(matches) == 1, (
+            f"case {rule_id!r} expects {expected!r}, which matches "
+            f"{len(matches)} validator rules (lines {matches}); a negative case "
+            "must pin exactly one rule"
+        )
+        line = matches[0]
+        assert line not in claimed, (
+            f"cases {claimed[line]!r} and {rule_id!r} both pin the rule at line "
+            f"{line}; one validator rule then has no case of its own"
+        )
+        claimed[line] = rule_id
+
+    uncovered = sorted(line for line, _ in sites if line not in claimed)
+    assert not uncovered, (
+        f"validator rules at lines {uncovered} have no RULE_CASES row: they can "
+        "be deleted without a test noticing"
+    )
+    assert len(sites) == len(RULE_CASES)
 
 
 # --- Derived model-file reporting -----------------------------------------
@@ -379,7 +530,7 @@ def test_runtime_container_claim_matches_the_web_lockfile():
     lockfile contradicts.
     """
     catalog = _catalog()
-    root = Path(DEFAULT_CATALOG).resolve().parents[2]
+    root = _repo_root()
     manifest = (root / "web/package.json").read_text(encoding="utf-8")
     lockfile = (root / "web/package-lock.json").read_text(encoding="utf-8")
     reason = catalog["runtime"]["reason"]
@@ -394,4 +545,24 @@ def test_runtime_container_claim_matches_the_web_lockfile():
     )
     assert "new dependency" in reason, (
         "runtime.reason must not present three.js as already permitted"
+    )
+
+    # The catalog is one of the two places that states this; the design doc is
+    # the other, and it drifts back just as easily. Pin the same facts there,
+    # against the same lockfile, so the claim cannot be true in one place only.
+    doc = (root / "docs/design/3d-asset-contract.md").read_text(encoding="utf-8")
+    container_rows = [
+        line for line in doc.splitlines() if line.startswith("| Container |")
+    ]
+    assert len(container_rows) == 1, (
+        f"expected one Container row in the runtime-invariants table, found "
+        f"{len(container_rows)}"
+    )
+    container = container_rows[0]
+
+    assert "@deck.gl/mesh-layers" in container and "@loaders.gl/gltf" in container
+    assert "three.js is **not** a current dependency" in container, (
+        "docs/design/3d-asset-contract.md must say what the lockfile says: "
+        f"three.js is absent, so the Container row may not imply otherwise: "
+        f"{container}"
     )
