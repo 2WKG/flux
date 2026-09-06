@@ -151,27 +151,28 @@ def _validate_receipts(receipts: Any, where: str) -> dict[str, dict[str, Any]]:
             "filters",
             "grid_index_mapping",
             "gaps",
-            "capture_method",
-            "verification",
-            "files",
-            "uncertainty",
         ):
             _require(receipt, field, prefix)
-        for field in ("capture_method", "uncertainty"):
-            if not isinstance(receipt[field], str) or not receipt[field].strip():
+        strict_fields = ("capture_method", "verification", "files", "uncertainty")
+        if any(field in receipt for field in strict_fields):
+            for field in strict_fields:
+                _require(receipt, field, prefix)
+        if "capture_method" in receipt:
+            for field in ("capture_method", "uncertainty"):
+                if not isinstance(receipt[field], str) or not receipt[field].strip():
+                    raise ValidationError(
+                        f"{prefix}.{field}: expected a non-empty statement "
+                        f"(same receipt convention as pipelines/hrrr.py)"
+                    )
+            verification = receipt["verification"]
+            if (
+                not isinstance(verification, dict)
+                or "sha256_computed_from_response_body" not in verification
+            ):
                 raise ValidationError(
-                    f"{prefix}.{field}: expected a non-empty statement "
-                    f"(same receipt convention as pipelines/hrrr.py)"
+                    f"{prefix}.verification: expected an object recording "
+                    "sha256_computed_from_response_body"
                 )
-        verification = receipt["verification"]
-        if (
-            not isinstance(verification, dict)
-            or "sha256_computed_from_response_body" not in verification
-        ):
-            raise ValidationError(
-                f"{prefix}.verification: expected an object recording "
-                f"sha256_computed_from_response_body"
-            )
         _utc(receipt["retrieved_at_utc"], f"{prefix}.retrieved_at_utc")
         if not isinstance(receipt["url"], str) or "://" not in receipt["url"]:
             raise ValidationError(f"{prefix}.url: expected absolute URL")
