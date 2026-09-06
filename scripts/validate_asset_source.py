@@ -10,6 +10,22 @@ The directory name is the identity. The catalog row is looked up by directory
 name, never by the metadata's own `archetype_id`, so a coherent hospital meta
 dropped into `data/3d/assets/factory_industrial_facility/` fails instead of
 passing against the row it names.
+
+`data/3d/assets/` holds three delivery tiers, and this module applies exactly
+one of them per entry, chosen from what the entry actually contains:
+
+* **source kit** - a directory holding `<id>.scene.json`; the geometry is
+  authored as data and is checked against the footprint here.
+* **blender kit** - a directory holding `<id>.blender.py`; the geometry lives in
+  a Blender build script, so this module checks the metadata, the declared
+  `bounds_m`, and that no build output was committed beside it.
+* **flat meta** - a bare `<id>.meta.json` file directly under the asset root,
+  which declares a pipeline delivery and is checked by
+  `scripts.asset_contract_lib.validate_export_meta`.
+
+An entry that matches none of the three is refused by name
+(`unknown_asset_tier`) rather than skipped: a directory nobody validates is
+indistinguishable from one that passes.
 """
 
 from __future__ import annotations
@@ -33,6 +49,25 @@ GEOMETRY_EPSILON = 1e-6
 CONNECTOR_NAME = re.compile(r"^CONN_(?P<role>[A-Z_]+)_(?P<index>\d+)$")
 # A source kit is text-only: the binaries are asset-pipeline outputs.
 SOURCE_KIT_SUFFIXES = (".meta.json", ".scene.json", ".preview.svg")
+# A blender kit is text-only too: the scene lives in a build script.
+BLENDER_KIT_SUFFIXES = (".meta.json", ".blender.py")
+BLENDER_KIT_DOC = "README.md"
+# The tier names this module reports; `UNKNOWN_TIER` is a refusal, not a skip.
+SOURCE_KIT_TIER = "source_kit"
+BLENDER_KIT_TIER = "blender_kit"
+FLAT_META_TIER = "flat_meta"
+UNKNOWN_TIER = "unknown_asset_tier"
+FLAT_META_SUFFIX = ".meta.json"
+# The transform keys a blender kit pins; each value is read from the catalog.
+BLENDER_TRANSFORM_KEYS = (
+    ("length_unit", "lengthUnit"),
+    ("unit_scale", "unitScale"),
+    ("up_axis", "upAxis"),
+    ("forward_axis", "forwardAxis"),
+    ("pivot", "pivot"),
+)
+BLENDER_STATUS_BINDING = "placement.status_label"
+BLENDER_OUTPUT_SUFFIXES = (("glb", ".glb"), ("preview", ".preview.png"))
 PIPELINE_OUTPUT_KEYS = ("model_file", "preview_file")
 MIN_PREVIEW_DRAW_ELEMENTS = 4
 DRAWABLE_TAGS = {
@@ -61,6 +96,50 @@ def asset_dirs(asset_root: Path = DEFAULT_ASSET_ROOT) -> list[Path]:
     if not asset_root.is_dir():
         return []
     return sorted(path for path in asset_root.iterdir() if path.is_dir())
+
+
+def flat_meta_files(asset_root: Path = DEFAULT_ASSET_ROOT) -> list[Path]:
+    """Bare `<id>.meta.json` deliveries that sit directly under the asset root."""
+    if not asset_root.is_dir():
+        return []
+    return sorted(
+        path
+        for path in asset_root.iterdir()
+        if path.is_file() and path.name.endswith(FLAT_META_SUFFIX)
+    )
+
+
+def asset_entries(asset_root: Path = DEFAULT_ASSET_ROOT) -> list[Path]:
+    """Every asset this module is answerable for: kit directories and flat metas."""
+    return sorted(
+        asset_dirs(asset_root) + flat_meta_files(asset_root), key=lambda p: p.name
+    )
+
+
+def entry_id(path: Path) -> str:
+    """The archetype id an entry claims by its own name."""
+    if path.is_file() or path.name.endswith(FLAT_META_SUFFIX):
+        return path.name[: -len(FLAT_META_SUFFIX)]
+    return path.name
+
+
+def asset_tier(path: Path) -> str | None:
+    """Which tier's rules govern this entry, or ``None`` when it matches none.
+
+    Tier is decided by what the entry contains, never by its name, so a kit that
+    changes tier changes the rules applied to it and a kit that carries neither
+    marker file is refused rather than validated against a guess.
+    """
+    if path.is_file():
+        return FLAT_META_TIER if path.name.endswith(FLAT_META_SUFFIX) else None
+    if not path.is_dir():
+        return None
+    asset_id = path.name
+    if (path / f"{asset_id}.scene.json").is_file():
+        return SOURCE_KIT_TIER
+    if (path / f"{asset_id}.blender.py").is_file():
+        return BLENDER_KIT_TIER
+    return None
 
 
 def node_aabb(nodes: list[dict[str, Any]]) -> dict[str, list[float]] | None:
@@ -396,20 +475,180 @@ def _validate_preview(asset_dir: Path, catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
-def validate_asset(asset_dir: Path, catalog: dict[str, Any]) -> list[str]:
-    """Return every contract violation for one source kit; empty means it conforms."""
-    asset_id = asset_dir.name
-    archetype = next(
-        (entry for entry in catalog["archetypes"] if entry["id"] == asset_id), None
-    )
-    if archetype is None:
+def _validate_blender_files(asset_dir: Path, asset_id: str) -> list[str]:
+    """A blender kit is its README, its build script, and its meta - nothing else."""
+    errors: list[str] = []
+    expected = {f"{asset_id}{suffix}" for suffix in BLENDER_KIT_SUFFIXES}
+    expected.add(BLENDER_KIT_DOC)
+    present = {path.name for path in asset_dir.iterdir() if path.is_file()}
+    for missing in sorted(expected - present):
+        errors.append(f"{asset_id}: blender kit is missing {missing}")
+    for extra in sorted(present - expected):
+        errors.append(
+            f"{asset_id}: {extra} is not part of the blender kit; binaries and "
+            "renders are asset-pipeline outputs and must not be committed"
+        )
+    return errors
+
+
+def _validate_blender_transform(
+    meta: dict[str, Any], catalog: dict[str, Any], asset_id: str
+) -> list[str]:
+    """Every pinned axis value is read from the catalog, never restated here."""
+    errors: list[str] = []
+    transform = meta.get("transform")
+    if not isinstance(transform, dict):
+        return [f"{asset_id}: meta transform must be an object"]
+    catalog_transform = catalog["transform"]
+    for key, catalog_key in BLENDER_TRANSFORM_KEYS:
+        expected = catalog_transform[catalog_key]
+        if transform.get(key) != expected:
+            errors.append(
+                f"{asset_id}: transform.{key} must be {expected!r}, got "
+                f"{transform.get(key)!r}"
+            )
+    return errors
+
+
+def _validate_blender_status_slot(
+    meta: dict[str, Any], catalog: dict[str, Any], asset_id: str
+) -> list[str]:
+    slot_name = catalog["statusMaterials"]["slotName"]
+    expected = [
+        {"name": slot_name, "default": "neutral", "binding": BLENDER_STATUS_BINDING}
+    ]
+    if meta.get("material_slots") != expected:
         return [
             (
-                f"{asset_id}: no catalog archetype is named by this directory; "
-                "an asset directory name is its identity"
+                f"{asset_id}: meta material_slots must be exactly the neutral "
+                f"{slot_name} slot bound to {BLENDER_STATUS_BINDING}"
             )
         ]
+    return []
 
+
+def _validate_blender_bounds(
+    meta: dict[str, Any], archetype: dict[str, Any]
+) -> list[str]:
+    """A blender kit ships no scene data, so its declared bounds carry the geometry."""
+    errors: list[str] = []
+    asset_id = archetype["id"]
+    bounds = meta.get("bounds_m")
+    if not isinstance(bounds, dict) or not {"min", "max"} <= set(bounds):
+        return [f"{asset_id}: meta must declare bounds_m with min and max"]
+    for key in ("min", "max"):
+        value = bounds[key]
+        if not isinstance(value, list) or len(value) != 3:
+            errors.append(f"{asset_id}: bounds_m.{key} must be a 3-vector")
+    if errors:
+        return errors
+    for axis, name in enumerate("xyz"):
+        if bounds["min"][axis] > bounds["max"][axis]:
+            errors.append(f"{asset_id}: bounds_m {name} min exceeds max")
+    if errors:
+        return errors
+    footprint = archetype["footprint_m"]
+    for label, axis, declared_size in (
+        ("width", 0, footprint["width"]),
+        ("length", 2, footprint["length"]),
+    ):
+        extent = bounds["max"][axis] - bounds["min"][axis]
+        if extent > declared_size * (1 + FOOTPRINT_TOLERANCE) + GEOMETRY_EPSILON:
+            over = extent / declared_size - 1
+            errors.append(
+                f"{asset_id}: geometry {label} {extent:g} m exceeds the declared "
+                f"{declared_size:g} m footprint by {over:.1%} (tolerance "
+                f"{FOOTPRINT_TOLERANCE:.0%})"
+            )
+    if abs(bounds["min"][1]) > GEOMETRY_EPSILON:
+        errors.append(
+            f"{asset_id}: pivot is ground_center but geometry starts at y="
+            f"{bounds['min'][1]:g}, not 0"
+        )
+    return errors
+
+
+def _validate_blender_outputs(meta: dict[str, Any], asset_dir: Path) -> list[str]:
+    """The meta names its build outputs; none of them may be in the repository."""
+    errors: list[str] = []
+    asset_id = asset_dir.name
+    outputs = meta.get("outputs")
+    if not isinstance(outputs, dict):
+        return [f"{asset_id}: meta outputs must name the build products"]
+    expected = {key: f"{asset_id}{suffix}" for key, suffix in BLENDER_OUTPUT_SUFFIXES}
+    expected["source"] = f"{asset_id}.blender.py"
+    if set(outputs) != set(expected):
+        errors.append(f"{asset_id}: outputs must name {sorted(expected)}")
+    for key, want in expected.items():
+        if key in outputs and outputs[key] != want:
+            errors.append(f"{asset_id}: outputs.{key} must be {want}")
+    if not (asset_dir / expected["source"]).is_file():
+        errors.append(
+            f"{asset_id}: outputs.source {expected['source']} does not resolve"
+        )
+    for key, _ in BLENDER_OUTPUT_SUFFIXES:
+        name = outputs.get(key)
+        if isinstance(name, str) and (asset_dir / name).exists():
+            errors.append(
+                f"{asset_id}: {name} is an asset-pipeline output and must not be "
+                "committed"
+            )
+    return errors
+
+
+def validate_blender_kit(
+    asset_dir: Path, archetype: dict[str, Any], catalog: dict[str, Any]
+) -> list[str]:
+    """Contract violations for a kit whose geometry lives in a Blender script."""
+    asset_id = archetype["id"]
+    errors = _validate_blender_files(asset_dir, asset_id)
+    meta_path = asset_dir / f"{asset_id}.meta.json"
+    if not meta_path.is_file():
+        return errors
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return errors + [f"{asset_id}: {meta_path.name} is not valid JSON ({exc})"]
+
+    errors += _validate_meta_identity(meta, archetype, catalog)
+    errors += _validate_meta_fields(meta, archetype, catalog)
+    errors += _validate_blender_transform(meta, catalog, asset_id)
+    errors += _validate_blender_status_slot(meta, catalog, asset_id)
+    errors += _validate_connectors(meta, archetype, catalog)
+    errors += _validate_blender_bounds(meta, archetype)
+    errors += _validate_blender_outputs(meta, asset_dir)
+    return errors
+
+
+def _contract_lib() -> Any:
+    """`scripts.asset_contract_lib`, importable as a package or as a bare script."""
+    try:
+        from scripts import asset_contract_lib
+    except ImportError:  # pragma: no cover - direct `python scripts/...` execution
+        import asset_contract_lib  # type: ignore[no-redef]
+    return asset_contract_lib
+
+
+def validate_flat_meta(meta_path: Path, catalog: dict[str, Any]) -> list[str]:
+    """A bare `<id>.meta.json` delivery, checked by the shared contract library."""
+    asset_id = entry_id(meta_path)
+    lib = _contract_lib()
+    try:
+        meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return [f"{asset_id}: {meta_path.name} is not valid JSON ({exc})"]
+    try:
+        errors = lib.validate_export_meta(meta, catalog, asset_id, ROOT)
+    except lib.AssetContractError as exc:
+        return [f"{asset_id}: {exc.reason}: {exc.detail}"]
+    return [f"{asset_id}: {error}" for error in errors]
+
+
+def validate_source_kit(
+    asset_dir: Path, archetype: dict[str, Any], catalog: dict[str, Any]
+) -> list[str]:
+    """Contract violations for a kit whose geometry is authored in `<id>.scene.json`."""
+    asset_id = archetype["id"]
     errors = _validate_files(asset_dir, asset_id)
     meta_path = asset_dir / f"{asset_id}.meta.json"
     if not meta_path.is_file():
@@ -430,19 +669,55 @@ def validate_asset(asset_dir: Path, catalog: dict[str, Any]) -> list[str]:
     return errors
 
 
+def validate_asset(asset_path: Path, catalog: dict[str, Any]) -> list[str]:
+    """Return every contract violation for one asset entry; empty means it conforms.
+
+    The entry's own contents choose the tier, and only that tier's rules run. An
+    entry matching no tier is refused by name; it is never silently skipped.
+    """
+    asset_id = entry_id(asset_path)
+    archetype = next(
+        (entry for entry in catalog["archetypes"] if entry["id"] == asset_id), None
+    )
+    if archetype is None:
+        return [
+            (
+                f"{asset_id}: no catalog archetype is named by this directory; "
+                "an asset directory name is its identity"
+            )
+        ]
+
+    tier = asset_tier(asset_path)
+    if tier == SOURCE_KIT_TIER:
+        return validate_source_kit(asset_path, archetype, catalog)
+    if tier == BLENDER_KIT_TIER:
+        return validate_blender_kit(asset_path, archetype, catalog)
+    if tier == FLAT_META_TIER:
+        return validate_flat_meta(asset_path, catalog)
+    return [
+        (
+            f"{asset_id}: {UNKNOWN_TIER}: an asset entry must be a source kit "
+            f"({asset_id}.scene.json), a blender kit ({asset_id}.blender.py), or a "
+            f"flat {asset_id}{FLAT_META_SUFFIX} delivery; this one is none of them"
+        )
+    ]
+
+
 def build_report(
     catalog: dict[str, Any], asset_root: Path = DEFAULT_ASSET_ROOT
 ) -> dict[str, Any]:
-    directories = asset_dirs(asset_root)
-    assets = {
-        directory.name: validate_asset(directory, catalog) for directory in directories
-    }
+    entries = asset_entries(asset_root)
+    assets = {entry_id(entry): validate_asset(entry, catalog) for entry in entries}
+    tiers = {entry_id(entry): asset_tier(entry) for entry in entries}
     errors = [error for messages in assets.values() for error in messages]
     return {
         "contractId": catalog.get("contractId"),
         "assetRoot": str(asset_root),
-        "assetCount": len(directories),
-        "assets": {name: {"passed": not messages} for name, messages in assets.items()},
+        "assetCount": len(entries),
+        "assets": {
+            name: {"passed": not messages, "tier": tiers[name] or UNKNOWN_TIER}
+            for name, messages in assets.items()
+        },
         "validation": {"passed": not errors, "errors": errors},
     }
 

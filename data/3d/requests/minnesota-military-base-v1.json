@@ -1,0 +1,10 @@
+{
+  "note": "Minnesota is the work-item label only. This request carries no Minnesota placement, coordinate, or topology; delivery filenames come from the catalog's deliverables.required.",
+  "model": {
+    "archetype_id": "military_base",
+    "contract_id": "flux:3d-asset-archetypes:v1",
+    "footprint_m": {"length": 200, "width": 160},
+    "connectors": ["MV_FEED"],
+    "lod_triangles": {"lod0": 30000, "lod1": 11000, "lod2": 3200}
+  }
+}
