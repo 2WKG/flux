@@ -227,9 +227,11 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   // The explainer makes no Texas-model result claim. It exposes its page-level
   // unavailable status while its mounted teaching sections own their statuses.
   assert.match(explainer, /<main data-source-status="unavailable">/);
-  assert.match(explainer, /data-source-status="synthetic"/);
-  assert.match(explainer, /data-source-status="hypothetical"/);
-  assert.match(explainer, /data-source-status="unavailable"/);
+  assert.match(explainer, /data-request-state="unavailable"/);
+  assert.match(explainer, /data-request-status="unavailable"/);
+  assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
+  assert.match(explainer, /This section replays that trace; it computes nothing\./);
+  assert.match(explainer, /Synthetic five-bus teaching network; not ACTIVSg2000, not a physical asset, and not an interconnection result\./);
 
   for (const rendered of [main, explainer]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
