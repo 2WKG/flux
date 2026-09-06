@@ -16,7 +16,7 @@ never relabels the static baseline as a requested scenario.
 | Method and path | Typed inputs | Measured `data` |
 | --- | --- | --- |
 | `POST /scenario/edit` | `{base_scenario_id, ops:[{op:"outage", element_id}], hour?, seed?}` | `{edit_hash, feasibility:[…]}` in `data`; the immutable edit is process-memory only |
-| `POST /cascade` | `{element_ids, scenario_id, hour, edit_hash?, seed?}` | one solver-produced `CascadeResult` in `data` |
+| `POST /cascade` | `{element_ids, scenario_id, hour, edit_hash?, seed?}` | one solver-produced `CascadeResult` plus a deterministic `cascade_id` for the exact in-memory request and core grid-input fingerprint in `data` |
 | `GET /balance` | `scope=base\|edit`, `scenario_id`, `hour`, `seed`, `edit_hash?` | measured `GridBalance` in `data` |
 | `GET /redundancy` | `bus_id`, `scenario_id`, `hour`, `seed` | measured `RedundancyScore` in `data` |
 | `POST /siting/search` | `{kind:"synthetic_generation", unit_mw, scenario_id, n, hour?, seed?}` | up to five core-ranked candidate counterfactuals in `data` |

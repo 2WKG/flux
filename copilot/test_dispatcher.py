@@ -80,6 +80,15 @@ class _InteractiveService:
             "data": {"edit_hash": "f" * 16},
         }
 
+    async def cascade(self, payload):
+        assert payload.scenario_id == "interactive"
+        return {
+            "model_fidelity": "dc_screening",
+            "network_provenance": "synthetic_activsg2000",
+            "limitations": ["Synthetic topology only."],
+            "data": {"cascade_id": "cascade-0123456789abcdef"},
+        }
+
 
 class _AskProvider:
     def __init__(self) -> None:
@@ -147,6 +156,43 @@ def test_ask_uses_provider_selected_pydantic_handler_and_nests_scene_action() ->
         "kind": "scenario_edit",
         "tool_call_id": "scene-edit-1",
         "edit_hash": "f" * 16,
+        "reversible": True,
+        "status": "available",
+    }
+
+
+def test_dispatcher_nests_distinct_cascade_request_identity_in_scene_action() -> None:
+    class CascadeProvider:
+        def __init__(self) -> None:
+            self.actions = [
+                ToolCall(
+                    "cascade-call-1",
+                    "cascade",
+                    {
+                        "element_ids": ["line:7"],
+                        "scenario_id": "interactive",
+                        "hour": 0,
+                        "seed": 0,
+                    },
+                ),
+                AssistantText("Cascade evidence is available."),
+            ]
+
+        async def next_action(self, **kwargs):
+            return self.actions.pop(0)
+
+    results, _ = asyncio.run(
+        ToolDispatcher(
+            interactive_tool_handlers(_InteractiveService()), max_turns=2
+        ).run(CascadeProvider(), question="Cascade", history=(), context={})
+    )
+
+    assert results[0].result["data"]["cascade_id"] != "f" * 16
+    assert results[0].result["scene_action"] == {
+        "action_id": "cascade:cascade-call-1",
+        "kind": "cascade",
+        "tool_call_id": "cascade-call-1",
+        "cascade_id": "cascade-0123456789abcdef",
         "reversible": True,
         "status": "available",
     }

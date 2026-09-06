@@ -166,7 +166,7 @@ def _scene_action(call: ToolCall, output: Mapping[str, object]) -> dict[str, obj
 
     data = output.get("data")
     values = data if isinstance(data, Mapping) else {}
-    key = "edit_hash" if call.name == "scenario_edit" else "run_id"
+    key = "edit_hash" if call.name == "scenario_edit" else "cascade_id"
     value = values.get(key)
     action: dict[str, object] = {
         "action_id": f"{call.name}:{call.call_id}",

@@ -194,3 +194,21 @@ def test_unknown_scenario_and_cross_context_edit_reuse_fail_closed(monkeypatch) 
     ):
         assert response.status_code == 422, response.text
         assert response.json()["error"]["code"] == "invalid_input"
+
+
+def test_cascade_carries_a_stable_request_identity(monkeypatch) -> None:
+    client = _client(monkeypatch)
+    payload = {
+        "element_ids": ["line:7"],
+        "scenario_id": "interactive",
+        "hour": 0,
+        "seed": 0,
+    }
+
+    first = client.post("/cascade", json=payload)
+    second = client.post("/cascade", json=payload)
+
+    assert first.status_code == second.status_code == 200
+    cascade_id = first.json()["data"]["cascade_id"]
+    assert cascade_id.startswith("cascade-")
+    assert cascade_id == second.json()["data"]["cascade_id"]

@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -287,12 +289,45 @@ def _cascade(payload: CascadeRequest, *, duckdb_path: Path) -> dict[str, object]
     from twin.edits import outage
 
     net = _net(duckdb_path=duckdb_path)
-    return _result(
-        net,
+    result = dict(
         run_cascade(
             net, tuple(outage(element_id) for element_id in payload.element_ids)
-        ),
+        )
     )
+    # This is the identity of this immutable request, rather than a persisted
+    # simulation-run identifier.  The solver's edit hash remains its own
+    # independent field in the returned result.
+    result["cascade_id"] = _cascade_identity(payload, net)
+    return _result(net, result)
+
+
+def _cascade_identity(payload: CascadeRequest, net: Any) -> str:
+    """Return a stable identity for one request against one core input snapshot."""
+
+    canonical = json.dumps(
+        {
+            "edit_hash": payload.edit_hash,
+            "element_ids": payload.element_ids,
+            "hour": payload.hour,
+            "input_sha256": _network_input_sha256(net),
+            "scenario_id": payload.scenario_id,
+            "seed": payload.seed,
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return "cascade-" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:32]
+
+
+def _network_input_sha256(net: Any) -> str | None:
+    """Read the build-time grid fingerprint when the core supplies one."""
+
+    value = (
+        net.get("flux_input_sha256")
+        if isinstance(net, dict)
+        else getattr(net, "flux_input_sha256", None)
+    )
+    return value if isinstance(value, str) and value else None
 
 
 def _balance(
