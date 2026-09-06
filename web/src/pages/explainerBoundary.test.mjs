@@ -12,6 +12,9 @@ test("the explainer teaching module has no 3D-rendering import and remains a laz
   const cascadeSource = await readFile(new URL("./toyCascade.ts", import.meta.url), "utf8");
   assert.doesNotMatch(pageSource, forbiddenImports);
   assert.doesNotMatch(cascadeSource, forbiddenImports);
+  assert.match(pageSource, /import \{ JepaSection \} from "\.\.\/explainer\/jepa";/);
+  assert.match(pageSource, /<JepaSection \/>/);
+  assert.doesNotMatch(pageSource, /This page does not present a prediction from it\./);
 
   const names = await builtScriptNames();
   const chunks = new Map(await Promise.all(names.map(async (name) => [

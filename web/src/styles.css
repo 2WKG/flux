@@ -69,13 +69,6 @@ h1 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); line-height: 1.03; letter-spacing:
 header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
 .eyebrow { color: var(--accent); font: 700 .7rem var(--font-mono); letter-spacing: .11em; margin: 0; text-transform: uppercase }
 
-.flux-main-assistant { display: grid; gap: .8rem; }
-.flux-main-assistant__header p { margin: 0; color: var(--ink-muted, #627386); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.flux-main-assistant__header h2, .flux-main-assistant__grounding, .flux-main-assistant__scene-action p { margin: 0; }
-.flux-main-assistant__grounding, .flux-main-assistant__scene-action { border: 1px solid var(--border-subtle, #b8c3cc); border-radius: .4rem; padding: .7rem .8rem; }
-.flux-main-assistant__grounding { color: var(--ink-muted, #425466); }
-.flux-main-assistant__scene-action { background: var(--surface-subtle, #f5f7f8); }
-
 /* The shell deliberately leaves its largest continuous area to the scene. */
 .shell-intro h1 { max-width: 760px }
 .shell-controls { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin: 0 0 12px }
