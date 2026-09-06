@@ -86,3 +86,15 @@ def test_invalid_direct_inputs_and_metadata_fail_closed(tmp_path):
         con.execute("UPDATE line_upgrade_detail SET congestion_method = 'exact'")
         con.execute("UPDATE line_upgrade_scores SET source_kind = NULL")
     assert reader.top_lines("ERCOT", "any").status == "unavailable"
+
+
+def test_final_output_separates_tech_filters_and_simulated_source_class(tmp_path):
+    path = tmp_path / "grid.duckdb"
+    _db(path)
+    with duckdb.connect(str(path)) as con:
+        con.execute("UPDATE line_upgrade_scores SET simulation_run_id = 'run-1'")
+        con.execute("UPDATE line_upgrade_detail SET best_tech = 'reconductor'")
+    result = TopLinesReader(path).top_lines("ERCOT", "reconductor", 1)
+    assert result.lines[0].intervention_type == "reconductor"
+    assert result.lines[0].source_class == "simulated"
+    assert TopLinesReader(path).top_lines("ERCOT", "dlr", 1).lines == []
