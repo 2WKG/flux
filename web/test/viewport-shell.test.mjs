@@ -165,6 +165,30 @@ test("no class reaches the DOM without a rule that can style it", () => {
   }
 });
 
+test("the chat dock stays in flow and nothing but the overlay covers the page", () => {
+  // Regression guard carried over from 1b097ed: as `position: fixed; right; bottom`
+  // the dock parked over the inspector column and hid the headline unmet-demand
+  // figure while the page was scrolled. Read off the parsed rules, so a rule in a
+  // media query cannot smuggle the offsets back in.
+  for (const selector of [".chat-dock", ".chat-dock.collapsed", ".chat-dock.expanded"]) {
+    const owned = rules.filter((rule) => rule.selector === selector);
+    assert.ok(owned.length > 0, `${selector} rule is missing`);
+    for (const rule of owned) {
+      for (const entry of rule.declarations) {
+        const property = entry.split(":")[0].trim();
+        assert.ok(
+          !["position", "top", "bottom", "left", "right"].includes(property),
+          `${selector}${rule.context ? ` in ${rule.context}` : ""} still offsets a floating dock: ${entry}`,
+        );
+      }
+    }
+  }
+  const fixed = rules
+    .filter((rule) => rule.declarations.some((entry) => entry.replace(/:\s*/, ": ") === "position: fixed"))
+    .map((rule) => rule.selector);
+  assert.deepEqual(fixed, [".overlay"], "only the overlay may cover the page");
+});
+
 test("the chat dock starts collapsed and its aria-controls target always exists", () => {
   const collapsed = shell.renderDock({ open: false, onToggle: () => {} });
   assert.match(collapsed, /class="chat-dock collapsed"/);
@@ -259,3 +283,23 @@ test("the display vocabulary is exactly the six IA tokens", () => {
   assert.ok(!shell.ASSET_STATUS_TOKENS.includes("source_backed"));
 });
 
+
+test("the built bundle actually ships the shell, the dock, and the derived label", async () => {
+  // Guards against a shell that only exists in source. `npm run build` runs first
+  // in the CI web gate, so dist/ is present here.
+  const built = await readFile(new URL("dist/assets/app.js", webRoot), "utf8");
+  for (const marker of [
+    'className: "workspace"',
+    "map scene-viewport",
+    "Not available in this offline build",
+    "no asserted topology",
+    bundle.execution.provenance.artifactId,
+  ]) {
+    assert.ok(built.includes(marker), `built bundle is missing ${marker}`);
+  }
+  // The relabelling must not be reachable from the shipped artifact either. The
+  // six-token display map legitimately ships, so the check is on the claim this
+  // screen would have to make: coverage it does not have.
+  assert.ok(!/Minnesota coverage/i.test(built), "the built bundle must not claim Minnesota coverage");
+  assert.ok(!/source-supported/i.test(built), "the built bundle must not claim source support");
+});
