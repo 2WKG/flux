@@ -1,0 +1,129 @@
+{
+  "archetype_id": "ev_charging_station",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "triangles_lod0": 4068,
+  "triangles_lod1": 588,
+  "triangles_lod2": 168,
+  "footprint_m": {
+    "length": 40,
+    "width": 25
+  },
+  "connectors": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        0.0,
+        1.1,
+        17.8
+      ]
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "bounds_m": {
+    "min": [
+      -12.300000190734863,
+      0.0,
+      -19.799999237060547
+    ],
+    "max": [
+      12.300000190734863,
+      4.829999923706055,
+      19.799999237060547
+    ]
+  },
+  "bounds_blender_m": {
+    "min": [
+      -12.300000190734863,
+      -19.799999237060547,
+      0.0
+    ],
+    "max": [
+      12.300000190734863,
+      19.799999237060547,
+      4.829999923706055
+    ],
+    "size": [
+      24.600000381469727,
+      39.599998474121094,
+      4.829999923706055
+    ]
+  },
+  "lod_bounds_blender_m": [
+    {
+      "min": [
+        -12.300000190734863,
+        -19.799999237060547,
+        0.0
+      ],
+      "max": [
+        12.300000190734863,
+        19.799999237060547,
+        4.829999923706055
+      ],
+      "size": [
+        24.600000381469727,
+        39.599998474121094,
+        4.829999923706055
+      ]
+    },
+    {
+      "min": [
+        -12.300000190734863,
+        -19.799999237060547,
+        0.0
+      ],
+      "max": [
+        12.300000190734863,
+        19.799999237060547,
+        4.829999923706055
+      ],
+      "size": [
+        24.600000381469727,
+        39.599998474121094,
+        4.829999923706055
+      ]
+    },
+    {
+      "min": [
+        -12.300000190734863,
+        -19.799999237060547,
+        0.0
+      ],
+      "max": [
+        12.300000190734863,
+        19.799999237060547,
+        4.789999961853027
+      ],
+      "size": [
+        24.600000381469727,
+        39.599998474121094,
+        4.789999961853027
+      ]
+    }
+  ],
+  "geometry_limit": "Stall count implies no charger rating or utilisation.",
+  "materials": {
+    "status": "MAT_STATUS",
+    "decorative_accent": "MAT_ACCENT",
+    "status_tint_baked": false
+  },
+  "preview": "ev_charging_station.preview.png",
+  "lod_files": {
+    "lod0": "ev_charging_station.glb",
+    "lod1": "ev_charging_station.lod1.glb",
+    "lod2": "ev_charging_station.lod2.glb"
+  }
+}

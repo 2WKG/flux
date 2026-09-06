@@ -1,0 +1,150 @@
+{
+  "contractId": "flux:3d-asset-archetypes:v1",
+  "idsExact": true,
+  "count": 18,
+  "uniqueCellHashes": 18,
+  "oneX": {
+    "width": 192,
+    "height": 96,
+    "cell": 32,
+    "pixelRatio": 1,
+    "transparentPixels": 11045,
+    "nonWhitePixels": 0
+  },
+  "twoX": {
+    "width": 384,
+    "height": 192,
+    "cell": 64,
+    "pixelRatio": 2,
+    "transparentPixels": 48215,
+    "nonWhitePixels": 0
+  },
+  "cells": [
+    {
+      "id": "transmission_line_segment",
+      "index": 0,
+      "visiblePixels": 450,
+      "borderPixels": 0,
+      "sha256": "787274f44bae957a051cecccbc6423bf97d1ccd9326d0396bc2b9485946e8529"
+    },
+    {
+      "id": "substation_transformer_yard",
+      "index": 1,
+      "visiblePixels": 420,
+      "borderPixels": 0,
+      "sha256": "68a7d5441ac3c7288c08ccf0e7f1cd186c39fec3c3f3c0acf1f8a927857d372b"
+    },
+    {
+      "id": "military_base",
+      "index": 2,
+      "visiblePixels": 281,
+      "borderPixels": 0,
+      "sha256": "8e2fedfd78a258557fadd6e19b71ea86996d17053bd26d68d2bfdbb74617200f"
+    },
+    {
+      "id": "hospital",
+      "index": 3,
+      "visiblePixels": 396,
+      "borderPixels": 0,
+      "sha256": "47045e85fc8d84db47deece8f5dd9abe0ca8877cd7cbe114ed2fcfd678830475"
+    },
+    {
+      "id": "water_treatment_plant",
+      "index": 4,
+      "visiblePixels": 260,
+      "borderPixels": 0,
+      "sha256": "500242e7eae0da746ab01cbcf436c5cff1342dd0a85cf3d13caa7d926069c3a9"
+    },
+    {
+      "id": "coal_plant_retiring_site",
+      "index": 5,
+      "visiblePixels": 488,
+      "borderPixels": 0,
+      "sha256": "b3ea2e5fc433ba0e28a4e04c2e6d65bc4ba920c69effff6768896639029b55b5"
+    },
+    {
+      "id": "nuclear_smr_module",
+      "index": 6,
+      "visiblePixels": 530,
+      "borderPixels": 0,
+      "sha256": "c009eb4e33da904c8ec6a2a099aac66a43c46026a041b6d3edd5b567d59f2e10"
+    },
+    {
+      "id": "data_center_campus",
+      "index": 7,
+      "visiblePixels": 496,
+      "borderPixels": 0,
+      "sha256": "3b1710edfcdb4482123f2ad703a141e3523833338b3ac5cad149ac1c7edd35b8"
+    },
+    {
+      "id": "residential_neighborhood",
+      "index": 8,
+      "visiblePixels": 442,
+      "borderPixels": 0,
+      "sha256": "53a6ea9984df02bc8897483b8ff710a33edaeef138c680e54334ef381189808a"
+    },
+    {
+      "id": "commercial_buildings",
+      "index": 9,
+      "visiblePixels": 504,
+      "borderPixels": 0,
+      "sha256": "f938b53011d207bcf18e456e417543f00fa82490d3ff8ad787de18f3a6f9c5a4"
+    },
+    {
+      "id": "factory_industrial_facility",
+      "index": 10,
+      "visiblePixels": 426,
+      "borderPixels": 0,
+      "sha256": "0dcbfb6c092e9aac23ffafcebb70ccdda70722fa9f2fbb906f1ef6993c981518"
+    },
+    {
+      "id": "natural_gas_plant",
+      "index": 11,
+      "visiblePixels": 287,
+      "borderPixels": 0,
+      "sha256": "aed204a5a9723bb21b4b1985e0c246317791abb4ede825a0ce99b38a4009f6e1"
+    },
+    {
+      "id": "wind_turbine",
+      "index": 12,
+      "visiblePixels": 312,
+      "borderPixels": 0,
+      "sha256": "3923411ba07163f096c95db3b40cabdd382d0953682af076a1288f23afaf7de0"
+    },
+    {
+      "id": "solar_array",
+      "index": 13,
+      "visiblePixels": 434,
+      "borderPixels": 0,
+      "sha256": "a0e45cfcbf9e631c3957bac6476ef3e0f8f1e49bd9b9f3b273009e65909c6f22"
+    },
+    {
+      "id": "battery_storage",
+      "index": 14,
+      "visiblePixels": 364,
+      "borderPixels": 0,
+      "sha256": "6edfd8f6183b554806c235308c201f9f02e2d72096db3a88896dac0734904a5e"
+    },
+    {
+      "id": "warehouse_logistics_center",
+      "index": 15,
+      "visiblePixels": 504,
+      "borderPixels": 0,
+      "sha256": "4465cdc3b80590a6a5cbe566a77c49989145fc822622f88ab60ba006596ac146"
+    },
+    {
+      "id": "ev_charging_station",
+      "index": 16,
+      "visiblePixels": 263,
+      "borderPixels": 0,
+      "sha256": "1c5f095bbfe3d2cfa9da30ad961c3dff3bfbd9ab68fac6db23f218af248a4cca"
+    },
+    {
+      "id": "school_emergency_services",
+      "index": 17,
+      "visiblePixels": 530,
+      "borderPixels": 0,
+      "sha256": "2fea944bd5cab9b850f669c9328e7df7299b6aec496dba21915e1eee28e4ce1e"
+    }
+  ]
+}

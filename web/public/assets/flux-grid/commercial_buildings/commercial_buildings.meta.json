@@ -1,0 +1,129 @@
+{
+  "archetype_id": "commercial_buildings",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "triangles_lod0": 4156,
+  "triangles_lod1": 490,
+  "triangles_lod2": 96,
+  "footprint_m": {
+    "length": 120,
+    "width": 100
+  },
+  "connectors": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position": [
+        42.0,
+        3.25,
+        -46.800000000000004
+      ]
+    }
+  ],
+  "author": "OpenAI Codex for Joshua",
+  "license": "CC0-1.0",
+  "source_of_shape": "Original procedural geometry; generic architectural massing, no third-party meshes.",
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "bounds_m": {
+    "min": [
+      -48.5,
+      0.0,
+      -58.20000076293945
+    ],
+    "max": [
+      48.5,
+      57.90500259399414,
+      58.20000076293945
+    ]
+  },
+  "bounds_blender_m": {
+    "min": [
+      -48.5,
+      -58.20000076293945,
+      0.0
+    ],
+    "max": [
+      48.5,
+      58.20000076293945,
+      57.90500259399414
+    ],
+    "size": [
+      97.0,
+      116.4000015258789,
+      57.90500259399414
+    ]
+  },
+  "lod_bounds_blender_m": [
+    {
+      "min": [
+        -48.5,
+        -58.20000076293945,
+        0.0
+      ],
+      "max": [
+        48.5,
+        58.20000076293945,
+        57.90500259399414
+      ],
+      "size": [
+        97.0,
+        116.4000015258789,
+        57.90500259399414
+      ]
+    },
+    {
+      "min": [
+        -48.5,
+        -58.20000076293945,
+        0.0
+      ],
+      "max": [
+        48.5,
+        58.20000076293945,
+        55.58000183105469
+      ],
+      "size": [
+        97.0,
+        116.4000015258789,
+        55.58000183105469
+      ]
+    },
+    {
+      "min": [
+        -48.5,
+        -58.20000076293945,
+        0.0
+      ],
+      "max": [
+        48.5,
+        58.20000076293945,
+        55.400001525878906
+      ],
+      "size": [
+        97.0,
+        116.4000015258789,
+        55.400001525878906
+      ]
+    }
+  ],
+  "geometry_limit": "Generic massing for district context only.",
+  "materials": {
+    "status": "MAT_STATUS",
+    "decorative_accent": "MAT_ACCENT",
+    "status_tint_baked": false
+  },
+  "preview": "commercial_buildings.preview.png",
+  "lod_files": {
+    "lod0": "commercial_buildings.glb",
+    "lod1": "commercial_buildings.lod1.glb",
+    "lod2": "commercial_buildings.lod2.glb"
+  }
+}

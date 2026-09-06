@@ -76,6 +76,16 @@ The local backend proof uses fixture-labelled persisted score retrieval, bounded
 read-only SQL, and deterministic local retrieval. It does not claim a live
 provider, a numerical topology solve, or real topology availability.
 
+## Minnesota SMR placement validation
+
+`POST /minnesota/smr/validate` is a read-only binding check over an accepted
+Minnesota artifact. It returns an unwrapped `valid` binding only when
+`bind_asset` can position the generic SMR model from stored evidence; missing
+accepted evidence is an unwrapped `unknown` catalogue preview. Invalid placement
+context is a 422 `invalid_input` envelope, and unavailable evidence storage is a
+503 `unavailable` envelope. Neither result is a score, simulation, permitability,
+or construction claim.
+
 ## Usage
 
 ```python
