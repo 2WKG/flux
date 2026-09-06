@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from pydantic import Field, SecretStr, ValidationError, field_validator
@@ -55,7 +56,17 @@ class Settings(BaseSettings):
         # normalises `motherduck://x` to `motherduck:/x`, so the check is on the
         # segment rather than on the `://` spelling.  Opening any of them would
         # take this read-only local service off the filesystem and onto a network.
-        if ":" in value_text.split("/", 1)[0]:
+        #
+        # A Windows absolute path (`C:\flux\grid.duckdb`) has the same leading
+        # colon, so it is admitted only where it really is one: on Windows,
+        # where `Path.is_absolute()` resolves the drive letter.  On POSIX
+        # `Path("Z:/x.duckdb")` is relative, and admitting it would have the
+        # service open a directory literally named `Z:`.  The connection-target
+        # spellings above carry no drive letter, so they stay relative — and
+        # therefore refused — on Windows too.
+        looks_like_connection_target = ":" in value_text.split("/", 1)[0]
+        is_windows_absolute_path = os.name == "nt" and Path(value_text).is_absolute()
+        if looks_like_connection_target and not is_windows_absolute_path:
             raise ValueError(
                 "DUCKDB_PATH must be a local file path, not a DuckDB connection "
                 "target (md:, ducklake:, :memory:, or scheme://)"

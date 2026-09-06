@@ -130,19 +130,54 @@ def test_settings_accept_a_real_absolute_database_path(tmp_path: Path) -> None:
     assert settings.duckdb_path.name == "grid.duckdb"
 
 
+@pytest.mark.skipif(os.name != "nt", reason="drive letters are absolute on Windows")
+@pytest.mark.parametrize(
+    "configured_path", ["C:/flux/data/grid.duckdb", r"C:\flux\data\grid.duckdb"]
+)
+def test_settings_accept_a_windows_absolute_database_path(configured_path: str) -> None:
+    """On Windows a drive letter starts a real absolute local path, not a target."""
+    settings = Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert settings.duckdb_path == Path(configured_path)
+    assert settings.duckdb_path.is_absolute()
+
+
+@pytest.mark.skipif(os.name == "nt", reason="drive letters are absolute on Windows")
 @pytest.mark.parametrize("configured_path", ["C:/flux/data/grid.duckdb", "Z:/x.duckdb"])
 def test_settings_reject_a_drive_letter_prefix_that_is_not_absolute_here(
     configured_path: str,
 ) -> None:
-    """A ``<letter>:`` prefix is a connection-target shape on this platform.
+    """Off Windows a ``<letter>:`` prefix is not an absolute path at all.
 
     ``Path("Z:/x.duckdb").is_absolute()`` is ``False`` on POSIX, so admitting it
     would have the service create a relative directory literally named ``Z:``.
-    The guard is deliberately platform-independent: the same string is refused
-    everywhere rather than being validated differently per operating system.
     """
     with pytest.raises(ValidationError, match="not a DuckDB connection target"):
         Settings(_env_file=None, duckdb_path=configured_path)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [
+        "md:my_db",
+        "ducklake:metadata.ducklake",
+        ":memory:",
+        "motherduck://token=private-db-token",
+        "s3://bucket/grid.duckdb",
+    ],
+)
+def test_settings_reject_connection_targets_on_every_platform(
+    configured_path: str,
+) -> None:
+    """The connection-target spellings carry no drive letter, so Windows refuses
+    them too: none of these strings is an absolute path on any platform."""
+    assert not Path(configured_path).is_absolute()
+    with pytest.raises(
+        ValidationError, match="not a DuckDB connection target"
+    ) as error:
+        Settings(_env_file=None, duckdb_path=configured_path)
+
+    assert "private-db-token" not in str(error.value)
 
 
 def test_settings_normalise_surrounding_whitespace_in_the_database_path() -> None:
