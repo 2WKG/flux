@@ -114,10 +114,64 @@ def test_a_present_store_is_measured_by_real_queries(tmp_path: Path) -> None:
         connection.execute("CREATE TABLE counties(county_fips TEXT)")
         connection.execute("INSERT INTO counties VALUES ('27001'), ('48001')")
     probe = readiness.probe_county_grain_store(database)
-    assert probe["status"] == "measured"
+    # One relation answered and six did not, so the store is partial, not
+    # measured: a partial store must not read as a satisfied input.
+    assert probe["status"] == "partial"
+    assert probe["measured_relations"] == ["counties"]
     assert probe["relations"]["counties"]["minnesota_rows"] == 1
     # Relations the store does not carry are reported, never assumed to be zero.
     assert probe["relations"]["eia_plants"]["status"] == "unavailable"
+    assert probe["next_steps"]
+
+
+def test_a_full_store_is_measured_and_leaves_the_unavailable_list(
+    tmp_path: Path,
+) -> None:
+    database = tmp_path / "grid.duckdb"
+    with duckdb.connect(database.as_posix()) as connection:
+        connection.execute("CREATE TABLE counties(county_fips TEXT)")
+        connection.execute("CREATE TABLE nri_hazards(county_fips TEXT)")
+        connection.execute("CREATE TABLE eia_plants(state TEXT)")
+        connection.execute("CREATE TABLE storm_events(county_fips TEXT)")
+        connection.execute("CREATE TABLE eaglei_outage_observations(county_fips TEXT)")
+        connection.execute("CREATE TABLE county_customers(county_fips TEXT)")
+        connection.execute("CREATE TABLE eaglei_coverage(state TEXT)")
+        connection.execute("INSERT INTO counties VALUES ('27001')")
+    probe = readiness.probe_county_grain_store(database)
+    assert probe["status"] == "measured"
+    assert probe["unmeasured_relations"] == []
+    receipt = readiness.build_receipt(database=database)
+    assert "county_grain_store" not in [
+        entry["input"] for entry in receipt["readiness"]["unavailable"]
+    ]
+
+
+def test_an_empty_or_incompatible_store_is_never_reported_as_measured(
+    tmp_path: Path,
+) -> None:
+    """Mira-Krishnaiah on #272: a readable but empty store took the measured path.
+
+    Every STORE_QUERIES entry fails against a store with none of the relations,
+    so the outer status must stay unavailable and the store must stay in
+    readiness.unavailable rather than reading as a satisfied input.
+    """
+    database = tmp_path / "empty.duckdb"
+    with duckdb.connect(database.as_posix()) as connection:
+        connection.execute("CREATE TABLE unrelated(x INTEGER)")
+    probe = readiness.probe_county_grain_store(database)
+    assert probe["status"] == "unavailable"
+    assert probe["measured_relations"] == []
+    assert probe["unmeasured_relations"] == sorted(readiness.STORE_QUERIES)
+    assert probe["reason"] and probe["next_steps"]
+
+    receipt = readiness.build_receipt(database=database)
+    store = next(
+        entry
+        for entry in receipt["readiness"]["unavailable"]
+        if entry["input"] == "county_grain_store"
+    )
+    assert store["status"] == "unavailable"
+    assert store["next_steps"]
 
 
 def test_source_decision_record_covers_the_committed_receipts(receipt: dict) -> None:

@@ -521,12 +521,50 @@ def probe_county_grain_store(database: Path | None) -> dict[str, Any]:
                     "status": "unavailable",
                     "reason": str(error),
                 }
-    return {
-        "status": "measured",
+    measured = sorted(
+        name for name, result in measurements.items() if "minnesota_rows" in result
+    )
+    unmeasured = sorted(
+        name for name, result in measurements.items() if "minnesota_rows" not in result
+    )
+    #: A store that answered nothing was not measured, and a store that answered
+    #: only part of the contract is not a full measurement.  Reporting either as
+    #: ``measured`` would drop the store out of ``readiness.unavailable`` and let
+    #: an empty or schema-incompatible database read as a satisfied input.
+    if not measured:
+        status = "unavailable"
+    elif unmeasured:
+        status = "partial"
+    else:
+        status = "measured"
+    probe: dict[str, Any] = {
+        "status": status,
         "database": database.as_posix(),
         "state_filter": f"county_fips prefix {MN_FIPS_PREFIX} or state = 'MN'",
+        "measured_relations": measured,
+        "unmeasured_relations": unmeasured,
         "relations": measurements,
     }
+    if status != "measured":
+        probe["reason"] = (
+            f"{len(unmeasured)} of {len(measurements)} required Minnesota "
+            f"relations could not be measured in {database}: "
+            f"{', '.join(unmeasured)}"
+        )
+        probe["next_steps"] = [
+            (
+                "Do not read this store as a satisfied county-grain input: the "
+                "relations above were not measured and their counts are "
+                "unknown, not zero."
+            ),
+            *STORE_ABSENT_NEXT_STEPS[1:],
+            (
+                "Diagnose a legacy or partial schema with `uv run python -m "
+                "pipelines.preflight --state MN --database <path>` and build "
+                "into a fresh location instead."
+            ),
+        ]
+    return probe
 
 
 def _source_decision_record(sources_dir: Path) -> dict[str, Any]:

@@ -25,7 +25,10 @@ uv run --extra dev python -m pipelines.minnesota_readiness `
 ```
 
 Add `--database data/duck/grid.duckdb` to replace the county-grain
-`unavailable` status below with measured counts. Every number in this document
+`unavailable` status below with measured counts. A store that answers only some
+of `STORE_QUERIES` is reported as `partial`, and one that answers none stays
+`unavailable`; neither is promoted to `measured`, and both stay listed in
+`readiness.unavailable`. Every number in this document
 came from a query the receipt ran and publishes; the SQL is quoted here and in
 the JSON.
 
@@ -253,7 +256,8 @@ EAGLE-I observations, 87 `county_customers` rows, 5 coverage years) belong to
 **that** run and are recorded in its receipt. They are cited here, not restated
 as a measurement by this receipt, because this checkout has no store to query.
 Supplying `--database` makes the receipt measure them itself with the SQL in
-`STORE_QUERIES`.
+`STORE_QUERIES`, and the store is reported as `measured` only when every one of
+those relations actually answered.
 
 `aggregate_mode_ready: true` means the aggregate metric contract above is
 satisfied by verified committed evidence. It is not a topology, power-flow,
