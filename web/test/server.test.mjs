@@ -40,14 +40,24 @@ test("the origin serves the built SPA shell", async () => {
   assert.match(shell.body, /\/assets\/app\.js/);
 });
 
-test("no demo API is served: every unknown path falls back to the shell", async () => {
+test("the origin serves the SPA shell for the explainer deep link", async () => {
   const get = await origin();
   const shell = await get("/");
-  for (const path of ["/api/demo", "/api/demo?scenario=a", "/api/demo/", "/api/anything"]) {
+  for (const path of ["/explainer", "/explainer/"]) {
     const response = await get(path);
-    assert.doesNotMatch(response.type, /json/, `${path} answered with JSON`);
-    assert.equal(response.body, shell.body, `${path} must fall back to the SPA shell`);
-    assert.throws(() => JSON.parse(response.body), `${path} returned parseable JSON`);
+    assert.equal(response.status, 200, `${path} did not resolve`);
+    assert.match(response.type, /^text\/html/, `${path} did not return the app shell`);
+    assert.equal(response.body, shell.body, `${path} did not return the SPA shell`);
+  }
+});
+
+test("API-shaped paths state that this static origin is unavailable", async () => {
+  const get = await origin();
+  for (const path of ["/api", "/api/demo", "/api/demo?scenario=a", "/api/demo/", "/api/anything"]) {
+    const response = await get(path);
+    assert.equal(response.status, 503, `${path} did not report unavailable`);
+    assert.match(response.type, /^text\/plain/, `${path} did not return an explicit text response`);
+    assert.match(response.body, /does not serve API routes/i, `${path} did not explain the unavailable API`);
   }
 });
 
