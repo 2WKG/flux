@@ -25,6 +25,8 @@ export interface MapLibreDeckFoundationProps {
   readonly paths?: readonly ScenePath[];
   /** Fit the camera to these bounds once, when they change. */
   readonly fitBounds?: readonly [readonly [number, number], readonly [number, number]] | null;
+  /** Separately validated layers; callers own their identity and placement. */
+  readonly additionalLayers?: LayersList;
 }
 
 /**
@@ -32,7 +34,7 @@ export interface MapLibreDeckFoundationProps {
  * positions. It has no synthetic-XY conversion, feature fallback, model fetch,
  * or asset placement, and its default basemap issues no network request.
  */
-export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE, paths = [], fitBounds = null }: MapLibreDeckFoundationProps) {
+export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_STYLE, paths = [], fitBounds = null, additionalLayers = [] }: MapLibreDeckFoundationProps) {
   const [basemapError, setBasemapError] = useState<string | null>(null);
   const [overlayState, setOverlayState] = useState<OverlayState>("initializing");
   const [overlayError, setOverlayError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
         pickable: true,
       }));
     }
-    if (drawable.length === 0) return list;
+    if (drawable.length === 0) return [...list, ...additionalLayers];
     return [...list, new ScatterplotLayer({
       id: "accepted-scene-nodes",
       data: drawable,
@@ -68,8 +70,8 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
       pickable: true,
       // The adapter guarantees EPSG:4326; MapboxOverlay synchronizes MapView with MapLibre.
       coordinateSystem: "lnglat",
-    })];
-  }, [drawable, drawablePaths]);
+    }), ...additionalLayers];
+  }, [additionalLayers, drawable, drawablePaths]);
 
   const overlayText = overlayState === "initialized"
     ? `initialized with ${drawable.length + drawablePaths.length} accepted feature${drawable.length + drawablePaths.length === 1 ? "" : "s"}`
@@ -94,7 +96,7 @@ export function MapLibreDeckFoundation({ view, basemapStyle = OFFLINE_BASEMAP_ST
       <span>Deck overlay: {overlayText}.</span>
       {basemapError && <span>Basemap unavailable: {basemapError}</span>}
       <span>Scene availability: {view.detail}</span>
-      <span>3D model assets are unavailable until an accepted placement and verified immutable artifact are supplied.</span>
+      <span>{additionalLayers.length > 0 ? "Verified 3D asset layers are supplied for accepted placements." : "3D model assets are unavailable until an accepted placement and verified immutable artifact are supplied."}</span>
     </div>
   </section>;
 }
