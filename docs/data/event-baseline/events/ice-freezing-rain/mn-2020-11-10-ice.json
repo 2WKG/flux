@@ -1,0 +1,148 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "ice-freezing-rain",
+  "event": {
+    "event_id": "mn-2020-11-10-ice",
+    "parent_system_id": "upper_midwest_2020-11-09_ice",
+    "primary_hazard": "ice_storm",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "ncei:2020:152799:920540"
+    ],
+    "context_window": {
+      "start_utc": "2020-11-08T00:00:00Z",
+      "end_utc": "2020-11-14T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2020-11-10T14:30:00Z",
+      "end_utc": "2020-11-10T17:30:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2020-11-10T17:30:00Z",
+      "end_utc": "2020-11-14T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI episode 152799/event 920540 reports Freeborn-zone freezing rain and up to one-quarter inch of ice.",
+    "exclusions": [],
+    "uncertainties": [
+      "NCEI CZ_TYPE=Z record is zone evidence.",
+      "The initial EAGLE-I range acquisition is unqualified because its time-based search is unsafe for non-globally-time-ordered annual files; exhaustive annual scan is pending.",
+      "No native customer denominator is available."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2020_c20260323",
+      "provider": "NOAA NCEI Storm Events Database",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2020_c20260323.csv.gz; Last-Modified 2026-03-23T17:24:55Z",
+      "retrieved_at_utc": "2026-09-06T07:18:49Z",
+      "license_or_access": "NOAA public-data access; no file-specific license asserted by the directory response.",
+      "raw_sha256": "895c56fd46991c4d9a135d67558dc4b447a02a2314efac0ace645135b98f9c9d",
+      "filtered_sha256": "55826b13faf991b469cf0587b8ec3c665653aeb0af95e0fa489bbd155231227a",
+      "bytes": 10444606,
+      "etag": "\"9f5f3e-64db4503be6a0\"",
+      "units": "NCEI local begin/end times; ice accumulation in inches.",
+      "timezone_conversion": "CST-6: [2020-11-10T14:30:00Z, 2020-11-10T17:30:00Z).",
+      "filters": "EVENT_ID=920540; EPISODE_ID=152799; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+      "grid_index_mapping": "No grid index; NCEI zone 093 FREEBORN.",
+      "gaps": [
+        "Raw gzip and canonical filtered row remain outside Git."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2020-42547894-20201110t120000-20201110t180000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547894",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:15:15.997854Z",
+      "license_or_access": "CC BY 4.0 https://creativecommons.org/licenses/by/4.0/",
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1170699724,
+      "etag": "\"69efd86260f9814aa3990bf6d7827b82-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documents UTC.",
+      "filters": "Minnesota; FIPS 27047; UTC half-open [2020-11-10T12:00:00Z,2020-11-10T18:00:00Z); exhaustive annual stream.",
+      "grid_index_mapping": "County FIPS 27047; no grid index.",
+      "gaps": [
+        "Qualified exhaustive annual scan found 0 of 24 expected 15-minute observations; this is UncoveredLabel, never zero.",
+        "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
+        "No total_customers field; no population proxy."
+      ],
+      "acquisition":{"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547894","source_file":"eaglei_outages_2020.csv","source_file_id":42547894,"source_file_bytes":1170699724,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv","raw_artifact_sha256":"2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json","source_sidecar_sha256":"6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9","filtered_artifact_uri":"data/raw/event-baseline/mn-2020-11-10-ice-27047-20201110120000_eaglei_2020_20201110T120000_20201110T180000.csv","filtered_artifact_sha256":"667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2020-11-10-ice-27047-20201110t1200z",
+      "county_fips": "27047",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2020-11-10-ice-replay",
+      "window_start_utc": "2020-11-10T12:00:00Z",
+      "window_end_utc": "2020-11-10T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2020_c20260323",
+        "eaglei-2020-42547894-20201110t120000-20201110t180000"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2020_c20260323"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "ncei:2020:152799:920540"
+          ],
+          "source_window": {
+            "start_utc": "2020-11-10T14:30:00Z",
+            "end_utc": "2020-11-10T17:30:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "NCEI MN zone 093 FREEBORN",
+          "limitations": "Zone report intersects the canonical bin; not a county time series."
+        },
+        "notes": "NCEI report; no fabricated weather sample count."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-2020-42547894-20201110t120000-20201110t180000"],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": ["2020-11-10T12:00:00Z","2020-11-10T12:15:00Z","2020-11-10T12:30:00Z","2020-11-10T12:45:00Z","2020-11-10T13:00:00Z","2020-11-10T13:15:00Z","2020-11-10T13:30:00Z","2020-11-10T13:45:00Z","2020-11-10T14:00:00Z","2020-11-10T14:15:00Z","2020-11-10T14:30:00Z","2020-11-10T14:45:00Z","2020-11-10T15:00:00Z","2020-11-10T15:15:00Z","2020-11-10T15:30:00Z","2020-11-10T15:45:00Z","2020-11-10T16:00:00Z","2020-11-10T16:15:00Z","2020-11-10T16:30:00Z","2020-11-10T16:45:00Z","2020-11-10T17:00:00Z","2020-11-10T17:15:00Z","2020-11-10T17:30:00Z","2020-11-10T17:45:00Z"],
+        "event_report": null,
+        "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
