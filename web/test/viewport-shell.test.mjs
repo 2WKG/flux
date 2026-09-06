@@ -112,21 +112,18 @@ function declarations(selector, context = "") {
 const declared = (selector, declaration, context = "") =>
   declarations(selector, context).some((entry) => entry.replace(/:\s*/, ": ") === declaration);
 
-test("the workspace renders as a grid whose scene column is the primary surface", () => {
-  assert.match(markup, /<section class="workspace" aria-label="Viewport-first scenario workspace">/);
-  const workspace = markup.slice(markup.indexOf('class="workspace"'));
+test("the default workspace is the full synthetic Texas topology surface", () => {
+  assert.match(markup, /<section class="workspace model-workspace" aria-label="Full synthetic Texas topology workspace">/);
+  const workspace = markup.slice(markup.indexOf('class="workspace model-workspace"'));
   assert.match(workspace, /<article class="map scene-viewport">/);
-  assert.match(workspace, /<aside class="inspector" aria-label="Scenario inspector">/);
+  assert.match(workspace, /Texas model topology unavailable/);
+  assert.doesNotMatch(workspace, /Scenario inspector|MODELED UNMET DEMAND/);
 
-  // The layout itself, read off the cascade rather than off the file's text.
-  assert.ok(declared(".workspace", "display: grid"), ".workspace must be a grid");
+  // The full-screen layout is read from the cascade, not from source text.
+  assert.ok(declared(".model-workspace", "display: block"));
   assert.ok(
-    declared(".workspace", "grid-template-columns: minmax(0, 1fr) minmax(280px, 360px)"),
-    ".workspace must give the scene the flexible column and the inspector a bounded one",
-  );
-  assert.ok(
-    declared(".scene-viewport", "min-height: clamp(500px, 64vh, 700px)"),
-    ".scene-viewport must hold a viewport-first height",
+    declared(".model-workspace .scene-viewport", "min-height: calc(100dvh - 52px)"),
+    "the Texas scene must hold the available viewport height",
   );
 });
 
@@ -145,8 +142,8 @@ test("the compact and stacked breakpoints carry real declarations, not just a pr
   assert.ok(declared(".scene-viewport", "min-height: auto", stacked), "a stacked scene must release its min-height");
 });
 
-test("the timeline strip renders inside the scene and states that playback is not available", () => {
-  const scene = markup.slice(markup.indexOf('class="map scene-viewport"'), markup.indexOf('class="inspector"'));
+test("the model workspace keeps its explicit static-timeline disclosure", () => {
+  const scene = markup.slice(markup.indexOf('class="map scene-viewport"'));
   assert.match(scene, /<section class="timeline" aria-label="Scenario timeline">/);
   assert.match(scene, /class="timeline-track"/);
   assert.match(text, /Bundled output · playback unavailable/);
@@ -242,17 +239,11 @@ function findByProp(node, prop, value) {
   return findByProp(node.props?.children, prop, value);
 }
 
-test("the five-bus screen labels itself synthetic, derived from the bundle's provenance", () => {
-  assert.match(text, new RegExp(shell.STATUS_COPY.synthetic));
-  assert.match(text, /fixture source/);
-  assert.match(text, /no asserted topology/);
-  assert.match(text, /not Minnesota data/);
-  assert.match(text, /no API required/);
-
-  // The relabelling this screen must never survive.
-  for (const forbidden of [/Source supported/i, /source-supported/i, /Minnesota coverage/i, /source_backed/]) {
-    assert.doesNotMatch(text, forbidden, `the synthetic fixture must not render ${forbidden}`);
-  }
+test("the default screen labels the server-supplied synthetic topology and its limits", () => {
+  assert.match(text, /SYNTHETIC TEXAS \/ STATIC TOPOLOGY/);
+  assert.match(text, /ACTIVSg2000 network geometry/);
+  assert.match(text, /no power flow, contingency result, or physical-inventory equivalence is asserted/);
+  assert.doesNotMatch(text, /five-bus preview|Candidate A|MODELED UNMET DEMAND/i);
 });
 
 test("source truth is derived by explicit rule, and never defaults to a plausible label", () => {
@@ -261,8 +252,9 @@ test("source truth is derived by explicit rule, and never defaults to a plausibl
     sourceKind: "fixture",
     topology: null,
   });
-  // The five-bus preview is not the Texas synthetic case and must not claim it.
-  assert.doesNotMatch(text, new RegExp(escapeRegExp(shell.SYNTHETIC_TOPOLOGY_LABEL)));
+  // The default scene names its backend model contract directly. The helper's
+  // parenthesized label remains restricted to the lesson fixture vocabulary.
+  assert.match(text, /ACTIVSg2000 network geometry/);
 
   // An ACTIVSg-derived source is the one topology this repository can assert.
   assert.deepEqual(
@@ -293,10 +285,12 @@ test("the built bundle actually ships the shell, the dock, and the derived label
   // them, so the shipped artifact is the entry plus every chunk beside it.
   const built = await readBuiltScripts();
   for (const marker of [
-    'className: "workspace"',
+    "model-workspace",
+    "Full synthetic Texas topology",
     "map scene-viewport",
     "Not available in this offline build",
-    "no asserted topology",
+    "model API required",
+    "Texas model topology unavailable",
     bundle.execution.provenance.artifactId,
   ]) {
     assert.ok(built.includes(marker), `built bundle is missing ${marker}`);
@@ -305,14 +299,10 @@ test("the built bundle actually ships the shell, the dock, and the derived label
   // six-token display map legitimately ships, so the check is on the claim this
   // screen would have to make: coverage it does not have.
   assert.ok(!/Minnesota coverage/i.test(built), "the built bundle must not claim Minnesota coverage");
-  // `STATUS_COPY` now carries the IA's hyphenated spelling ("Source-supported"),
-  // so its own entry is the one legitimate occurrence; it is removed by name and
-  // any remaining occurrence is a screen making the claim.
-  const displayMapEntry = /source_supported:\s*"Source-supported"/g;
-  assert.match(built, displayMapEntry, "the six-token display map should still ship");
-  const outsideDisplayMap = built.replace(displayMapEntry, "");
-  assert.ok(
-    !/source-supported/i.test(outsideDisplayMap),
-    "the built bundle must not claim source support outside the display map",
-  );
+  // The shared status vocabulary also labels the independently authenticated
+  // physical inventory overlay. The shipped Texas scene must keep that overlay
+  // distinct from the synthetic topology rather than turning this check into a
+  // false prohibition on the vocabulary itself.
+  assert.ok(built.includes("SYNTHETIC TEXAS / STATIC TOPOLOGY"));
+  assert.ok(built.includes("Physical 3D visuals remain a separately labeled observed-inventory overlay."));
 });

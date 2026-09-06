@@ -940,6 +940,7 @@
     "forbidden_derivations": [
       "Do not create a feeder, cable, pole, transformer, device, service connection, terminal or edge from imagery, proximity, streets, parcels, address points, aggregate load, or a synthetic electrical case.",
       "Do not treat a retail service territory or an owner service-area boundary as feeder or service topology.",
+      "Do not derive distribution geometry, feeders, substations, devices or connectivity from transmission lines or from HIFLD substation points. The texas-hifld-transmission-* receipts in this directory are transmission-level evidence only; a transmission line is not a feeder and a HIFLD substation point is not a distribution substation.",
       "Do not treat a republished third-party ArcGIS copy as an authoritative source.",
       "Do not acquire meter, premise, account or customer-level records for this task.",
       "Do not record an unknown distribution count as zero."

@@ -22,11 +22,15 @@ from copilot.config import Settings, load_settings
 from copilot.providers import build_narration_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
+from copilot.routes.assets import placements_router
+from copilot.routes.assets import router as assets_router
 from copilot.routes.comparisons import router as comparisons_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.model_geometry import configure_model_geometry
+from copilot.routes.model_geometry import router as model_geometry_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
@@ -82,10 +86,14 @@ def create_app(
         return await http_exception_handler(request, exc)
 
     app.include_router(health_router)
+    app.include_router(assets_router)
+    app.include_router(placements_router)
     app.include_router(layers_router)
     app.include_router(physical_layers_router)
     app.include_router(interventions_router)
     app.include_router(lines_router)
+    configure_model_geometry(duckdb_path=app.state.settings.duckdb_path)
+    app.include_router(model_geometry_router)
     app.include_router(comparisons_router)
     app.include_router(scenarios_router)
     app.include_router(predictions_router)
