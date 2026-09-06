@@ -68,6 +68,22 @@ export interface RecordedEvaluation {
 
 export const RECORDED_EVALUATION = artifact as unknown as RecordedEvaluation;
 
+/** Fail closed before any component quotes a recorded metric. */
+export function assertRecordedEvaluation(value: RecordedEvaluation): RecordedEvaluation {
+  const requiredMetrics = [
+    "holdout_count_mae", "holdout_count_rmse", "persistence_baseline_count_mae",
+    "persistence_baseline_count_rmse", "holdout_embedding_mse", "train_count_mae",
+    "train_to_holdout_count_mae_ratio",
+  ];
+  if (value.status !== "experimental" || !Array.isArray(value.county_forecasts) || value.county_forecasts.length === 0) {
+    throw new Error("The recorded JEPA evaluation does not contain a renderable experimental run.");
+  }
+  for (const name of requiredMetrics) {
+    if (!Number.isFinite(value.metrics[name])) throw new Error(`The recorded JEPA evaluation is missing metric ${name}.`);
+  }
+  return value;
+}
+
 /** The section refuses to render a figure that is not in the artifact. */
 export function metric(name: string): number {
   const value = RECORDED_EVALUATION.metrics[name];

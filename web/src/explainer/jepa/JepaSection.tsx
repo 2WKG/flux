@@ -17,6 +17,7 @@ import {
 } from "./embeddingSchematic";
 import {
   ARTIFACT_PROVENANCE,
+  assertRecordedEvaluation,
   absentMetrics,
   contextMinutes,
   formatCount,
@@ -284,6 +285,7 @@ function MetricsTable() {
  * beyond its heading, and imports nothing outside this directory.
  */
 export function JepaSection() {
+  assertRecordedEvaluation(EVAL);
   const [county, setCounty] = useState(EVAL.county_forecasts[0]?.county_fips ?? "");
   return (
     <section aria-labelledby="jepa-section-heading" data-experiment-status={EVAL.status}>

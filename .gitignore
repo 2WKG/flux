@@ -1,6 +1,10 @@
 data/raw/
 data/duck/*.duckdb
 data/parquet/
+# Fresh rebuild output location used by the documented safe-rebuild runbook.
+run-artifacts/
+datasets/raw/
+data/graph/
 .venv/
 node_modules/
 web/node_modules/

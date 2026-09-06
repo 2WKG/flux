@@ -15,7 +15,7 @@ await build({
   platform: "node",
   outfile: fileURLToPath(compiled),
 });
-const { ARTIFACT_PROVENANCE, metric } = await import(`${compiled.href}?t=${Date.now()}`);
+const { ARTIFACT_PROVENANCE, RECORDED_EVALUATION, assertRecordedEvaluation, metric } = await import(`${compiled.href}?t=${Date.now()}`);
 const artifactBytes = await readFile(artifactUrl);
 const artifact = JSON.parse(artifactBytes);
 
@@ -28,4 +28,9 @@ test("metrics come from the artifact and missing values are refused", () => {
   assert.equal(holdoutMae, artifact.metrics.holdout_count_mae);
   assert.ok(Number.isFinite(holdoutMae));
   assert.throws(() => metric("missing_metric"), /must not invent one/);
+});
+
+test("the render gate rejects an incomplete recorded evaluation", () => {
+  assert.equal(assertRecordedEvaluation(RECORDED_EVALUATION), RECORDED_EVALUATION);
+  assert.throws(() => assertRecordedEvaluation({ ...RECORDED_EVALUATION, metrics: {} }), /missing metric/);
 });

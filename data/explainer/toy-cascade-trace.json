@@ -1,0 +1,346 @@
+{
+  "limitations": [
+    "Synthetic five-bus teaching network; not ACTIVSg2000, not a physical asset, and not an interconnection result.",
+    "DC screening excludes AC voltage, transient stability, protection, unit commitment, and regulatory feasibility.",
+    "This teaching solve is deliberately independent of twin/cascade.py and is not the product's solver."
+  ],
+  "modelFidelity": "dc_screening",
+  "network": {
+    "buses": [
+      {
+        "demandMw": 0.0,
+        "generationMw": 120.0,
+        "id": "west",
+        "name": "West generator",
+        "x": 84,
+        "y": 185
+      },
+      {
+        "demandMw": 50.0,
+        "generationMw": 40.0,
+        "id": "north",
+        "name": "North load",
+        "x": 255,
+        "y": 65
+      },
+      {
+        "demandMw": 30.0,
+        "generationMw": 0.0,
+        "id": "hub",
+        "name": "Central hub",
+        "x": 390,
+        "y": 185
+      },
+      {
+        "demandMw": 70.0,
+        "generationMw": 0.0,
+        "id": "east",
+        "name": "East load",
+        "x": 590,
+        "y": 125
+      },
+      {
+        "demandMw": 10.0,
+        "generationMw": 0.0,
+        "id": "south",
+        "name": "South load",
+        "x": 490,
+        "y": 330
+      }
+    ],
+    "lines": [
+      {
+        "from": "west",
+        "id": "west-north",
+        "ratingMw": 80.0,
+        "reactance": 0.25,
+        "to": "north"
+      },
+      {
+        "from": "west",
+        "id": "west-hub",
+        "ratingMw": 110.0,
+        "reactance": 0.2,
+        "to": "hub"
+      },
+      {
+        "from": "north",
+        "id": "north-hub",
+        "ratingMw": 80.0,
+        "reactance": 0.25,
+        "to": "hub"
+      },
+      {
+        "from": "hub",
+        "id": "hub-east",
+        "ratingMw": 90.0,
+        "reactance": 0.2,
+        "to": "east"
+      },
+      {
+        "from": "hub",
+        "id": "hub-south",
+        "ratingMw": 70.0,
+        "reactance": 0.25,
+        "to": "south"
+      },
+      {
+        "from": "east",
+        "id": "east-south",
+        "ratingMw": 35.0,
+        "reactance": 0.25,
+        "to": "south"
+      }
+    ]
+  },
+  "networkLabel": "synthetic five-bus teaching network",
+  "networkProvenance": "synthetic_five_bus_teaching_network",
+  "schemaVersion": 1,
+  "stages": [
+    {
+      "activeLineIds": [
+        "west-north",
+        "west-hub",
+        "north-hub",
+        "hub-east",
+        "hub-south",
+        "east-south"
+      ],
+      "angles": {
+        "east": -27.142857,
+        "hub": -16.428571,
+        "north": -9.464286,
+        "south": -23.035714,
+        "west": 0.0
+      },
+      "balanceActions": [],
+      "explanation": "All six synthetic corridors are available. DC flow balances the five specified bus injections.",
+      "id": "base",
+      "injectionsMw": {
+        "east": -70.0,
+        "hub": -30.0,
+        "north": -10.0,
+        "south": -10.0,
+        "west": 120.0
+      },
+      "lines": [
+        {
+          "flowMw": 37.857144,
+          "from": "west",
+          "id": "west-north",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "north",
+          "utilizationPct": 47.32143
+        },
+        {
+          "flowMw": 82.142855,
+          "from": "west",
+          "id": "west-hub",
+          "ratingMw": 110.0,
+          "reactance": 0.2,
+          "to": "hub",
+          "utilizationPct": 74.675323
+        },
+        {
+          "flowMw": 27.85714,
+          "from": "north",
+          "id": "north-hub",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "hub",
+          "utilizationPct": 34.821425
+        },
+        {
+          "flowMw": 53.57143,
+          "from": "hub",
+          "id": "hub-east",
+          "ratingMw": 90.0,
+          "reactance": 0.2,
+          "to": "east",
+          "utilizationPct": 59.523811
+        },
+        {
+          "flowMw": 26.428572,
+          "from": "hub",
+          "id": "hub-south",
+          "ratingMw": 70.0,
+          "reactance": 0.25,
+          "to": "south",
+          "utilizationPct": 37.755103
+        },
+        {
+          "flowMw": -16.428572,
+          "from": "east",
+          "id": "east-south",
+          "ratingMw": 35.0,
+          "reactance": 0.25,
+          "to": "south",
+          "utilizationPct": 46.938777
+        }
+      ],
+      "nextTripLineId": null,
+      "title": "1. Normal toy network",
+      "trippedLineId": null
+    },
+    {
+      "activeLineIds": [
+        "west-north",
+        "west-hub",
+        "north-hub",
+        "hub-south",
+        "east-south"
+      ],
+      "angles": {
+        "east": -53.928571,
+        "hub": -16.428571,
+        "north": -9.464286,
+        "south": -36.428571,
+        "west": 0.0
+      },
+      "balanceActions": [],
+      "explanation": "For teaching purposes, Central hub \u2192 East load trips. Re-solving redistributes its power through East load \u2192 South load.",
+      "id": "event",
+      "injectionsMw": {
+        "east": -70.0,
+        "hub": -30.0,
+        "north": -10.0,
+        "south": -10.0,
+        "west": 120.0
+      },
+      "lines": [
+        {
+          "flowMw": 37.857144,
+          "from": "west",
+          "id": "west-north",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "north",
+          "utilizationPct": 47.32143
+        },
+        {
+          "flowMw": 82.142855,
+          "from": "west",
+          "id": "west-hub",
+          "ratingMw": 110.0,
+          "reactance": 0.2,
+          "to": "hub",
+          "utilizationPct": 74.675323
+        },
+        {
+          "flowMw": 27.85714,
+          "from": "north",
+          "id": "north-hub",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "hub",
+          "utilizationPct": 34.821425
+        },
+        {
+          "flowMw": 80.0,
+          "from": "hub",
+          "id": "hub-south",
+          "ratingMw": 70.0,
+          "reactance": 0.25,
+          "to": "south",
+          "utilizationPct": 114.285714
+        },
+        {
+          "flowMw": -70.0,
+          "from": "east",
+          "id": "east-south",
+          "ratingMw": 35.0,
+          "reactance": 0.25,
+          "to": "south",
+          "utilizationPct": 200.0
+        }
+      ],
+      "nextTripLineId": "east-south",
+      "title": "2. Synthetic initiating outage",
+      "trippedLineId": "hub-east"
+    },
+    {
+      "activeLineIds": [
+        "west-north",
+        "west-hub",
+        "north-hub",
+        "hub-south"
+      ],
+      "angles": {
+        "east": 0.0,
+        "hub": -7.678571,
+        "north": -7.276786,
+        "south": -10.178571,
+        "west": 0.0
+      },
+      "balanceActions": [
+        {
+          "busId": "west",
+          "kind": "curtail_generation",
+          "mw": 52.5
+        },
+        {
+          "busId": "north",
+          "kind": "curtail_generation",
+          "mw": 17.5
+        },
+        {
+          "busId": "east",
+          "kind": "shed_load",
+          "mw": 70.0
+        }
+      ],
+      "explanation": "east \u2192 south exceeds its thermal rating, so this toy rule removes the most overloaded remaining line and re-solves.",
+      "id": "cascade-1",
+      "injectionsMw": {
+        "east": 0.0,
+        "hub": -30.0,
+        "north": -27.5,
+        "south": -10.0,
+        "west": 67.5
+      },
+      "lines": [
+        {
+          "flowMw": 29.107144,
+          "from": "west",
+          "id": "west-north",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "north",
+          "utilizationPct": 36.38393
+        },
+        {
+          "flowMw": 38.392855,
+          "from": "west",
+          "id": "west-hub",
+          "ratingMw": 110.0,
+          "reactance": 0.2,
+          "to": "hub",
+          "utilizationPct": 34.902595
+        },
+        {
+          "flowMw": 1.60714,
+          "from": "north",
+          "id": "north-hub",
+          "ratingMw": 80.0,
+          "reactance": 0.25,
+          "to": "hub",
+          "utilizationPct": 2.008925
+        },
+        {
+          "flowMw": 10.0,
+          "from": "hub",
+          "id": "hub-south",
+          "ratingMw": 70.0,
+          "reactance": 0.25,
+          "to": "south",
+          "utilizationPct": 14.285714
+        }
+      ],
+      "nextTripLineId": null,
+      "title": "3. Cascade trip 1",
+      "trippedLineId": "east-south"
+    }
+  ],
+  "traceHash": "ed58c8fcd45adb72e57f2e2b3abb9e4ddf741bc8dd3db3329d0addab955674cd"
+}

@@ -1,0 +1,288 @@
+{
+  "built_database": {
+    "status": "not_requested"
+  },
+  "checked_at": "2026-09-06T13:30:22.374936+00:00",
+  "database": {
+    "compatibility": "no_existing_release",
+    "next_step": "Use a new output path for the staged rebuild; do not create a database here during preflight.",
+    "path": "data/duck/grid.duckdb",
+    "status": "missing",
+    "write_performed": false
+  },
+  "readiness": {
+    "current_hackathon_ready": false,
+    "dashboard_release_ready": false,
+    "exit_code_gate": "texas_p0_safe_to_stage",
+    "selected_states_public_context_ready": false,
+    "strict_provenance_ready": false,
+    "texas_full_flux_ready": false,
+    "texas_p0_safe_to_stage": false
+  },
+  "receipt_version": 1,
+  "requirements": {
+    "scenario_weather_required": false,
+    "strict_provenance_requested": false
+  },
+  "scope": {
+    "current_hackathon": "Minnesota only; model mode and source decision remain required.",
+    "next_step": "Complete MN01: record Minnesota source evidence and select topology only if solver-complete; otherwise select aggregate mode.",
+    "reason": "No accepted Minnesota source decision/manifest is supplied by this Texas P0 receipt.",
+    "status": "blocked"
+  },
+  "state_configurable_public_context": {
+    "eaglei_artifacts": [],
+    "eaglei_source_timezone": null,
+    "safe_staged_rebuild": {
+      "command": "uv run python -m pipelines.build_state_context --state <USPS-or-name-or-FIPS> --db-root <fresh-output>/duck --parquet-dir <fresh-output>/parquet --tiger <path> --nri <path> [--eaglei YEAR=PATH --eaglei-source-tz UTC]",
+      "rule": "Supply local artifacts explicitly. State-public-context staging does not acquire sources or imply topology."
+    },
+    "selected_states": [
+      {
+        "public_context_status": "incomplete",
+        "state": {
+          "fips": "48",
+          "name": "Texas",
+          "usps": "TX"
+        },
+        "topology": {
+          "fallback": "Use an explicit aggregate metric or report unavailable; do not reuse Texas topology.",
+          "reason": "No accepted state-specific topology decision with bus/branch identity, electrical fields, terms, and solver mapping was supplied.",
+          "status": "decision_required"
+        }
+      }
+    ],
+    "shared_artifacts": {
+      "nri": {
+        "status": "not_supplied"
+      },
+      "tiger": {
+        "status": "not_supplied"
+      }
+    }
+  },
+  "texas_p0": {
+    "raw_inputs": {
+      "all_locked_with_provenance": false,
+      "all_present": false,
+      "artifacts": [
+        {
+          "acceptable_paths": [
+            "activsg2000_current/ACTIVSg2000.aux"
+          ],
+          "label": "activsg2000_current/ACTIVSg2000.aux",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "activsg2000_current/case_ACTIVSg2000.m"
+          ],
+          "label": "activsg2000_current/case_ACTIVSg2000.m",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "tiger/2024/tl_2024_us_county.zip",
+            "tiger/tl_2024_us_county.zip"
+          ],
+          "label": "tiger/2024/tl_2024_us_county.zip",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "nri/v1.20/NRI_Counties_TX.json",
+            "nri/v1.20/NRI_Table_Counties.zip",
+            "nri/NRI_Table_Counties.zip"
+          ],
+          "label": "NRI v1.20 county data",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "pudl/v2026.2.0/out_eia__yearly_plants.parquet"
+          ],
+          "label": "pudl/v2026.2.0/out_eia__yearly_plants.parquet",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "pudl/v2026.2.0/out_eia__yearly_generators.parquet"
+          ],
+          "label": "pudl/v2026.2.0/out_eia__yearly_generators.parquet",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv"
+          ],
+          "label": "eia930/2021_h1/EIA930_BALANCE_2021_Jan_Jun.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv"
+          ],
+          "label": "eia930/2024_h2/EIA930_BALANCE_2024_Jul_Dec.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "nws_zone_county/bp10nv20/bp10nv20.dbx"
+          ],
+          "label": "nws_zone_county/bp10nv20/bp10nv20.dbx",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "nws_zone_county/bp05mr24/bp05mr24.dbx"
+          ],
+          "label": "nws_zone_county/bp05mr24/bp05mr24.dbx",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz"
+          ],
+          "label": "storm_events/2021/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz"
+          ],
+          "label": "storm_events/2024/StormEvents_details-ftp_v1.0_d2024_c20260728.csv.gz",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eaglei/support/MCC.csv"
+          ],
+          "label": "eaglei/support/MCC.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eaglei/support/coverage_history.csv"
+          ],
+          "label": "eaglei/support/coverage_history.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eaglei/2021/eaglei_outages_2021.csv"
+          ],
+          "label": "eaglei/2021/eaglei_outages_2021.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "eaglei/2024/eaglei_outages_2024.csv"
+          ],
+          "label": "eaglei/2024/eaglei_outages_2024.csv",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        },
+        {
+          "acceptable_paths": [
+            "ntad_military_bases/fy2024/texas.geojson"
+          ],
+          "label": "ntad_military_bases/fy2024/texas.geojson",
+          "lock": {
+            "reason": "artifact is missing",
+            "status": "not_checked"
+          },
+          "observed": null,
+          "status": "missing"
+        }
+      ],
+      "no_checksum_mismatch": true,
+      "raw_dir": "data/raw"
+    },
+    "reason": "ACTIVSg2000/Texas P0 must not be presented as the current Minnesota hackathon demo.",
+    "safe_staged_rebuild": {
+      "command": "uv run python -m pipelines.build --raw-dir <raw-dir> --db <fresh-output>/grid.duckdb --eaglei-source-tz UTC",
+      "rule": "Use a fresh output path. The builder stages and quality-checks before it promotes; never point it at a legacy database."
+    },
+    "status": "research_only"
+  },
+  "write_performed": false
+}

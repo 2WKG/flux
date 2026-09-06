@@ -42,15 +42,16 @@ export const ROUTES: readonly Route[] = [
     label: "Scenario explorer",
     title: "Flux | Resilience desk",
     truthLabels: ["synthetic"],
-    truthNote: "Every figure on this page is read from the checked-in five-bus fixture.",
+    truthNote: "This page renders the backend-served static synthetic ACTIVSg2000 network artifact; it is not a numerical solve or a physical-grid claim.",
   },
   {
     id: "explainer",
     path: "/explainer",
     label: "How the math works",
     title: "Flux | How the math works",
-    truthLabels: ["synthetic", "unavailable"],
-    truthNote: "This page describes the method only; no model runs in this build.",
+    truthLabels: ["synthetic", "hypothetical", "unavailable"],
+    truthNote:
+      "This page replays a synthetic five-bus teaching cascade solved on the server by twin/toy_cascade.py, alongside synthetic teaching schematics, one hypothetical recorded experiment, and explicit unavailable states.",
   },
   {
     id: "minnesota",
