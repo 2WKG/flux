@@ -1,0 +1,70 @@
+import { expect, test } from "@playwright/test";
+
+const fixtureDisclosure = /Synthetic five-bus fixture.*no API required/i;
+
+test("static explorer supports scenario selection, inspection, and honest offline agent state", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+
+  await page.goto("/");
+  await expect(page.getByText(fixtureDisclosure)).toBeVisible();
+  await expect(page.getByText(/Not a Minnesota or Texas topology/i)).toBeVisible();
+
+  await page.getByRole("button", { name: /Candidate A/i }).first().click();
+  await expect(page.getByText(/NETWORK STATE.*CANDIDATE A/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Synthetic five-bus fixture" })).toBeVisible();
+  await expect(page.locator(".flux-shell__inspector").getByText("Candidate A", { exact: true })).toBeVisible();
+
+  const chat = page.locator(".flux-shell__chat");
+  await chat.getByRole("button", { name: "Expand" }).click();
+  await expect(chat.getByText("Agent unavailable.")).toBeVisible();
+  await expect(chat.getByText(/The static demo does not open a live agent connection/i)).toBeVisible();
+  await expect(chat.getByText(/No live tool call was made/i)).toBeVisible();
+  await expect(chat.getByText("Source status: Unavailable", { exact: true })).toBeVisible();
+
+  await chat.getByRole("button", { name: "Edit" }).click();
+  const geography = chat.getByLabel("Geography");
+  await geography.fill("Review-only synthetic context");
+  await expect(geography).toHaveValue("Review-only synthetic context");
+  await chat.getByRole("button", { name: "Done editing" }).click();
+  await expect(chat.getByRole("button", { name: "Edit" })).toBeVisible();
+
+  expect(requests.some((url) => /\/(ask|api)(?:\/|$|\?)/.test(new URL(url).pathname))).toBeFalsy();
+});
+
+test("keyboard selection and disclosure focus remain usable", async ({ page }) => {
+  await page.goto("/");
+  const candidate = page.getByRole("button", { name: /Candidate B/i }).first();
+  await candidate.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText(/NETWORK STATE.*CANDIDATE B/i)).toBeVisible();
+
+  const disclosure = page.getByRole("button", { name: "Data, units & limits" });
+  await disclosure.click();
+  const dialog = page.getByRole("dialog", { name: "Data disclosure" });
+  await expect(dialog).toBeVisible();
+  await expect(page.getByRole("button", { name: "Close disclosure" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Close disclosure" })).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
+  await expect(disclosure).toBeFocused();
+});
+
+for (const viewport of [
+  { name: "desktop", width: 1440, height: 900 },
+  { name: "laptop", width: 1024, height: 768 },
+  { name: "mobile", width: 390, height: 844 },
+]) {
+  test(`${viewport.name} keeps the static shell within its viewport after fonts settle`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await page.goto("/");
+    await page.evaluate(async () => document.fonts.ready);
+    const dimensions = await page.evaluate(() => ({
+      clientWidth: document.documentElement.clientWidth,
+      scrollWidth: document.documentElement.scrollWidth,
+    }));
+    expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+    await expect(page.getByText(fixtureDisclosure)).toBeVisible();
+  });
+}
