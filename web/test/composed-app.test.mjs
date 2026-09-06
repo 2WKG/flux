@@ -137,3 +137,22 @@ test("descriptorFor asserts the registry id is a layer category instead of assum
   assert.equal(layers.length, app.LAYER_REGISTRY.length);
   assert.deepEqual(refusals, []);
 });
+
+test("the filter's suppressed half is rendered: no layer disappears without its reason", () => {
+  // `applyFilters` (spec §C.2) is the module that guarantees a filtered-out
+  // layer is still disclosed. It was compiled into the bundle but had no
+  // importer, so the guarantee had no renderer. On the first paint nothing is
+  // in the visible set, so every registered layer is suppressed and every one
+  // must appear here carrying its own producer reason -- unmount the panel, or
+  // render `visible` without `suppressed`, and this goes red.
+  assert.match(markup, /aria-label="Hidden layer disclosures"/, "the suppression disclosure must be mounted");
+  const disclosed = [...markup.matchAll(/<li class="layer-suppression">(.*?)<\/li>/g)].map((match) => match[1]);
+  assert.equal(disclosed.length, app.LAYER_REGISTRY.length, "one disclosure per suppressed layer");
+  for (const entry of disclosed) {
+    const plain = entry.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    assert.match(plain, /Cause: manual_toggle\.$/, "each disclosure names why the layer was suppressed");
+    assert.ok(plain.length > 40, `a disclosure must carry the producer's reason, not just a label: ${plain}`);
+  }
+  // The count claim is the filter's own, not a restated constant.
+  assert.match(text, new RegExp(`${app.LAYER_REGISTRY.length} of ${app.LAYER_REGISTRY.length} layers are not shown`));
+});

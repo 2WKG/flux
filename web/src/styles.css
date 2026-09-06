@@ -319,6 +319,9 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .layer-evidence dt { color: var(--muted) }
 .layer-evidence dd { margin: 0; overflow-wrap: anywhere }
 .layer-legend { margin: .5rem 0 0 1.45rem; color: var(--muted); font-size: .78rem }
+.layer-suppressions { list-style: none; margin: .6rem 0 0; padding: .5rem .6rem; border: 1px dashed var(--line-strong); border-radius: .35rem; background: var(--panel) }
+.layer-suppression-note { color: var(--ink); font: 700 .7rem var(--font-mono); letter-spacing: .03em; margin-bottom: .35rem }
+.layer-suppression { color: var(--muted); font-size: .78rem; margin: .3rem 0 0; line-height: 1.5 }
 .layer-legend-glyph { display: inline-block; min-width: 1.4rem; color: var(--ink); font: 700 .7rem var(--font-mono) }
 
 /* Provenance inspector — src/inspector/Inspector.tsx, which carried no sheet. */

@@ -24,14 +24,16 @@ import type { InspectorAsset } from "../inspector/types";
 import { LayerControls } from "../layers/LayerControls";
 import { descriptorsFor } from "../layers/descriptor-adapter";
 import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "../layers/registry";
+import type { AssetStatus } from "../labels";
 import { legendForLayer } from "../layers/legend";
+import { applyFilters, suppressesUncertainty, uncertainSuppressions } from "../layers/filters";
 import { createReadApiClient } from "../data/client-state";
 import { loadRegistryDataStatuses } from "../data/layer-status";
 import { loadScenarioAsset } from "../data/scenario-asset";
 import { runAsk } from "../data/ask-stream";
 import { resultsFromRun } from "../data/ask-result";
-import { loadGridLayer, GRID_LAYERS, type GridState } from "../data/grid-client";
-import type { SpatialItem, SpatialPage } from "../data/grid-inventory";
+import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
+import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
 
 type Id = "baseline" | "a" | "b";
@@ -440,18 +442,13 @@ export function App() {
   useEffect(() => {
     const controller = new AbortController();
     setGridLoad({ kind: "loading" });
-    Promise.all(gridLayers.map((layer) => loadGridLayer({ state: gridState, layer, signal: controller.signal })))
-      .then((outcomes) => {
+    // `loadGridInventory` bounds each layer read by its state's documented
+    // extent (`GRID_STATE_BBOX`) and lets the first refusal win, so this call
+    // site never downloads a state to filter it here.
+    loadGridInventory({ state: gridState, layers: gridLayers, signal: controller.signal })
+      .then((load) => {
         if (controller.signal.aborted) return;
-        const refused = outcomes.find((outcome) => outcome.kind === "refused");
-        if (refused && refused.kind === "refused") return setGridLoad(refused);
-        const loaded = outcomes.flatMap((outcome) => outcome.kind === "loaded" ? outcome.pages : []) as readonly SpatialPage[];
-        setGridLoad({
-          kind: "loaded",
-          pages: loaded,
-          truncated: outcomes.some((outcome) => outcome.kind === "loaded" && outcome.truncated),
-          nextCursor: outcomes.flatMap((outcome) => outcome.kind === "loaded" && outcome.nextCursor ? [outcome.nextCursor] : [])[0] ?? null,
-        });
+        setGridLoad(load);
       })
       .catch(() => undefined);
     return () => controller.abort();
@@ -465,6 +462,20 @@ export function App() {
     [layerSnapshots],
   );
   const layerLegends = useMemo(() => layerSnapshots.map(legendForLayer), [layerSnapshots]);
+
+  // The visibility state the panel writes is the filter, and it runs through
+  // `applyFilters` (spec §C.2) rather than being applied by a bare `.includes`
+  // in the renderer. That is the whole point of the module: a layer removed
+  // from the visible set is never simply gone -- it comes back in `suppressed`
+  // with its own status and its producer's own reason, and the disclosure
+  // below renders that half. Dropping the disclosure is what turns a filter
+  // into a silent erasure of uncertainty.
+  const layerFilter = useMemo(() => ({
+    hiddenLayerIds: new Set(layerSnapshots.filter((snapshot) => !visibleLayerIds.includes(snapshot.id)).map((snapshot) => snapshot.id)),
+    excludedStatuses: new Set<AssetStatus>(),
+  }), [layerSnapshots, visibleLayerIds]);
+  const layerFilterResult = useMemo(() => applyFilters(layerSnapshots, layerFilter), [layerSnapshots, layerFilter]);
+  const hiddenUncertainty = uncertainSuppressions(layerFilterResult);
 
   const sendAsk = useCallback((body: Parameters<NonNullable<Parameters<typeof ChatDock>[0]["onSend"]>>[0]) => {
     const identity: RunIdentity = { attemptId, contextRevision };
@@ -569,6 +580,18 @@ export function App() {
               <li className="layer-refusal" key={refusal.message} role="note">{refusal.message}</li>
             ))}
           </ul>
+          {suppressesUncertainty(layerFilterResult) ? (
+            <ul className="layer-suppressions" aria-label="Hidden layer disclosures">
+              <li className="layer-suppression-note" role="note">
+                {hiddenUncertainty.length} of {layerSnapshots.length} layers are not shown. Nothing uncertain is hidden without its reason.
+              </li>
+              {hiddenUncertainty.map((entry) => (
+                <li className="layer-suppression" key={entry.layerId}>
+                  <b>{entry.label}</b>{" "}{STATUS_COPY[entry.status]}{" \u00b7 "}{entry.reason}{" Cause: "}{entry.cause}{"."}
+                </li>
+              ))}
+            </ul>
+          ) : null}
           <section className="timeline" aria-label="Scenario timeline">
             <div>
               <p className="eyebrow">Timeline</p>

@@ -18,6 +18,7 @@
 
 import { createReadApiClient, type ClientState, type ReadApiClient } from "./client-state";
 import { isSpatialFailure, pageFrom, type SpatialFailure, type SpatialPage } from "./grid-inventory";
+import { MINNESOTA_BBOX } from "../scene/minnesota-adapter";
 
 /** The layers each state's release publishes. */
 export const GRID_LAYERS = {
@@ -42,6 +43,33 @@ export type GridLayerRequest = {
   readonly maxPages?: number;
   readonly signal?: AbortSignal;
 };
+
+/**
+ * The bounding box each state's reads are bounded by, so rule 2 above is a
+ * property of the shipped call site and not only of `gridLayerUrl`.
+ *
+ * Minnesota's is the documented extent already carried by
+ * `../scene/minnesota-adapter.ts` (itself copied from `MINNESOTA_BBOX` in
+ * `pipelines/minnesota_asset_binding.py`) -- imported, never restated. Texas is
+ * `null` **on purpose**: this repository documents no Texas extent anywhere, and
+ * a plausible-looking rectangle invented in the browser is exactly the kind of
+ * fabricated geography the layer contract forbids. `null` sends no `bbox`, which
+ * the server reads as the whole release, and that is the truth of the request.
+ */
+export const GRID_STATE_BBOX: Readonly<Record<GridState, GridBbox | null>> = {
+  mn: MINNESOTA_BBOX,
+  tx: null,
+};
+
+/** The requests one view issues: one per layer, each bounded by its state's extent. */
+export function gridLayerRequestsFor(
+  state: GridState,
+  layers: readonly string[],
+  signal?: AbortSignal,
+): readonly GridLayerRequest[] {
+  const bbox = GRID_STATE_BBOX[state];
+  return layers.map((layer) => ({ state, layer, bbox, signal }));
+}
 
 export type GridLayerOutcome =
   | { readonly kind: "loaded"; readonly pages: readonly SpatialPage[]; readonly truncated: boolean; readonly nextCursor: string | null }
@@ -118,4 +146,37 @@ export async function loadGridLayer(
     if (cursor === null) return { kind: "loaded", pages, truncated: false, nextCursor: null };
   }
   return { kind: "loaded", pages, truncated: true, nextCursor: cursor };
+}
+
+/** What one view's read resolves to: still loading is the caller's own state, not an outcome. */
+export type GridInventoryLoad =
+  | { readonly kind: "loaded"; readonly pages: readonly SpatialPage[]; readonly truncated: boolean; readonly nextCursor: string | null }
+  | { readonly kind: "refused"; readonly status: "unavailable" | "request_failed"; readonly code: string; readonly message: string; readonly requestId?: string };
+
+/**
+ * One view's whole read: every requested layer, each bounded by its state's
+ * extent (`gridLayerRequestsFor`), combined into the single load the panel
+ * renders. The first refusal wins -- a partial success is not reported as a
+ * success -- and truncation from any layer is carried through, never dropped.
+ *
+ * This exists so the page's grid effect is one call rather than a hand-rolled
+ * `Promise.all` in the component: the bbox-bounding and the refusal-wins rule
+ * are then properties of a function a test can drive against a real transport.
+ */
+export async function loadGridInventory(
+  request: { readonly state: GridState; readonly layers: readonly string[]; readonly signal?: AbortSignal },
+  client: ReadApiClient = createReadApiClient(),
+): Promise<GridInventoryLoad> {
+  const outcomes = await Promise.all(
+    gridLayerRequestsFor(request.state, request.layers, request.signal).map((each) => loadGridLayer(each, client)),
+  );
+  const refused = outcomes.find((outcome) => outcome.kind === "refused");
+  if (refused && refused.kind === "refused") return refused;
+  const pages = outcomes.flatMap((outcome) => (outcome.kind === "loaded" ? outcome.pages : []));
+  return {
+    kind: "loaded",
+    pages,
+    truncated: outcomes.some((outcome) => outcome.kind === "loaded" && outcome.truncated),
+    nextCursor: outcomes.flatMap((outcome) => (outcome.kind === "loaded" && outcome.nextCursor ? [outcome.nextCursor] : []))[0] ?? null,
+  };
 }
