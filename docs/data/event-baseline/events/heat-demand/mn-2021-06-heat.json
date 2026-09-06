@@ -1,0 +1,199 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "heat-demand",
+  "event": {
+    "event_id": "mn-2021-06-heat",
+    "parent_system_id": "heat_upper_midwest_202106",
+    "primary_hazard": "extreme_heat",
+    "secondary_hazards": [],
+    "compound": false,
+    "context_window": {
+      "start_utc": "2021-06-01T00:00:00Z",
+      "end_utc": "2021-06-09T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2021-06-03T00:00:00Z",
+      "end_utc": "2021-06-07T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2021-06-07T00:00:00Z",
+      "end_utc": "2021-06-09T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NWS Twin Cities June 2021 local climatological record (F-6) identifies a 99 F station maximum on local June 5; the exhaustive EAGLE-I annual acquisition has 24 observed 15-minute values for the selected county window. The record is candidate_only: no county weather coverage is asserted, and the station maximum is not the window's own evidence.",
+    "exclusions": [
+      "No county-grid HRRR extraction receipt yet",
+      "No documented controlled shedding record"
+    ],
+    "uncertainties": [
+      "The selected county window [2021-06-05T00:00:00Z, 06:00:00Z) is 2021-06-04 19:00 to 2021-06-05 01:00 CDT. It therefore covers the evening of local June 4 and the first hour of local June 5, and does not contain the daytime hours of local June 5 in which the cited 99 F daily maximum was reached (that is the 18:00Z-00:00Z bin). The F-6 daily maximum names the calendar day the window opens on; it is not an observation inside the window and is not used as weather coverage.",
+      "Station evidence is not a county-wide heat-field receipt",
+      "Customer denominator unavailable"
+    ],
+    "source_event_ids": [
+      "mn-2021-06-heat"
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nws-mpx-jun2021",
+      "provider": "NOAA National Weather Service",
+      "url": "https://www.weather.gov/media/mpx/Climate/MSP/jun2021.pdf",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "license_or_access": "U.S. government public information",
+      "raw_sha256": "177f8183f4681857cab830afbe734e4999cfe380188f65b4220061ad5e16cef2",
+      "filtered_sha256": null,
+      "bytes": 14276,
+      "etag": null,
+      "units": "degrees Fahrenheit station monthly climatology",
+      "timezone_conversion": "source report local station dates; no conversion used for the EAGLE-I UTC label",
+      "filters": "June 2021 Twin Cities report",
+      "grid_index_mapping": "not applicable; station evidence is candidate discovery only",
+      "gaps": [
+        "Does not establish county-grid weather coverage"
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547891",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:06:07Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "filtered_sha256": "17fa34a2c29a028f76fc0034432915cd18ad52ef6e292185422cb2a5f469e104",
+      "bytes": 1141058232,
+      "etag": null,
+      "units": "customers_out in customers; run_start_time UTC",
+      "timezone_conversion": "none; source UTC",
+      "filters": "exhaustive annual stream; FIPS 27053 canonical window",
+      "grid_index_mapping": "County FIPS only; no grid index",
+      "gaps": [],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547891",
+        "source_file": "eaglei_outages_2021.csv",
+        "source_file_id": 42547891,
+        "source_file_bytes": 1141058232,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+        "raw_artifact_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+        "source_sidecar_sha256": "8bbe8c76504b082d2d4eb569fe0cb1c56c376b984351c07d5bdf206b3f85ef3d",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2021-06-heat-27053-20210605000000_eaglei_2021_20210605T000000_20210605T060000.csv",
+        "filtered_artifact_sha256": "17fa34a2c29a028f76fc0034432915cd18ad52ef6e292185422cb2a5f469e104"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2021-06-heat-27053-20210605t0000",
+      "county_fips": "27053",
+      "boundary_vintage": "2020 Census county FIPS",
+      "scenario_id": "mn-2021-06-heat-replay",
+      "window_start_utc": "2021-06-05T00:00:00Z",
+      "window_end_utc": "2021-06-05T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nws-mpx-jun2021",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T00:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T00:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T00:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T00:45:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T01:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T01:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T01:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T01:45:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T02:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T02:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T02:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T02:45:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T03:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T03:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T03:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T03:45:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T04:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T04:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T04:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T04:45:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T05:00:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T05:15:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T05:30:00Z",
+        "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000:27053:2021-06-05T05:45:00Z"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000",
+          "county_fips": "27053",
+          "start_utc": "2021-06-05T00:00:00Z",
+          "end_utc": "2021-06-05T06:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "nws-mpx-jun2021"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "Station candidate evidence exists; county-grid observed weather receipt is pending.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2021-42547891-mn-2021-06-heat-27053-20210605000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Complete 24/24 native 15-minute observations."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

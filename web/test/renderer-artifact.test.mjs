@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { readFile, stat } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
@@ -8,14 +10,16 @@ import { promisify } from "node:util";
 /**
  * What must be true of the *built* renderer for it to exist at all.
  *
- * The renderer is not mounted in the frozen static demo: `main.tsx` is master's
- * shell, and two landed gates forbid mounting a MapLibre surface there —
- * `test/static-demo.test.mjs` asserts the demo bundle contains no `fetch(` at
- * all, and `test/viewport-shell.test.mjs` asserts no class reaches the DOM
- * without a rule in `src/styles.css`. Whether the demo shows a map is a product
- * decision, not a merge decision. So the renderer ships behind its own build
- * entry (`npm run build:renderer-harness`), and this file builds that entry and
- * asserts the artifact, not the source.
+ * The renderer is now mounted in the one App: 2WKG-355 composed the
+ * physical-inventory map into `main.tsx` behind a browser-only dynamic import,
+ * so the shipped `dist/` bundle contains MapLibre and must carry its two
+ * runtime files. It also still ships behind its own harness entry
+ * (`npm run build:renderer-harness`), which is what this file builds and
+ * asserts -- the artifact, not the source.
+ *
+ * The control for the conditional copy is therefore no longer the demo build
+ * (which now does bundle MapLibre); it is a probe entry built here that does
+ * not, so an unconditional `cp()` in `scripts/build.mjs` still fails.
  *
  * Three mutations that previously left the whole suite green fail here: dropping
  * the renderer from the harness entry, dropping either MapLibre runtime copy
@@ -52,12 +56,47 @@ test("a bundle that needs the MapLibre worker gets both runtime files beside it"
   assert.match(worker, /["'`]\.\/maplibre-gl-shared\.mjs["'`]/, "the worker no longer resolves the shared module from ./");
 });
 
-test("a bundle that does not use MapLibre carries neither runtime file", async () => {
-  // The demo build is the control: the copy is conditional on the bundle, so an
-  // unconditional cp() (half a megabyte of dead weight in the demo) fails here.
-  for (const name of ["assets/maplibre-gl-worker.mjs", "assets/maplibre-gl-shared.mjs"]) {
-    const info = await stat(new URL(`../dist/${name}`, import.meta.url)).catch(() => null);
-    assert.equal(info, null, `${name} was copied into the demo build, which does not bundle MapLibre`);
+test("a bundle that does not use MapLibre carries neither runtime file", { timeout: 120000 }, async () => {
+  // The control for the conditional copy: an entry with no MapLibre in its
+  // graph at all. An unconditional cp() in scripts/build.mjs fails here.
+  const dir = await mkdtemp(path.join(os.tmpdir(), "flux-nomap-dist-"));
+  const entry = path.join(dir, "probe.tsx");
+  try {
+    await writeFile(entry, 'export const probe = "no maplibre in this graph";\n');
+    await run("node", ["scripts/build.mjs"], {
+      cwd: webRoot,
+      env: { ...process.env, FLUX_WEB_ENTRY: entry, FLUX_WEB_DIST: path.join(dir, "dist") },
+    });
+    const probeApp = await readFile(path.join(dir, "dist", "assets", "app.js"), "utf8");
+    assert.ok(!probeApp.includes("maplibre-gl-worker.mjs"), "the probe entry unexpectedly bundled MapLibre");
+    for (const name of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
+      const info = await stat(path.join(dir, "dist", "assets", name)).catch(() => null);
+      assert.equal(info, null, `${name} was copied into a build that does not bundle MapLibre`);
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("the shipped app build carries both MapLibre runtime files", async () => {
+  // The one App mounts the map, so the demo bundle needs them beside app.js.
+  // "The bundle" is the entry *and* its chunks: 2WKG-478 split the pages into
+  // dynamic imports, so the worker URL now survives into whichever chunk the map
+  // code landed in, which is exactly the set `scripts/build.mjs` itself scans
+  // before copying. Reading only `app.js` here would have failed on a build
+  // that ships the worker correctly.
+  const assets = await readdir(new URL("../dist/assets/", import.meta.url));
+  const app = (
+    await Promise.all(
+      assets
+        .filter((name) => name.endsWith(".js"))
+        .map((name) => readFile(new URL(`../dist/assets/${name}`, import.meta.url), "utf8")),
+    )
+  ).join("\n");
+  assert.ok(app.includes("maplibre-gl-worker.mjs"), "the app bundle no longer resolves the MapLibre worker");
+  for (const name of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
+    const info = await stat(new URL(`../dist/assets/${name}`, import.meta.url)).catch(() => null);
+    assert.ok(info !== null && info.size > 1024, `${name} is missing from the shipped dist/`);
   }
 });
 

@@ -1,0 +1,215 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire_psps",
+  "event": {
+    "event_id": "ca-2023-09-20-pge-psps",
+    "parent_system_id": "ca-2023-09-northern-sacramento-valley-wind",
+    "primary_hazard": "planned_psps",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "pge-2023-09-20-21-post-event-report"
+    ],
+    "context_window": {
+      "start_utc": "2023-09-19T00:00:00Z",
+      "end_utc": "2023-09-23T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2023-09-21T06:19:00Z",
+      "end_utc": "2023-09-22T00:05:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2023-09-22T00:05:00Z",
+      "end_utc": "2023-09-22T12:00:00Z"
+    },
+    "disposition": "shortfall",
+    "selection_basis": "PG&E's CPUC-hosted report lists Tehama among the three affected counties and gives a Tehama CORNING circuit planned de-energization at 2023-09-20 23:19 PDT; it also reports a Tehama station maximum gust. This is planned de-energization evidence only.",
+    "exclusions": [
+      "Full annual EAGLE-I scan has 22 of 24 expected timestamps; this is an UncoveredLabel shortfall."
+    ],
+    "uncertainties": [
+      "The canonical interval contains Tehama CORNING circuit activation, but a circuit footprint is not a whole-county outage observation.",
+      "The reported 36 mph Tehama maximum gust is a county-scope station summary, not a complete six-hour county weather series.",
+      "The utility report is not independent verification of wildfire causation, fire occurrence, or a county outage label."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "cpuc-pge-2023-09-20-21-pdf",
+      "provider": "California Public Utilities Commission; filing by Pacific Gas and Electric Company",
+      "url": "https://www.cpuc.ca.gov/-/media/cpuc-website/divisions/safety-and-enforcement-division/reports/psps-post-event-reports/2023/pge-post-event-report-9-20-2023.pdf",
+      "release": "PG&E PSPS Post-Event Report, September 20-21 2023 De-Energization Event",
+      "retrieved_at_utc": "2026-09-06T07:26:50Z",
+      "license_or_access": "Public CPUC-hosted filing; no explicit reuse license was identified in the retrieved PDF.",
+      "raw_sha256": "3bbd9a51717669387b8a51596189879bb6f5843c35cbf804039fada9a96c2de3",
+      "filtered_sha256": null,
+      "bytes": 3070897,
+      "etag": null,
+      "units": "Reported local Pacific time, customers, and weather-station maximum gusts in mph; no county six-hour EAGLE-I outage units supplied.",
+      "timezone_conversion": "Report's 2023 local operational times are PDT (UTC-07:00): 2023-09-20 23:19 PDT = 2023-09-21T06:19:00Z; final restoration 2023-09-21 17:05 PDT = 2023-09-22T00:05:00Z.",
+      "filters": "Retrieved post-event PDF only; candidate record selects Tehama County (FIPS 06103) and the UTC six-hour interval containing the CORNING 1101 first-customer de-energization.",
+      "grid_index_mapping": "No EAGLE-I county rows or gridded weather values mapped; Appendix B lists CORNING circuits in Tehama and their planned de-energization/restoration times.",
+      "gaps": [
+        "HTTP HEAD returned Content-Length and Last-Modified but no ETag.",
+        "PDF is retained in ignored data/raw/psps, not Git.",
+        "No matched weather time series or EAGLE-I outage label receipt is present."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-psps-2023-tehama",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/44574907",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:03:39.449542Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "filtered_sha256": "ed16cc893de773d7e432edbfcded6f106dd6c7985786f4076cece4ed4029bca3",
+      "bytes": 1199752423,
+      "etag": "\"de1e6b64163602b3d09531ff4f90d670-2\"",
+      "units": "sum: customers; run_start_time: UTC",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC",
+      "filters": "California FIPS 06103 [2023-09-21T06:00Z,2023-09-21T12:00Z)",
+      "grid_index_mapping": "none; EAGLE-I rows are keyed by county FIPS",
+      "gaps": [
+        "Complete annual scan: missing 06:00Z and 06:15Z; never zero.",
+        "Customer denominator unavailable."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:44574907",
+        "source_file": "eaglei_outages_2023.csv",
+        "source_file_id": 44574907,
+        "source_file_bytes": 1199752423,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+        "raw_artifact_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+        "source_sidecar_sha256": "14e0a55d9ddc4d652e76b872517f087007fd6ced19b3ab2cbce68c76609d3b4a",
+        "filtered_artifact_uri": "data/raw/event-baseline/ca-2023-09-20-pge-psps-06103-20230921060000_eaglei_2023_20230921T060000_20230921T120000.csv",
+        "filtered_artifact_sha256": "ed16cc893de773d7e432edbfcded6f106dd6c7985786f4076cece4ed4029bca3"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2023-09-20-pge-psps-tehama-06103-20230921t0600z",
+      "county_fips": "06103",
+      "boundary_vintage": "US Census TIGER/Line 2023 county FIPS reference; geometry not used",
+      "scenario_id": "ca_2023_09_pge_psps",
+      "window_start_utc": "2023-09-21T06:00:00Z",
+      "window_end_utc": "2023-09-21T12:00:00Z",
+      "disposition": "shortfall",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "cpuc-pge-2023-09-20-21-pdf",
+        "eaglei-psps-2023-tehama"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-psps-2023-tehama:06103|2023-09-21 06:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 06:45:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 07:00:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 07:15:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 07:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 07:45:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 08:00:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 08:15:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 08:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 08:45:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 09:00:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 09:15:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 09:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 09:45:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 10:00:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 10:15:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 10:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 10:45:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 11:00:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 11:15:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 11:30:00",
+        "eaglei-psps-2023-tehama:06103|2023-09-21 11:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-psps-2023-tehama",
+          "county_fips": "06103",
+          "start_utc": "2023-09-21T06:00:00Z",
+          "end_utc": "2023-09-21T12:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "cpuc-pge-2023-09-20-21-pdf"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "pge-2023-09-20-21-post-event-report"
+          ],
+          "source_window": {
+            "start_utc": "2023-09-21T06:19:00Z",
+            "end_utc": "2023-09-22T00:05:00Z"
+          },
+          "spatial_scope": "county",
+          "scope_identifier": "Tehama County, California (FIPS 06103); CORNING circuits in Appendix B and Table 20 county weather station",
+          "limitations": "The report's 36 mph Tehama station maximum is not a complete county six-hour weather series and report circuit scope is not a county-wide weather observation."
+        },
+        "notes": "Authoritative report supports a Tehama planned circuit activation and county station summary only."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-psps-2023-tehama"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 22,
+        "missing_timestamps": [
+          "2023-09-21T06:00:00Z",
+          "2023-09-21T06:15:00Z"
+        ],
+        "event_report": null,
+        "notes": "Complete annual-source scan found 22 of 24 observations; missing timestamps are UncoveredLabel, never zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
