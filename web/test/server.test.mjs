@@ -4,7 +4,7 @@
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
 
-import { createApp } from "../server.mjs";
+import { CONTENT_SECURITY_POLICY, createApp } from "../server.mjs";
 
 const servers = [];
 
@@ -15,7 +15,12 @@ async function origin() {
   const base = `http://127.0.0.1:${server.address().port}`;
   return async (path) => {
     const response = await fetch(`${base}${path}`);
-    return { status: response.status, type: response.headers.get("content-type"), body: await response.text() };
+    return {
+      status: response.status,
+      type: response.headers.get("content-type"),
+      csp: response.headers.get("content-security-policy"),
+      body: await response.text(),
+    };
   };
 }
 
@@ -43,5 +48,22 @@ test("no demo API is served: every unknown path falls back to the shell", async 
     assert.doesNotMatch(response.type, /json/, `${path} answered with JSON`);
     assert.equal(response.body, shell.body, `${path} must fall back to the SPA shell`);
     assert.throws(() => JSON.parse(response.body), `${path} returned parseable JSON`);
+  }
+});
+
+test("every response carries a CSP that names no off-origin source", async () => {
+  const get = await origin();
+  for (const path of ["/", "/assets/app.js", "/api/demo", "/anything"]) {
+    const response = await get(path);
+    assert.equal(response.csp, CONTENT_SECURITY_POLICY, `${path} served without the policy`);
+  }
+  for (const directive of CONTENT_SECURITY_POLICY.split("; ")) {
+    const [name, ...values] = directive.split(" ");
+    for (const value of values) {
+      assert.ok(
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
+        `${name} allows ${value}, which can reach an off-origin server`,
+      );
+    }
   }
 });

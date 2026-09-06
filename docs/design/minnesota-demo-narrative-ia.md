@@ -58,11 +58,17 @@ the shipped five-bus fixture is not its fallback.
 | Why should I trust or limit that answer? | **Evidence** | Exact artifact metadata, `cite` hits, tool results, and failure envelopes | A Copilot-generated number or legal conclusion | `mn_citation_hits` exists; corpus planned by **2WKG-128**; the Ask route and its stream are planned by **2WKG-147** and **2WKG-126** and **do not exist on `master`** |
 
 Every row above is a dependency statement, not a completion claim. Of the
-routes this IA needs, no Minnesota read route and **no `/ask` route exist on
-`master`** today: `copilot/app.py` mounts exactly five routers -- health,
-layers, interventions, scenarios, predictions. The chat dock in the prototype
-below is therefore entirely planned surface (2WKG-147 over the 2WKG-126 stream)
-and must not be shown in a rehearsal as if it were live. Where this table says
+routes this IA needs, **no Minnesota read route exists on `master`**: there is no
+`mn_*` route in `copilot/routes/`. `copilot/app.py:68-75` mounts **eight**
+routers -- health, layers, interventions, lines, comparisons, scenarios,
+predictions, ask -- and `POST /ask` **does exist**, as a transport only
+(`copilot/routes/ask.py:139`): `AskBackend` is deployment-injected, nothing
+injects one, so the default stream is a `lifecycle` event followed by an
+`unavailable` terminal (`ask.py:76-86`). (This paragraph previously undercounted the mounted
+routers and denied the `/ask` route outright; both claims were false against
+`master`. D-5b.) The dock's *answers* are therefore still entirely planned surface
+(2WKG-147 over the 2WKG-126 stream) and it must not be shown in a rehearsal as if
+it were live -- an existing transport with no backend is not a live copilot. Where this table says
 "no ticket yet", the corresponding row in `10-minnesota-demo.md`'s execution
 graph is unnumbered, which that spec defines as "a pending gap that must be
 assigned before execution"; this IA does not assign it.
