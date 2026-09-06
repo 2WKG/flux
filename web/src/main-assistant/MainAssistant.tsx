@@ -12,7 +12,6 @@
 import { ChatDock, type ChatDockProps, type ChatError, type ChatStatus } from "../chat/ChatDock";
 import { RunTrace } from "../ask/run-state/RunTrace";
 import type { RunIdentity, RunState, ToolResultEvent } from "../ask/run-state/types";
-import "./main-assistant.css";
 
 export interface MainAssistantProps {
   /**
