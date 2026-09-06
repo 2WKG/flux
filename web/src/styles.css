@@ -384,6 +384,14 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .truth-legend li { color: var(--ink); border: 1px solid #315673; background: #0d2033; border-radius: 999px; padding: 4px 10px; font: 700 .65rem var(--font-mono); letter-spacing: .04em }
 .truth-note { color: var(--dim); font-size: .74rem; margin: 0 }
 
+/* Main-page assistant. Kept here so the application has one authored sheet. */
+.flux-main-assistant { display: grid; gap: .8rem }
+.flux-main-assistant__header p { margin: 0; color: var(--muted); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase }
+.flux-main-assistant__header h2, .flux-main-assistant__grounding, .flux-main-assistant__scene-action p { margin: 0 }
+.flux-main-assistant__grounding, .flux-main-assistant__scene-action { border: 1px solid var(--line-strong); border-radius: .4rem; padding: .7rem .8rem }
+.flux-main-assistant__grounding { color: var(--muted) }
+.flux-main-assistant__scene-action { background: var(--panel-raised) }
+
 /* Explainer page. The teaching content itself is 2WKG-482. */
 .method { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin: 8px 0 16px }
 .method-entry { border: 1px solid #234962; background: var(--panel); border-radius: 12px; padding: 16px }
