@@ -9,13 +9,19 @@ private hostnames.
 
 ## Current status
 
-**There is no existing Cloudflare Tunnel to reuse.** The earlier tasks assumed
-one was already configured; it is not. Checks on the intended origin host
-(`WYZWORKSTATION`, user `willi`) on 2026-09-06:
+**No connector is installed, running, or credentialed on the origin host — but
+a tunnel route may already exist in the Cloudflare account.** The earlier tasks
+assumed a connector was configured here; it is not. What the host checks prove
+is host-local absence only. The public check proves the opposite of absence at
+the edge: `https://bouncepulse.com/` returns HTTP `530` with the body
+`error code: 1033`, which is Cloudflare's *tunnel* error — the hostname is
+already routed to a Tunnel that has no active connector. Checks on the intended
+origin host (`WYZWORKSTATION`, user `willi`) on 2026-09-06:
 
 | Check | Command | Result |
 | --- | --- | --- |
 | Public hostname | `Invoke-WebRequest -Uri https://bouncepulse.com/ -Method Head` | HTTP `530` |
+| Public hostname body | `curl.exe https://bouncepulse.com/` | `error code: 1033` — Cloudflare Tunnel error: hostname routed to a tunnel with no active connector |
 | DNS | `Resolve-DnsName bouncepulse.com -Type A` | `172.67.218.236`, `104.21.24.128` — Cloudflare proxy addresses |
 | Connector binary | `Get-Command cloudflared` | not on `PATH` |
 | Connector service | `Get-Service *cloudflare*` | none installed |
@@ -23,10 +29,16 @@ one was already configured; it is not. Checks on the intended origin host
 | Connector credentials | `Test-Path $env:USERPROFILE\.cloudflared` | `False` |
 | Tracked config | repository grep for `cloudflare`/`tunnel` | docs only; no config, service definition, or credential |
 
-`bouncepulse.com` is proxied by Cloudflare (the zone exists), but HTTP `530`
-with no connector anywhere on this host means no tunnel origin has ever been
-registered from here. The local static origin is fully identified below; the
-public hostname-to-origin mapping does not exist yet.
+`bouncepulse.com` is proxied by Cloudflare (the zone exists). The host checks
+prove only that no connector has ever been registered *from `WYZWORKSTATION`*;
+they say nothing about the Cloudflare account. The `1033` body says the zone
+still has a hostname-to-tunnel route, so **a tunnel may already exist in the
+account and must be inspected before a new one is created**: after
+`cloudflared tunnel login`, run `cloudflared tunnel list` and adopt the existing
+tunnel rather than creating `flux-demo`, or the account ends up with two tunnels
+competing for the same hostname. The local static origin is fully identified
+below; the origin side of the mapping does not exist yet, whichever tunnel is
+used.
 
 ## Static origin (authoritative)
 
@@ -37,7 +49,7 @@ public hostname-to-origin mapping does not exist yet.
 | Bind port | `PORT`, default `4173` (`server.mjs` calls `app.listen(port)`) |
 | Bind address | Not explicitly configured in source; Node's default listen host is used. Do not assume a loopback or LAN bind without checking the connector host. |
 | Static build | `web/dist/`, built by `npm --prefix web run build` |
-| Demo data | `data/demo/bundle.json`, read directly by the Express route `GET /api/demo`. The file is also bundled into `web/dist/assets/app.js` at build time. |
+| Demo data | `data/demo/bundle.json`, bundled into `web/dist/assets/app.js` at build time. The origin serves no API route (2WKG-300), so regenerating the bundle requires a rebuild. |
 | Origin host | `WYZWORKSTATION` (this Windows 11 workstation) — the designated demo host; no other candidate host exists |
 | Service owner | William Zhang, who keeps `WYZWORKSTATION` and the origin process running for the demo window |
 
@@ -50,8 +62,8 @@ is no checked-in environment file or wrapper that overrides it.
 | Host and path | Current owner | Local target | Status |
 | --- | --- | --- | --- |
 | local `GET /` and SPA client routes | `web/server.mjs` | `web/dist/` on a Node/Express static process | Verified; requires a built `web/dist/` |
-| local `GET /api/demo` | `web/server.mjs` | Node/Express on `PORT` (default `4173`) | Verified; reads `data/demo/bundle.json` on every request. The built client does not call it. |
-| `https://bouncepulse.com/*` | Cloudflare public edge | No connector registered | Public check returns `530`; the intended target is `http://127.0.0.1:4173` on `WYZWORKSTATION` once the tunnel below is created |
+| local `GET /api/demo` | No owner | — | Removed by 2WKG-300. `web/server.mjs` exposes no API route by design; this path falls back to the SPA shell like any unknown path (verified 2026-09-06: `200 text/html`). |
+| `https://bouncepulse.com/*` | Cloudflare public edge | No connector registered | Public check returned `530` / `error code: 1033` (2026-09-06): routed to a tunnel with no live connector. The intended target is `http://127.0.0.1:4173` on `WYZWORKSTATION` once a connector is attached below |
 | optional `GET /health` | `copilot.app:app` | FastAPI on port `8000` | Implemented; see `docs/runbooks/local-startup.md`. Not tunnel-mapped. |
 | optional `POST /ask` (SSE) | `copilot.app:app` | FastAPI on port `8000` | Implemented as an injected local transport; the default backend emits explicit unavailable SSE. It is not tunnel-mapped. |
 
@@ -74,19 +86,36 @@ $env:PORT = 4173 # omit to use the default
 npm --prefix web run start
 ```
 
-In another shell, verify the SPA shell, the demo route, and the built client asset:
+In another shell, verify the SPA shell and the built client asset:
 
 ```powershell
 curl.exe -I http://127.0.0.1:4173/
-curl.exe http://127.0.0.1:4173/api/demo
 curl.exe -I http://127.0.0.1:4173/assets/app.js
 ```
 
-The first should return `200` (built HTML), the second JSON from `data/demo/bundle.json`, and the third the bundled client. Restart the static origin by
+Both should return `200`; the first is the built HTML and the second the bundled
+client, which already contains the demo fixture. Restart the static origin by
 stopping that Node process and rerunning `npm --prefix web run start` with the
 intended `PORT`.
 
-After the connector owner restores a mapping to this origin, verify the public
+A bare `200` on the asset proves nothing: `server.mjs` answers every unmatched
+path with the SPA shell, so `curl.exe -I .../assets/DOES-NOT-EXIST.js` also
+returns `200`. Check the fields that can actually fail — the content type and
+the fixture hash carried inside the bundle:
+
+```powershell
+curl.exe -I http://127.0.0.1:4173/assets/app.js   # expect: Content-Type: text/javascript
+curl.exe -s http://127.0.0.1:4173/assets/app.js | Select-String -SimpleMatch f5b2c271416b
+# f5b2c271416b is the `fixtureHash` field of data/demo/bundle.json; re-read it
+# from that file if the fixture is regenerated.
+```
+
+Verified 2026-09-06 on this tree: `/` → `200 text/html`, 360 bytes;
+`/assets/app.js` → `200 text/javascript`, 1113568 bytes, containing the
+`fixtureHash` `f5b2c271416b`; `/api/demo` and `/assets/DOES-NOT-EXIST.js` →
+`200 text/html`, the same 360-byte shell, with no `fixtureHash` in the body.
+
+After the connector owner establishes a mapping to this origin, verify the public
 route without exposing configuration values:
 
 ```powershell
@@ -101,7 +130,7 @@ The checked-in scaffolding for these steps is [`deploy/`](../../deploy/README.md
 `deploy/serve.ps1` (build plus static origin), `deploy/tunnel.ps1` (preflight
 plus connector), and `deploy/cloudflared/config.example.yml` (ingress template).
 
-Because no tunnel exists to reuse, one must be created from this host. These are
+No connector exists on this host, so one must be attached from here. These are
 the commands the owner runs on `WYZWORKSTATION`. **None of them has been run
 yet** — `cloudflared tunnel login` opens a browser for Cloudflare account
 authentication, so the owner must run this sequence interactively.
@@ -109,9 +138,29 @@ authentication, so the owner must run this sequence interactively.
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel login                   # browser auth; select the bouncepulse.com zone
-cloudflared tunnel create flux-demo        # writes credentials to $env:USERPROFILE\.cloudflared
-cloudflared tunnel route dns flux-demo bouncepulse.com
+cloudflared tunnel list                    # STOP: the 1033 above means a tunnel may already exist
+# If one is already routed to bouncepulse.com, adopt it: skip `create`, skip
+# `route dns`, and use its name and credentials file below.
+cloudflared tunnel create flux-demo        # only if `list` shows none; writes credentials to $env:USERPROFILE\.cloudflared
+cloudflared tunnel route dns --overwrite-dns flux-demo bouncepulse.com
 ```
+
+`--overwrite-dns` is required here, not optional. The apex already carries the
+two proxied Cloudflare A records recorded above, and `cloudflared tunnel route
+dns` defaults to `--overwrite-dns=false` (`cloudflared tunnel route dns --help`:
+"Overwrites existing DNS records with this hostname (default: false)"). Without
+the flag the step fails with a "record with that host already exists" error
+instead of routing anything. Passing it replaces the existing apex records, so
+confirm with the zone owner first.
+
+Known failure branches for this sequence:
+
+| Symptom | Cause | Exit |
+| --- | --- | --- |
+| `route dns` reports an existing record | the apex A records above | re-run with `--overwrite-dns`, after confirming with the zone owner |
+| `tunnel login` offers the wrong zone | multiple zones on the account | re-run `cloudflared tunnel login` and pick `bouncepulse.com`; the cert it writes is per-zone |
+| `tunnel list` already shows a tunnel for this hostname | the `1033` case | adopt it; do not create `flux-demo` as a duplicate |
+| public route returns `200` but a 360-byte shell for every path | `web/dist/` was never built | run `npm --prefix web run build` and re-check with the fixture-hash probe above |
 
 Then copy `deploy/cloudflared/config.example.yml` to
 `%USERPROFILE%\.cloudflared\config.yml`, which is the authoritative

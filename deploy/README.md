@@ -15,17 +15,28 @@ This directory is the checked-in scaffolding that sequence uses.
 
 ## One-time setup (owner, interactive)
 
-Not yet done — no tunnel exists yet. `cloudflared tunnel login` opens a browser,
-so only the Cloudflare account owner can run this:
+Not yet done — no connector exists on this host. `cloudflared tunnel login`
+opens a browser, so only the Cloudflare account owner can run this:
 
 ```powershell
 winget install --id Cloudflare.cloudflared
 cloudflared tunnel login                   # select the bouncepulse.com zone
-cloudflared tunnel create flux-demo        # prints the credentials file path
-cloudflared tunnel route dns flux-demo bouncepulse.com
+cloudflared tunnel list                    # a tunnel may already be routed here; adopt it if so
+cloudflared tunnel create flux-demo        # only if `list` shows none; prints the credentials file path
+cloudflared tunnel route dns --overwrite-dns flux-demo bouncepulse.com
 copy deploy\cloudflared\config.example.yml $env:USERPROFILE\.cloudflared\config.yml
 # then edit that copy: set credentials-file to the path just printed
 ```
+
+`https://bouncepulse.com/` currently answers HTTP `530` with the body
+`error code: 1033` — a Cloudflare *Tunnel* error meaning the hostname is already
+routed to a tunnel that has no live connector. So `tunnel list` may show a
+tunnel to adopt; creating `flux-demo` in that case duplicates it. `route dns`
+defaults to `--overwrite-dns=false` and the apex already carries two proxied A
+records, so without the flag that step fails with a "record already exists"
+error. See
+[`docs/runbooks/static-origin-and-tunnel.md`](../docs/runbooks/static-origin-and-tunnel.md)
+for the evidence and the failure branches.
 
 ## Every deploy
 
@@ -46,8 +57,11 @@ curl.exe -I https://bouncepulse.com/
 ```
 
 Expect `200` and the same built HTML as `http://127.0.0.1:4173/`. HTTP `530`
-means no connector is running; `502` means the connector is up but the origin
-is not.
+with body `error code: 1033` means the hostname is routed to a tunnel but no
+connector is running; `502` means the connector is up but the origin is not.
+A `200` alone is not proof the demo is served — the origin answers every
+unmatched path with the 360-byte SPA shell, so also check that
+`https://bouncepulse.com/assets/app.js` comes back as `text/javascript`.
 
 ## Boundaries
 
