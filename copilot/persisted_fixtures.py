@@ -218,14 +218,21 @@ def persisted_site_database(
     limitations: tuple[str, ...] = ("fixture limitation",),
     safety_flags: tuple[str, ...] = (),
     with_manifest: bool = True,
+    with_minnesota: bool = True,
     site_source_name: str = "fixture:site",
     score_source_name: str = "fixture:site-score",
 ) -> None:
-    """A real-DDL database carrying one qualified persisted site outcome."""
+    """A real-DDL database carrying one qualified persisted site outcome.
+
+    ``with_minnesota=False`` omits the whole ``mn_*`` namespace, which is how a
+    caller builds the "the artifact table is absent" state that the routes must
+    report by name.
+    """
 
     con = connect(path)
     try:
-        ensure_minnesota_schema(con)
+        if with_minnesota:
+            ensure_minnesota_schema(con)
         _seed_county(con)
         _seed_buses(con)
         add_site_candidate(con, site_id=site_id, source_name=site_source_name)
@@ -237,7 +244,7 @@ def persisted_site_database(
             safety_flags=safety_flags,
             source_name=score_source_name,
         )
-        if with_manifest:
+        if with_manifest and with_minnesota:
             add_site_score_manifest(
                 con,
                 site_id=site_id,
