@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Annotated, Any, Literal
 
 import duckdb
 from fastapi import APIRouter, Request
@@ -17,14 +17,16 @@ router = APIRouter(tags=["interventions"])
 class SiteScoreRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     site_id: str = Field(min_length=1, max_length=128)
-    unit_mw: int = Field(ge=1, le=10000)
+    unit_mw: Literal[300, 1000]
     scenario_id: str = Field(min_length=1, max_length=128)
 
 
 class CompareRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     scenario_id: str = Field(min_length=1, max_length=128)
-    intervention_ids: list[str] = Field(min_length=1, max_length=5)
+    intervention_ids: list[
+        Annotated[str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")]
+    ] = Field(min_length=1, max_length=5)
 
 
 def unavailable(reason: str, artifact: str = "site_scores") -> UnavailableError:
@@ -73,7 +75,12 @@ def read_site(path: str, request: SiteScoreRequest) -> dict[str, Any]:
         result["site_id"] = str(result["site_id"])
         result["scenario_id"] = request.scenario_id
         result["unit_mw"] = request.unit_mw
-        result["safety_flags"] = json.loads(result["safety_flags"])
+        try:
+            result["safety_flags"] = json.loads(result["safety_flags"])
+            if not isinstance(result["safety_flags"], list):
+                raise TypeError("safety flags must be a JSON list")
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise unavailable("schema_mismatch") from exc
         result["provenance"] = {
             k: result.pop(k)
             for k in (

@@ -59,3 +59,36 @@ def test_line_comparison_is_not_invented(tmp_path: Path):
         r.status_code == 503
         and r.json()["error"]["details"]["reason"] == "unsupported_request"
     )
+
+
+def test_invalid_capacity_and_identifiers_are_validation_errors(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p)
+    for body in ({"site_id": "1", "unit_mw": 200, "scenario_id": "mn_fixture"},):
+        assert client(p).post("/site-score", json=body).status_code == 422
+    for identifier in ("site:", "site:1@not-a-number", "site:1@200"):
+        assert (
+            client(p)
+            .post(
+                "/compare",
+                json={"scenario_id": "mn_fixture", "intervention_ids": [identifier]},
+            )
+            .status_code
+            == 422
+        )
+
+
+def test_malformed_safety_flags_fail_closed(tmp_path: Path):
+    p = tmp_path / "x.duckdb"
+    db(p)
+    with duckdb.connect(str(p)) as con:
+        con.execute("UPDATE site_scores SET safety_flags_json='\"not-a-list\"'")
+    assert (
+        client(p)
+        .post(
+            "/site-score",
+            json={"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
+        )
+        .status_code
+        == 503
+    )
