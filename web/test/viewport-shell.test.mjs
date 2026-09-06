@@ -1,5 +1,6 @@
-// Render the routed page without a browser. Effects do not run during SSR, so
-// this pins the honest loading frame rather than pretending an API was present.
+// Render the routed page without a browser. The primary route is a checked-in
+// synthetic fixture, so SSR must expose that provenance without inventing a
+// runtime request or a real-grid result.
 import assert from "node:assert/strict";
 import { build } from "esbuild";
 import { mkdir } from "node:fs/promises";
@@ -33,13 +34,14 @@ await build({
 });
 const shell = await import(compiled.href);
 
-test("the main route initially reports loading instead of inventing a scene result", () => {
+test("the main route renders the checked-in synthetic scenario with its limits", () => {
   const markup = shell.renderApp();
   assert.match(markup, /SYSTEM RESILIENCE \/ SCENARIO EXPLORER/);
-  assert.match(markup, /Loading the primary simulation layer\./);
-  assert.match(markup, /data-request-state="loading"/);
-  assert.match(markup, /data-source-status="unavailable"/);
-  assert.doesNotMatch(markup, /Synthetic five-bus preview/);
+  assert.match(markup, /data-source-status="synthetic"/);
+  assert.match(markup, /Synthetic five-bus preview · not Minnesota data/);
+  assert.match(markup, /Every figure is read from a checked-in synthetic artifact — no runtime request, and no claim about a real grid\./);
+  assert.doesNotMatch(markup, /data-request-state=/);
+  assert.doesNotMatch(markup, /Loading the primary simulation layer\./);
 });
 
 test("the chat dock stays collapsed until a user opens its explicit unavailable state", () => {
