@@ -24,6 +24,7 @@ from fastapi.responses import JSONResponse
 
 from copilot.api import NotFoundError, UnavailableError
 from copilot.config import Settings
+from pipelines.labels import SYNTHETIC_TOPOLOGY_LABEL
 from pipelines.node_annotations import read_node_annotations
 
 DOCUMENTED_LAYERS: Final = frozenset(
@@ -57,7 +58,6 @@ router = APIRouter(prefix="/layers", tags=["layers"])
 
 GEOJSON_MEDIA_TYPE: Final = "application/geo+json"
 CRS_NAME: Final = "EPSG:4326"
-SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"
 _FIXTURE_PREFIX: Final = "fixture:"
 _FIXTURE_SOURCE: Final = "fixture"
 _ACTIVSG_MARKER: Final = "activsg"
@@ -239,6 +239,7 @@ def _annotated_buses_collection(
             {
                 "base_kv": props["kv"],
                 "role": annotation.role,
+                "topology": annotation.topology,
                 "generation_capacity_mw": annotation.generation_capacity_mw,
                 "fuel_mix": list(annotation.fuel_mix),
                 "nominal_draw_mw": annotation.nominal_draw_mw,
@@ -262,6 +263,11 @@ def _annotated_buses_collection(
                 "unit": None,
                 "kind": "derived classification",
                 "source": "gens, loads",
+            },
+            "topology": {
+                "unit": None,
+                "kind": "truth label",
+                "source": "pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL",
             },
             "generation_capacity_mw": {
                 "unit": "MW",

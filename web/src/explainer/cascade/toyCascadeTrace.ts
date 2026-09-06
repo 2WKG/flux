@@ -10,7 +10,7 @@
  *
  * There is no browser solver: the page renders numbers it was handed.
  */
-import artifact from "../../../data/explainer/toy-cascade-trace.json";
+import artifact from "../../../../data/explainer/toy-cascade-trace.json";
 
 export interface ToyBus {
   readonly id: string;

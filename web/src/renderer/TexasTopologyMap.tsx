@@ -1,0 +1,85 @@
+/**
+ * Full synthetic Texas model scene. Geometry and IDs arrive only from
+ * `/demo/model`; this layer is intentionally separate from physical inventory
+ * placements and their 3D asset LOD.
+ */
+import { useMemo, useState } from "react";
+import type { LayersList } from "@deck.gl/core";
+import { PathLayer, ScatterplotLayer } from "@deck.gl/layers";
+import Map from "react-map-gl/maplibre";
+import { OFFLINE_BASEMAP_STYLE } from "./basemap";
+import { DeckOverlay } from "./DeckOverlay";
+
+type Position = readonly [number, number];
+export type TexasModelElement = Readonly<{
+  element_id?: string;
+  resolved?: boolean;
+  role?: string;
+  geometry?: Readonly<{ type?: string; coordinates?: unknown }>;
+}>;
+export type TexasModelPayload = Readonly<{
+  status: "available" | "partial" | "unavailable";
+  reason?: string;
+  data?: Readonly<{
+    topology?: Readonly<{ label?: string; synthetic?: boolean; solver?: string }>;
+    elements?: readonly TexasModelElement[];
+  }>;
+}>;
+type Point = Readonly<{ id: string; position: Position }>;
+type Line = Readonly<{ id: string; path: readonly Position[] }>;
+
+function position(value: unknown): Position | null {
+  return Array.isArray(value) && typeof value[0] === "number" && Number.isFinite(value[0]) &&
+    typeof value[1] === "number" && Number.isFinite(value[1]) ? [value[0], value[1]] : null;
+}
+
+function geometry(elements: readonly TexasModelElement[]): { points: readonly Point[]; lines: readonly Line[] } {
+  const points: Point[] = [], lines: Line[] = [];
+  for (const element of elements) {
+    if (!element.resolved || !element.element_id) continue;
+    if (element.geometry?.type === "Point") {
+      const item = position(element.geometry.coordinates);
+      if (item) points.push({ id: element.element_id, position: item });
+    } else if (element.geometry?.type === "LineString" && Array.isArray(element.geometry.coordinates)) {
+      const path = element.geometry.coordinates.flatMap((item) => {
+        const value = position(item);
+        return value ? [value] : [];
+      });
+      if (path.length >= 2) lines.push({ id: element.element_id, path });
+    }
+  }
+  return { points, lines };
+}
+
+function boundsOf(points: readonly Point[], lines: readonly Line[]) {
+  const all = [...points.map((point) => point.position), ...lines.flatMap((line) => line.path)];
+  if (!all.length) return null;
+  return [[Math.min(...all.map((item) => item[0])), Math.min(...all.map((item) => item[1]))],
+    [Math.max(...all.map((item) => item[0])), Math.max(...all.map((item) => item[1]))]] as const;
+}
+
+export function isTexasModelPayload(value: unknown): value is TexasModelPayload {
+  if (!value || typeof value !== "object") return false;
+  const status = (value as Record<string, unknown>).status;
+  return status === "available" || status === "partial" || status === "unavailable";
+}
+
+/** All resolved branches remain in the PathLayer at every zoom. */
+export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayload }) {
+  const { points, lines } = useMemo(() => geometry(payload.data?.elements ?? []), [payload]);
+  const bounds = useMemo(() => boundsOf(points, lines), [points, lines]);
+  const [error, setError] = useState<string | null>(null);
+  const layers = useMemo<LayersList>(() => [
+    new PathLayer<Line>({ id: "texas-model-branches", data: lines, getPath: (line) => line.path as Position[],
+      getColor: [74, 222, 128, 170], getWidth: 1.5, widthUnits: "pixels", pickable: true }),
+    new ScatterplotLayer<Point>({ id: "texas-model-buses", data: points, getPosition: (point) => point.position,
+      getRadius: 3, radiusUnits: "pixels", getFillColor: [148, 163, 184, 210], pickable: true }),
+  ], [lines, points]);
+  if (payload.status === "unavailable" || bounds === null || error) return <p role="status">Texas model unavailable: {error ?? payload.reason ?? "the API supplied no resolved model geometry"}.</p>;
+  return <section className="texas-topology-map" aria-label="Full synthetic Texas topology" data-topology={payload.data?.topology?.label ?? "synthetic topology"}>
+    <Map initialViewState={{ bounds: bounds as [[number, number], [number, number]], fitBoundsOptions: { padding: 32, maxZoom: 6.8 }, pitch: 40, bearing: -12 }} mapStyle={OFFLINE_BASEMAP_STYLE} onError={(event) => setError(event.error.message)}>
+      <DeckOverlay layers={layers} />
+    </Map>
+    <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {points.length} resolved buses · {lines.length} resolved branches. Topology remains complete at every zoom; physical-inventory models use their separate LOD policy.</p>
+  </section>;
+}

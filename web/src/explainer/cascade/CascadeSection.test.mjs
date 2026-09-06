@@ -1,4 +1,4 @@
-// The explainer's rendering contract. Before this file the page could be
+// The explainer cascade section's rendering contract. Before this file the page could be
 // emptied, relabelled `source_supported`, or stripped of its synthetic
 // disclosure with the suite green: `explainerBoundary.test.mjs` only read the
 // source as text. These checks render the component.
@@ -19,6 +19,7 @@ import { build } from "esbuild";
 
 const webRoot = path.dirname(new URL("../../package.json", import.meta.url).pathname);
 const pagePath = path.join(webRoot, "src/pages/ExplainerPage.tsx");
+const sectionPath = path.join(webRoot, "src/explainer/cascade/CascadeSection.tsx");
 
 const TRACE_HASH = "ed58c8fcd45adb72e57f2e2b3abb9e4ddf741bc8dd3db3329d0addab955674cd";
 
@@ -31,7 +32,9 @@ async function render() {
     `
     import { renderToStaticMarkup } from "react-dom/server";
     import { ExplainerPage } from ${JSON.stringify(pagePath)};
+    import { CascadeSection } from ${JSON.stringify(sectionPath)};
     export const markup = renderToStaticMarkup(<ExplainerPage />);
+    export const sectionMarkup = renderToStaticMarkup(<CascadeSection />);
   `,
     "utf8",
   );
@@ -52,20 +55,34 @@ async function render() {
     logLevel: "silent",
   });
   try {
-    const { markup } = await import(`${pathToFileURL(output).href}?t=${Date.now()}`);
-    return markup;
+    const rendered = await import(`${pathToFileURL(output).href}?t=${Date.now()}`);
+    return { markup: rendered.markup, sectionMarkup: rendered.sectionMarkup };
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
 }
 
-const markup = await render();
+const { markup, sectionMarkup } = await render();
 
-test("the page labels itself synthetic and never claims a supported source", () => {
-  assert.match(markup, /<main[^>]*data-source-status="synthetic"/);
+test("the mounted cascade section labels itself synthetic and claims no supported source", () => {
+  assert.match(sectionMarkup, /<section[^>]*data-source-status="synthetic"/);
+  assert.match(markup, /data-source-status="synthetic"/);
   for (const claim of ["source_supported", "source_screened", "Source-supported", "Source-screened"]) {
     assert.ok(!markup.includes(claim), `the explainer claims ${claim}`);
   }
+});
+
+test("the explainer page actually mounts the cascade section", () => {
+  // Unmounting <CascadeSection/> from ExplainerPage.tsx must fail here.
+  assert.match(markup, /Low-complexity cascade/);
+  assert.ok(
+    markup.includes(TRACE_HASH),
+    "the explainer page does not render the cascade section's trace",
+  );
+  assert.ok(
+    !markup.includes("The teaching simulation is not part of this build."),
+    "the page still claims the teaching simulation is absent",
+  );
 });
 
 test("the page credits the server module, artifact, route and trace hash it replays", () => {
@@ -105,7 +122,7 @@ test("the synthetic disclosures are on the page, not only in the source", async 
   assert.match(markup, /synthetic five-bus teaching network/i);
   assert.match(markup, /not the main page’s fixture or the server’s ACTIVSg2000 topology/);
   const trace = JSON.parse(
-    await readFile(new URL("../../../data/explainer/toy-cascade-trace.json", import.meta.url), "utf8"),
+    await readFile(new URL("../../../../data/explainer/toy-cascade-trace.json", import.meta.url), "utf8"),
   );
   const escape = (text) =>
     text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/'/g, "&#x27;");

@@ -16,9 +16,9 @@ const solverShapes = [
   /connectedComponents|balanceComponents/,
 ];
 
-test("the explainer page imports no 3D renderer and carries no solver of its own", async () => {
-  const pageSource = await readFile(new URL("./ExplainerPage.tsx", import.meta.url), "utf8");
-  const traceSource = await readFile(new URL("./toyCascadeTrace.ts", import.meta.url), "utf8");
+test("the explainer cascade section imports no 3D renderer and carries no solver of its own", async () => {
+  const pageSource = await readFile(new URL("../explainer/cascade/CascadeSection.tsx", import.meta.url), "utf8");
+  const traceSource = await readFile(new URL("../explainer/cascade/toyCascadeTrace.ts", import.meta.url), "utf8");
   assert.doesNotMatch(pageSource, forbiddenImports);
   assert.doesNotMatch(traceSource, forbiddenImports);
   for (const shape of solverShapes) {
@@ -29,11 +29,11 @@ test("the explainer page imports no 3D renderer and carries no solver of its own
 
 test("the route table's truth note names the same server module the page credits", async () => {
   const [pageSource, routerSource] = await Promise.all([
-    readFile(new URL("./ExplainerPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../explainer/cascade/CascadeSection.tsx", import.meta.url), "utf8"),
     readFile(new URL("../router/index.ts", import.meta.url), "utf8"),
   ]);
-  const declared = pageSource.match(/export const SOLVER_MODULE = "([^"]+)"/);
-  assert.ok(declared, "the page must name the module that produced its trace");
+  const declared = pageSource.match(/export const SOLVER_MODULE =\s*"([^"]+)"/);
+  assert.ok(declared, "the cascade section must name the module that produced its trace");
   const explainerEntry = routerSource.slice(
     routerSource.indexOf('id: "explainer"'),
     routerSource.indexOf('id: "minnesota"'),
