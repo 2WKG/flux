@@ -17,11 +17,11 @@ import { JepaSection } from "../explainer/jepa";
 import { FailureState } from "../failure-states/FailureState";
 
 const METHOD = [
-  { title: "The scenario math", body: "The scenario explorer solves nothing at runtime. It reads a checked-in fixture whose unmet demand, corridor loadings and candidate contributions were computed offline and frozen." },
-  { title: "The causal layer", body: "Experimental. It produces evidence artifacts offline; no causal estimate is computed in the browser and none is displayed on this page." },
-  { title: "The JEPA predictor", body: "Experimental. A joint-embedding predictor over outage counts is trained and evaluated outside this build. No prediction from it reaches any page here." },
-  { title: "The GNN / grid foundation-model direction", body: "Aspirational. A graph export exists as a dataset; there is no trained grid foundation model behind this demo, and nothing on the site is produced by one." },
-];
+  ["The scenario math", "The scenario explorer solves nothing at runtime. It reads a checked-in fixture whose unmet demand, corridor loadings and candidate contributions were computed offline and frozen."],
+  ["The causal layer", "Implemented and evidence-gated. The synthetic teaching figures are illustrative. The causal_query effect path is unavailable without a registered artifact."],
+  ["The JEPA predictor", "Experimental. A joint-embedding predictor over outage counts is trained and evaluated outside this build. No prediction from it reaches any page here."],
+  ["The GNN / grid foundation-model direction", "Aspirational. A graph export exists as a dataset; there is no trained grid foundation model behind this demo, and nothing on the site is produced by one."],
+] as const;
 
 class ExplainerSectionBoundary extends Component<
   { readonly label: string; readonly children: ReactNode },
@@ -55,7 +55,7 @@ export function ExplainerPage() {
       <p>The scenario explorer shows an answer. This page says where the answer comes from, which parts of the method are live, and which parts are still a direction rather than a result.</p>
     </header>
     <section className="method" aria-label="Method">
-      {METHOD.map((entry) => <article key={entry.title} className="method-entry"><h2>{entry.title}</h2><p>{entry.body}</p></article>)}
+      {METHOD.map(([title, body]) => <article key={title} className="method-entry"><h2>{title}</h2><p>{body}</p></article>)}
     </section>
     <ExplainerSectionBoundary label="Low-complexity cascade section"><CascadeSection /></ExplainerSectionBoundary>
     <ExplainerSectionBoundary label="Causal teaching section"><CausalSection /></ExplainerSectionBoundary>
