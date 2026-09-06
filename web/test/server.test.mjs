@@ -220,3 +220,20 @@ test("there is no second application entry to serve", async () => {
   assert.ok(!scripts.includes("dist-map"), "a second application dist is configured again");
   assert.ok(!scripts.includes("build:map"), "a second application build entry is configured again");
 });
+
+
+test("a partially streamed upstream timeout closes that response without taking down the proxy", async () => {
+  const api = await upstream((_req, res) => {
+    res.writeHead(200, { "content-type": "model/gltf-binary" });
+    res.write(Buffer.from([0x67, 0x6c, 0x54, 0x46]));
+    // Deliberately never end: the proxy timeout must contain the stream error.
+  });
+  const server = createApp({ apiOrigin: api, proxyTimeoutMs: 25 }).listen(0, "127.0.0.1");
+  await new Promise((resolve) => server.once("listening", resolve));
+  servers.push(server);
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const response = await fetch(`${base}/assets/flux-grid/manifest.json`);
+  await assert.rejects(response.arrayBuffer(), /abort|terminated|fetch/i);
+  const health = await fetch(`${base}/health`);
+  assert.equal(health.status, 200, "the proxy remains alive after the truncated stream");
+});

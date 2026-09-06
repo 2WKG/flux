@@ -106,7 +106,7 @@ export function unavailableEnvelope({ message, reason, requestId }) {
 /** The named reason an allowlisted path carries when this deployment has no upstream at all. */
 export const NO_API_ORIGIN_REASON = "no_api_origin_configured";
 
-export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN } = {}) {
+export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.env.FLUX_GRID_API_ORIGIN, proxyTimeoutMs = PROXY_TIMEOUT_MS } = {}) {
   const app = express();
   app.use((_req, res, next) => {
     res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
@@ -128,7 +128,7 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
         headers,
         body,
         duplex: body ? "half" : undefined,
-        signal: AbortSignal.timeout(PROXY_TIMEOUT_MS),
+        signal: AbortSignal.timeout(proxyTimeoutMs),
       }).then((response) => {
         res.status(response.status);
         const type = response.headers.get("content-type");
@@ -144,7 +144,7 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
           // A complete error envelope is possible only before headers. Once a
           // partial GLB/event response is sent, destroy it rather than claiming
           // a successful complete body; pipeline has consumed the stream error.
-          if (!res.headersSent) {
+          if (!res.headersSent && !res.destroyed) {
             res.status(504).setHeader("content-type", "application/json");
             res.end(JSON.stringify(unavailableEnvelope({
               message: "The configured API origin timed out while streaming its response.",
