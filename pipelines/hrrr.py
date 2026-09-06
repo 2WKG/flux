@@ -8,6 +8,7 @@ windows; it is not itself a completed ingest receipt.
 
 from __future__ import annotations
 
+import argparse
 import hashlib
 import json
 import os
@@ -24,20 +25,32 @@ import requests
 import xarray as xr
 
 from pipelines.common import utc_now
-from pipelines.db import replace_frame
+from pipelines.db import connect, replace_frame
 from pipelines.state_scope import StateScope, scope
 
 MANIFEST_PATH = Path("data/sources/texas-hrrr-manifest-feasibility.json")
 RAW_DIR = Path("data/raw/hrrr")
 INDEX_CACHE = Path("data/parquet/hrrr_county_index.parquet")
 S3_ROOT = "https://noaa-hrrr-bdp-pds.s3.amazonaws.com"
+# ``.idx`` keys are ``VAR:level:fcst``.  The trailing forecast descriptor is
+# part of the identity, not decoration: a single ``wrfsfcf01`` index carries
+# ``WEASD:surface`` twice (``1 hour fcst`` and ``0-1 hour acc fcst``), and the
+# ``f00`` index carries ``APCP:surface`` as an all-zero ``0-0 day acc fcst``.
+# Dropping it would let a ``VAR:level`` prefix select the wrong message.
 ANALYSIS_FIELDS = {
-    "wind_u": "UGRD:10 m above ground",
-    "wind_v": "VGRD:10 m above ground",
-    "gust_ms": "GUST:surface",
-    "temp_k": "TMP:2 m above ground",
+    "wind_u": "UGRD:10 m above ground:anl",
+    "wind_v": "VGRD:10 m above ground:anl",
+    "gust_ms": "GUST:surface:anl",
+    "temp_k": "TMP:2 m above ground:anl",
 }
-ACCUMULATION_FIELDS = {"precip_mm": "APCP:surface", "ice_mm": "FRZR:surface"}
+ACCUMULATION_FIELDS = {
+    "precip_mm": "APCP:surface:0-1 hour acc fcst",
+    "ice_mm": "FRZR:surface:0-1 hour acc fcst",
+}
+PROVIDER = "NOAA HRRR archive on AWS Open Data"
+SOURCE_URL = "https://registry.opendata.aws/noaa-hrrr-pds/"
+LICENSE_ACCESS = "U.S. government public data"
+CAPTURE_METHOD = "HTTP range request bounded by the published .grib2.idx byte offsets"
 
 
 @dataclass(frozen=True)
@@ -99,17 +112,24 @@ def _index(url: str) -> list[tuple[int, int, str]]:
     for line in response.text.splitlines():
         pieces = line.split(":")
         if len(pieces) >= 6:
-            rows.append((int(pieces[0]), int(pieces[1]), ":".join(pieces[3:5])))
+            rows.append((int(pieces[0]), int(pieces[1]), ":".join(pieces[3:6])))
     return rows
 
 
 def _message_bounds(url: str, field: str) -> tuple[int, int]:
     rows = _index(url)
-    for offset, (number, start, key) in enumerate(rows):
-        if key == field:
-            end = rows[offset + 1][1] - 1 if offset + 1 < len(rows) else -1
-            return start, end
-    raise RuntimeError(f"HRRR field {field!r} is absent from {url}.idx")
+    matches = [offset for offset, row in enumerate(rows) if row[2] == field]
+    if not matches:
+        raise RuntimeError(f"HRRR field {field!r} is absent from {url}.idx")
+    if len(matches) > 1:
+        raise RuntimeError(
+            f"HRRR field {field!r} matches {len(matches)} messages in {url}.idx; "
+            "the index key does not identify one message"
+        )
+    offset = matches[0]
+    start = rows[offset][1]
+    end = rows[offset + 1][1] - 1 if offset + 1 < len(rows) else -1
+    return start, end
 
 
 def _fetch_message(url: str, field: str, raw_dir: Path) -> tuple[Path, dict[str, Any]]:
@@ -253,12 +273,12 @@ def _cache_matches(con, index: pd.DataFrame, selected: StateScope) -> bool:
 
 def _expected_field(field: str) -> tuple[str, str, str]:
     expected = {
-        "UGRD:10 m above ground": ("10u", "instant", "m s**-1"),
-        "VGRD:10 m above ground": ("10v", "instant", "m s**-1"),
-        "GUST:surface": ("gust", "instant", "m s**-1"),
-        "TMP:2 m above ground": ("2t", "instant", "K"),
-        "APCP:surface": ("tp", "accum", "kg m**-2"),
-        "FRZR:surface": ("frzr", "accum", "kg m**-2"),
+        "UGRD:10 m above ground:anl": ("10u", "instant", "m s**-1"),
+        "VGRD:10 m above ground:anl": ("10v", "instant", "m s**-1"),
+        "GUST:surface:anl": ("gust", "instant", "m s**-1"),
+        "TMP:2 m above ground:anl": ("2t", "instant", "K"),
+        "APCP:surface:0-1 hour acc fcst": ("tp", "accum", "kg m**-2"),
+        "FRZR:surface:0-1 hour acc fcst": ("frzr", "accum", "kg m**-2"),
     }
     return expected[field]
 
@@ -294,7 +314,7 @@ def _validate_message(
 
 
 def build_county_index(
-    con, cache: str | None = None, states: tuple[str, ...] = ("TX",)
+    con, cache: str | None = None, states: tuple[str, ...] | StateScope = ("TX",)
 ) -> pd.DataFrame:
     """Cache grid-cell centroids assigned to selected counties for groupby means."""
     path = Path(cache) if cache is not None else INDEX_CACHE
@@ -342,28 +362,40 @@ def _receipt_path(
     return raw_dir / "receipts" / scenario_id / f"{valid:%Y%m%dT%H%M%SZ}-{digest}.json"
 
 
+def _logical_name(url: str, field: str) -> str:
+    """Name one range subset the way a checked-in source receipt names a file."""
+    return f"{url.rsplit('/', maxsplit=1)[-1]}#{field}"
+
+
 def _cached_messages(
     receipt_path: Path,
 ) -> tuple[dict[str, Path], list[dict[str, Any]]] | None:
     """Reuse byte-verified raw subsets named by an existing receipt."""
     try:
-        sources = json.loads(receipt_path.read_text())["sources"]
-    except (OSError, KeyError, json.JSONDecodeError):
+        files = json.loads(receipt_path.read_text())["files"]
+        sources = list(files.values())
+    except (AttributeError, OSError, KeyError, json.JSONDecodeError):
         return None
+    ordered_fields = [*ANALYSIS_FIELDS.values(), *ACCUMULATION_FIELDS.values()]
+    by_field: dict[str, dict[str, Any]] = {}
     paths: dict[str, Path] = {}
     for source in sources:
+        if not isinstance(source, dict):
+            return None
         field, digest = source.get("field"), source.get("sha256")
-        if not isinstance(digest, str) or field not in (
-            *ANALYSIS_FIELDS.values(),
-            *ACCUMULATION_FIELDS.values(),
-        ):
+        if not isinstance(digest, str) or field not in ordered_fields:
             return None
         path = receipt_path.parents[2] / digest[:2] / f"{digest}.grib2"
+        # Re-verify the bytes, never the receipt's word for them: a truncated or
+        # edited cache file must be refetched rather than silently reused.
         if not path.exists() or hashlib.sha256(path.read_bytes()).hexdigest() != digest:
             return None
         paths[field] = path
-    expected = set(ANALYSIS_FIELDS.values()) | set(ACCUMULATION_FIELDS.values())
-    return (paths, sources) if set(paths) == expected else None
+        by_field[field] = source
+    if set(paths) != set(ordered_fields):
+        return None
+    # Rebuild the declared field order; the receipt is written with sorted keys.
+    return paths, [by_field[field] for field in ordered_fields]
 
 
 def _persist_source_run(con, source_run: dict[str, Any]) -> None:
@@ -407,7 +439,7 @@ def _persist_source_run(con, source_run: dict[str, Any]) -> None:
         )
     except Exception as error:
         raise RuntimeError(
-            "weather_source_runs helper is required for HRRR ingestion"
+            f"weather_source_runs helper is required for HRRR ingestion: {error!r}"
         ) from error
 
 
@@ -564,11 +596,31 @@ def _prepare_hrrr_hour(
         frame=frame,
         receipt_path=receipt_path,
         receipt_payload={
+            "retrieved_at": source_run["retrieved_at"],
+            "provider": PROVIDER,
+            "source_url": SOURCE_URL,
+            "license_access": LICENSE_ACCESS,
+            "capture_method": CAPTURE_METHOD,
             "scenario_id": scenario_id,
             "valid_ts": valid.isoformat(),
-            "index_path": str(INDEX_CACHE),
-            "sources": source_records,
+            "files": {
+                _logical_name(record["url"], record["field"]): record
+                for record in source_records
+            },
+            "verification": {
+                "content_range_matched_request": True,
+                "sha256_computed_from_response_body": True,
+                "decoded_field_identity_checked": True,
+                "grid_signature": str(index.grid_signature.iloc[0]),
+                "county_index_version": str(index.grid_signature.iloc[0]),
+                "index_path": str(INDEX_CACHE),
+            },
             "weather_source_run": source_run,
+            "uncertainty": (
+                "This receipt covers the retrieved GRIB range subsets and the "
+                "county-hour aggregation of this one hour. It is not a validation "
+                "of the HRRR model itself."
+            ),
         },
         source_run=source_run,
     )
@@ -655,3 +707,35 @@ def load_hrrr_forecast(con, run: datetime | None = None, horizon_h: int = 48) ->
     raise NotImplementedError(
         "forecast HRRR loading is outside the historical intake slice"
     )
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Explicit entry point: ``python -m pipelines.hrrr --scenario uri_2021``.
+
+    ``pipelines.build`` does not call this.  A declared window is thousands of
+    HTTP range requests against a public bucket, so it is run deliberately;
+    wiring it into the P0 build order is a separate decision.
+    """
+    parser = argparse.ArgumentParser(description="Load one declared HRRR window.")
+    parser.add_argument("--scenario", required=True, help="declared scenario_id")
+    parser.add_argument("--db", default="data/duck/grid.duckdb")
+    parser.add_argument(
+        "--states",
+        action="append",
+        help="USPS codes, full names, FIPS, or comma-separated scope (default: Texas)",
+    )
+    parser.add_argument("--workers", type=int, default=None)
+    args = parser.parse_args(argv)
+    con = connect(args.db)
+    try:
+        rows = load_hrrr_window(
+            con, args.scenario, scope(args.states), workers=args.workers
+        )
+    finally:
+        con.close()
+    print(f"weather_hourly: {rows}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
