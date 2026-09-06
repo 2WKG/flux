@@ -4,8 +4,10 @@ import { mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { promisify } from "node:util";
+
+import { build } from "esbuild";
 
 /**
  * What must be true of the *built* renderer for it to exist at all.
@@ -88,12 +90,57 @@ test("the shipped app build carries both MapLibre runtime files", async () => {
   }
 });
 
-test("no remote basemap origin ships in the renderer bundle", async () => {
-  const app = await read("assets/app.js");
-  for (const host of ["tiles.openfreemap.org", "demotiles.maplibre.org", "api.maptiler.com", "api.mapbox.com"]) {
-    assert.ok(!app.includes(host), `the bundle references the remote basemap host ${host}`);
+/** The style module, compiled and evaluated, so the object itself is asserted. */
+let basemapPromise;
+function basemapModule() {
+  basemapPromise ??= (async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), "flux-basemap-"));
+    const outfile = path.join(dir, "basemap.mjs");
+    await build({
+      entryPoints: [path.join(webRoot, "src/renderer/basemap.ts")],
+      outfile, bundle: true, format: "esm", platform: "neutral",
+      absWorkingDir: webRoot, nodePaths: [path.join(webRoot, "node_modules")], logLevel: "silent",
+    });
+    return import(pathToFileURL(outfile).href);
+  })();
+  return basemapPromise;
+}
+
+test("the shipped basemap reaches no origin but this one", async () => {
+  // An allowlist over the style, not a denylist over vendors. This assertion
+  // used to name four hosts (`tiles.openfreemap.org`, `demotiles.maplibre.org`,
+  // `api.maptiler.com`, `api.mapbox.com`), and a live
+  // `https://tile.openstreetmap.org/{z}/{x}/{y}.png` raster source shipped
+  // through it with the whole suite green -- a denylist can only see the
+  // vendors somebody already thought of, and "self-hosted" is a claim about
+  // *every* origin, not four of them.
+  //
+  // What is actually claimed -- "no API required", "issues no network request"
+  // -- is a property of the style object: every URL it names must be
+  // same-origin, and `data:`/`blob:` are the only other schemes a style may
+  // carry, because neither leaves the document.
+  const style = (await basemapModule()).OFFLINE_BASEMAP_STYLE;
+  assert.deepEqual(Object.keys(style.sources ?? {}), [], "the offline style declares a tile source");
+  for (const absent of ["glyphs", "sprite"]) {
+    assert.equal(style[absent], undefined, `the offline style names a remote ${absent} endpoint`);
   }
-  // The offline style is the one the renderer actually mounts.
+  const offOrigin = [];
+  const walk = (value, at) => {
+    if (typeof value === "string") {
+      if (/^([a-z][a-z0-9+.-]*:)?\/\//i.test(value) && !/^(data|blob):/i.test(value)) offOrigin.push(`${at} = ${value}`);
+      return;
+    }
+    if (Array.isArray(value)) return value.forEach((entry, index) => walk(entry, `${at}[${index}]`));
+    if (value && typeof value === "object") for (const [key, entry] of Object.entries(value)) walk(entry, `${at}.${key}`);
+  };
+  walk(style, "style");
+  assert.deepEqual(offOrigin, [], `the offline style names off-origin URLs: ${offOrigin.join(", ")}`);
+
+  // And the same property over the built artifact, which is what ships: an
+  // XYZ tile template is how every raster and vector tile vendor addresses
+  // tiles, so its absence is vendor-independent in a way a host list is not.
+  const app = await read("assets/app.js");
+  assert.doesNotMatch(app, /\{z\}\/\{x\}\/\{y\}/, "the bundle carries an XYZ tile template, so a remote basemap ships in it");
   assert.ok(app.includes("Flux offline geometry-free basemap"), "the offline style is not in the bundle");
 });
 
