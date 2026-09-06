@@ -32,9 +32,11 @@ from copilot.non_interactive_tool_handlers import (
     NonInteractiveToolServices,
     non_interactive_tool_handlers,
 )
-from copilot.providers import build_tool_provider
+from copilot.providers import build_narration_provider
 from copilot.routes.ask import AskBackend
 from copilot.routes.ask import router as ask_router
+from copilot.routes.assets import placements_router
+from copilot.routes.assets import router as assets_router
 from copilot.routes.comparisons import router as comparisons_router
 from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
@@ -46,34 +48,39 @@ from copilot.routes.mn_comparisons import router as mn_comparisons_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
+from copilot.runtime import AsyncNarrationProvider
+
+_UNSET: object = object()
 
 
 def create_app(
     settings: Settings | None = None,
     *,
     ask_backend: AskBackend | None = None,
+    narration_provider: AsyncNarrationProvider | None | object = _UNSET,
     tool_provider: ToolCallingProvider | None = None,
     tool_dispatcher: ToolDispatcher | None = None,
 ) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings if settings is not None else load_settings()
-    # Adapter construction is local-only; requests are the only point at which
-    # a configured provider can be contacted. Missing credentials stay
-    # explicitly unavailable.
+    # Tool orchestration stays deployment-injected: there is no default plan, so
+    # an unconfigured deployment answers `unavailable` rather than guessing.
     app.state.ask_backend = ask_backend
-    # An injected legacy backend owns the attempt outright.  Do not construct a
-    # configured SDK transport that the route will never select; the normal
-    # dispatcher path constructs its configured transport once at app startup.
-    app.state.tool_provider = (
-        tool_provider
-        if tool_provider is not None
-        else (
-            None
-            if ask_backend is not None
-            else build_tool_provider(app.state.settings)
-        )
+    # The narration provider, by contrast, *is* configuration: `COPILOT_PROVIDER`
+    # plus its credential fully determine it, so the app constructs it here.
+    # Construction opens no connection; an unconfigured provider is `None` and
+    # `/ask` emits the documented unavailable terminal.  Tests may pass an
+    # explicit provider (including `None`) to bypass local configuration.
+    app.state.narration_provider = (
+        build_narration_provider(app.state.settings)
+        if narration_provider is _UNSET
+        else narration_provider
     )
+    # The tool-calling transport is deployment-injected for the same reason the
+    # ask backend is: there is no configured default, so an uninjected
+    # deployment keeps the documented unavailable terminal rather than guessing.
+    app.state.tool_provider = tool_provider
     install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
@@ -111,6 +118,8 @@ def create_app(
     )
 
     app.include_router(health_router)
+    app.include_router(assets_router)
+    app.include_router(placements_router)
     app.include_router(layers_router)
     app.include_router(physical_layers_router)
     app.include_router(interventions_router)

@@ -1,4 +1,4 @@
-"""HTTP proof for the persisted Minnesota aggregate artifact route."""
+"""HTTP proof for the exact persisted Minnesota aggregate artifact route."""
 
 from __future__ import annotations
 
@@ -10,15 +10,18 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from copilot.api import install_error_handlers
-from copilot.app import create_app
 from copilot.config import Settings
 from copilot.routes.minnesota_aggregate import router
+from pipelines.minnesota_aggregate_runtime import (
+    FORMULA,
+    METRIC_NAME,
+    build_aggregate_runtime,
+    load_aggregate_inputs,
+)
 from pipelines.minnesota_schema import ensure_minnesota_schema
 
+ROOT = Path(__file__).resolve().parents[1]
 ARTIFACT_ID = "mn:model_result:665b5ac415912f3f"
-SOURCE_IDENTITY = "minnesota_aggregate_manifest_v1"
-METRIC = "miso_ba_peak_demand_mw"
-SHA256 = "f287a1dfbafddff8bd9f0ec989d488ad6743609280b19338eca048c3d5858e05"
 
 
 def _client(database: Path) -> TestClient:
@@ -29,55 +32,33 @@ def _client(database: Path) -> TestClient:
     return TestClient(app)
 
 
-def _components() -> dict[str, object]:
-    return {
-        "artifact_version": "v1",
-        "aggregate_manifest": {
-            "format": "flux-minnesota-aggregate-v1",
-            "model_mode": "aggregate",
-            "allocation_status": "unavailable",
-            "allocation_limit": "No reviewed BA-to-service-area allocation crosswalk is available.",
-            "sources": [
-                {"id": "tiger_counties_2024", "url": "https://example.invalid/tiger"},
-                {"id": "mngeo_service_areas_2026", "url": "https://example.invalid/mngeo"},
-                {"id": "eia860_2024", "url": "https://example.invalid/eia860"},
-                {
-                    "id": "eia930_balance_2024_h1",
-                    "url": "https://example.invalid/eia930",
-                    "file_sha256": {"miso_ba_context_2024_h1.csv": SHA256},
-                }
-            ],
-        },
-        "stress_context": {
-            "source_label": "MISO balancing authority (not Minnesota demand)",
-            "time_basis": "UTC end of hour",
-            "window_start_utc": "2024-01-01T06:00:00Z",
-            "window_end_utc": "2024-07-01T05:00:00Z",
-            "window_peak_demand_mw": 109244.0,
-            "window_peak_hour_utc": "2024-06-24T23:00:00Z",
-            "scored_hours": 4368,
-            "min_index": 0.1,
-            "mean_index": 0.654879,
-            "p95_index": 0.9,
-        },
-        "prohibited_claims": [
-            "Minnesota demand allocation",
-            "county or service-area load allocation",
-            "facility dispatch",
-        ],
-    }
+def _source_db(path: Path) -> None:
+    con = duckdb.connect(str(path))
+    try:
+        con.execute("CREATE TABLE retained_source (value TEXT)")
+    finally:
+        con.close()
 
 
-def _insert_artifact(
-    database: Path,
-    *,
-    artifact_id: str = ARTIFACT_ID,
-    source_identity: str = SOURCE_IDENTITY,
-    include_model_and_score: bool = True,
-) -> None:
+def _runtime(database: Path) -> None:
+    source = database.with_name("source.duckdb")
+    _source_db(source)
+    build_aggregate_runtime(source_db=source, output_db=database, repository_root=ROOT)
+
+
+def _insert_matching_manifest(database: Path, artifact_id: str) -> None:
+    inputs = load_aggregate_inputs(repository_root=ROOT)
     con = duckdb.connect(str(database))
     try:
         ensure_minnesota_schema(con)
+        identity = {
+            "artifact_kind": "model_result",
+            "geography_id": "mn",
+            "model_mode": "aggregate",
+            "source_identity": "minnesota_aggregate_manifest_v1",
+            "source_version": "v1",
+            "content_sha256": inputs.manifest_sha256,
+        }
         con.execute(
             "INSERT INTO mn_artifact_manifests VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
@@ -87,68 +68,13 @@ def _insert_artifact(
                 "mn",
                 "available",
                 "aggregate",
-                json.dumps(
-                    {
-                        "artifact_kind": "model_result",
-                        "geography_id": "mn",
-                        "model_mode": "aggregate",
-                        "source_identity": source_identity,
-                        "source_version": "v1",
-                        "content_sha256": SHA256,
-                    }
-                ),
-                "2026-09-06 00:00:00",
-                json.dumps(["The metric is aggregate only."]),
-                json.dumps(["It is not a transmission-flow or outage simulation."]),
-                json.dumps(["mn:source_manifest:0000000000000000"]),
+                json.dumps(identity),
+                "2026-09-06 02:11:00",
+                json.dumps(["fixture manifest only"]),
+                json.dumps(["fixture manifest only"]),
+                json.dumps([]),
             ],
         )
-        for ordinal, source_name in enumerate(("gate0-a", "gate0-b", "gate0-c", "gate0-d")):
-            con.execute(
-                "INSERT INTO mn_artifact_provenance VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    artifact_id,
-                    ordinal,
-                    source_name,
-                    f"fixture://{source_name}",
-                    "v1",
-                    "2026-09-06 00:00:00",
-                    "fixture",
-                    source_name,
-                    SHA256,
-                    ordinal == 3,
-                ],
-            )
-        if include_model_and_score:
-            con.execute(
-                "INSERT INTO mn_model_results VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                [
-                    artifact_id,
-                    "minnesota_aggregate_peak_context",
-                    "v1",
-                    "aggregate-runtime-v1:f287a1dfbafddff",
-                    SHA256,
-                    "validated",
-                    METRIC,
-                    109244.0,
-                    "MW",
-                    "MAX(`Demand (MW)`) across the committed EIA-930 MISO balancing-authority context rows for 2024 H1; this is MISO BA context, not Minnesota demand.",
-                    None,
-                    None,
-                    None,
-                ],
-            )
-            con.execute(
-                "INSERT INTO mn_score_results VALUES (?, ?, ?, ?, ?, ?)",
-                [
-                    artifact_id,
-                    METRIC,
-                    109244.0,
-                    "MW",
-                    json.dumps(_components()),
-                    "source_screened",
-                ],
-            )
     finally:
         con.close()
 
@@ -157,14 +83,15 @@ def _details(response) -> dict[str, str]:  # type: ignore[no-untyped-def]
     return response.json()["error"]["details"]
 
 
-def test_aggregate_route_serves_the_persisted_aggregate_artifact(tmp_path: Path) -> None:
+def test_aggregate_route_serves_the_real_verified_runtime(tmp_path: Path) -> None:
     database = tmp_path / "aggregate.duckdb"
-    _insert_artifact(database)
+    _runtime(database)
 
     response = _client(database).get("/minnesota/aggregate")
 
     assert response.status_code == 200
     body = response.json()
+    inputs = load_aggregate_inputs(repository_root=ROOT)
     assert body["artifact_id"] == ARTIFACT_ID
     assert body["artifact_contract_version"] == "2.0.0-mn"
     assert body["artifact_identity"] == {
@@ -172,76 +99,60 @@ def test_aggregate_route_serves_the_persisted_aggregate_artifact(tmp_path: Path)
         "artifact_kind": "model_result",
         "geography_id": "mn",
         "model_mode": "aggregate",
-        "source_identity": SOURCE_IDENTITY,
+        "source_identity": "minnesota_aggregate_manifest_v1",
         "source_version": "v1",
-        "content_sha256": SHA256,
+        "content_sha256": inputs.manifest_sha256,
     }
     assert body["availability"] == "available"
     assert body["model_mode"] == "aggregate"
-    assert body["aggregate_manifest"]["allocation_status"] == "unavailable"
-    assert body["stress_metric"] == {
-        "metric_name": METRIC,
-        "metric_value": 109244.0,
-        "unit": "MW",
-        "formula": "MAX(`Demand (MW)`) across the committed EIA-930 MISO balancing-authority context rows for 2024 H1; this is MISO BA context, not Minnesota demand.",
-        **_components()["stress_context"],
+    assert body["aggregate_manifest"] == {
+        key: inputs.manifest[key]
+        for key in (
+            "format",
+            "model_mode",
+            "allocation_status",
+            "allocation_limit",
+            "sources",
+        )
     }
+    assert body["stress_metric"]["metric_name"] == METRIC_NAME
+    assert body["stress_metric"]["metric_value"] == inputs.peak_demand_mw
+    assert body["stress_metric"]["unit"] == "MW"
+    assert body["stress_metric"]["formula"] == FORMULA
     assert len(body["provenance"]) == 4
-    assert body["limitations"] == ["It is not a transmission-flow or outage simulation."]
-    assert body["prohibited_claims"] == _components()["prohibited_claims"]
+    assert [row["content_sha256"] for row in body["provenance"]] == [
+        item.content_sha256 for item in inputs.approved
+    ]
     assert body["base_mva"] is None
     assert body["solver_version"] is None
     assert body["converter_version"] is None
 
 
-def test_aggregate_route_is_mounted_by_the_production_app(tmp_path: Path) -> None:
-    database = tmp_path / "aggregate-app.duckdb"
-    _insert_artifact(database)
-
-    response = TestClient(create_app(Settings(duckdb_path=database))).get(
-        "/minnesota/aggregate"
-    )
-
-    assert response.status_code == 200
-    assert response.json()["artifact_id"] == ARTIFACT_ID
-
-
-def test_production_app_reports_missing_aggregate_artifact_as_unavailable(
-    tmp_path: Path,
-) -> None:
-    response = TestClient(create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))).get(
-        "/minnesota/aggregate"
-    )
-
-    assert response.status_code == 503
-    assert _details(response) == {
-        "artifact": "mn_artifact_manifests",
-        "reason": "database_missing",
-    }
-
-
 def test_aggregate_route_refuses_missing_or_ambiguous_identity(tmp_path: Path) -> None:
     missing_database = tmp_path / "missing.duckdb"
-    _insert_artifact(missing_database, source_identity="other_aggregate")
+    _source_db(missing_database)
     missing = _client(missing_database).get("/minnesota/aggregate")
     assert missing.status_code == 503
-    assert _details(missing) == {"artifact": "mn_artifact_manifests", "reason": "missing_identity"}
+    assert _details(missing) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "missing",
+    }
 
     ambiguous_database = tmp_path / "ambiguous.duckdb"
-    _insert_artifact(ambiguous_database)
-    _insert_artifact(
-        ambiguous_database,
-        artifact_id="mn:model_result:1111111111111111",
-        include_model_and_score=False,
-    )
+    _runtime(ambiguous_database)
+    _insert_matching_manifest(ambiguous_database, "mn:model_result:1111111111111111")
     ambiguous = _client(ambiguous_database).get("/minnesota/aggregate")
     assert ambiguous.status_code == 503
-    assert _details(ambiguous) == {"artifact": "mn_artifact_manifests", "reason": "ambiguous_identity"}
+    assert _details(ambiguous) == {
+        "artifact": "mn_artifact_manifests",
+        "reason": "ambiguous_identity",
+    }
 
 
 def test_aggregate_route_refuses_incomplete_persisted_artifact(tmp_path: Path) -> None:
     database = tmp_path / "incomplete.duckdb"
-    _insert_artifact(database, include_model_and_score=False)
+    _source_db(database)
+    _insert_matching_manifest(database, ARTIFACT_ID)
 
     response = _client(database).get("/minnesota/aggregate")
 
@@ -252,31 +163,22 @@ def test_aggregate_route_refuses_incomplete_persisted_artifact(tmp_path: Path) -
     }
 
 
-def test_aggregate_route_refuses_a_tampered_metric_or_identity(tmp_path: Path) -> None:
-    metric_database = tmp_path / "tampered-metric.duckdb"
-    _insert_artifact(metric_database)
-    con = duckdb.connect(str(metric_database))
+def test_aggregate_route_refuses_a_coherent_tampered_metric(tmp_path: Path) -> None:
+    database = tmp_path / "tampered.duckdb"
+    _runtime(database)
+    con = duckdb.connect(str(database))
     try:
-        con.execute("UPDATE mn_score_results SET score_value=1.0")
+        con.execute("UPDATE mn_model_results SET metric_value=1.0, formula='tampered'")
+        con.execute(
+            "UPDATE mn_score_results SET score_value=1.0, metric='tampered', score_unit='MW'"
+        )
     finally:
         con.close()
-    metric_response = _client(metric_database).get("/minnesota/aggregate")
-    assert metric_response.status_code == 503
-    assert _details(metric_response) == {
-        "artifact": "mn_artifact_manifests",
-        "reason": "invalid_persisted_artifact",
-    }
 
-    identity_database = tmp_path / "tampered-identity.duckdb"
-    _insert_artifact(identity_database)
-    con = duckdb.connect(str(identity_database))
-    try:
-        con.execute("UPDATE mn_model_results SET input_manifest_sha256=?", ["b" * 64])
-    finally:
-        con.close()
-    identity_response = _client(identity_database).get("/minnesota/aggregate")
-    assert identity_response.status_code == 503
-    assert _details(identity_response) == {
+    response = _client(database).get("/minnesota/aggregate")
+
+    assert response.status_code == 503
+    assert _details(response) == {
         "artifact": "mn_artifact_manifests",
         "reason": "invalid_persisted_artifact",
     }

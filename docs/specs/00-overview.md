@@ -43,7 +43,7 @@ Build a demoable, end-to-end planning layer that connects three questions on one
 3. **Where should the next gigawatt of firm generation go?** — a siting engine that scores every candidate site on NRC-style safety exclusions AND on measured grid-strength value (loss-of-load reduction, congestion relief, black-start reach) by re-running the cascade with the unit online.
 
 Plus one line-upgrade screen inside Idea 1 ("which existing wires to upgrade": DLR vs. reconductor
-ranking, spec 08) and a Claude tool-calling copilot that narrates, plans, and cites — and never computes.
+ranking, spec 08) and a tool-calling copilot that narrates, plans, and cites — and never computes.
 
 ### The decision (already made — do not relitigate)
 
@@ -61,7 +61,7 @@ is duplicated whichever pitch leads.
 | Geographic scope | **State-configurable public context.** Each selected state needs declared, validated source artifacts. The repository's only topology adapter is the ACTIVSg2000 synthetic grid, ERCOT balancing authority, and 254 Texas counties; it requires its source artifacts and build. |
 | Other-state topology | Not implied by state-context ingestion. A state needs a validated network and explicit model contract before Flux can show topology, flow, cascade, or siting results there. |
 | Topology honesty | Synthetic topology, stated plainly on the slide and in the copilot system prompt. Real topology is CEII; architecture has a slot for it. |
-| LLM | Claude via the Anthropic SDK, model id `claude-sonnet-5` for tool loops. |
+| LLM | Provider-agnostic tool loop with two supported adapters, selected by `COPILOT_PROVIDER` (2WKG-481). **Default `gemini`**: `google-genai`, model id `gemini-3.8-flash`. Also supported, `claude`: the Anthropic SDK, model id `claude-sonnet-5`. Same tool contract, same SSE events, no automatic cross-provider fallback. Spec 05 §Providers is authoritative. |
 
 ---
 
@@ -87,7 +87,7 @@ flux/
 ├── models/outage/               # LightGBM training + inference (spec 02)
 ├── siting/                      # safety exclusions + grid-value delta (spec 04)
 ├── causal/                      # pgmpy/DoWhy layer (spec 07)
-├── copilot/                     # FastAPI + Claude tool-calling (spec 05); also serves read APIs to web/
+├── copilot/                     # FastAPI + tool-calling copilot, Gemini or Claude (spec 05); also serves read APIs to web/
 ├── web/                         # Vite + React + deck.gl + MapLibre, pnpm (spec 06)
 ├── docs/data/event-baseline/    # historical event baseline contract, schema, and events/<hazard>/ bundles
 └── docs/specs/                  # this directory

@@ -890,7 +890,7 @@ requires-dist = [
     { name = "econml", specifier = ">=0.15" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "geopandas", specifier = ">=1.0" },
-    { name = "google-genai", specifier = ">=1.0" },
+    { name = "google-genai", specifier = ">=2.22" },
     { name = "grid2op", marker = "extra == 'stretch'", specifier = ">=1.10" },
     { name = "gridstatus", specifier = ">=0.28" },
     { name = "h3", specifier = ">=4.1" },

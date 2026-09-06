@@ -11,11 +11,26 @@ from pydantic import AliasChoices, Field, SecretStr, ValidationError, field_vali
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 CopilotProvider = Literal["claude", "gemini"]
-DEFAULT_PROVIDER_MODELS = {"claude": "claude-sonnet-5", "gemini": "gemini-3.8-flash"}
+
+# Defaults per provider.  `claude-sonnet-5` is the id in 00-overview §"LLM";
+# `gemini-3.8-flash` is the current stable Flash id published at
+# https://ai.google.dev/gemini-api/docs/models (fetched 2026-09-06) and returned
+# by `google.genai` `client.models.list()` against a developer key.  Neither id
+# is invented here, and `COPILOT_MODEL` overrides the active provider default.
+DEFAULT_PROVIDER_MODELS: dict[str, str] = {
+    "claude": "claude-sonnet-5",
+    "gemini": "gemini-3.8-flash",
+}
 
 
 @dataclass(frozen=True)
 class ProviderStatus:
+    """Whether one provider is locally configured, and which model it would use.
+
+    ``ready`` never means reachable: a configured credential is not evidence
+    that a model answers.  ``reason`` names the missing field, never its value.
+    """
+
     provider: str
     model: str
     ready: bool
@@ -53,16 +68,20 @@ class Settings(BaseSettings):
     physical_inventory_root: Path = Field(
         default=Path("data/artifacts/physical_inventory")
     )
-    copilot_provider: CopilotProvider = Field(default="claude")
+    asset_pack_root: Path = Field(default=Path("web/public/assets/flux-grid"))
+    # Provider selection is configuration, not code.  There is deliberately no
+    # cross-provider fallback: an unconfigured active provider is reported
+    # unavailable rather than silently answered by the other one, so a reader
+    # can always tell which model produced an answer.
+    copilot_provider: CopilotProvider = Field(default="gemini")
     copilot_model: str | None = Field(default=None)
-    anthropic_api_key: SecretStr | None = Field(
-        default=None,
-        repr=False,
-        validation_alias=AliasChoices("ANTHROPIC_API_KEY", "CLAUDE_API_KEY"),
-    )
+    anthropic_api_key: SecretStr | None = Field(default=None, repr=False)
     gemini_api_key: SecretStr | None = Field(
         default=None,
         repr=False,
+        # `GEMINI_API_KEY` is the name Google's own quickstart uses; the
+        # hyphenated spelling exists in local developer `.env` files here and is
+        # not a valid Python identifier, so it is accepted as an alias.
         validation_alias=AliasChoices("GEMINI_API_KEY", "gemini-api-key"),
     )
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
@@ -122,36 +141,44 @@ class Settings(BaseSettings):
         return path
 
     def credential_for(self, provider: str) -> str | None:
-        secret = {"claude": self.anthropic_api_key, "gemini": self.gemini_api_key}.get(
-            provider
-        )
-        return secret.get_secret_value() if secret is not None else None
+        """Return the non-empty credential for ``provider``, or ``None``."""
+        secret = {
+            "claude": self.anthropic_api_key,
+            "gemini": self.gemini_api_key,
+        }.get(provider)
+        value = secret.get_secret_value() if secret is not None else ""
+        return value or None
 
     def model_for(self, provider: str) -> str:
-        return (
-            self.copilot_model
-            if provider == self.copilot_provider and self.copilot_model
-            else DEFAULT_PROVIDER_MODELS[provider]
-        )
+        """Resolve the model id for ``provider``.
+
+        ``COPILOT_MODEL`` overrides only the *active* provider, so pointing it
+        at a Claude id cannot silently rename the Gemini model, or vice versa.
+        """
+        if provider == self.copilot_provider and self.copilot_model:
+            return self.copilot_model
+        return DEFAULT_PROVIDER_MODELS[provider]
 
     def provider_status(self, provider: str | None = None) -> ProviderStatus:
+        """Report one provider's local readiness independently of the other."""
         name = provider or self.copilot_provider
         if name not in DEFAULT_PROVIDER_MODELS:
             raise ValueError(f"unknown copilot provider: {name!r}")
         model = self.model_for(name)
-        if not self.credential_for(name):
-            credential_name = (
-                "ANTHROPIC_API_KEY" if name == "claude" else "GEMINI_API_KEY"
-            )
+        if self.credential_for(name) is None:
+            field = "ANTHROPIC_API_KEY" if name == "claude" else "GEMINI_API_KEY"
             return ProviderStatus(
-                name, model, False, f"{credential_name} is not set"
+                provider=name,
+                model=model,
+                ready=False,
+                reason=f"{field} is not set",
             )
-        return ProviderStatus(name, model, True)
+        return ProviderStatus(provider=name, model=model, ready=True)
 
     @property
     def model_is_configured(self) -> bool:
-        """Whether the model and its provider credential are configured locally."""
-        return bool(self.copilot_model and self.provider_status().ready)
+        """Whether the *active* provider's model and credential are configured."""
+        return self.provider_status().ready
 
 
 def load_settings(**overrides: object) -> Settings:

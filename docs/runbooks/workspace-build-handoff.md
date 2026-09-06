@@ -33,6 +33,37 @@ Where an artifact is rendered, use only the frozen 3D UI states
 object to `source_supported`, and the browser must not invent an
 `illustrative` status.
 
+### Minnesota restatement (2WKG-407)
+
+This runbook was written for the Texas line and is restated here for Minnesota.
+`docs/specs/10-minnesota-demo.md` supersedes the Texas geography, ERCOT,
+Uri/Beryl/Helene scenarios, ACTIVSg2000 topology, and Texas/NY site framing
+wherever they govern the Minnesota demo, so read every Texas-era sentence in
+this document as build-and-verification procedure only, never as accepted
+geography or data. The Minnesota evidence and delivery boundary itself is owned
+by [`minnesota-demo-handoff.md`](minnesota-demo-handoff.md); the points below
+say only what that boundary means for *this* build-and-handoff document.
+
+- **Aggregate only; no topology.** The network decision gate in spec 10 has not
+  produced an accepted source decision record, so aggregate mode is what this
+  handoff may hand off: one named regional stress metric with its formula,
+  units, regional allocation assumptions, and source/synthetic status. It must
+  not emit or imply bus flows, line ratings or loading, DC power flow, or N-1
+  conclusions, and topology-mode implementation stays blocked until that record
+  is accepted.
+- **No relabelling.** The five-bus fixture this runbook builds and serves is
+  synthetic. Do not call it Minnesota, Texas, ERCOT, MISO, or an actual
+  interconnection model, and do not relabel ACTIVSg2000 as Minnesota.
+- **Texas-era evidence stays Texas-era.**
+  [`data/sources/texas-p0-inventory.json`](../../data/sources/texas-p0-inventory.json)
+  is the Texas source-receipt inventory. It establishes nothing about Minnesota
+  geography, topology, allocation, or model results; the Minnesota source basis
+  is the table in `docs/specs/10-minnesota-demo.md`.
+- **The 3D asset gate is unchanged and unmet.** Nothing below establishes
+  Minnesota 3D coverage, and no Minnesota placement may be rendered until a
+  server artifact supplies its WGS84 position, identity, provenance, and frozen
+  status.
+
 ## Exact build inputs
 
 This document was prepared on `a9d7e0142bbc1e5887684fdfa752a4e9d9d3eccf` and
@@ -263,7 +294,8 @@ all external/API-live behavior unavailable.
 | --- | --- |
 | Static build | locally reproducible from the lockfile; verify on the checkout being presented |
 | 2WKG-352 browser proof | dependency evidence from draft PR #204; final integration/merge remains pending |
-| Full Texas 3D coverage | unmet — no claim made |
+| Full Texas 3D coverage | unmet — no claim made; superseded for the Minnesota line by `docs/specs/10-minnesota-demo.md` |
+| Minnesota coverage | aggregate mode only, and not yet built; no Minnesota topology, geometry, placement, or 3D coverage is claimed |
 | Live provider and SSE | optional, configuration-dependent, and unverified externally |
 | Public deployment / connector | blocked pending owner-provided routing and restart evidence |
 | Issue status | keep 2WKG-353 In Progress until 2WKG-352 and the external handoff are complete |

@@ -1,49 +1,52 @@
-"""Gemini transport for the bounded Copilot tool dispatcher."""
+"""Gemini adapter: `google.genai` streaming translated into text deltas.
+
+Same shape as the Claude adapter on purpose.  The two differ only in the SDK
+call and in how a streaming chunk exposes its text; everything the browser
+sees is built by `copilot.runtime` from the values below.
+"""
 
 from __future__ import annotations
 
-import json
-from collections.abc import AsyncIterator, Mapping, Sequence
-from typing import Any
+from collections.abc import AsyncIterator
 
-from copilot.dispatcher import AssistantText, ToolCall, ToolResult
 from copilot.narration import GroundedNarration
-from copilot.providers.grounding import SYSTEM_PROMPT, narration_prompt
-from copilot.providers.tool_schemas import gemini_tools
-
-MAX_OUTPUT_TOKENS = 1024
+from copilot.providers.grounding import (
+    MAX_OUTPUT_TOKENS,
+    REQUEST_TIMEOUT_SECONDS,
+    SYSTEM_PROMPT,
+    narration_prompt,
+)
 
 
 class GeminiNarrationProvider:
-    """Google GenAI transport for narration and dispatcher-selected tools.
-
-    ``client`` and ``genai_module`` permit fakes to exercise the complete
-    request/response seam without importing an SDK or making a network call.
-    """
+    """An `AsyncNarrationProvider` backed by `google.genai`'s async client."""
 
     name = "gemini"
 
-    def __init__(
-        self,
-        api_key: str,
-        model: str,
-        *,
-        client: Any | None = None,
-        genai_module: Any | None = None,
-    ) -> None:
-        if client is None or genai_module is None:
-            from google import genai
+    def __init__(self, api_key: str, model: str) -> None:
+        # Imported here so that importing this module (and the provider
+        # registry) never requires the SDK or a credential.
+        from google import genai
 
-            genai_module = genai if genai_module is None else genai_module
-            client = genai_module.Client(api_key=api_key) if client is None else client
-        self._genai = genai_module
-        self._client = client
+        self._genai = genai
+        # `HttpOptions.timeout` is milliseconds in `google.genai` (introspected
+        # against 2.22.0: `types.HttpOptions.model_fields["timeout"]` documents
+        # "Timeout for the request in milliseconds").  Without it the SDK has no
+        # deadline and a hung exchange never returns.
+        self._client = genai.Client(
+            api_key=api_key,
+            http_options=genai.types.HttpOptions(
+                timeout=int(REQUEST_TIMEOUT_SECONDS * 1000)
+            ),
+        )
         self.model = model
 
     def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
         config = self._genai.types.GenerateContentConfig(
             system_instruction=SYSTEM_PROMPT,
             max_output_tokens=MAX_OUTPUT_TOKENS,
+            # Narration is a terminal turn: tools already ran, and the SDK's
+            # automatic function calling has no place in this streaming path.
             automatic_function_calling=(
                 self._genai.types.AutomaticFunctionCallingConfig(disable=True)
             ),
@@ -56,151 +59,8 @@ class GeminiNarrationProvider:
                 config=config,
             )
             async for chunk in stream:
+                # A chunk carrying only usage or safety metadata has no text.
                 if chunk.text:
                     yield chunk.text
 
         return deltas()
-
-    async def next_action(
-        self,
-        *,
-        question: str,
-        history: Sequence[Mapping[str, str]],
-        context: Mapping[str, object],
-        tools: Sequence[Mapping[str, object]],
-        results: Sequence[ToolResult],
-    ) -> ToolCall | AssistantText:
-        """Ask Gemini for one model turn with automatic execution disabled."""
-        _require_frozen_tools(tools)
-        config = self._genai.types.GenerateContentConfig(
-            system_instruction=SYSTEM_PROMPT,
-            max_output_tokens=MAX_OUTPUT_TOKENS,
-            tools=[self._genai.types.Tool(function_declarations=gemini_tools())],
-            automatic_function_calling=(
-                self._genai.types.AutomaticFunctionCallingConfig(disable=True)
-            ),
-        )
-        response = await self._client.aio.models.generate_content(
-            model=self.model,
-            contents=_contents(question, history, context, results),
-            config=config,
-        )
-        text: list[str] = []
-        for index, part in enumerate(_parts(response)):
-            function_call = _field(part, "function_call")
-            if function_call is not None:
-                name = _field(function_call, "name")
-                arguments = _field(function_call, "args", {})
-                call_id = _field(function_call, "id", f"gemini-{index}")
-                if not isinstance(name, str) or not isinstance(call_id, str):
-                    raise ValueError("Gemini returned an invalid function call")
-                if not isinstance(arguments, Mapping):
-                    raise ValueError("Gemini function arguments must be an object")
-                return ToolCall(call_id, name, dict(arguments))
-            value = _field(part, "text")
-            if isinstance(value, str) and value:
-                text.append(value)
-        response_text = _field(response, "text")
-        if not text and isinstance(response_text, str) and response_text:
-            text.append(response_text)
-        terminal = "".join(text).strip()
-        if not terminal:
-            raise ValueError("Gemini returned neither text nor a function call")
-        return AssistantText(terminal)
-
-
-def _require_frozen_tools(tools: Sequence[Mapping[str, object]]) -> None:
-    expected = [item["name"] for item in gemini_tools()]
-    received = [item.get("name") for item in tools]
-    if received != expected:
-        raise ValueError(
-            "dispatcher supplied a tool contract other than the frozen schema"
-        )
-
-
-def _contents(
-    question: str,
-    history: Sequence[Mapping[str, str]],
-    context: Mapping[str, object],
-    results: Sequence[ToolResult],
-) -> list[dict[str, object]]:
-    contents: list[dict[str, object]] = [
-        {"role": item["role"], "parts": [{"text": item["content"]}]} for item in history
-    ]
-    contents.append(
-        {
-            "role": "user",
-            "parts": [
-                {
-                    "text": "Question:\n"
-                    + question
-                    + "\n\nSelected context (JSON):\n"
-                    + _json(context)
-                }
-            ],
-        }
-    )
-    if results:
-        contents.append(
-            {
-                "role": "model",
-                "parts": [
-                    {
-                        "function_call": {
-                            "id": result.call_id,
-                            "name": result.name,
-                            "args": dict(result.arguments),
-                        }
-                    }
-                    for result in results
-                ],
-            }
-        )
-        contents.append(
-            {
-                "role": "user",
-                "parts": [
-                    {
-                        "function_response": {
-                            "id": result.call_id,
-                            "name": result.name,
-                            "response": dict(result.result),
-                        }
-                    }
-                    for result in results
-                ],
-            }
-        )
-    return contents
-
-
-def _parts(response: object) -> Sequence[object]:
-    candidates = _field(response, "candidates", ())
-    if not candidates:
-        return ()
-    content = _field(candidates[0], "content")
-    parts = _field(content, "parts", ())
-    return parts if isinstance(parts, Sequence) else ()
-
-
-def _json(value: object) -> str:
-    return json.dumps(
-        _json_value(value), ensure_ascii=False, separators=(",", ":"), sort_keys=True
-    )
-
-
-def _json_value(value: object) -> object:
-    """Copy dispatcher-frozen mappings into the SDK's JSON-only boundary."""
-    if isinstance(value, Mapping):
-        return {str(key): _json_value(item) for key, item in value.items()}
-    if isinstance(value, tuple):
-        return [_json_value(item) for item in value]
-    if isinstance(value, list):
-        return [_json_value(item) for item in value]
-    return value
-
-
-def _field(value: object, name: str, default: object = None) -> object:
-    if isinstance(value, Mapping):
-        return value.get(name, default)
-    return getattr(value, name, default)

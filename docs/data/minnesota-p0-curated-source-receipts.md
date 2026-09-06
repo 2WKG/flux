@@ -8,6 +8,10 @@ the Minnesota demo authority recorded in
 [`physical-grid-source-authority-ledger.md`](../research/minnesota/physical-grid-source-authority-ledger.md),
 and does not make an untracked database artifact available in a fresh clone.
 
+The model-mode decision built on this evidence is
+[`minnesota-aggregate-readiness-receipt.md`](./minnesota-aggregate-readiness-receipt.md):
+Minnesota is in **aggregate mode** because the topology decision gate is unmet.
+
 The Texas counterpart is
 [`texas-p0-curated-source-receipts.md`](./texas-p0-curated-source-receipts.md).
 Six of the seven families below are the **same national artifacts** Texas uses;
