@@ -2,7 +2,7 @@
 title: "Flux — hackathon swarm plan"
 status: active
 created: 2026-09-05
-updated: 2026-09-05
+updated: 2026-09-06
 related:
   - "[[converging-swarm-target]]"
   - "[[../specs/00-overview]]"
@@ -40,6 +40,17 @@ threshold suite, or mandatory per-PR approval process.
 | U8 frontend | 06 | `web/**` | U7 routes | Demo views and playback |
 | U9 causal layer | 07 | `causal/**` | U3, U4 | Labeled causal query support |
 | U10 historical event baseline | 2WKG-460/461 (contract), 462–472 (hazard bundles), 473 (catalog + split) | `docs/data/event-baseline/**` (schema at `docs/data/event-baseline/event_baseline.schema.json`), `scripts/data/event_baseline_*` | — | County-window contract and validated research receipts; hazard workers own only `events/<hazard>/`; final audit owns catalog and grouped splits |
+
+### U10 integration state (2026-09-06)
+
+The final audit has frozen the 63-request acquisition frame and staged its
+catalog, normalized exhaustive-acquisition ledger, source-artifact registry,
+and grouped-split generator on 2WKG-473. The artifact audit records coverage
+and label shortfalls explicitly; it makes no model-training, forecast, or
+performance claim. Final split manifests depend on the current contract
+validator accepting the legacy receipt shape without changing the locked
+county windows. The source collector dependency is the fail-closed bounded
+range repair (PR 249); final evidence uses only exhaustive annual scans.
 
 Suggested waves: U1; then U2 and U3; then U4 and U6; then U5, U7, and U9 as
 their dependencies become available; then U8. The critical path is

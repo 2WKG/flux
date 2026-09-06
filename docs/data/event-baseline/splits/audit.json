@@ -1,0 +1,49 @@
+{
+  "controls": {
+    "candidate_county_fips": [
+      "27053"
+    ],
+    "frame_limit": "candidate control frame only; no regional representativeness claim",
+    "plan_id": "controls-preselection-v1",
+    "plan_sha256": "0e835a326d44f28a0591749cd26a82b962312e72fb3919d3aee43832ca5c48bc",
+    "status": "declared",
+    "weighting": "explicitly_unweighted"
+  },
+  "coverage": {
+    "control_weight": {
+      "unavailable": 10
+    },
+    "hazard": {
+      "blizzard": 2,
+      "extreme_cold": 1,
+      "extreme_heat": 2,
+      "heavy_snow": 1,
+      "non-tropical high wind": 1,
+      "tropical_cyclone": 3
+    },
+    "label_status": {
+      "unavailable": 10
+    },
+    "mode": {
+      "replay": 10
+    },
+    "region": {
+      "Midwest": 5,
+      "South": 3,
+      "West": 2
+    },
+    "season": {
+      "fall": 3,
+      "spring": 2,
+      "summer": 2,
+      "winter": 3
+    }
+  },
+  "rows": 10,
+  "splits": {
+    "calibration": 2,
+    "test": 1,
+    "train": 7
+  },
+  "status": "pass"
+}

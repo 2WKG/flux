@@ -1,44 +1,54 @@
 # Historical event baseline audit
 
-**Composition base:** `ac4ae093c7c6eb9cad1b4cae9855e390ad50a0f9`.
+**Snapshot:** `32d006c0114836fcadc1abeca3908ff39ebc08cf`, assembled from the
+locked 63-request frame. The catalog was generated with
+`python scripts/data/event_baseline_assemble.py --events-dir docs/data/event-baseline/events --output docs/data/event-baseline/event_catalog.csv`
+in the isolated integration checkout.
 
-This catalog was regenerated from the committed bundles with:
+The catalog has 63 county-window records. It has 13 accepted records, 25
+record-level shortfalls, and 25 candidate-only records. At the event level,
+13 are accepted, 12 are shortfalls, and 38 remain candidate-only. Every
+record has `time_series_or_grid` outage evidence; none is `not_assessed`.
+The assembled bundle records have 21 complete outage coverages and 42
+`UncoveredLabel` coverages. The acquisition ledger uses a more detailed
+per-request state: 21 complete, 20 partial, and 22 `UncoveredLabel` entries.
+Labels are either `UncoveredLabel` (43) or `unavailable` (20); this snapshot
+does not claim a computed 5% label where the native denominator is absent.
 
-```bash
-uv run python scripts/data/event_baseline_validate.py \
-  --events-dir docs/data/event-baseline/events
-uv run python scripts/data/event_baseline_assemble.py \
-  --events-dir docs/data/event-baseline/events \
-  --output docs/data/event-baseline/event_catalog.csv
-uv run python scripts/data/event_baseline_split.py \
-  --events-dir docs/data/event-baseline/events \
-  --output-dir docs/data/event-baseline/splits \
-  --controls-plan docs/data/event-baseline/events/controls/preselection-plan.yaml
-```
+The accepted rows have matched coverage, complete 24-sample EAGLE-I outage
+evidence, selected source-row keys, and authoritative weather evidence. The
+weather evidence registry is [source-artifacts.json](source-artifacts.json):
+it rehashed 32 artifacts, has no missing **declared hashed** artifact, and
+links all 13 accepted events to weather proof. It separately retains 48
+receipt-only context entries without local bytes or a hash; those entries are
+not proof of byte availability. The operational EAGLE-I ledger is
+[acquisition-ledger.json](acquisition-ledger.json): all 63 entries declare
+`exhaustive_annual_stream` and `acquisition_complete: true`. Raw annual files
+are durable ignored cache under `data/raw/event-baseline/`; their hashes and
+repository-relative locations are retained in the ledger. The ledger source
+SHA-256 is `a8fdb5ed99e6a5e77afb60267d01407c2298a14b47452e3c86f3c2b3057c3675`.
 
-The result has 63 county-window records: 10 accepted, 26 candidate-only, and
-27 shortfalls. The accepted replay manifest has 10 rows (7 train, 2
-calibration, 1 test). All 10 labels have `status="unavailable"` because their
-native customer denominator is unavailable. This is a provenance and replay
-baseline, not a supervised outage-label training set, forecast evaluation, or
-model-performance result.
+The acquisition request frame is [requests.json](requests.json), with its
+generator command, input corpus, and hashes in
+[requests.provenance.json](requests.provenance.json). Its canonical tuple
+digest is `75a2044d89dbe66ac82c8d72c6c6b77eea753b7eb42c3e6952df93fa772ffe2e`.
+The request artifact SHA-256 is
+`bbcb3e15ef84c045b0dd71117af72c74fb89b33eb93dc5956d04ff6b4b68ab8e`.
 
-The catalog retains 46 `UncoveredLabel` rows, 17 unavailable labels, 18
-covered outage windows, and two deliberately uncovered canonical rows. The
-latter preserve the source metadata, event window, receipt IDs, and source-row
-keys for Hurricane Ian and Idalia while refusing to promote their 15:00Z and
-09:00Z source slices into canonical model labels. Their canonical rows are
-aligned to the 00/06/12/18 UTC contract and remain shortfalls until complete
-aligned EAGLE-I slices are acquired.
+The contract validator passed all 63 canonical bundles using the legacy
+receipt compatibility repair (`730f6fe`). The grouped manifests in
+[`splits/`](splits/) contain 8 train, 4 calibration, and 1 test accepted
+county-window replay rows. All 13 have denominator-unavailable labels; they
+are not a statistically representative sample and are not performance-ready.
+The split generator rejects accepted rows with incomplete coverage, an
+`UncoveredLabel`, absent source-row keys, parent-system overlap, selected-row
+reuse, or overlapping/adjacent context windows across splits. It never uses
+an annual raw-file hash or a reused primary document as a leakage key.
 
-Receipts now carry the contract-required capture method, verification object,
-files object, and uncertainty statement. A receipt whose bytes were not
-acquired by this bundle says so explicitly; no placeholder hash, coverage
-claim, denominator, or zero-outage label was invented.
+The final composed dependency check used acquisition PR 249 at `29fc4e0`,
+contract PR 250 at `730f6fe`, and this audit at `0a53ab0`, in that order. Its
+joint collector, contract, and split suite passed 84 tests; Ruff and the diff
+check also passed. Merge those dependencies before this audit PR.
 
-The committed `acquisition-ledger.json`, `requests.json`,
-`requests.provenance.json`, and `source-artifacts.json` are retained as
-historical collection context. They are not a substitute for the bundle
-validator or for a current raw-byte acquisition receipt. The reproducible
-catalog and grouped manifests are the operative baseline artifacts for this
-composition.
+The grouped manifests are for historical replay only. They do not establish a
+forecast cutoff, forecast score, training result, or model performance claim.

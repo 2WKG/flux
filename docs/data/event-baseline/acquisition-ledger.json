@@ -1,0 +1,2158 @@
+{
+  "all_exhaustive_annual_scans": true,
+  "entries": [
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "617a510",
+      "coverage_by_county": {
+        "27137": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-sd-ia-2014-flood-27137-20140616000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-sd-ia-2014-flood-27137-20140616000000_eaglei_2014_20140616T000000_20140616T060000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27137"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2014.csv",
+      "raw_bytes": 78056250,
+      "raw_sha256": "f292a9f99066ac686df69767c535b218e70b4d4e748840ec620eda3340f914c9",
+      "receipt_path": "data/raw/event-baseline/mn-sd-ia-2014-flood-27137-20140616000000_eaglei_2014_20140616T000000_20140616T060000.receipt.json",
+      "receipt_sha256": "15c80124bc67db67ad69dfd713547349611bfbd5842a820e42dde8f4e105872c",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2014.csv.source.json",
+      "window": {
+        "end": "2014-06-16T06:00:00Z",
+        "start": "2014-06-16T00:00:00Z"
+      },
+      "year": 2014
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "12035": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "matthew-2016-12035-20161007120000",
+      "filtered_artifact": "data/raw/event-baseline/matthew-2016-12035-20161007120000_eaglei_2016_20161007T120000_20161007T180000.csv",
+      "filtered_bytes": 1229,
+      "filtered_sha256": "3a8fc207f718f6db796ab58bbf57ca9df3242e5bd236bd3cad9b24bbc8eb291f",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "12035"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2016.csv",
+      "raw_bytes": 619779314,
+      "raw_sha256": "2c1b364a3b06aee56326174c4644750ea86ba9be4585c5e40eeb7835431bfc9c",
+      "receipt_path": "data/raw/event-baseline/matthew-2016-12035-20161007120000_eaglei_2016_20161007T120000_20161007T180000.receipt.json",
+      "receipt_sha256": "c79df79a34b01aa8af624a5ccbc660e3255fe0f1aaf2e7bcb6ec3fbdcbdcbfa3",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2016.csv.source.json",
+      "window": {
+        "end": "2016-10-07T18:00:00Z",
+        "start": "2016-10-07T12:00:00Z"
+      },
+      "year": 2016
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "617a510",
+      "coverage_by_county": {
+        "27013": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2018-01-01-arctic-27013-20180101120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27013"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+      "raw_bytes": 999210542,
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "receipt_path": "data/raw/event-baseline/mn-2018-01-01-arctic-27013-20180101120000_eaglei_2018_20180101T120000_20180101T180000.receipt.json",
+      "receipt_sha256": "dd0e3c9b0e430137eb43dfa243db5185763364af6936531d127aa5b33cb60270",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+      "window": {
+        "end": "2018-01-01T18:00:00Z",
+        "start": "2018-01-01T12:00:00Z"
+      },
+      "year": 2018
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "617a510",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mn-2018-04-14-blizzard-27053-20180414180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2018-04-14-blizzard-27053-20180414180000_eaglei_2018_20180414T180000_20180415T000000.csv",
+      "filtered_bytes": 1229,
+      "filtered_sha256": "895127461af17322d73cde2a99d8fecfca37187275134548064ef11760c7cbaf",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+      "raw_bytes": 999210542,
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "receipt_path": "data/raw/event-baseline/mn-2018-04-14-blizzard-27053-20180414180000_eaglei_2018_20180414T180000_20180415T000000.receipt.json",
+      "receipt_sha256": "bb2390908cac283170277f53a44d35886788823e1012fadeba30d98fce9f86e1",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+      "window": {
+        "end": "2018-04-15T00:00:00Z",
+        "start": "2018-04-14T18:00:00Z"
+      },
+      "year": 2018
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "617a510",
+      "coverage_by_county": {
+        "37129": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "florence-2018-37129-20180914120000",
+      "filtered_artifact": "data/raw/event-baseline/florence-2018-37129-20180914120000_eaglei_2018_20180914T120000_20180914T180000.csv",
+      "filtered_bytes": 1511,
+      "filtered_sha256": "c46f98b75505474409c8f421333dc296b6ff65b0aba6a9bd97b6ba27da05ba9e",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "37129"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv",
+      "raw_bytes": 999210542,
+      "raw_sha256": "85e0a864aa272e75892e181f1da4754ed78f7bf0bef75a279d8ab381baa7db70",
+      "receipt_path": "data/raw/event-baseline/florence-2018-37129-20180914120000_eaglei_2018_20180914T120000_20180914T180000.receipt.json",
+      "receipt_sha256": "03e260143b08cfc7e1dcd1acaf8e8c4435b4741637a7998c89a85cd02d8da11b",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2018.csv.source.json",
+      "window": {
+        "end": "2018-09-14T18:00:00Z",
+        "start": "2018-09-14T12:00:00Z"
+      },
+      "year": 2018
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mn-2019-01-27-arctic-27053-20190130120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2019-01-27-arctic-27053-20190130120000_eaglei_2019_20190130T120000_20190130T180000.csv",
+      "filtered_bytes": 1224,
+      "filtered_sha256": "dd93c66715b3d1a6f96e442ec1a608522b11b62693f33e8e78da15c0a9d2ed69",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/mn-2019-01-27-arctic-27053-20190130120000_eaglei_2019_20190130T120000_20190130T180000.receipt.json",
+      "receipt_sha256": "242a8cc4c19a74fcbb395654e182ca3adbef6d4595d09cf20418451f08e10321",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-01-30T18:00:00Z",
+        "start": "2019-01-30T12:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "27037": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 4,
+          "observed_intervals": 20
+        }
+      },
+      "event_id": "mn-2019-02-24-blizzard-27037-20190224120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2019-02-24-blizzard-27037-20190224120000_eaglei_2019_20190224T120000_20190224T180000.csv",
+      "filtered_bytes": 973,
+      "filtered_sha256": "dc3f5829a9a9e2a299540bd88570b28d9fa354b7c88bca9e47efa3bbf1f58ba2",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27037"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/mn-2019-02-24-blizzard-27037-20190224120000_eaglei_2019_20190224T120000_20190224T180000.receipt.json",
+      "receipt_sha256": "dab53bb5692aa8e3aaa8439beca4cf37773ed977a397e5fa80bb14f696ebe6ca",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-02-24T18:00:00Z",
+        "start": "2019-02-24T12:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "31041": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "upper-midwest-2019-snowmelt-flood-31041-20190313180000",
+      "filtered_artifact": "data/raw/event-baseline/upper-midwest-2019-snowmelt-flood-31041-20190313180000_eaglei_2019_20190313T180000_20190314T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "31041"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/upper-midwest-2019-snowmelt-flood-31041-20190313180000_eaglei_2019_20190313T180000_20190314T000000.receipt.json",
+      "receipt_sha256": "8da348136463fd29887047eafc5d0d117108e10eb4d2c4970f5ffec11e428f91",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-03-14T00:00:00Z",
+        "start": "2019-03-13T18:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "27063": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2019-04-10-ice-27063-20190410180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2019-04-10-ice-27063-20190410180000_eaglei_2019_20190410T180000_20190411T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27063"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/mn-2019-04-10-ice-27063-20190410180000_eaglei_2019_20190410T180000_20190411T000000.receipt.json",
+      "receipt_sha256": "a057c875b8d7efb92ca994c46900774dbff0a5431c1be14f218d6ad8439e98fc",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-04-11T00:00:00Z",
+        "start": "2019-04-10T18:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "27115": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 15,
+          "observed_intervals": 9
+        }
+      },
+      "event_id": "minnesota-2019-07-19-northland-derecho-27115-20190719180000",
+      "filtered_artifact": "data/raw/event-baseline/minnesota-2019-07-19-northland-derecho-27115-20190719180000_eaglei_2019_20190719T180000_20190720T000000.csv",
+      "filtered_bytes": 454,
+      "filtered_sha256": "1ca557f7205a2895f471dbf6f2773d73a48685ab8062df8d563837244d5c5601",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27115"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/minnesota-2019-07-19-northland-derecho-27115-20190719180000_eaglei_2019_20190719T180000_20190720T000000.receipt.json",
+      "receipt_sha256": "274d21edc49d904b4992212a28fe9ad3dbaf7674e7912955c4d6b600f05fcb4e",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-07-20T00:00:00Z",
+        "start": "2019-07-19T18:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "06055": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ca-2019-10-09-pge-psps-06055-20191009060000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2019-10-09-pge-psps-06055-20191009060000_eaglei_2019_20191009T060000_20191009T120000.csv",
+      "filtered_bytes": 1203,
+      "filtered_sha256": "96cb9a9b7654647fa3ee310719f1b1aa99ebb6a5ff94c4e64be0bc1d094f2e7b",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06055"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/ca-2019-10-09-pge-psps-06055-20191009060000_eaglei_2019_20191009T060000_20191009T120000.receipt.json",
+      "receipt_sha256": "a2adf4397348c99356398af8c3893b708eaef2490e4dfb3ba9958071de4d604b",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-10-09T12:00:00Z",
+        "start": "2019-10-09T06:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "06097": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 1,
+          "observed_intervals": 23
+        }
+      },
+      "event_id": "ca-2019-kincade-06097-20191024000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2019-kincade-06097-20191024000000_eaglei_2019_20191024T000000_20191024T060000.csv",
+      "filtered_bytes": 1272,
+      "filtered_sha256": "3a57966ff01a0795026a0e208854bfa27890fd12b0263610806cbcb2183984d4",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06097"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv",
+      "raw_bytes": 1102778792,
+      "raw_sha256": "4cc277a138b326bd0e1f203558539a9422b40dacdf439e3d5b58ee71d7462d27",
+      "receipt_path": "data/raw/event-baseline/ca-2019-kincade-06097-20191024000000_eaglei_2019_20191024T000000_20191024T060000.receipt.json",
+      "receipt_sha256": "2c136f258739b7a013dc590a63373b4423c7ef5b515c05308a87c389c0a1f9a6",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2019.csv.source.json",
+      "window": {
+        "end": "2019-10-24T06:00:00Z",
+        "start": "2019-10-24T00:00:00Z"
+      },
+      "year": 2019
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27149": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2020-02-12-arctic-27149-20200213000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2020-02-12-arctic-27149-20200213000000_eaglei_2020_20200213T000000_20200213T060000.csv",
+      "filtered_bytes": 99,
+      "filtered_sha256": "43fb999193d6f81d5b6f381558300d2a897d9621a51ed949b883dfc0816a3893",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27149"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/mn-2020-02-12-arctic-27149-20200213000000_eaglei_2020_20200213T000000_20200213T060000.receipt.json",
+      "receipt_sha256": "8dd30dbb757ef81745ab26b5857e189097b7927c68ad48d208b03ef3828fc3fb",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-02-13T06:00:00Z",
+        "start": "2020-02-13T00:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "26111": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mi-2020-heavy-rain-flood-26111-20200519000000",
+      "filtered_artifact": "data/raw/event-baseline/mi-2020-heavy-rain-flood-26111-20200519000000_eaglei_2020_20200519T000000_20200519T060000.csv",
+      "filtered_bytes": 1181,
+      "filtered_sha256": "af570795f00b42d20cb909f0d7b558b0db14cc3bfd2f86c969a35ecf11036546",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "26111"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/mi-2020-heavy-rain-flood-26111-20200519000000_eaglei_2020_20200519T000000_20200519T060000.receipt.json",
+      "receipt_sha256": "93237f1aee5039e715bce8a5914b1872d17183b5d5f497c32d6b2972e12fa42e",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-05-19T06:00:00Z",
+        "start": "2020-05-19T00:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "19113": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "midwest-2020-08-10-corn-belt-derecho-19113-20200810150000",
+      "filtered_artifact": "data/raw/event-baseline/midwest-2020-08-10-corn-belt-derecho-19113-20200810150000_eaglei_2020_20200810T150000_20200810T210000.csv",
+      "filtered_bytes": 1057,
+      "filtered_sha256": "efb31bebc04eb0eece4f8bb813e1e76d265b0904d5efae8b68985b51d1a1531b",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "19113"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/midwest-2020-08-10-corn-belt-derecho-19113-20200810150000_eaglei_2020_20200810T150000_20200810T210000.receipt.json",
+      "receipt_sha256": "9b83a1d8e7e2907a54bc7f7eb2c6c6c84be4a79e6c064b0d45c2350c158a4eab",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-08-10T21:00:00Z",
+        "start": "2020-08-10T15:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06087": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ca-2020-czu-06087-20200819000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2020-czu-06087-20200819000000_eaglei_2020_20200819T000000_20200819T060000.csv",
+      "filtered_bytes": 1305,
+      "filtered_sha256": "91d035b2ce1eb8e1809d362d81b1ea29c61a73f0ea074cc39964e3ffbc29f37a",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06087"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/ca-2020-czu-06087-20200819000000_eaglei_2020_20200819T000000_20200819T060000.receipt.json",
+      "receipt_sha256": "ca33f5aecc71ae8dcffa29ed3478408caf7a8e68e8cc7255827d5137394f8933",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-08-19T06:00:00Z",
+        "start": "2020-08-19T00:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06055": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 3,
+          "observed_intervals": 21
+        }
+      },
+      "event_id": "ca-2020-glass-06055-20200928000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2020-glass-06055-20200928000000_eaglei_2020_20200928T000000_20200928T060000.csv",
+      "filtered_bytes": 1193,
+      "filtered_sha256": "1d963a35cfa67f02c22eb23e96f94dec97acd5e1f79b1617ceb10cad54926d46",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06055"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/ca-2020-glass-06055-20200928000000_eaglei_2020_20200928T000000_20200928T060000.receipt.json",
+      "receipt_sha256": "cff04b30992bebfc1acd0097f5a5067c00c1ded3a989a6a77dae7bf06639dad3",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-09-28T06:00:00Z",
+        "start": "2020-09-28T00:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27047": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2020-11-10-ice-27047-20201110120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2020-11-10-ice-27047-20201110120000_eaglei_2020_20201110T120000_20201110T180000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27047"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv",
+      "raw_bytes": 1170699724,
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "receipt_path": "data/raw/event-baseline/mn-2020-11-10-ice-27047-20201110120000_eaglei_2020_20201110T120000_20201110T180000.receipt.json",
+      "receipt_sha256": "ea992b429c628b1c2912dbd1a431b6d2868c5f8726273c0e8558b307fb6410ae",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json",
+      "window": {
+        "end": "2020-11-10T18:00:00Z",
+        "start": "2020-11-10T12:00:00Z"
+      },
+      "year": 2020
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "calendar-control-mn-2021-spring-01-27053-20210407000000",
+      "filtered_artifact": "data/raw/event-baseline/calendar-control-mn-2021-spring-01-27053-20210407000000_eaglei_2021_20210407T000000_20210407T060000.csv",
+      "filtered_bytes": 1229,
+      "filtered_sha256": "a91e6d2773d4062548631a7fb92c28ed96359ab05e95fa7ff209ea1caf576cb1",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/calendar-control-mn-2021-spring-01-27053-20210407000000_eaglei_2021_20210407T000000_20210407T060000.receipt.json",
+      "receipt_sha256": "7aec338ba0408afde8a2aebc71885889a9837a6c5b54309e95d3f3f827f384d8",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-04-07T06:00:00Z",
+        "start": "2021-04-07T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mn-2021-06-heat-27053-20210605000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2021-06-heat-27053-20210605000000_eaglei_2021_20210605T000000_20210605T060000.csv",
+      "filtered_bytes": 1248,
+      "filtered_sha256": "17fa34a2c29a028f76fc0034432915cd18ad52ef6e292185422cb2a5f469e104",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/mn-2021-06-heat-27053-20210605000000_eaglei_2021_20210605T000000_20210605T060000.receipt.json",
+      "receipt_sha256": "9a57b54282bca1830d22691d9bd5532d33f587a2b7c6797d25d236592d40d286",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-06-05T06:00:00Z",
+        "start": "2021-06-05T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27105": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "near-miss-mn-2021-06-11-nobles-wind-27105-20210611120000",
+      "filtered_artifact": "data/raw/event-baseline/near-miss-mn-2021-06-11-nobles-wind-27105-20210611120000_eaglei_2021_20210611T120000_20210611T180000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27105"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/near-miss-mn-2021-06-11-nobles-wind-27105-20210611120000_eaglei_2021_20210611T120000_20210611T180000.receipt.json",
+      "receipt_sha256": "628f027ddfe4f60076694fa0d4d359c599b73cab8be5352de7647d98671dd0e5",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-06-11T18:00:00Z",
+        "start": "2021-06-11T12:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27105": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "near-miss-mn-2021-06-16-nobles-hail-27105-20210616180000",
+      "filtered_artifact": "data/raw/event-baseline/near-miss-mn-2021-06-16-nobles-hail-27105-20210616180000_eaglei_2021_20210616T180000_20210617T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27105"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/near-miss-mn-2021-06-16-nobles-hail-27105-20210616180000_eaglei_2021_20210616T180000_20210617T000000.receipt.json",
+      "receipt_sha256": "3b61179f582e6876b05931f50bfad5383202424cd5d5e77723aa2417477077fc",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-06-17T00:00:00Z",
+        "start": "2021-06-16T18:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "41051": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "pnw-2021-06-heat-41051-20210629000000",
+      "filtered_artifact": "data/raw/event-baseline/pnw-2021-06-heat-41051-20210629000000_eaglei_2021_20210629T000000_20210629T060000.csv",
+      "filtered_bytes": 1227,
+      "filtered_sha256": "24766421f1e9edf63b1de0a8298ebfecade3d849407a30dd408355c1136b1775",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "41051"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/pnw-2021-06-heat-41051-20210629000000_eaglei_2021_20210629T000000_20210629T060000.receipt.json",
+      "receipt_sha256": "a514797e593e31e8eb05946fc1c503e7dae4d902a1b27392e81e0d2dead05b16",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-06-29T06:00:00Z",
+        "start": "2021-06-29T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06063": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 9,
+          "observed_intervals": 15
+        }
+      },
+      "event_id": "ca-2021-dixie-06063-20210714000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2021-dixie-06063-20210714000000_eaglei_2021_20210714T000000_20210714T060000.csv",
+      "filtered_bytes": 758,
+      "filtered_sha256": "ada6bb1e57eb4c916ef4eb5499bce23972acf3edc51cb7594225f84fc0a1bdb2",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06063"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/ca-2021-dixie-06063-20210714000000_eaglei_2021_20210714T000000_20210714T060000.receipt.json",
+      "receipt_sha256": "fe3ce563b514fe929f4fa536aa145611c0087e8cc4d22293234b3dd5063e472b",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-07-14T06:00:00Z",
+        "start": "2021-07-14T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 4,
+          "observed_intervals": 20
+        }
+      },
+      "event_id": "calendar-control-mn-2021-summer-01-27053-20210807000000",
+      "filtered_artifact": "data/raw/event-baseline/calendar-control-mn-2021-summer-01-27053-20210807000000_eaglei_2021_20210807T000000_20210807T060000.csv",
+      "filtered_bytes": 1024,
+      "filtered_sha256": "2441dc61d508e3e793eabd5fe2734a4b54b72857387aca5045ef98bcebbdf70f",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/calendar-control-mn-2021-summer-01-27053-20210807000000_eaglei_2021_20210807T000000_20210807T060000.receipt.json",
+      "receipt_sha256": "f44dab6c92d8b311a501f6a1d64ef7777843862183ae462d8318cf7cc8d47d1f",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-08-07T06:00:00Z",
+        "start": "2021-08-07T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06089": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ca-2021-08-17-pge-psps-06089-20210818000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2021-08-17-pge-psps-06089-20210818000000_eaglei_2021_20210818T000000_20210818T060000.csv",
+      "filtered_bytes": 1267,
+      "filtered_sha256": "235aca59b6028b4da809881d5d74c8ea569f3020d75e47f1334668bcd659f93a",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06089"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/ca-2021-08-17-pge-psps-06089-20210818000000_eaglei_2021_20210818T000000_20210818T060000.receipt.json",
+      "receipt_sha256": "6fa879e976b7e5eaa1e13536e173f9d2a667adb3dd16edc10329adb0d1f858ee",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-08-18T06:00:00Z",
+        "start": "2021-08-18T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27101": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "near-miss-mn-2021-08-24-murray-hail-27101-20210824120000",
+      "filtered_artifact": "data/raw/event-baseline/near-miss-mn-2021-08-24-murray-hail-27101-20210824120000_eaglei_2021_20210824T120000_20210824T180000.csv",
+      "filtered_bytes": 143,
+      "filtered_sha256": "1210c39070ecfea4f0342a1c093c3b9ddb700d05c83305bb16283af8e42fdab3",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27101"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/near-miss-mn-2021-08-24-murray-hail-27101-20210824120000_eaglei_2021_20210824T120000_20210824T180000.receipt.json",
+      "receipt_sha256": "d1e17f8a0ad4e8e3c65cf6912c18e77e00103565b6b609f1e1b05671dee7df4f",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-08-24T18:00:00Z",
+        "start": "2021-08-24T12:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "22057": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ida-2021-22057-20210829120000",
+      "filtered_artifact": "data/raw/event-baseline/ida-2021-22057-20210829120000_eaglei_2021_20210829T120000_20210829T180000.csv",
+      "filtered_bytes": 1294,
+      "filtered_sha256": "5f771f79f8081cbdffcd375e1637d4f1e1d62d0df7e3a52b548fae3c91df32d3",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "22057"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/ida-2021-22057-20210829120000_eaglei_2021_20210829T120000_20210829T180000.receipt.json",
+      "receipt_sha256": "f51782db85a26d41c264ff8ef0a84049e1c1faaf75d36959b8442a6392e4b799",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-08-29T18:00:00Z",
+        "start": "2021-08-29T12:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27063": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "near-miss-mn-2021-09-17-jackson-wind-27063-20210917000000",
+      "filtered_artifact": "data/raw/event-baseline/near-miss-mn-2021-09-17-jackson-wind-27063-20210917000000_eaglei_2021_20210917T000000_20210917T060000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27063"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/near-miss-mn-2021-09-17-jackson-wind-27063-20210917000000_eaglei_2021_20210917T000000_20210917T060000.receipt.json",
+      "receipt_sha256": "a74a003806f4f002102714de71309f97483019400cc14033e503a4431952f186",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-09-17T06:00:00Z",
+        "start": "2021-09-17T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 19,
+          "observed_intervals": 5
+        }
+      },
+      "event_id": "calendar-control-mn-2021-autumn-01-27053-20211007000000",
+      "filtered_artifact": "data/raw/event-baseline/calendar-control-mn-2021-autumn-01-27053-20211007000000_eaglei_2021_20211007T000000_20211007T060000.csv",
+      "filtered_bytes": 293,
+      "filtered_sha256": "dcef194c53187fc1233279a987735ea4c6434310a3ff747d7cfe94c66f8d090e",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/calendar-control-mn-2021-autumn-01-27053-20211007000000_eaglei_2021_20211007T000000_20211007T060000.receipt.json",
+      "receipt_sha256": "46be92f232dcaf1b9237fc7b3b984ca45a81958b2973b100308f5dab4cadafd3",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-10-07T06:00:00Z",
+        "start": "2021-10-07T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27051": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "near-miss-mn-2021-10-10-grant-wind-27051-20211010000000",
+      "filtered_artifact": "data/raw/event-baseline/near-miss-mn-2021-10-10-grant-wind-27051-20211010000000_eaglei_2021_20211010T000000_20211010T060000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27051"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/near-miss-mn-2021-10-10-grant-wind-27051-20211010000000_eaglei_2021_20211010T000000_20211010T060000.receipt.json",
+      "receipt_sha256": "14eee68304be631d5de75019187f41236c79ddb0f1bcb6e997a7f9ce2bc2848c",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-10-10T06:00:00Z",
+        "start": "2021-10-10T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 13,
+          "observed_intervals": 11
+        }
+      },
+      "event_id": "mn-2021-12-10-heavy-snow-27053-20211211000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2021-12-10-heavy-snow-27053-20211211000000_eaglei_2021_20211211T000000_20211211T060000.csv",
+      "filtered_bytes": 628,
+      "filtered_sha256": "d662333ea7cf6f7b12b25e6bb77504bb305f570e0b22f70cef0304da1eb8bc98",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/mn-2021-12-10-heavy-snow-27053-20211211000000_eaglei_2021_20211211T000000_20211211T060000.receipt.json",
+      "receipt_sha256": "a51ac8ca49205286bac664e9a51c7b9d2e9c2fa2d05d79a8aa5acbe8ada01f57",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-12-11T06:00:00Z",
+        "start": "2021-12-11T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27043": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 17,
+          "observed_intervals": 7
+        }
+      },
+      "event_id": "midwest-2021-12-15-serial-derecho-27043-20211216000000",
+      "filtered_artifact": "data/raw/event-baseline/midwest-2021-12-15-serial-derecho-27043-20211216000000_eaglei_2021_20211216T000000_20211216T060000.csv",
+      "filtered_bytes": 402,
+      "filtered_sha256": "f80e6c5ac76989401bcd31a5a9f7336d84f1b17943a96c7e9fb4a3807c0190f3",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27043"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv",
+      "raw_bytes": 1141058232,
+      "raw_sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+      "receipt_path": "data/raw/event-baseline/midwest-2021-12-15-serial-derecho-27043-20211216000000_eaglei_2021_20211216T000000_20211216T060000.receipt.json",
+      "receipt_sha256": "ec29cc3bdad5e6bdaaf93f51113c3451af50239f50ef68677259ca0d6a1610f7",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2021.csv.source.json",
+      "window": {
+        "end": "2021-12-16T06:00:00Z",
+        "start": "2021-12-16T00:00:00Z"
+      },
+      "year": 2021
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27151": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-01-25-cold-27151-20220125060000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-01-25-cold-27151-20220125060000_eaglei_2022_20220125T060000_20220125T120000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27151"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-01-25-cold-27151-20220125060000_eaglei_2022_20220125T060000_20220125T120000.receipt.json",
+      "receipt_sha256": "e101ef90b1f196e274357f301ef6cc1c3d70be9a6ee9d5d9e0a58eeffe83e09e",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-01-25T12:00:00Z",
+        "start": "2022-01-25T06:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "17089": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 16,
+          "observed_intervals": 8
+        }
+      },
+      "event_id": "il-2022-03-05-gradient-wind-17089-20220306000000",
+      "filtered_artifact": "data/raw/event-baseline/il-2022-03-05-gradient-wind-17089-20220306000000_eaglei_2022_20220306T000000_20220306T060000.csv",
+      "filtered_bytes": 405,
+      "filtered_sha256": "6fed795c064c655c9119c7b5c80d60bacdb5633d01a3c74ff3accea3fd4f5261",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "17089"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/il-2022-03-05-gradient-wind-17089-20220306000000_eaglei_2022_20220306T000000_20220306T060000.receipt.json",
+      "receipt_sha256": "9f165c451e8d9386effb69b840a02350e6134315673a7c1b40c7cddfdd74dcc3",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-03-06T06:00:00Z",
+        "start": "2022-03-06T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "calendar-control-mn-2022-spring-01-27053-20220307000000",
+      "filtered_artifact": "data/raw/event-baseline/calendar-control-mn-2022-spring-01-27053-20220307000000_eaglei_2022_20220307T000000_20220307T060000.csv",
+      "filtered_bytes": 1205,
+      "filtered_sha256": "14ca3ec956d5397069e8fb1e05fa5628b2684f0d8aac5c13add5f9f34115d86d",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/calendar-control-mn-2022-spring-01-27053-20220307000000_eaglei_2022_20220307T000000_20220307T060000.receipt.json",
+      "receipt_sha256": "84950680129ec855927734ee06e2462e4e60ab48f2b779e1c7d9e957e4c27d24",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-03-07T06:00:00Z",
+        "start": "2022-03-07T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27075": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-wi-2022-03-29-ice-27075-20220330000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-wi-2022-03-29-ice-27075-20220330000000_eaglei_2022_20220330T000000_20220330T060000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27075"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-wi-2022-03-29-ice-27075-20220330000000_eaglei_2022_20220330T000000_20220330T060000.receipt.json",
+      "receipt_sha256": "bd40be1e5457bda8d1febdcaecd9763abead2f47c6a698ca029d0098c4ae8017",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-03-30T06:00:00Z",
+        "start": "2022-03-30T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27119": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-04-05-gradient-wind-27119-20220406150000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-04-05-gradient-wind-27119-20220406150000_eaglei_2022_20220406T150000_20220406T210000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27119"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-04-05-gradient-wind-27119-20220406150000_eaglei_2022_20220406T150000_20220406T210000.receipt.json",
+      "receipt_sha256": "3a5fb49737bad1a8235614c86ebf84cd1bf396335870ed14008e0c4a6717672a",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-04-06T21:00:00Z",
+        "start": "2022-04-06T15:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "17031": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "il-2022-04-14-high-wind-17031-20220414180000",
+      "filtered_artifact": "data/raw/event-baseline/il-2022-04-14-high-wind-17031-20220414180000_eaglei_2022_20220414T180000_20220415T000000.csv",
+      "filtered_bytes": 1155,
+      "filtered_sha256": "2b57373fb81608a2f6f48b920ad97046613d31ea7a00ed47a08e6f5e872c9885",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "17031"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/il-2022-04-14-high-wind-17031-20220414180000_eaglei_2022_20220414T180000_20220415T000000.receipt.json",
+      "receipt_sha256": "943de67c2b1f8dbce324f7ba0c4142c999ffac75931a32883caf49f9fec887bf",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-04-15T00:00:00Z",
+        "start": "2022-04-14T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27105": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-04-23-high-wind-27105-20220423120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-04-23-high-wind-27105-20220423120000_eaglei_2022_20220423T120000_20220423T180000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27105"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-04-23-high-wind-27105-20220423120000_eaglei_2022_20220423T120000_20220423T180000.receipt.json",
+      "receipt_sha256": "2f6cdbc112104c055ce6c0029c1d6f37cce233bf8be60511b14eac74084d7b57",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-04-23T18:00:00Z",
+        "start": "2022-04-23T12:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27073": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 21,
+          "observed_intervals": 3
+        }
+      },
+      "event_id": "midwest-2022-05-12-derecho-27073-20220512180000",
+      "filtered_artifact": "data/raw/event-baseline/midwest-2022-05-12-derecho-27073-20220512180000_eaglei_2022_20220512T180000_20220513T000000.csv",
+      "filtered_bytes": 219,
+      "filtered_sha256": "7dc1682b8866767bc2c24e6655f6daf7686bf5872ccb1979b2637b30f0ac9f77",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27073"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/midwest-2022-05-12-derecho-27073-20220512180000_eaglei_2022_20220512T180000_20220513T000000.receipt.json",
+      "receipt_sha256": "a4ded6c9f0500841e196ec180e41b8b9f7703f9fdbe9eb18ce893b639d020cca",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-05-13T00:00:00Z",
+        "start": "2022-05-12T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27121": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 14,
+          "observed_intervals": 10
+        }
+      },
+      "event_id": "minnesota-2022-05-30-severe-27121-20220530180000",
+      "filtered_artifact": "data/raw/event-baseline/minnesota-2022-05-30-severe-27121-20220530180000_eaglei_2022_20220530T180000_20220531T000000.csv",
+      "filtered_bytes": 502,
+      "filtered_sha256": "ad094077d40b0ef5b44c998c799560b37b544d1cf87e1deb242232c0e1bab0f6",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27121"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/minnesota-2022-05-30-severe-27121-20220530180000_eaglei_2022_20220530T180000_20220531T000000.receipt.json",
+      "receipt_sha256": "34ca87ccc2507335e7fc6744975af331a775ef1bbc91e9b1f9558d235cd1f0a0",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-05-31T00:00:00Z",
+        "start": "2022-05-30T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27089": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-06-12-marshall-tornado-hail-27089-20220612180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-06-12-marshall-tornado-hail-27089-20220612180000_eaglei_2022_20220612T180000_20220613T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27089"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-06-12-marshall-tornado-hail-27089-20220612180000_eaglei_2022_20220612T180000_20220613T000000.receipt.json",
+      "receipt_sha256": "d6d4a834acc3fdb593a734352bec7a1aa9556dd977546fd516d2c2098dd82035",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-06-13T00:00:00Z",
+        "start": "2022-06-12T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27087": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-06-24-northern-plains-27087-20220625000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-06-24-northern-plains-27087-20220625000000_eaglei_2022_20220625T000000_20220625T060000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27087"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-06-24-northern-plains-27087-20220625000000_eaglei_2022_20220625T000000_20220625T060000.receipt.json",
+      "receipt_sha256": "b0389ae674f276e3b6a0f50e12782151a5118c7da6f87c3a9364d7699a98d8d2",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-06-25T06:00:00Z",
+        "start": "2022-06-25T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06067": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "caiso-2022-09-heat-06067-20220907000000",
+      "filtered_artifact": "data/raw/event-baseline/caiso-2022-09-heat-06067-20220907000000_eaglei_2022_20220907T000000_20220907T060000.csv",
+      "filtered_bytes": 1325,
+      "filtered_sha256": "95d46d7afb4bfc82c0ea2718135ee4895bba0cc93685889b4aa69d676c14ca30",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06067"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/caiso-2022-09-heat-06067-20220907000000_eaglei_2022_20220907T000000_20220907T060000.receipt.json",
+      "receipt_sha256": "ed995e361e90cead9be26169dbf22e577089a23bd0fda13248f5529695b960f6",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-09-07T06:00:00Z",
+        "start": "2022-09-07T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "06061": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ca-2022-mosquito-06061-20220908000000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2022-mosquito-06061-20220908000000_eaglei_2022_20220908T000000_20220908T060000.csv",
+      "filtered_bytes": 1229,
+      "filtered_sha256": "8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06061"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/ca-2022-mosquito-06061-20220908000000_eaglei_2022_20220908T000000_20220908T060000.receipt.json",
+      "receipt_sha256": "a7f0ce8759ab8d9c6706529b1299bf1a7980aef70a894bb76e80fcbc82241be5",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-09-08T06:00:00Z",
+        "start": "2022-09-08T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "12071": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "ian-2022-12071-20220928150000",
+      "filtered_artifact": "data/raw/event-baseline/ian-2022-12071-20220928150000_eaglei_2022_20220928T150000_20220928T210000.csv",
+      "filtered_bytes": 1154,
+      "filtered_sha256": "57685d2cc6ffe3b6ffa0941eb97b2e04c8c4785d93239735ce9516c743e875f6",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "12071"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/ian-2022-12071-20220928150000_eaglei_2022_20220928T150000_20220928T210000.receipt.json",
+      "receipt_sha256": "98c7fafe2a543c54024c0bc63b0afa0e59a08a4f77c8cfd120aa87bd17c7ae23",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-09-28T21:00:00Z",
+        "start": "2022-09-28T15:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 11,
+          "observed_intervals": 13
+        }
+      },
+      "event_id": "calendar-control-mn-2022-autumn-01-27053-20221007000000",
+      "filtered_artifact": "data/raw/event-baseline/calendar-control-mn-2022-autumn-01-27053-20221007000000_eaglei_2022_20221007T000000_20221007T060000.csv",
+      "filtered_bytes": 680,
+      "filtered_sha256": "7f4fe3214a0d566c8deaf9e7d74be47d62aba939af74facd05a09c6c47ee7999",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/calendar-control-mn-2022-autumn-01-27053-20221007000000_eaglei_2022_20221007T000000_20221007T060000.receipt.json",
+      "receipt_sha256": "a7018e2f300ae349266a23c72f0a67704575e9ebcb354723cf354c61ff36a53e",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-10-07T06:00:00Z",
+        "start": "2022-10-07T00:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27031": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-11-10-ice-27031-20221110180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-11-10-ice-27031-20221110180000_eaglei_2022_20221110T180000_20221111T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27031"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-11-10-ice-27031-20221110180000_eaglei_2022_20221110T180000_20221111T000000.receipt.json",
+      "receipt_sha256": "7e1dcd0d678e95470174541f7a6ba45262025aa52e67cfae6cd77c739d3baa67",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-11-11T00:00:00Z",
+        "start": "2022-11-10T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27105": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2022-12-12-ice-27105-20221212180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-12-12-ice-27105-20221212180000_eaglei_2022_20221212T180000_20221213T000000.csv",
+      "filtered_bytes": 53,
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27105"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-12-12-ice-27105-20221212180000_eaglei_2022_20221212T180000_20221213T000000.receipt.json",
+      "receipt_sha256": "8247bd2d0d7de5005573c1c8f397b410d58216ba77c0f7b8f770fb5351a3532a",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-12-13T00:00:00Z",
+        "start": "2022-12-12T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27137": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mn-2022-12-14-blizzard-27137-20221214180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-12-14-blizzard-27137-20221214180000_eaglei_2022_20221214T180000_20221215T000000.csv",
+      "filtered_bytes": 1271,
+      "filtered_sha256": "e1787ef395f3c868421b06efe94905cc7d3fdacc4efa81cf9a32a5915c3c83e6",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27137"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-12-14-blizzard-27137-20221214180000_eaglei_2022_20221214T180000_20221215T000000.receipt.json",
+      "receipt_sha256": "655724e7a9c1703234fd148ad7cffff2545a982c24efaab65e2650c716594797",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-12-15T00:00:00Z",
+        "start": "2022-12-14T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "mn-2022-12-21-winter-storm-27053-20221221180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-12-21-winter-storm-27053-20221221180000_eaglei_2022_20221221T180000_20221222T000000.csv",
+      "filtered_bytes": 1277,
+      "filtered_sha256": "936d8c63bc269789e7f691282239cf57213f03228dc77d373ed3c5e0154e7742",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-12-21-winter-storm-27053-20221221180000_eaglei_2022_20221221T180000_20221222T000000.receipt.json",
+      "receipt_sha256": "c12b201b8df49303528417078f1765b46c6060385008532a33bb956e9b24366b",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-12-22T00:00:00Z",
+        "start": "2022-12-21T18:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27053": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 9,
+          "observed_intervals": 15
+        }
+      },
+      "event_id": "mn-2022-12-21-arctic-27053-20221223120000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2022-12-21-arctic-27053-20221223120000_eaglei_2022_20221223T120000_20221223T180000.csv",
+      "filtered_bytes": 785,
+      "filtered_sha256": "3fec0af6ebeef4d8274397b27bdcd2e3145fb8dda872030f877d29f79c13630b",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27053"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+      "raw_bytes": 1187596176,
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "receipt_path": "data/raw/event-baseline/mn-2022-12-21-arctic-27053-20221223120000_eaglei_2022_20221223T120000_20221223T180000.receipt.json",
+      "receipt_sha256": "41b5fd2abeebe51cb582bfa9fb6d0ba0232b80c3ef2852faff410a3a7b8cdb7c",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+      "window": {
+        "end": "2022-12-23T18:00:00Z",
+        "start": "2022-12-23T12:00:00Z"
+      },
+      "year": 2022
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "50023": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 9,
+          "observed_intervals": 15
+        }
+      },
+      "event_id": "vt-2023-flood-50023-20230710000000",
+      "filtered_artifact": "data/raw/event-baseline/vt-2023-flood-50023-20230710000000_eaglei_2023_20230710T000000_20230710T060000.csv",
+      "filtered_bytes": 793,
+      "filtered_sha256": "8d2000896d97aea12b429640f40288a552c9d2ea048ca20025252347a7cd90fb",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "50023"
+      ],
+      "outage_field_source": "sum",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+      "raw_bytes": 1199752423,
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_path": "data/raw/event-baseline/vt-2023-flood-50023-20230710000000_eaglei_2023_20230710T000000_20230710T060000.receipt.json",
+      "receipt_sha256": "74d22ba985f319aaf23232cf1965361eda3ed9369863ba2259120c016742f6c3",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+      "window": {
+        "end": "2023-07-10T06:00:00Z",
+        "start": "2023-07-10T00:00:00Z"
+      },
+      "year": 2023
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "48201": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 2,
+          "observed_intervals": 22
+        }
+      },
+      "event_id": "ercot-2023-06-heat-48201-20230719000000",
+      "filtered_artifact": "data/raw/event-baseline/ercot-2023-06-heat-48201-20230719000000_eaglei_2023_20230719T000000_20230719T060000.csv",
+      "filtered_bytes": 1010,
+      "filtered_sha256": "00112e02d2c3511aafd3c665da6a9e55e273b40f8ea8d8e84fd1022c339ba170",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "48201"
+      ],
+      "outage_field_source": "sum",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+      "raw_bytes": 1199752423,
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_path": "data/raw/event-baseline/ercot-2023-06-heat-48201-20230719000000_eaglei_2023_20230719T000000_20230719T060000.receipt.json",
+      "receipt_sha256": "3db65252636c958a1dd19c6f052d954a79e1b7ff9284a3f85a48cda639fb75be",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+      "window": {
+        "end": "2023-07-19T06:00:00Z",
+        "start": "2023-07-19T00:00:00Z"
+      },
+      "year": 2023
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "04013": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 5,
+          "observed_intervals": 19
+        }
+      },
+      "event_id": "southwest-2023-07-heat-04013-20230727000000",
+      "filtered_artifact": "data/raw/event-baseline/southwest-2023-07-heat-04013-20230727000000_eaglei_2023_20230727T000000_20230727T060000.csv",
+      "filtered_bytes": 956,
+      "filtered_sha256": "17ba3d85b6cb7724f911fe969aa97cd75fac5c4d06586c398137f66c28d22dbc",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "04013"
+      ],
+      "outage_field_source": "sum",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+      "raw_bytes": 1199752423,
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_path": "data/raw/event-baseline/southwest-2023-07-heat-04013-20230727000000_eaglei_2023_20230727T000000_20230727T060000.receipt.json",
+      "receipt_sha256": "bddf5cd46684231ef4da7120633a984e76d55bcf8f93e0ea3d3e196101c60b15",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+      "window": {
+        "end": "2023-07-27T06:00:00Z",
+        "start": "2023-07-27T00:00:00Z"
+      },
+      "year": 2023
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "12123": {
+          "availability": "Available",
+          "coverage_state": "complete_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 0,
+          "observed_intervals": 24
+        }
+      },
+      "event_id": "idalia-2023-12123-20230830090000",
+      "filtered_artifact": "data/raw/event-baseline/idalia-2023-12123-20230830090000_eaglei_2023_20230830T090000_20230830T150000.csv",
+      "filtered_bytes": 1182,
+      "filtered_sha256": "b5b4bd4811a4f442e224a60f0e45ef85286544099fb81c341218ac2afb8d8392",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "12123"
+      ],
+      "outage_field_source": "sum",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+      "raw_bytes": 1199752423,
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_path": "data/raw/event-baseline/idalia-2023-12123-20230830090000_eaglei_2023_20230830T090000_20230830T150000.receipt.json",
+      "receipt_sha256": "c3d5783dce88b1cbf9ecfa000f288864d7d7b936b137a874a98b8b04b4026cc2",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+      "window": {
+        "end": "2023-08-30T15:00:00Z",
+        "start": "2023-08-30T09:00:00Z"
+      },
+      "year": 2023
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "b452017",
+      "coverage_by_county": {
+        "06103": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 2,
+          "observed_intervals": 22
+        }
+      },
+      "event_id": "ca-2023-09-20-pge-psps-06103-20230921060000",
+      "filtered_artifact": "data/raw/event-baseline/ca-2023-09-20-pge-psps-06103-20230921060000_eaglei_2023_20230921T060000_20230921T120000.csv",
+      "filtered_bytes": 1140,
+      "filtered_sha256": "ed16cc893de773d7e432edbfcded6f106dd6c7985786f4076cece4ed4029bca3",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "06103"
+      ],
+      "outage_field_source": "sum",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv",
+      "raw_bytes": 1199752423,
+      "raw_sha256": "c028f42dae8522ecfb787ad0b6461cfc809bb04856eef20cb389e486d5657f7e",
+      "receipt_path": "data/raw/event-baseline/ca-2023-09-20-pge-psps-06103-20230921060000_eaglei_2023_20230921T060000_20230921T120000.receipt.json",
+      "receipt_sha256": "c23c5c741646b87e7aa4210d58c51329bf1750ef67b7a619e997c27159e567b1",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2023.csv.source.json",
+      "window": {
+        "end": "2023-09-21T12:00:00Z",
+        "start": "2023-09-21T06:00:00Z"
+      },
+      "year": 2023
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27091": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2024-05-21-tornadoes-27091-20240521180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2024-05-21-tornadoes-27091-20240521180000_eaglei_2024_20240521T180000_20240522T000000.csv",
+      "filtered_bytes": 69,
+      "filtered_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27091"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+      "raw_bytes": 1444846424,
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "receipt_path": "data/raw/event-baseline/mn-2024-05-21-tornadoes-27091-20240521180000_eaglei_2024_20240521T180000_20240522T000000.receipt.json",
+      "receipt_sha256": "2ebe1acc5e13e1803ea20b21c48ee27a4c2f63878ce4d0c0b10c09c77ce073a8",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+      "window": {
+        "end": "2024-05-22T00:00:00Z",
+        "start": "2024-05-21T18:00:00Z"
+      },
+      "year": 2024
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27137": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 4,
+          "observed_intervals": 20
+        }
+      },
+      "event_id": "mn-2024-06-12-northland-27137-20240612180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2024-06-12-northland-27137-20240612180000_eaglei_2024_20240612T180000_20240613T000000.csv",
+      "filtered_bytes": 1204,
+      "filtered_sha256": "84fb9f635869786e3f76547d9ef7f139a98ae8a576e3d6c5d1573464e5d292eb",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27137"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+      "raw_bytes": 1444846424,
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "receipt_path": "data/raw/event-baseline/mn-2024-06-12-northland-27137-20240612180000_eaglei_2024_20240612T180000_20240613T000000.receipt.json",
+      "receipt_sha256": "a0b0d450a330869db7de865d5981e9ab9f21c18e39663dfdfba3d10ec4921678",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+      "window": {
+        "end": "2024-06-13T00:00:00Z",
+        "start": "2024-06-12T18:00:00Z"
+      },
+      "year": 2024
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "19149": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-ia-2024-flood-19149-20240620000000",
+      "filtered_artifact": "data/raw/event-baseline/mn-ia-2024-flood-19149-20240620000000_eaglei_2024_20240620T000000_20240620T060000.csv",
+      "filtered_bytes": 69,
+      "filtered_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "19149"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+      "raw_bytes": 1444846424,
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "receipt_path": "data/raw/event-baseline/mn-ia-2024-flood-19149-20240620000000_eaglei_2024_20240620T000000_20240620T060000.receipt.json",
+      "receipt_sha256": "5a7c603b4ef69ad050f6d98b6fe36bc427392e1c8e0b550db59b3a8152d4a788",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+      "window": {
+        "end": "2024-06-20T06:00:00Z",
+        "start": "2024-06-20T00:00:00Z"
+      },
+      "year": 2024
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27131": {
+          "availability": "Available",
+          "coverage_state": "partial_15_min_observation",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 14,
+          "observed_intervals": 10
+        }
+      },
+      "event_id": "mn-2024-07-13-hail-tornado-27131-20240713180000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2024-07-13-hail-tornado-27131-20240713180000_eaglei_2024_20240713T180000_20240714T000000.csv",
+      "filtered_bytes": 573,
+      "filtered_sha256": "274113ff9485bac771526df7a8c0f2b5b9384fe2fcd6a9c2cc15cdd9285b2da7",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27131"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+      "raw_bytes": 1444846424,
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "receipt_path": "data/raw/event-baseline/mn-2024-07-13-hail-tornado-27131-20240713180000_eaglei_2024_20240713T180000_20240714T000000.receipt.json",
+      "receipt_sha256": "bb55329734c624d315dacb1ee36eb07a54d05e05cc4effb026fca561714e51cc",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+      "window": {
+        "end": "2024-07-14T00:00:00Z",
+        "start": "2024-07-13T18:00:00Z"
+      },
+      "year": 2024
+    },
+    {
+      "acquisition_complete": true,
+      "acquisition_method": "exhaustive_annual_stream",
+      "collector_revision": "cefc6ad",
+      "coverage_by_county": {
+        "27031": {
+          "availability": "UncoveredLabel",
+          "coverage_state": "UncoveredLabel",
+          "expected_intervals_at_15_min": 24,
+          "missing_intervals": 24,
+          "observed_intervals": 0
+        }
+      },
+      "event_id": "mn-2024-11-11-lake-superior-gradient-27031-20241111060000",
+      "filtered_artifact": "data/raw/event-baseline/mn-2024-11-11-lake-superior-gradient-27031-20241111060000_eaglei_2024_20241111T060000_20241111T120000.csv",
+      "filtered_bytes": 69,
+      "filtered_sha256": "08c73cfdbfbc4d76980175c49a64e370ad65b22ac52e6e451483e345b4a596fa",
+      "filtered_sha256_verification": "sha256_computed_from_durable_filtered_artifact",
+      "fips": [
+        "27031"
+      ],
+      "outage_field_source": "customers_out",
+      "raw_artifact": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
+      "raw_bytes": 1444846424,
+      "raw_sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+      "receipt_path": "data/raw/event-baseline/mn-2024-11-11-lake-superior-gradient-27031-20241111060000_eaglei_2024_20241111T060000_20241111T120000.receipt.json",
+      "receipt_sha256": "d32157316d2844f0861995b0960fc0426a8dc3c0bed86c2f10ac9a398069ec93",
+      "source_sidecar": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv.source.json",
+      "window": {
+        "end": "2024-11-11T12:00:00Z",
+        "start": "2024-11-11T06:00:00Z"
+      },
+      "year": 2024
+    }
+  ],
+  "entry_count": 63,
+  "frozen_request_frame": "docs/data/event-baseline/requests.json",
+  "frozen_request_frame_sha256": "bbcb3e15ef84c045b0dd71117af72c74fb89b33eb93dc5956d04ff6b4b68ab8e",
+  "ledger_amendment": {
+    "missing_receipt_hashes_repaired": 12,
+    "reason": "2019 and 2023 operational receipts wrap EAGLE-I fields under `eaglei`, so the initial ledger omitted their nested filtered_sha256 values. This derived-ledger repair computes SHA-256 and byte count from every durable selected CSV and verifies all preexisting receipt hashes match. Operational receipts and source sidecars were not modified.",
+    "verified_filtered_artifacts": 63
+  },
+  "ledger_schema_version": "flux-460-operational-ledger/v1",
+  "path_normalization": "Paths are repository-relative; raw artifacts are durable ignored cache under data/raw/event-baseline/.",
+  "source_ledger_sha256": "a8fdb5ed99e6a5e77afb60267d01407c2298a14b47452e3c86f3c2b3057c3675"
+}
