@@ -171,11 +171,21 @@ class _Run:
     validation_status: str = "validated"
     with_provenance: bool = True
     limitations: str = '["Fixture topology evidence only."]'
+    # Two available topology manifests can cite one ``model_run_id``; the suffix
+    # builds that tie without a second cascade_runs row.
+    artifact_suffix: str = ""
     artifact_id_override: str | None = None
+    cascade_rows: bool = True
+    # None: a model result exists exactly when the manifest is available.  Set it
+    # explicitly to persist a result for a manifest the route must still refuse,
+    # so the WHERE clause that refuses it is the only thing standing in the way.
+    with_model_result: bool | None = None
 
     @property
     def artifact_id(self) -> str:
-        return self.artifact_id_override or f"mn:model:{self.run_id}"
+        if self.artifact_id_override is not None:
+            return self.artifact_id_override
+        return f"mn:model:{self.run_id}{self.artifact_suffix}"
 
 
 def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
@@ -184,7 +194,7 @@ def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
     try:
         ensure_minnesota_schema(con)
         for run in runs:
-            for hour in run.hours:
+            for hour in run.hours if run.cascade_rows else ():
                 con.execute(
                     "INSERT INTO cascade_runs VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?, ?, ?)",
                     [
@@ -236,7 +246,11 @@ def _cascade_database(path: Path, runs: tuple[_Run, ...]) -> None:
                         False,
                     ],
                 )
-            if run.availability != "available":
+            if not (
+                run.availability == "available"
+                if run.with_model_result is None
+                else run.with_model_result
+            ):
                 continue
             topology = run.model_mode == "topology"
             con.execute(
@@ -358,6 +372,42 @@ def test_limit_bounds_the_returned_rows(tmp_path: Path) -> None:
 
     assert response.status_code == 200
     assert [row["county_fips"] for row in response.json()] == ["27000", "27001"]
+
+
+def test_county_fips_filter_is_wired_through_to_the_query(tmp_path: Path) -> None:
+    """Passing ``county_fips`` must change the result set, not just validate."""
+    database = tmp_path / "counties.duckdb"
+    _prediction_database(
+        database, (_Prediction("27000", True), _Prediction("27001", True))
+    )
+    client = _client(database)
+
+    filtered = client.get("/predictions", params={"county_fips": "27001"})
+    unfiltered = client.get("/predictions")
+
+    assert filtered.status_code == 200
+    assert [r["county_fips"] for r in filtered.json()] == ["27001"]
+    assert [r["county_fips"] for r in unfiltered.json()] == ["27000", "27001"]
+
+
+def test_model_kind_filter_is_wired_through_to_the_query(tmp_path: Path) -> None:
+    """``model_kind=heuristic`` excludes the qualified lightgbm row; None does not."""
+    database = tmp_path / "kinds.duckdb"
+    _prediction_database(
+        database, (_Prediction("27000", True), _Prediction("27001", None))
+    )
+    client = _client(database)
+
+    heuristic = client.get("/predictions", params={"model_kind": "heuristic"})
+    lightgbm = client.get("/predictions", params={"model_kind": "lightgbm"})
+    unfiltered = client.get("/predictions")
+
+    assert heuristic.status_code == 503
+    assert _details(heuristic)["reason"] == "no_qualified_prediction"
+    assert lightgbm.status_code == 200
+    assert [r["county_fips"] for r in lightgbm.json()] == ["27000"]
+    assert unfiltered.status_code == 200
+    assert [r["county_fips"] for r in unfiltered.json()] == ["27000"]
 
 
 def test_scenario_filter_selects_only_that_scenario(tmp_path: Path) -> None:
@@ -591,6 +641,55 @@ def test_latest_cascade_run_is_by_artifact_time_not_run_id_order(
     assert response.json()["run_id"] == "mn_winter_2023_snow-s0-00000000"
 
 
+def test_latest_cascade_run_is_a_total_order_when_created_at_ties(
+    tmp_path: Path,
+) -> None:
+    """Eight available manifests, one ``model_run_id``, one ``created_at``.
+
+    ``created_at`` and ``run_id`` are tied across all eight, so only the
+    ``artifact_id`` tie-break decides which one ``LIMIT 1`` may keep, and the
+    lexically greatest (``…:h``) must be served.  The two databases differ only
+    in the order the tied manifests were inserted, and each is asked five times:
+    a total order over the selected columns answers ``…:h`` all ten times, while
+    a partial order is free to follow whatever the scan reaches first (without
+    ``, m.artifact_id DESC`` DuckDB serves ``…:b`` here, from both orders).
+    """
+    run_id = "mn_winter_2023_snow-s0-7ie7ie00"
+    tied = "2026-09-05 00:00:00"
+    suffixes = tuple(f":{letter}" for letter in "abcdefgh")
+
+    def _tied(path: Path, order: tuple[str, ...]) -> None:
+        _cascade_database(
+            path,
+            tuple(
+                _Run(
+                    run_id,
+                    tied,
+                    artifact_suffix=suffix,
+                    # One shared set of cascade_runs rows; the manifests are what
+                    # tie.
+                    cascade_rows=index == 0,
+                )
+                for index, suffix in enumerate(order)
+            ),
+        )
+
+    ascending = tmp_path / "tied-ascending.duckdb"
+    _tied(ascending, suffixes)
+    descending = tmp_path / "tied-descending.duckdb"
+    _tied(descending, tuple(reversed(suffixes)))
+
+    served = [
+        _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+        for database in (ascending, descending)
+        for _ in range(5)
+    ]
+
+    assert [r.status_code for r in served] == [200] * 10
+    assert {r.json()["artifact_id"] for r in served} == {f"mn:model:{run_id}:h"}
+    assert {r.headers["X-Flux-Artifact"] for r in served} == {f"mn:model:{run_id}:h"}
+
+
 def test_cascade_run_id_selects_that_run_or_is_not_found(tmp_path: Path) -> None:
     database = tmp_path / "runs.duckdb"
     _cascade_database(
@@ -686,15 +785,46 @@ def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> No
 
 
 def test_unavailable_manifest_is_not_a_qualified_cascade(tmp_path: Path) -> None:
+    """The manifest is otherwise complete: only ``availability`` refuses it.
+
+    ``with_model_result=True`` persists the validated ``mn_model_results`` row that
+    an unavailable manifest would not normally get, so the join and the provenance
+    EXISTS both succeed and ``m.availability = 'available'`` is the single clause
+    standing between this fixture and a 200.
+    """
     database = tmp_path / "unavailable-manifest.duckdb"
     _cascade_database(
         database,
-        (_Run("mn_winter_2023_snow-s0-0ff11ne0", availability="unavailable"),),
+        (
+            _Run(
+                "mn_winter_2023_snow-s0-0ff11ne0",
+                availability="unavailable",
+                with_model_result=True,
+            ),
+        ),
     )
 
     response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
 
     assert response.status_code == 503
+    assert "X-Flux-Artifact" not in response.headers
+    assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
+
+
+def test_manifest_without_provenance_is_not_a_qualified_cascade(
+    tmp_path: Path,
+) -> None:
+    """An available, validated topology manifest with no provenance row is refused."""
+    database = tmp_path / "no-provenance.duckdb"
+    _cascade_database(
+        database,
+        (_Run("mn_winter_2023_snow-s0-c0ffee00", with_provenance=False),),
+    )
+
+    response = _client(database).get("/cascade", params={"scenario_id": SCENARIO})
+
+    assert response.status_code == 503
+    assert "X-Flux-Artifact" not in response.headers
     assert _details(response)["reason"] == "topology_cascade_unsupported_or_absent"
 
 
