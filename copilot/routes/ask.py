@@ -6,7 +6,7 @@ import asyncio
 import json
 import re
 from collections.abc import AsyncIterator, Iterable
-from typing import Annotated, Protocol
+from typing import Annotated, Literal, Protocol
 
 from fastapi import APIRouter, Header, Request
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -32,11 +32,22 @@ class AskContext(BaseModel):
     compare_site_id: str | None = Field(default=None, min_length=1, max_length=128)
     selected_element_id: str | None = Field(default=None, min_length=1, max_length=128)
     unit_mw: int | None = Field(default=None)
+    region: Literal["texas", "minnesota"] | None = None
+    county_fips: str | None = Field(default=None, pattern=r"^\d{5}$")
+    view_mode: Literal["physical_inventory", "texas_model"] | None = None
 
     @model_validator(mode="after")
     def _valid_unit(self) -> AskContext:
         if self.unit_mw is not None and self.unit_mw not in {300, 1000}:
             raise ValueError("unit_mw must be 300 or 1000")
+        if self.region == "minnesota" and self.view_mode == "texas_model":
+            raise ValueError("Minnesota does not have a Texas synthetic model view.")
+        if self.county_fips is not None and self.region is not None:
+            prefix = self.county_fips[:2]
+            if (self.region == "texas" and prefix != "48") or (
+                self.region == "minnesota" and prefix != "27"
+            ):
+                raise ValueError("county_fips does not belong to the selected region")
         return self
 
 

@@ -58,6 +58,10 @@ def _is_texas_synthetic_context(payload: AskRequest) -> bool:
     context = payload.context
     if context is None or context.scenario_id not in _TEXAS_SCENARIOS:
         return False
+    if context.region is not None and context.region != "texas":
+        return False
+    if context.view_mode is not None and context.view_mode != "texas_model":
+        return False
     selected = context.selected_element_id
     # Balance has no selected element requirement; every action that mutates or
     # resolves a component must use an exact core canonical ID.

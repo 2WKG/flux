@@ -187,7 +187,12 @@ def test_existing_ask_http_path_exposes_jepa_as_an_explicitly_experimental_tool(
     )
     response = _client(_ActualRunner(), jepa_artifact_path=artifact).post(
         "/ask",
-        json={"attempt_id": ATTEMPT, "question": "Show the JEPA count forecast.", "history": []},
+        json={
+            "attempt_id": ATTEMPT,
+            "question": "Show the JEPA count forecast.",
+            "context": {"region": "minnesota", "county_fips": "27053"},
+            "history": [],
+        },
     )
 
     events = _events(response)

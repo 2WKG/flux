@@ -180,22 +180,19 @@ def _asks_for_experimental_forecast(question: str) -> bool:
 def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
     """Expose the JEPA artifact as its own labelled experimental SSE tool."""
 
-    result = read_experimental_jepa_forecast(path)
+    context = payload.context
+    county_fips = context.county_fips if context is not None else None
+    if county_fips is None:
+        return _forecast_unavailable_turn(
+            payload, path, "Select a county before requesting an experimental count forecast."
+        )
+    result = read_experimental_jepa_forecast(path, county_fips=county_fips)
     if result.status == "unavailable":
-        reason = result.reason or "Experimental forecast unavailable."
-        return ToolTurn(
-            call_id=f"forecast:{payload.attempt_id}",
-            tool="experimental_forecast",
-            input={"artifact": path.name},
-            narration=GroundedNarration(
-                status="unavailable",
-                text=reason,
-                evidence=MappingProxyType({}),
-                provenance=(),
-                citations=(),
-                limitations=result.limitations,
-                unavailable=unavailable_output("artifact_unavailable", reason).unavailable,
-            ),
+        return _forecast_unavailable_turn(
+            payload,
+            path,
+            result.reason or "Experimental forecast unavailable.",
+            limitations=result.limitations,
         )
     provenance = tuple(
         ArtifactRef(
@@ -209,7 +206,7 @@ def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
     return ToolTurn(
         call_id=f"forecast:{payload.attempt_id}",
         tool="experimental_forecast",
-        input={"artifact": path.name},
+        input={"artifact": path.name, "county_fips": county_fips},
         narration=GroundedNarration(
             status="available",
             text=(
@@ -220,5 +217,28 @@ def _experimental_forecast_turn(payload: AskRequest, path: Path) -> ToolTurn:
             provenance=provenance,
             citations=(),
             limitations=result.limitations,
+        ),
+    )
+
+
+def _forecast_unavailable_turn(
+    payload: AskRequest,
+    path: Path,
+    reason: str,
+    *,
+    limitations: tuple[str, ...] = (),
+) -> ToolTurn:
+    return ToolTurn(
+        call_id=f"forecast:{payload.attempt_id}",
+        tool="experimental_forecast",
+        input={"artifact": path.name},
+        narration=GroundedNarration(
+            status="unavailable",
+            text=reason,
+            evidence=MappingProxyType({}),
+            provenance=(),
+            citations=(),
+            limitations=limitations,
+            unavailable=unavailable_output("artifact_unavailable", reason).unavailable,
         ),
     )
