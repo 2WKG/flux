@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "ledger_id": "mn-physical-grid-source-authority-v1",
+  "state": "MN",
+  "retrieved_at": "2026-09-06T00:00:00Z",
+  "purpose": "Acquisition authority and coverage evidence for Minnesota physical-grid classes. This ledger records source availability, not an inventory of physical assets and not statewide completeness.",
+  "truth_boundary": "A source marked unavailable, restricted, denied, or candidate closes only that acquisition attempt. It neither changes the physical class to complete nor permits inferred assets, geometry, terminals, or connectivity.",
+  "source_status_values": [
+    "accepted_limited",
+    "candidate",
+    "denied",
+    "restricted",
+    "unavailable"
+  ],
+  "coverage_status_values": [
+    "available_limited",
+    "candidate",
+    "restricted",
+    "unavailable"
+  ],
+  "source_records": [
+    {
+      "source_id": "mngeo_eusa_featureserver_2026",
+      "publisher": "Minnesota Geospatial Information Office / Minnesota Public Utilities Commission",
+      "authority": "Official statewide electric utility service-area map; the PUC describes it as the official map under its April 9, 2014 Order in Docket 12-957.",
+      "url": "https://arcgis.metc.state.mn.us/server/rest/services/GDRS/MNGEO_util_service_areas/FeatureServer/0",
+      "version_or_vintage": "live FeatureServer; queried 2026-09-06",
+      "access": "public ArcGIS REST query service",
+      "license_or_terms": "No reusable license statement was returned by the service metadata; preserve publisher metadata and obtain terms before redistribution.",
+      "spatial_extent": "Minnesota statewide retail electric service areas",
+      "source_crs": "EPSG:26915",
+      "geometry": "native polygon features",
+      "geometry_accuracy_basis": "Publisher describes PUC/utility review and ongoing boundary updates. The service metadata queried for this ledger does not provide a positional-accuracy value.",
+      "verified_query": {
+        "url": "https://arcgis.metc.state.mn.us/server/rest/services/GDRS/MNGEO_util_service_areas/FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json",
+        "returned_feature_count": 192,
+        "count_meaning": "Current FeatureServer feature count, not a count of utilities, grid assets, feeders, substations, or customers.",
+        "verification": {
+          "retrieved_at": "2026-09-06T07:34:00Z",
+          "capture_method": "curl -sS 'https://arcgis.metc.state.mn.us/server/rest/services/GDRS/MNGEO_util_service_areas/FeatureServer/0/query?where=1%3D1&returnCountOnly=true&f=json' -o data/sources/receipts/minnesota-eusa-count-2026-09-06.json",
+          "response_file": "data/sources/receipts/minnesota-eusa-count-2026-09-06.json",
+          "response_bytes": 13,
+          "response_sha256": "c040a562a2cc92c1067aa89543f0154b1e61e7af685870919aab41dc7f75e1f6"
+        }
+      },
+      "supports_classes": [
+        "retail_service_area"
+      ],
+      "does_not_support": [
+        "transmission_line",
+        "subtransmission_line",
+        "distribution_line",
+        "substation",
+        "support_structure",
+        "device",
+        "terminal",
+        "connectivity",
+        "cross_border_interface"
+      ],
+      "acquisition_state": "accepted_limited",
+      "identity_fields": [
+        "OBJECTID",
+        "mn_utility_id",
+        "eusa_v5_id",
+        "eia_utility_id when populated"
+      ],
+      "authority_url": "https://mn.gov/puc/activities/maps/",
+      "authority_archive_url": "https://web.archive.org/web/20260420132632/https://mn.gov/puc/activities/maps/",
+      "authority_archive_date": "2026-04-20",
+      "authority_quote": "The digital EUSA map is the official map for the state of Minnesota, per the Commission's April 9, 2014 Order in Docket 12-957."
+    },
+    {
+      "source_id": "mngeo_retired_transmission_substation_dataset_notice",
+      "publisher": "Minnesota Geospatial Information Office / Minnesota Department of Commerce",
+      "url": "https://www.mngeo.state.mn.us/chouse/utilities.html",
+      "version_or_vintage": "notice dated 2022-07-20; the canonical MnGeo page now 301-redirects to https://mn.gov/mngeo and no longer serves the notice",
+      "access": "public notice",
+      "spatial_extent": "Minnesota statewide historical transmission lines and substations",
+      "source_crs": "unavailable: the dataset was withdrawn by its publisher, so no artifact and no CRS were acquired",
+      "geometry": "not accepted for acquisition",
+      "geometry_accuracy_basis": "MnGeo states that, because of existing accuracy problems and insufficient current information, Commerce cannot continue to support distribution and use of this dataset.",
+      "supports_classes": [],
+      "does_not_support": [
+        "current statewide transmission inventory",
+        "current statewide substation inventory",
+        "current physical-network completeness"
+      ],
+      "unavailability_reason": "Publisher withdrawal for accuracy and currency; it cannot be upgraded to a current source-backed asset layer by conflation with its historical records.",
+      "acquisition_state": "unavailable",
+      "archive_url": "https://web.archive.org/web/20260421111929/https://www.mngeo.state.mn.us/chouse/utilities.html",
+      "archive_date": "2026-04-21",
+      "canonical_url_status": "301 redirect to https://mn.gov/mngeo as of 2026-09-06; the withdrawal notice is no longer citable live",
+      "notice_quote": "7/20/2022: Given existing accuracy problems with the dataset and insufficient current information, the Minnesota Department of Commerce cannot continue to support the distribution and use of this dataset."
+    },
+    {
+      "source_id": "mille_lacs_county_utilities_mapserver_2026",
+      "publisher": "Mille Lacs County GIS",
+      "url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer",
+      "version_or_vintage": "live MapServer; queried 2026-09-06",
+      "access": "public ArcGIS REST query service",
+      "license_or_terms": "No reusable license statement was captured from queried layer metadata; retain service attribution and verify terms before redistribution.",
+      "spatial_extent": "Mille Lacs County map-service scope only; never Minnesota statewide",
+      "source_crs": "WKID 103705",
+      "geometry": "native MapServer point and polyline features",
+      "geometry_accuracy_basis": "No numeric positional-accuracy statement was captured from the layer metadata. Geometry is source-provided, but its accuracy is source-undocumented in this ledger.",
+      "verified_layers": [
+        {
+          "class_id": "substation",
+          "layer_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0",
+          "returned_feature_count": 11,
+          "fields": [
+            "OBJECTID",
+            "COMPANY",
+            "COMP_AB",
+            "COMP_ID",
+            "SUB_TYPE",
+            "SOURCE",
+            "COMMENTS",
+            "INTERSTATE",
+            "DOCKET"
+          ],
+          "denominator_scope": "Features returned by this source layer on 2026-09-06, not every physical substation in Mille Lacs County and not a statewide denominator.",
+          "denominator": 11,
+          "verified_query": {
+            "url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&returnCountOnly=true&f=json",
+            "returned_feature_count": 11,
+            "count_meaning": "Features returned by this source layer on 2026-09-06. It is not a count of every physical asset in the county and never a statewide denominator.",
+            "verification": {
+              "retrieved_at": "2026-09-06T07:34:00Z",
+              "capture_method": "curl -sS 'https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/0/query?where=1%3D1&returnCountOnly=true&f=json' -o data/sources/receipts/minnesota-mille-lacs-substation-count-2026-09-06.json",
+              "response_file": "data/sources/receipts/minnesota-mille-lacs-substation-count-2026-09-06.json",
+              "response_bytes": 12,
+              "response_sha256": "7512669ba3d728b7c043f6d90372533fbd036755844fb231b0bf242e2f712bbf"
+            }
+          }
+        },
+        {
+          "class_id": "transmission_line",
+          "layer_url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2",
+          "returned_feature_count": 31,
+          "reported_line_miles": 178.68783197,
+          "fields": [
+            "OBJECTID",
+            "COMPANY",
+            "COMP_AB",
+            "COMP_ID",
+            "ACDC",
+            "VOLTAGE",
+            "MILES_GIS",
+            "INTERSTATE",
+            "COMMENTS",
+            "SOURCE",
+            "DOCKET"
+          ],
+          "voltage_counts": [
+            {
+              "voltage_kv": 69,
+              "feature_count": 28
+            },
+            {
+              "voltage_kv": 230,
+              "feature_count": 3
+            }
+          ],
+          "denominator_scope": "Features returned by this source layer on 2026-09-06, not every physical line in Mille Lacs County and not a statewide denominator.",
+          "denominator": 31,
+          "verified_query": {
+            "url": "https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&returnCountOnly=true&f=json",
+            "returned_feature_count": 31,
+            "count_meaning": "Features returned by this source layer on 2026-09-06. It is not a count of every physical asset in the county and never a statewide denominator.",
+            "verification": {
+              "retrieved_at": "2026-09-06T07:34:00Z",
+              "capture_method": "curl -sS 'https://gis.co.mille-lacs.mn.us/arcgis/rest/services/Utilities/MapServer/2/query?where=1%3D1&returnCountOnly=true&f=json' -o data/sources/receipts/minnesota-mille-lacs-line-count-2026-09-06.json",
+              "response_file": "data/sources/receipts/minnesota-mille-lacs-line-count-2026-09-06.json",
+              "response_bytes": 12,
+              "response_sha256": "4e49da97b6f551eb3211d5d642b4375704b9668570f7020694750e25701d5797"
+            }
+          }
+        }
+      ],
+      "supports_classes": [
+        "county_scoped_transmission_line",
+        "county_scoped_substation"
+      ],
+      "does_not_support": [
+        "statewide_transmission_completeness",
+        "statewide_substation_completeness",
+        "terminal_or_network_connectivity"
+      ],
+      "acquisition_state": "accepted_limited",
+      "identity_fields": [
+        "OBJECTID"
+      ]
+    },
+    {
+      "source_id": "mn_puc_energy_infrastructure_permitting",
+      "publisher": "Minnesota Public Utilities Commission",
+      "url": "https://mn.gov/elicense/a-z/?id=1083-231022",
+      "version_or_vintage": "licensing index modified 2026-07-07",
+      "access": "public permitting index and eDockets links",
+      "spatial_extent": "individual applications, certificate-of-need and route-permit records",
+      "source_crs": "unavailable: CRS is a property of an individual filed exhibit and no exhibit has been acquired",
+      "geometry": "may include applicant exhibits; neither a single statewide feature service nor a statewide denominator was verified",
+      "geometry_accuracy_basis": "Must be read from the particular filing/exhibit; none is assumed from the index.",
+      "supports_classes": [
+        "proposed_or_permitted_project_context",
+        "docket_scoped_route_geometry_when_exhibit_is_acquired"
+      ],
+      "does_not_support": [
+        "as_built_statewide_inventory",
+        "complete_current_network",
+        "implicit_connectivity"
+      ],
+      "acquisition_condition": "Record docket, document identifier, filing date, source checksum, page/layer and supersession status for every selected exhibit.",
+      "acquisition_state": "candidate"
+    },
+    {
+      "source_id": "miso_mtep_maps_and_models",
+      "publisher": "Midcontinent Independent System Operator",
+      "url": "https://www.misoenergy.org/planning/transmission-planning/mtep/",
+      "version_or_vintage": "MTEP access page queried 2026-09-06",
+      "access": "MTEP map access requires a MISO website login; reliability-model FTP access requires appropriate CEII NDA/UNDA documentation according to the publisher.",
+      "spatial_extent": "MISO regional planning and model scope; not Minnesota-only",
+      "source_crs": "unavailable: acquisition is restricted, so no artifact and no CRS were acquired",
+      "geometry": "not acquired",
+      "geometry_accuracy_basis": "unavailable until an authorized artifact and its metadata are acquired",
+      "supports_classes": [],
+      "does_not_support": [
+        "publicly acquired Minnesota statewide network in this repository"
+      ],
+      "restriction_reason": "No credentials, account request, NDA, or authorized source-owner request was used for this ledger.",
+      "acquisition_state": "restricted"
+    },
+    {
+      "source_id": "mn_puc_interactive_project_map_notice",
+      "publisher": "Minnesota Public Utilities Commission",
+      "url": "https://mn.gov/puc/activities/maps/",
+      "version_or_vintage": "page queried 2026-09-06",
+      "access": "public interactive map",
+      "spatial_extent": "selected solar, wind, battery-storage and large-transmission projects in permitting context",
+      "source_crs": "unavailable: the PUC publishes approximate markers in a viewer, and no downloadable artifact with a declared CRS was acquired",
+      "geometry": "approximate locational markers",
+      "geometry_accuracy_basis": "The PUC says markers are approximate and the map does not include all pending or permitted transmission projects.",
+      "supports_classes": [
+        "project_context"
+      ],
+      "does_not_support": [
+        "native_route_geometry",
+        "complete_project_denominator",
+        "existing_network_inventory",
+        "connectivity"
+      ],
+      "acquisition_state": "unavailable",
+      "archive_url": "https://web.archive.org/web/20260420132632/https://mn.gov/puc/activities/maps/",
+      "archive_date": "2026-04-20",
+      "notice_quote": "Locational markers on the map show approximate locations. This map does not include all transmission projects in the PUC's permitting process or that have been permitted by the PUC.",
+      "unavailability_reason": "The PUC states the markers are approximate and the map does not include all pending or permitted transmission projects, so it supplies neither native route geometry nor a project denominator. No downloadable artifact was acquired."
+    }
+  ],
+  "physical_class_coverage": [
+    {
+      "class_id": "retail_service_area",
+      "status": "available_limited",
+      "accepted_source_ids": [
+        "mngeo_eusa_featureserver_2026"
+      ],
+      "denominator_scope": "FeatureServer service-area features returned on 2026-09-06",
+      "known_count": 192,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "Official retail service-area geometry is available, but it is not a physical-network asset inventory.",
+      "denominator": 192
+    },
+    {
+      "class_id": "transmission_line",
+      "status": "available_limited",
+      "accepted_source_ids": [
+        "mille_lacs_county_utilities_mapserver_2026"
+      ],
+      "denominator_scope": "No verified statewide physical-line denominator. The county service has 31 returned line features in its own scope.",
+      "known_count": 31,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "Statewide source was withdrawn by its publisher for accuracy/currentness; county geometry cannot establish statewide coverage.",
+      "denominator": null
+    },
+    {
+      "class_id": "subtransmission_line",
+      "status": "unavailable",
+      "accepted_source_ids": [],
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "No current, authoritative statewide source with a verified subtransmission classification was acquired.",
+      "denominator": null
+    },
+    {
+      "class_id": "substation",
+      "status": "available_limited",
+      "accepted_source_ids": [
+        "mille_lacs_county_utilities_mapserver_2026"
+      ],
+      "denominator_scope": "No verified statewide physical-substation denominator. The county service has 11 returned point features in its own scope.",
+      "known_count": 11,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "County geometry is source-backed but does not supply statewide completeness or electrical terminals.",
+      "denominator": null
+    },
+    {
+      "class_id": "support_structure",
+      "status": "unavailable",
+      "accepted_source_ids": [],
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "No statewide support/tower inventory with native geometry and accuracy basis was acquired.",
+      "denominator": null
+    },
+    {
+      "class_id": "distribution_line_and_device",
+      "status": "unavailable",
+      "accepted_source_ids": [],
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "EUSA polygons identify retail service territory only. No statewide feeder, device, terminal or distribution-connectivity source was acquired.",
+      "denominator": null
+    },
+    {
+      "class_id": "real_electrical_connectivity",
+      "status": "unavailable",
+      "accepted_source_ids": [],
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "No source-backed terminal-to-terminal edge set was acquired. Geometry, proximity, roads, imagery and synthetic cases cannot create connectivity.",
+      "denominator": null
+    },
+    {
+      "class_id": "cross_border_interface",
+      "status": "restricted",
+      "accepted_source_ids": [],
+      "known_count": null,
+      "unknown_count": null,
+      "unavailable_count": null,
+      "reason": "Interfaces to Manitoba, North Dakota, South Dakota, Iowa and Wisconsin require asset-specific source evidence. MISO planning/model acquisition is restricted and no authorized artifact was acquired.",
+      "denominator": null
+    }
+  ],
+  "related_provenance_artifacts": {
+    "data/sources/minnesota-accepted-artifact-inventory.json": "Accepted downloaded-artifact receipts. Authoritative for artifact identity, not for source authority or class coverage.",
+    "docs/research/minnesota/source-citation-inventory.md": "Narrative citation research. Authoritative for nothing mechanical.",
+    "data/sources/minnesota-source-authority-ledger-v1.json": "This file. Authoritative for Minnesota source authority, acquisition state, and physical-class coverage limits."
+  },
+  "implementation_handoff": {
+    "safe_next_acquisition": "For the 2WKG-448 corridor task, ingest only public, source-provided county or docket feature geometries after retaining source URL, feature/layer ID, retrieved_at, source CRS, transformed EPSG:4326 geometry, and source-documented accuracy basis. Preserve the source's local denominator and explicitly leave statewide denominator null.",
+    "forbidden_derivations": [
+      "network edges from line endpoint proximity",
+      "substation assignment from imagery or street data",
+      "distribution feeders from service-area polygons",
+      "cross-border interfaces from map adjacency",
+      "current statewide coverage from the retired Minnesota transmission/substation dataset"
+    ],
+    "generation_boundary": "EIA-860 facility/generator and storage inventory is owned by the dedicated generation track and is intentionally not duplicated in this ledger."
+  }
+}
