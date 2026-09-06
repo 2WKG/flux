@@ -15,7 +15,9 @@ def _catalog() -> dict:
 
 
 def _inventory() -> dict:
-    return json.loads((ROOT / "data/sources/minnesota-accepted-artifact-inventory.json").read_text())
+    return json.loads(
+        (ROOT / "data/sources/minnesota-accepted-artifact-inventory.json").read_text()
+    )
 
 
 def _model() -> dict:
@@ -51,10 +53,12 @@ def test_current_inventory_returns_a_visible_non_geographic_preview():
 
 def test_accepted_placement_binds_identity_and_shared_material_slot():
     inventory = _inventory()
-    inventory["accepted_product_artifacts"] = [{
-        "artifact_id": "mn:scene:coverage:v1",
-        "allowed_uses": ["3d placement"],
-    }]
+    inventory["accepted_product_artifacts"] = [
+        {
+            "artifact_id": "mn:scene:coverage:v1",
+            "allowed_uses": ["3d placement"],
+        }
+    ]
     binding = bind_asset(
         _catalog(),
         inventory,
@@ -69,7 +73,10 @@ def test_accepted_placement_binds_identity_and_shared_material_slot():
 
     assert binding["render_mode"] == "placed"
     assert binding["semantic_type"] == "network"
-    assert binding["material"] == {"slot": "MAT_STATUS", "status_label": "source_supported"}
+    assert binding["material"] == {
+        "slot": "MAT_STATUS",
+        "status_label": "source_supported",
+    }
 
 
 def test_import_rejects_metadata_that_does_not_match_its_archetype():

@@ -41,7 +41,9 @@ def _catalog_entry(catalog: dict[str, Any], archetype_id: str) -> dict[str, Any]
     raise AssetBindingError(f"unknown archetype: {archetype_id}")
 
 
-def _placement_artifact(inventory: dict[str, Any], artifact_id: str) -> dict[str, Any] | None:
+def _placement_artifact(
+    inventory: dict[str, Any], artifact_id: str
+) -> dict[str, Any] | None:
     for artifact in inventory.get("accepted_product_artifacts", []):
         if artifact.get("artifact_id") == artifact_id:
             return artifact
@@ -80,7 +82,9 @@ def bind_asset(
 
     if model.get("contract_id") != CONTRACT_ID:
         raise AssetBindingError("model contract_id does not match the shared contract")
-    if not isinstance(model.get("glb_uri"), str) or not model["glb_uri"].endswith(".glb"):
+    if not isinstance(model.get("glb_uri"), str) or not model["glb_uri"].endswith(
+        ".glb"
+    ):
         raise AssetBindingError("model.glb_uri must identify a .glb import")
     for field in ("footprint_m", "connectors", "lod_triangles"):
         if model.get(field) != entry[field]:
@@ -90,7 +94,11 @@ def bind_asset(
         return _preview(entry, "no accepted Minnesota placement artifact was supplied")
 
     artifact_id = placement.get("source_artifact_id")
-    artifact = _placement_artifact(inventory, artifact_id) if isinstance(artifact_id, str) else None
+    artifact = (
+        _placement_artifact(inventory, artifact_id)
+        if isinstance(artifact_id, str)
+        else None
+    )
     allowed_uses = artifact.get("allowed_uses", []) if artifact else []
     coordinates = placement.get("coordinates")
     coordinates_are_valid = (
@@ -105,7 +113,10 @@ def bind_asset(
         or not coordinates_are_valid
         or not isinstance(placement.get("scene_id"), str)
     ):
-        return _preview(entry, "placement lacks accepted Minnesota identity, coverage, or coordinates")
+        return _preview(
+            entry,
+            "placement lacks accepted Minnesota identity, coverage, or coordinates",
+        )
 
     return {
         "render_mode": "placed",
@@ -121,7 +132,9 @@ def bind_asset(
     }
 
 
-def bind_from_files(catalog_path: Path, inventory_path: Path, request_path: Path) -> dict[str, Any]:
+def bind_from_files(
+    catalog_path: Path, inventory_path: Path, request_path: Path
+) -> dict[str, Any]:
     """Load one import request and return its render-safe binding payload."""
     request = _read_json(request_path)
     return bind_asset(
