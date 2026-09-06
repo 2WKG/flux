@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     )
 
     duckdb_path: Path = Field(default=Path("data/duck/grid.duckdb"))
+    physical_inventory_root: Path = Field(
+        default=Path("data/artifacts/physical_inventory")
+    )
     copilot_model: str | None = Field(default=None)
     anthropic_api_key: SecretStr | None = Field(default=None, repr=False)
     cors_origins: tuple[str, ...] = ("http://localhost:5173",)
