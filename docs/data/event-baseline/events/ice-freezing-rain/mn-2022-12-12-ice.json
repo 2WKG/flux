@@ -1,6 +1,125 @@
 {
-  "schema_version":"event-baseline/v1","hazard":"ice-freezing-rain",
-  "event":{"event_id":"mn-2022-12-12-ice","parent_system_id":"upper_midwest_2022-12-12_winter_storm","primary_hazard":"ice_storm","secondary_hazards":[],"compound":false,"source_event_ids":["ncei:2022:176409:1071180"],"context_window":{"start_utc":"2022-12-11T00:00:00Z","end_utc":"2022-12-16T00:00:00Z"},"event_window":{"start_utc":"2022-12-12T23:00:00Z","end_utc":"2022-12-13T12:00:00Z"},"recovery_window":{"start_utc":"2022-12-13T12:00:00Z","end_utc":"2022-12-16T00:00:00Z"},"disposition":"candidate_only","selection_basis":"NCEI episode 176409/event 1071180 records freezing drizzle and light freezing rain in the Nobles forecast zone during the first phase of a long-duration winter storm.","exclusions":[],"uncertainties":["NCEI CZ_TYPE=Z record is zone evidence.","The 18:00Z canonical window has only a one-hour intersection with the NCEI report; it is retained as a candidate, not an accepted event.","No EAGLE-I county extract has been retained; outage coverage and denominator are unavailable."]},
-  "source_receipts":[{"receipt_id":"ncei_stormevents_2022_c20260625_dec","provider":"NOAA NCEI Storm Events Database","url":"https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz","release":"StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz; Last-Modified 2026-06-25T18:39:38Z","retrieved_at_utc":"2026-09-06T07:18:49Z","license_or_access":"NOAA public-data access; no file-specific license asserted by the directory response.","raw_sha256":"7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e","filtered_sha256":"c966ce69d7b0ad9df3508d7e05b1542273123a70262dcd493401ba568564c7d2","bytes":11817849,"etag":"\"b45379-6551850843637\"","units":"NCEI local begin/end times; ice accumulation in inches.","timezone_conversion":"CST-6: [2022-12-12T23:00:00Z, 2022-12-13T12:00:00Z).","filters":"EVENT_ID=1071180; EPISODE_ID=176409; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.","grid_index_mapping":"No grid index; NCEI zone 089 NOBLES.","gaps":["Raw gzip and canonical filtered row remain outside Git."]}],
-  "records":[{"record_id":"mn-2022-12-12-ice-27105-20221212t1800z","county_fips":"27105","boundary_vintage":"Census TIGER/Line 2024","scenario_id":"mn-2022-12-12-ice-replay","window_start_utc":"2022-12-12T18:00:00Z","window_end_utc":"2022-12-13T00:00:00Z","disposition":"candidate_only","mode":"replay","provenance_receipt_ids":["ncei_stormevents_2022_c20260625_dec"],"source_evidence_status":"unavailable","source_row_keys":[],"source_slices":[],"weather":{"coverage":"covered","evidence_kind":"authoritative_event_report","observation_kind":"observed","source_receipt_ids":["ncei_stormevents_2022_c20260625_dec"],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":{"source_event_ids":["ncei:2022:176409:1071180"],"source_window":{"start_utc":"2022-12-12T23:00:00Z","end_utc":"2022-12-13T12:00:00Z"},"spatial_scope":"zone","scope_identifier":"NCEI MN zone 089 NOBLES","limitations":"Zone report intersects only the final hour of the canonical bin; not a county time series."},"notes":"NCEI report; no fabricated weather sample count."},"outage":{"coverage":"UncoveredLabel","evidence_kind":"time_series_or_grid","observation_kind":"observed","source_receipt_ids":[],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":null,"notes":"No retained EAGLE-I county extraction; coverage remains UncoveredLabel rather than zero."},"matched_coverage_decision":"unavailable","label":{"rule_version":"county_outage_5pct_v1","status":"UncoveredLabel","observed_outage_customers":null,"customer_denominator":{"status":"unavailable","value":null},"outage_rate":null,"positive":null},"forecast":{"prediction_cutoff_utc":null,"forecast_evaluation":"not_forecast_scored","inputs":[]}}]
+  "schema_version": "event-baseline/v1",
+  "hazard": "ice-freezing-rain",
+  "event": {
+    "event_id": "mn-2022-12-12-ice",
+    "parent_system_id": "upper_midwest_2022-12-12_winter_storm",
+    "primary_hazard": "ice_storm",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "ncei:2022:176409:1071180"
+    ],
+    "context_window": {
+      "start_utc": "2022-12-11T00:00:00Z",
+      "end_utc": "2022-12-16T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-12-12T23:00:00Z",
+      "end_utc": "2022-12-13T12:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-12-13T12:00:00Z",
+      "end_utc": "2022-12-16T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI episode 176409/event 1071180 records freezing drizzle and light freezing rain in the Nobles forecast zone during the first phase of a long-duration winter storm.",
+    "exclusions": [],
+    "uncertainties": [
+      "NCEI CZ_TYPE=Z record is zone evidence.",
+      "The 18:00Z canonical window has only a one-hour intersection with the NCEI report; it is retained as a candidate, not an accepted event.",
+      "No EAGLE-I county extract has been retained; outage coverage and denominator are unavailable."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2022_c20260625_dec",
+      "provider": "NOAA NCEI Storm Events Database",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz; Last-Modified 2026-06-25T18:39:38Z",
+      "retrieved_at_utc": "2026-09-06T07:18:49Z",
+      "license_or_access": "NOAA public-data access; no file-specific license asserted by the directory response.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": "c966ce69d7b0ad9df3508d7e05b1542273123a70262dcd493401ba568564c7d2",
+      "bytes": 11817849,
+      "etag": "\"b45379-6551850843637\"",
+      "units": "NCEI local begin/end times; ice accumulation in inches.",
+      "timezone_conversion": "CST-6: [2022-12-12T23:00:00Z, 2022-12-13T12:00:00Z).",
+      "filters": "EVENT_ID=1071180; EPISODE_ID=176409; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+      "grid_index_mapping": "No grid index; NCEI zone 089 NOBLES.",
+      "gaps": [
+        "Raw gzip and canonical filtered row remain outside Git."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2022-12-12-ice-27105-20221212t1800z",
+      "county_fips": "27105",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2022-12-12-ice-replay",
+      "window_start_utc": "2022-12-12T18:00:00Z",
+      "window_end_utc": "2022-12-13T00:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2022_c20260625_dec"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2022_c20260625_dec"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "ncei:2022:176409:1071180"
+          ],
+          "source_window": {
+            "start_utc": "2022-12-12T23:00:00Z",
+            "end_utc": "2022-12-13T12:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "NCEI MN zone 089 NOBLES",
+          "limitations": "Zone report intersects only the final hour of the canonical bin; not a county time series."
+        },
+        "notes": "NCEI report; no fabricated weather sample count."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "No retained EAGLE-I county extraction; coverage remains UncoveredLabel rather than zero."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
 }

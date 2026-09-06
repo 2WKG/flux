@@ -1,6 +1,129 @@
 {
-  "schema_version":"event-baseline/v1","hazard":"ice-freezing-rain",
-  "event":{"event_id":"mn-wi-2022-03-29-ice","parent_system_id":"upper_midwest_2022-03-29_ice","primary_hazard":"ice_storm","secondary_hazards":["heavy_snow"],"compound":true,"source_event_ids":["ncei:2022:167599:1014369","ncei:2022:167600:1014370","ncei:2022:167600:1014371","ncei:2022:167600:1014372"],"context_window":{"start_utc":"2022-03-28T00:00:00Z","end_utc":"2022-04-02T00:00:00Z"},"event_window":{"start_utc":"2022-03-30T04:00:00Z","end_utc":"2022-03-30T22:00:00Z"},"recovery_window":{"start_utc":"2022-03-30T22:00:00Z","end_utc":"2022-04-02T00:00:00Z"},"disposition":"candidate_only","selection_basis":"NCEI episode 167599/event 1014369 reports quarter-inch freezing rain in the Southern Lake forecast zone; linked Wisconsin records document the same low-pressure episode.","exclusions":[],"uncertainties":["NCEI Southern Lake is a forecast zone rather than a county observation.","No EAGLE-I county extract has been retained for this candidate; outage coverage is UncoveredLabel and no outage label is asserted."]},
-  "source_receipts":[{"receipt_id":"ncei_stormevents_2022_c20260625_mar","provider":"NOAA NCEI Storm Events Database","url":"https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz","release":"StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz; Last-Modified 2026-06-25T18:39:38Z","retrieved_at_utc":"2026-09-06T07:18:49Z","license_or_access":"NOAA public-data access; no file-specific license asserted by the directory response.","raw_sha256":"7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e","filtered_sha256":"2ccb4a5b0f01e31eff30316ac5b37f8efd20515d625806ddff068a4a76d39dfe","bytes":11817849,"etag":"\"b45379-6551850843637\"","units":"NCEI local begin/end times; ice accumulation in inches.","timezone_conversion":"CST-6: [2022-03-30T04:00:00Z, 2022-03-30T22:00:00Z).","filters":"EVENT_ID=1014369; EPISODE_ID=167599; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.","grid_index_mapping":"No grid index; NCEI zone 020 SOUTHERN LAKE.","gaps":["Raw gzip and canonical filtered row remain outside Git."]}],
-  "records":[{"record_id":"mn-wi-2022-03-29-ice-27075-20220330t0000z","county_fips":"27075","boundary_vintage":"Census TIGER/Line 2024","scenario_id":"mn-wi-2022-03-29-ice-replay","window_start_utc":"2022-03-30T00:00:00Z","window_end_utc":"2022-03-30T06:00:00Z","disposition":"candidate_only","mode":"replay","provenance_receipt_ids":["ncei_stormevents_2022_c20260625_mar"],"source_evidence_status":"unavailable","source_row_keys":[],"source_slices":[],"weather":{"coverage":"covered","evidence_kind":"authoritative_event_report","observation_kind":"observed","source_receipt_ids":["ncei_stormevents_2022_c20260625_mar"],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":{"source_event_ids":["ncei:2022:167599:1014369"],"source_window":{"start_utc":"2022-03-30T04:00:00Z","end_utc":"2022-03-30T22:00:00Z"},"spatial_scope":"zone","scope_identifier":"NCEI MN zone 020 SOUTHERN LAKE","limitations":"Zone report intersects the final two hours of the canonical bin; not a county time series."},"notes":"NCEI report; no fabricated weather sample count."},"outage":{"coverage":"UncoveredLabel","evidence_kind":"time_series_or_grid","observation_kind":"observed","source_receipt_ids":[],"expected_samples":null,"observed_samples":null,"missing_timestamps":[],"event_report":null,"notes":"No retained EAGLE-I county extraction; coverage remains UncoveredLabel rather than zero."},"matched_coverage_decision":"unavailable","label":{"rule_version":"county_outage_5pct_v1","status":"UncoveredLabel","observed_outage_customers":null,"customer_denominator":{"status":"unavailable","value":null},"outage_rate":null,"positive":null},"forecast":{"prediction_cutoff_utc":null,"forecast_evaluation":"not_forecast_scored","inputs":[]}}]
+  "schema_version": "event-baseline/v1",
+  "hazard": "ice-freezing-rain",
+  "event": {
+    "event_id": "mn-wi-2022-03-29-ice",
+    "parent_system_id": "upper_midwest_2022-03-29_ice",
+    "primary_hazard": "ice_storm",
+    "secondary_hazards": [
+      "heavy_snow"
+    ],
+    "compound": true,
+    "source_event_ids": [
+      "ncei:2022:167599:1014369",
+      "ncei:2022:167600:1014370",
+      "ncei:2022:167600:1014371",
+      "ncei:2022:167600:1014372"
+    ],
+    "context_window": {
+      "start_utc": "2022-03-28T00:00:00Z",
+      "end_utc": "2022-04-02T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-03-30T04:00:00Z",
+      "end_utc": "2022-03-30T22:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-03-30T22:00:00Z",
+      "end_utc": "2022-04-02T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI episode 167599/event 1014369 reports quarter-inch freezing rain in the Southern Lake forecast zone; linked Wisconsin records document the same low-pressure episode.",
+    "exclusions": [],
+    "uncertainties": [
+      "NCEI Southern Lake is a forecast zone rather than a county observation.",
+      "The initial EAGLE-I range acquisition is unqualified because its time-based search is unsafe for non-globally-time-ordered annual files; exhaustive annual scan is pending."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2022_c20260625_mar",
+      "provider": "NOAA NCEI Storm Events Database",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz; Last-Modified 2026-06-25T18:39:38Z",
+      "retrieved_at_utc": "2026-09-06T07:18:49Z",
+      "license_or_access": "NOAA public-data access; no file-specific license asserted by the directory response.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": "2ccb4a5b0f01e31eff30316ac5b37f8efd20515d625806ddff068a4a76d39dfe",
+      "bytes": 11817849,
+      "etag": "\"b45379-6551850843637\"",
+      "units": "NCEI local begin/end times; ice accumulation in inches.",
+      "timezone_conversion": "CST-6: [2022-03-30T04:00:00Z, 2022-03-30T22:00:00Z).",
+      "filters": "EVENT_ID=1014369; EPISODE_ID=167599; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+      "grid_index_mapping": "No grid index; NCEI zone 020 SOUTHERN LAKE.",
+      "gaps": [
+        "Raw gzip and canonical filtered row remain outside Git."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-wi-2022-03-29-ice-27075-20220330t0000z",
+      "county_fips": "27075",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-wi-2022-03-29-ice-replay",
+      "window_start_utc": "2022-03-30T00:00:00Z",
+      "window_end_utc": "2022-03-30T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2022_c20260625_mar"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2022_c20260625_mar"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "ncei:2022:167599:1014369"
+          ],
+          "source_window": {
+            "start_utc": "2022-03-30T04:00:00Z",
+            "end_utc": "2022-03-30T22:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "NCEI MN zone 020 SOUTHERN LAKE",
+          "limitations": "Zone report intersects the final two hours of the canonical bin; not a county time series."
+        },
+        "notes": "NCEI report; no fabricated weather sample count."
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Initial range receipt is acquisition_unqualified; exhaustive annual scan is pending, so absence and coverage are not asserted."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
 }
