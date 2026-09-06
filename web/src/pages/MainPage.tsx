@@ -33,6 +33,7 @@ import { resultsFromRun } from "../data/ask-result";
 import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-client";
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
+import { ScenarioEditContainer } from "../interactive/ScenarioEditContainer";
 import { InteractivePanels } from "../interactive/InteractivePanels";
 import { TexasNodesPanel } from "../texas-nodes/TexasNodesPanel";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
@@ -596,6 +597,8 @@ export function App() {
 
       <InteractivePanels scenarioId={selected} busId="load" />
       <TexasNodesPanel scenarioId={data.execution.assumptionSetId} hour={0} />
+
+      <ScenarioEditContainer baseScenarioId={data.execution.assumptionSetId} />
 
       <section className="pipeline">
         <div>

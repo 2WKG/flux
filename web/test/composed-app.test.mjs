@@ -92,13 +92,22 @@ test("every layer renders unavailable with a named producer reason before any ro
 });
 
 test("the composed screen renders no status label but the ones its data supports", () => {
-  // The synthetic fixture and six unavailable layers can produce exactly two of
-  // the six display strings. Relabelling any surface introduces a third.
+  // The synthetic fixture and six unavailable layers produce two of the six
+  // display strings. The mounted scenario edit composer (2WKG-440) adds exactly
+  // one more: an edit a user composes is a proposal, and `hypothetical` is the
+  // IA's token for a proposal (`docs/design/texas-demo-narrative-ia.md`, the
+  // truth-label table). It is rendered from `STATUS_COPY`, not written here.
+  // The set stays exact, so relabelling any surface still introduces a fourth
+  // and fails.
   const shown = Object.entries(app.STATUS_COPY)
     .filter(([, label]) => new RegExp(`(^| )${label}( |$|\\.)`).test(text))
     .map(([token]) => token)
     .sort();
-  assert.deepEqual(shown, ["synthetic", "unavailable"].sort());
+  assert.deepEqual(shown, ["hypothetical", "synthetic", "unavailable"].sort());
+  // And the three that would be claims this screen cannot make stay absent.
+  for (const token of ["source_supported", "source_screened", "request_failed"]) {
+    assert.ok(!shown.includes(token), `the composed screen renders ${token}`);
+  }
 });
 
 test("the run trace, when mounted, carries the scene's own status and not the reducer default", () => {
