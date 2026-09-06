@@ -198,6 +198,7 @@ test("the shipped component bundle carries the owner's strings and no provenance
         export { Inspector } from "./inspector/Inspector";
         export { RunTrace } from "./ask/run-state/RunTrace";
         export { ChatDock } from "./chat/ChatDock";
+        export { FailureTimelinePanel } from "./minnesota/FailureTimelinePanel";
       `,
       resolveDir: here.pathname,
       loader: "tsx",
