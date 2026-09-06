@@ -5,6 +5,12 @@ import json
 import pytest
 
 import pipelines.build as build_module
+from pipelines.activsg import _is_transformer
+
+
+def test_activsg_transformer_classification_uses_endpoint_voltage_not_tap():
+    assert _is_transformer(230.0, 500.0)
+    assert not _is_transformer(230.0, 230.0)
 
 
 def test_incomplete_p0_build_does_not_mutate_or_export(tmp_path, monkeypatch) -> None:
