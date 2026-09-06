@@ -17,6 +17,8 @@ import { mkdir, readFile } from "node:fs/promises";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { readBuiltScripts } from "./built-assets.mjs";
+
 const webRoot = new URL("../", import.meta.url);
 const compiled = new URL("../node_modules/.cache/flux-viewport-shell-render.mjs", import.meta.url);
 await mkdir(new URL(".", compiled), { recursive: true });
@@ -25,7 +27,7 @@ await build({
     contents: `
       import { createElement } from "react";
       import { renderToStaticMarkup } from "react-dom/server";
-      import { App, ChatDockView, chatReducer } from "./src/main";
+      import { App, ChatDockView, chatReducer } from "./src/pages/MainPage";
       export { deriveSourceTruth, STATUS_COPY } from "./src/source-truth";
       export { ASSET_STATUS_TOKENS } from "./src/labels";
       export { SYNTHETIC_TOPOLOGY_LABEL } from "./src/scene/minnesota-adapter";
@@ -287,7 +289,9 @@ test("the display vocabulary is exactly the six IA tokens", () => {
 test("the built bundle actually ships the shell, the dock, and the derived label", async () => {
   // Guards against a shell that only exists in source. `npm run build` runs first
   // in the CI web gate, so dist/ is present here.
-  const built = await readFile(new URL("dist/assets/app.js", webRoot), "utf8");
+  // The entry is split into chunks (2WKG-478); the scenario page ships in one of
+  // them, so the shipped artifact is the entry plus every chunk beside it.
+  const built = await readBuiltScripts();
   for (const marker of [
     'className: "workspace"',
     "map scene-viewport",

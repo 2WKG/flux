@@ -196,7 +196,7 @@ def test_uri_legacy_zones_recover_all_22_rows_with_the_historical_release(tmp_pa
         ).fetchall() == [("nws_crosswalk:bp10nv20",)]
         assert con.execute(
             "SELECT source_release FROM ingest_log WHERE source = 'nws_zone_county'"
-        ).fetchall() == [("bp10nv20",)]
+        ).fetchall() == [("bp10nv20;scope=tx",)]
     finally:
         con.close()
 
@@ -228,9 +228,9 @@ def test_partial_interval_fails_closed_and_beryl_uses_its_valid_release(tmp_path
         assert con.execute("SELECT event_id FROM storm_events").fetchall() == [(2,)]
         assert con.execute(
             "SELECT source_key FROM ingest_warnings WHERE source = 'noaa_storm_events'"
-        ).fetchall() == [("2024:interval:039",)]
+        ).fetchall() == [("2024:scope:tx:interval:039",)]
         assert con.execute(
             "SELECT source_release FROM ingest_log WHERE source = 'nws_zone_county'"
-        ).fetchall() == [("bp05mr24",)]
+        ).fetchall() == [("bp05mr24;scope=tx",)]
     finally:
         con.close()

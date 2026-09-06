@@ -1,0 +1,71 @@
+{
+ "retrieved_at": "2026-09-06T12:00:00Z",
+ "provider": "Oak Ridge National Laboratory via figshare",
+ "source_url": "https://api.figshare.com/v2/articles/24237376",
+ "vintage": "figshare article 24237376 version 4",
+ "license_access": "CC BY 4.0",
+ "files": {
+  "eaglei_outages_2021.csv": {
+   "bytes": 1141058232,
+   "sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319",
+   "figshare_file_id": 42547891
+  },
+  "eaglei_outages_2024.csv": {
+   "bytes": 1444846424,
+   "sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6",
+   "figshare_file_id": 53581661
+  },
+  "MCC.csv": {
+   "bytes": 40584,
+   "sha256": "d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e",
+   "figshare_file_id": 42547708
+  },
+  "coverage_history.csv": {
+   "bytes": 11965,
+   "sha256": "a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267",
+   "figshare_file_id": 42547714
+  }
+ },
+ "validation": {
+  "loader": "pipelines.eaglei.load_eaglei",
+  "scope": "MN",
+  "source_timezone": "UTC",
+  "annual": {
+   "2021": {
+    "raw_mn_rows": 410594,
+    "loaded": 331681,
+    "blank_targets": 78913,
+    "negative": 0,
+    "duplicate": 0,
+    "source_counties": 79,
+    "peak_customers_out": 22804,
+    "peak_timestamp": "2021-03-16T16:15Z"
+   },
+   "2024": {
+    "raw_mn_rows": 417845,
+    "loaded": 417845,
+    "blank_targets": 0,
+    "negative": 0,
+    "duplicate": 0,
+    "source_counties": 86,
+    "peak_customers_out": 75672,
+    "peak_timestamp": "2024-07-14T08:00Z"
+   }
+  },
+  "denominators": {
+   "loader": "pipelines.eaglei.load_county_customers",
+   "mcc_2022_counties": 87
+  },
+  "coverage_history": {
+   "loader": "pipelines.eaglei.load_coverage_history",
+   "years": "2018-2022",
+   "rows": 5,
+   "max_pct_covered_range": [
+    0.71,
+    0.8
+   ]
+  },
+  "result": "passed"
+ },
+ "uncertainty": "EAGLE-I utility coverage is partial and varies by year: Minnesota max coverage runs 71-80 percent of customers over 2018-2022, below the 63-94 percent Texas range. A blank customers_out is unknown, never zero, and is excluded from the curated target while its loss is recorded in eaglei_ingest_quality_by_state. 2021 reports only 79 of 87 counties."
+}
