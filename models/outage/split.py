@@ -259,9 +259,9 @@ def split(
     partitions, evaluation_ids = _policy_partitions(states, window_start)
 
     train = df.iloc[_positions(partitions.eq(Partition.TRAIN.value))].copy(deep=True)
-    calibration_frame = df.iloc[_positions(partitions.eq(Partition.CALIBRATION.value))].copy(
-        deep=True
-    )
+    calibration_frame = df.iloc[
+        _positions(partitions.eq(Partition.CALIBRATION.value))
+    ].copy(deep=True)
     holdouts = {
         scenario: df.iloc[_positions(evaluation_ids.eq(scenario).fillna(False))].copy(
             deep=True
@@ -286,8 +286,7 @@ def _states_from_county_catalog(
         missing = required.difference(county_catalog.columns)
         if missing:
             raise SplitError(
-                "county catalog is missing required columns: "
-                f"{sorted(missing)}"
+                f"county catalog is missing required columns: {sorted(missing)}"
             )
         catalog_fips = county_catalog["county_fips"].astype("string")
         if (
@@ -295,14 +294,18 @@ def _states_from_county_catalog(
             or not catalog_fips.str.fullmatch(r"\d{5}").all()
             or catalog_fips.duplicated().any()
         ):
-            raise SplitError("county catalog must have unique five-digit county_fips values")
+            raise SplitError(
+                "county catalog must have unique five-digit county_fips values"
+            )
         raw_states: Mapping[str, object] = dict(
             zip(catalog_fips.tolist(), county_catalog["state"].tolist(), strict=True)
         )
     elif isinstance(county_catalog, Mapping):
         raw_states = county_catalog
     else:
-        raise SplitError("county_catalog must be a counties DataFrame or a county-to-state mapping")
+        raise SplitError(
+            "county_catalog must be a counties DataFrame or a county-to-state mapping"
+        )
 
     states_by_county = {
         str(fips): _normalize_state(state) for fips, state in raw_states.items()
@@ -310,7 +313,9 @@ def _states_from_county_catalog(
     states = county_fips.map(states_by_county).astype("string")
     missing_fips = county_fips.loc[states.isna()].unique().tolist()
     if missing_fips:
-        raise SplitError(f"county catalog has no state for counties: {sorted(missing_fips)}")
+        raise SplitError(
+            f"county catalog has no state for counties: {sorted(missing_fips)}"
+        )
     return states
 
 
@@ -339,7 +344,9 @@ def _policy_partitions(
     partitions = pd.Series(Partition.TRAIN.value, index=states.index, dtype="string")
     evaluation_ids = pd.Series(pd.NA, index=states.index, dtype="string")
     for scenario, (start, end, eligible_states) in HOLDOUT_WINDOWS.items():
-        matches = states.isin(eligible_states) & window_start.ge(start) & window_start.lt(end)
+        matches = (
+            states.isin(eligible_states) & window_start.ge(start) & window_start.lt(end)
+        )
         partitions.loc[matches] = Partition.HOLDOUT.value
         evaluation_ids.loc[matches] = scenario
 
@@ -396,7 +403,9 @@ def verify_manifest_integrity(manifest: SplitManifest) -> None:
         manifest.seed, manifest.input_artifact_sha256, manifest.assignments
     )
     if manifest.split_id != expected_split_id:
-        raise SplitError("manifest split_id does not match its membership and input hash")
+        raise SplitError(
+            "manifest split_id does not match its membership and input hash"
+        )
 
 
 def _manifest_encoding(
