@@ -1,0 +1,23 @@
+{
+  "date": "2026-09-06T06:26:31.213Z",
+  "scope": "Installer smoke tests against an isolated generated scaffold, not an existing Flux checkout.",
+  "manifest_sha256": "19a313bce8f949e7bde70d508b197da71f87f3b075110dade1c8ea552f0d31fb",
+  "first_install": {
+    "exit_code": 0,
+    "stdout": "Verified 54 GLBs. Added 124 files; 0 identical files already present. No package or Git configuration changed.",
+    "stderr": ""
+  },
+  "identical_reinstall": {
+    "exit_code": 0,
+    "stdout": "Verified 54 GLBs. Added 0 files; 124 identical files already present. No package or Git configuration changed.",
+    "stderr": ""
+  },
+  "conflicting_file_refusal": {
+    "exit_code": 1,
+    "rejected_before_copy": true
+  },
+  "installed_files_excluding_package_json": 124,
+  "package_json_unchanged": true,
+  "only_intentional_fixture_changed": true,
+  "success": true
+}

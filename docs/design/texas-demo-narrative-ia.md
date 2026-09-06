@@ -7,6 +7,14 @@ base: 880b55a2ec517bd71c3816ef6200459012c8f403
 
 # Texas workspace narrative and information architecture
 
+> **Legacy scope (D-5).** [`../specs/README.md`](../specs/README.md) declares
+> [`10-minnesota-demo.md`](../specs/10-minnesota-demo.md) the current *planning* authority and this
+> Texas framing superseded. This document is retained, not deleted, because it describes the
+> geography the code actually serves (`copilot/routes/layers.py:44`, `:59`), and because its
+> status-token and failure-state tables are the ones `web/src/` implements. Where it and the
+> Minnesota IA disagree about `master`, this one has been the accurate of the two (see D-5b in
+> [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)).
+
 ## Purpose and boundary
 
 This is a reviewable interaction proposal, not a statement that a Texas
@@ -95,7 +103,7 @@ is not renderable until it does.
 | `hypothetical` | **no server field today.** It is the pre-submission lifecycle state of a proposal the user is editing; the proposal-state contract is Review decision 2 below | shown only on an un-submitted, editable proposal; never on a returned result |
 | `synthetic` | `GET /scenarios` response `source_kind` in `fixture`/`simulated` with `topology == "synthetic (ACTIVSg2000)"` (`copilot/routes/scenarios.py:66-67`, constant at `:32`); the same literal is `SYNTHETIC_TOPOLOGY_LABEL` in `copilot/routes/layers.py:59` | render the server's full `topology` string verbatim — see "Naming the synthetic topology" below |
 | `unavailable` | `FailureEnvelope.status == "unavailable"` (`copilot/api/envelope.py:63-64`), carrying one of the seven named reasons from `copilot/routes/layers.py:98-112` — `missing`, `no_rows`, `schema_mismatch`, `invalid_geometry`, `provenance_missing`, `not_built`, `query_failed` | show the token *and* the server's named reason; never a bare "unavailable" where a reason was supplied |
-| `request_failed` | `FailureEnvelope.status == "error"` (`copilot/api/envelope.py:63-64`), or the SSE terminal `error` event (`../research/sse-event-schema.md:116`); every attempt emits exactly one terminal `done` **or** one terminal `error`, never both and never neither (`:106`, `:133`) | show the server-supplied cause; a stream that ended without a terminal event is `request_failed`, not `unavailable` |
+| `request_failed` | `FailureEnvelope.status == "error"` (`copilot/api/envelope.py:63-64`), or the SSE terminal `error` event (`../research/sse-event-schema.md:116`); every attempt emits exactly one terminal `done` **or** one terminal `error`, never both and never neither (`:106`, `:133`) | show the server-supplied cause; a stream that ended without a terminal event is `request_failed`, not `unavailable` — **undecided whether this is normative; nothing implements it. See OQ-1 in [`../specs/spec-code-reconciliation.md`](../specs/spec-code-reconciliation.md)** |
 
 The provenance disclosures the layer rail and inspector require are already
 produced for Texas by `copilot/routes/layers.py`: `coord_source` and
@@ -198,7 +206,7 @@ cascade playback, site pins and critical loads (`06-frontend.md:9`), with
 | Cascade playback driven by a `run_cascade` tool call | **deferred, and constrained** — as in Minnesota, a tool call renders as an evidence chip and drives no camera, hour, layer, or selection until the cascade artifact is delivered | A tool-triggered animation would assert topology behaviour this document does not claim |
 | `uri_2021` topology path on the checked-in five-bus fixture | **kept, unchanged** — 06 remains authority for that screen | This IA describes the Texas *workspace* shell, not the five-bus preview |
 | Basemap (`06-frontend.md:21`, OpenFreeMap/MapLibre with Protomaps fallback) | **kept as a basemap only** — the "map fallback" in the IA table means the basemap tile provider falling back, never a substitute network, boundary, or placement drawn under an unavailable layer | Resolves the apparent conflict with "never substitute a plausible map" |
-| The `POST /ask` box | **kept** — it is the copilot dock in this IA | `POST /ask` exists on `master` as a transport (`copilot/routes/ask.py:139`, mounted at `copilot/app.py:71`); its answer backend is deployment-injected, so see the dependency table below |
+| The `POST /ask` box | **kept** — it is the copilot dock in this IA | `POST /ask` exists on `master` as a transport (`copilot/routes/ask.py:139`, mounted at `copilot/app.py:75`); its answer backend is deployment-injected, so see the dependency table below |
 
 **Mapping onto the shared shell (2WKG-312, open PR #191).** That PR ships one
 shell with typed `viewport`, `controls`, `inspector`, `timeline`, `comparison`
@@ -237,7 +245,7 @@ dependency statement, not a completion claim.
 | Scenario `source_kind` / `topology` labels | exists (`copilot/routes/scenarios.py:32,66-67`) | merged |
 | Failure envelope statuses | exists (`copilot/api/envelope.py:63-64`) | merged |
 | Responsive shell with typed slots | does not exist on `master` | **2WKG-312** (open PR #191) |
-| Copilot dock: `POST /ask` route | **exists as a transport** (`copilot/routes/ask.py:139`, mounted `copilot/app.py:71`); it calls no provider of its own — the tool plan and narration backend are deployment-injected (`AskBackend.provider`, `ask.py:70-72`) and nothing in the repository injects one, so the dock renders `unavailable` until a backend is wired | transport merged; the answer path is **2WKG-147** |
+| Copilot dock: `POST /ask` route | **exists as a transport** (`copilot/routes/ask.py:139`, mounted `copilot/app.py:75`); it calls no provider of its own — the tool plan and narration backend are deployment-injected (`AskBackend.provider`, `ask.py:70-72`) and nothing in the repository injects one, so the dock renders `unavailable` until a backend is wired | transport merged; the answer path is **2WKG-147** |
 | Copilot dock: SSE tool trace, citations and terminal `done`/`error` | event primitives exist (`copilot/sse.py`) and the schema is documented (`../research/sse-event-schema.md`), streamed by the ask transport | lifecycle and error behaviour **2WKG-126** / **2WKG-127** |
 | 3D scene, camera presets and archetypes for Texas | contract exists (`3d-asset-contract.md`, `data/3d/asset-archetypes-v1.json`); no Texas twin | **2WKG-311** (Texas 3D twin), **2WKG-318** (picking), **2WKG-320** (asset pipeline) |
 | Texas geometry, county boundaries, outage, hazard and facility layers | every source is `unavailable` or `excluded` in `data/sources/texas-p0-inventory.json` except `activsg2000-current` | **no ticket yet** for the layer set as a whole; source receipts are in flight in PR #199 |
