@@ -36,6 +36,7 @@ const PROXIED = [
   { pattern: /^\/balance$/, methods: ["GET"] },
   { pattern: /^\/redundancy$/, methods: ["GET"] },
   { pattern: /^\/siting\/search$/, methods: ["POST"] },
+  { pattern: /^\/minnesota\/aggregate$/, methods: ["GET"] },
   { pattern: /^\/minnesota\/smr\/validate$/, methods: ["POST"] },
   { pattern: /^\/mn\/comparisons$/, methods: ["POST"] },
   { pattern: /^\/ask$/, methods: ["POST"] },
