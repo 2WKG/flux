@@ -752,6 +752,8 @@ def test_bare_cascade_row_is_not_a_qualified_topology_artifact(tmp_path: Path) -
         "artifact": "cascade_runs",
         "reason": "topology_cascade_unsupported_or_absent",
     }
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
 
 
 def test_aggregate_model_cannot_be_relabelled_as_a_cascade(tmp_path: Path) -> None:

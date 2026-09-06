@@ -185,6 +185,18 @@ class _ArtifactInvalid(ValueError):
     """The qualifying Minnesota artifact metadata violates its contract."""
 
 
+def _header_safe_artifact_id(value: object) -> str:
+    """Return an immutable artifact ID that can safely enter an HTTP header."""
+
+    if not isinstance(value, str) or not value:
+        raise _ArtifactInvalid("artifact_id must be a non-empty string")
+    if not value.isascii() or any(
+        not 33 <= ord(character) <= 126 for character in value
+    ):
+        raise _ArtifactInvalid("artifact_id is not safe for an HTTP header")
+    return value
+
+
 def _unavailable(reason: str, *, artifact: str, **extra: str) -> UnavailableError:
     return UnavailableError(
         _MESSAGES[reason].format(artifact=artifact),
@@ -261,15 +273,6 @@ def _json_list(value: object, label: str, error: type[ValueError]) -> list[Any]:
             raise error(f"{label} is not JSON") from exc
     if not isinstance(value, list):
         raise error(f"{label} must be a JSON array")
-    return value
-
-
-def _header_safe_artifact_id(value: object) -> str:
-    """Return one immutable artifact id that is safe to emit as an HTTP header (#158)."""
-    if not isinstance(value, str) or not value:
-        raise _ArtifactInvalid("artifact id is missing")
-    if not value.isascii() or any(not 33 <= ord(char) <= 126 for char in value):
-        raise _ArtifactInvalid("artifact id is not header-safe")
     return value
 
 
