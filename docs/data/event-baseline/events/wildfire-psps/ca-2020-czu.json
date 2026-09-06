@@ -1,0 +1,131 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "wildfire",
+  "event": {
+    "event_id": "ca-2020-czu",
+    "parent_system_id": "ca-2020-czu",
+    "primary_hazard": "wildfire",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "CALFIRE:/incidents/2020/8/16/czu-lightning-complex/"
+    ],
+    "context_window": {
+      "start_utc": "2020-08-16T00:00:00Z",
+      "end_utc": "2020-09-30T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2020-08-19T00:00:00Z",
+      "end_utc": "2020-08-19T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2020-08-19T06:00:00Z",
+      "end_utc": "2020-09-30T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "CAL FIRE CZU Lightning Complex event record and bounded Santa Cruz EAGLE-I capture.",
+    "uncertainties": [
+      "CAL FIRE page identifies a non-CAL FIRE incident; no verified infrastructure-damage claim.",
+      "Customer denominator unavailable."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "calfire-czu",
+      "provider": "CAL FIRE",
+      "url": "https://www.fire.ca.gov/incidents/2020/8/16/czu-lightning-complex/",
+      "release": null,
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "public incident record",
+      "raw_sha256": "4a5bbff256e2ff61388527db5cedad444a34ba0017ecb452cc0252dd3ebacce0",
+      "filtered_sha256": null,
+      "bytes": 60996,
+      "etag": null,
+      "units": "incident dates",
+      "timezone_conversion": "incident page time basis not used for a causal claim",
+      "filters": "Santa Cruz County FIPS 06087",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Event interval is retained conservatively pending an authoritative hourly incident feed."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-czu",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547894",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:18:00Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a",
+      "filtered_sha256": "91d035b2ce1eb8e1809d362d81b1ea29c61a73f0ea074cc39964e3ffbc29f37a",
+      "bytes": 1170699724,
+      "etag": "\"69efd86260f9814aa3990bf6d7827b82-2\"",
+      "units": "customers_out; UTC 15-minute timestamps",
+      "timezone_conversion": "none; source documents UTC",
+      "filters": "California, FIPS 06087, six-hour window",
+      "grid_index_mapping": "none",
+      "gaps": ["Customer denominator unavailable."],
+      "acquisition": {"acquisition_complete":true,"acquisition_method":"exhaustive_annual_stream","source_system_id":"figshare:24237376:42547894","source_file":"eaglei_outages_2020.csv","source_file_id":42547894,"source_file_bytes":1170699724,"integrity_basis":"figshare_file_metadata_md5_and_size+etag_pinned_full_stream","raw_artifact_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv","raw_artifact_sha256":"2a20b62e5245b1b9d4fcedc1bdbaf691bb1e17f75094975c8c6cb854f52e721a","source_sidecar_uri":"data/raw/event-baseline/annual-source/eaglei_outages_2020.csv.source.json","source_sidecar_sha256":"6539c980f2cdf27d402b5c39cf7f22c4f0daac50e18df35f95d135d05ea5adc9","filtered_artifact_uri":"data/raw/event-baseline/ca-2020-czu-06087-20200819000000_eaglei_2020_20200819T000000_20200819T060000.csv","filtered_artifact_sha256":"91d035b2ce1eb8e1809d362d81b1ea29c61a73f0ea074cc39964e3ffbc29f37a"}
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2020-czu-06087-20200819t0000",
+      "county_fips": "06087",
+      "boundary_vintage": "2020 Census",
+      "scenario_id": "ca-2020-czu-replay",
+      "window_start_utc": "2020-08-19T00:00:00Z",
+      "window_end_utc": "2020-08-19T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "calfire-czu",
+        "eaglei-czu"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [
+          "calfire-czu"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "CAL FIRE record supports candidate discovery; authoritative county/time overlap is not yet established."
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": ["eaglei-czu"],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Complete annual-source scan; customer denominator unavailable."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
