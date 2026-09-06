@@ -56,6 +56,23 @@
       "gaps": [
         "EAGLE-I receipt and matched-coverage decision pending."
       ]
+    },
+    {
+      "receipt_id": "ncei-ida-2021-details",
+      "provider": "NOAA National Centers for Environmental Information",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2021_c20260323.csv.gz",
+      "release": "Storm Events Details 2021, c20260323",
+      "retrieved_at_utc": "2026-09-06T07:25:00Z",
+      "license_or_access": "NOAA public data",
+      "raw_sha256": "60c1daf96dbe8eafd48c80df5b70df51a0125ab95d467ee7009a646761d57715",
+      "filtered_sha256": null,
+      "bytes": 10563953,
+      "etag": null,
+      "units": "Storm Events reported event interval and zone scope",
+      "timezone_conversion": "CZ_TIMEZONE CST-6 retained and converted to UTC by adding six hours",
+      "filters": "EVENT_ID 978969 and 978970, Lafourche hurricane zones",
+      "grid_index_mapping": "NCEI forecast zones LAZ059 and LAZ067 partially cover county FIPS 22057; no physical-grid mapping",
+      "gaps": ["Forecast zones do not establish countywide weather conditions."]
     }
   ],
   "records": [
@@ -69,23 +86,25 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "nhc-ida-2021-archive"
+        "nhc-ida-2021-archive",
+        "ncei-ida-2021-details"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
+        "coverage": "covered",
         "source_receipt_ids": [
-          "nhc-ida-2021-archive"
+          "nhc-ida-2021-archive",
+          "ncei-ida-2021-details"
         ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "NHC archived advisories document Ida's Louisiana warning and landfall period; county-level weather gridding is not asserted.",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "event_report": null
+        "notes": "NCEI reports Hurricane Ida for Lafourche forecast zones during the canonical window; zone scope is not countywide.",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "event_report": {"source_event_ids":["ncei:978969","ncei:978970"],"source_window":{"start_utc":"2021-08-29T09:00:00Z","end_utc":"2021-08-30T09:00:00Z"},"spatial_scope":"zone","scope_identifier":"LAZ059,LAZ067","limitations":"Upper and lower Lafourche forecast zones partially cover FIPS 22057 and are not countywide observations."}
       },
       "outage": {
         "coverage": "uncovered",
