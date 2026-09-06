@@ -65,15 +65,23 @@ with the token as the named code `stream_ended_without_terminal`.
 (the `request_failed` row) now state the rule as normative; the "undecided / nothing implements it"
 wording is gone from both. The original options are kept below as the record of the call.
 
-**Defined, not yet wired.** `stream_closed` has no production dispatcher. `RunTrace.tsx:44-49` is
-the only `useReducer(runReducer, …)` in the tree and dispatches `event` / `source_status` /
-`cancel_requested`, never a close; the live SSE reader closes its stream at
-`web/src/data/transport.ts:226-228` with no reducer attached. So a terminal-less stream still
-leaves the run in `active` in the shipped app, and will until the close is dispatched. Two
-follow-ups, named here and not done in #248:
+**Wired.** `stream_closed` now has a production dispatcher. `web/src/data/ask-stream.ts` reads the
+SSE body opened through `web/src/data/transport.ts` and dispatches the close on every EOF, abort,
+and broken read; `web/src/pages/MainPage.tsx` feeds that state to the one chat seam
+(`web/src/main-assistant/MainAssistant.tsx`), which renders it as the frozen `request_failed` token
+plus the named code. One follow-up remains:
 
-- **FU-4** — dispatch `stream_closed` from the live transport (`web/src/data/transport.ts:226-228`)
-  when the chat dock mounts the run reducer (PR [#252](https://github.com/2WKG/flux/pull/252)).
+- **FU-4** — *closed* by the 2WKG-480 assistant-seam follow-up: the dispatch is in
+  `web/src/data/ask-stream.ts` and the render is `MainAssistant.streamCloseFailure`, both pinned by
+  `web/src/main-assistant/MainAssistant.test.mjs`, which drives `runAsk` over a terminal-less stream
+  and asserts `data-request-status="request_failed"`.
+  Correction recorded in the same PR: "on every EOF, abort, and broken read" was FALSE for abort
+  when first written here — the abort branch of `ask-stream.ts` re-threw before reaching the
+  dispatch, which the `finally` does not cover, so an aborted run kept its phase and
+  `chatStatusForRun` reported `streaming` indefinitely. The branch now dispatches `stream_closed`
+  with `reason: "abort"` first and re-throws after, so the caller still gets its rejection. Pinned
+  by a third case in `MainAssistant.test.mjs` that drives a real `AbortController` through the real
+  transport.
 - **FU-5** — server-side: `copilot/routes/ask.py:117-119` re-raises `asyncio.CancelledError` with no
   terminal event, so once FU-4 lands a user Stop would read "Request failed" instead of
   `ChatDock.tsx:128`'s stopped-on-purpose copy. The client must not guess — only a terminal `error`

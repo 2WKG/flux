@@ -191,3 +191,30 @@ test("the rival panel, border, ink and state colours collapsed onto the :root to
   const survivors = retired.filter((hex) => withoutComments.toLowerCase().includes(hex.toLowerCase()));
   assert.deepEqual(survivors, [], `retired component colours still in the sheet: ${survivors.join(", ")}`);
 });
+
+test("every custom property the sheet uses is defined by the sheet", () => {
+  // A `var(--x)` whose token no sheet defines does not fail loudly: the
+  // declaration is dropped (or falls through to the literal after the comma)
+  // and the rule silently renders in whatever palette the fallback happens to
+  // encode. That is exactly how the main-assistant seam shipped a light
+  // `#627386`/`#b8c3cc`/`#f5f7f8` vocabulary into this dark system while every
+  // other gate stayed green. Only the two vendor sheets this file imports may
+  // own a token it does not define, and neither of them is referenced here.
+  const used = new Set([...withoutComments.matchAll(/var\(\s*(--[A-Za-z0-9_-]+)/g)].map(([, name]) => name));
+  const defined = new Set([...withoutComments.matchAll(/(?:^|[;{\s])(--[A-Za-z0-9_-]+)\s*:/g)].map(([, name]) => name));
+  const undefinedTokens = [...used].filter((name) => !defined.has(name)).sort();
+  assert.deepEqual(undefinedTokens, [], `the sheet reads ${undefinedTokens.join(", ")} but defines no value for it`);
+  // The check can only fail loudly if it is looking at real tokens.
+  assert.ok(used.size >= 20, `expected the sheet to read at least 20 tokens, saw ${used.size}`);
+  assert.ok(defined.has("--ink-muted") && defined.has("--border-subtle") && defined.has("--surface-subtle"));
+});
+
+test("no rule may reintroduce a hard-coded fallback palette behind a token", () => {
+  // `var(--token, #hex)` is how the undefined-token bug hid: the check above
+  // would still pass while the screen showed the hex. A literal colour fallback
+  // is therefore banned outright; a token alias (`var(--a, var(--b))`) is not.
+  const fallbacks = [...withoutComments.matchAll(/var\(\s*--[A-Za-z0-9_-]+\s*,\s*([^)]+)\)/g)]
+    .map(([, fallback]) => fallback.trim())
+    .filter((fallback) => /^#|^rgb|^hsl/.test(fallback));
+  assert.deepEqual(fallbacks, [], `literal colour fallbacks behind tokens: ${fallbacks.join(", ")}`);
+});
