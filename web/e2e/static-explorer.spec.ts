@@ -25,6 +25,9 @@ const recorded = new WeakMap<Page, string[]>();
 /** Content-Security-Policy violations the page itself reported. */
 const violations = new WeakMap<Page, string[]>();
 
+/** Uncaught browser exceptions are release blockers, including map renderer failures. */
+const pageErrors = new WeakMap<Page, string[]>();
+
 test.beforeEach(async ({ page }) => {
   const requests: string[] = [];
   recorded.set(page, requests);
@@ -32,6 +35,10 @@ test.beforeEach(async ({ page }) => {
   // reintroduced third-party call could otherwise slip past the origin filter.
   page.on("request", (request) => requests.push(request.url()));
   page.on("requestfailed", (request) => requests.push(request.url()));
+
+  const errors: string[] = [];
+  pageErrors.set(page, errors);
+  page.on("pageerror", (error) => errors.push(error.message));
 
   const reported: string[] = [];
   violations.set(page, reported);
@@ -43,6 +50,10 @@ test.beforeEach(async ({ page }) => {
     });
   });
 });
+
+async function expectNoPageErrors(page: Page): Promise<void> {
+  expect(pageErrors.get(page) ?? []).toEqual([]);
+}
 
 /**
  * **There is no sanctioned off-origin host any more.** This used to carry a
@@ -137,6 +148,8 @@ test("the physical-inventory map is mounted inside the one App, with its disclos
   // so this waits for the real renderer rather than the server-rendered slot.
   await expect(panel.getByLabel("Map and renderer status")).toBeVisible({ timeout: 20_000 });
   await expect(panel.locator("canvas.maplibregl-canvas")).toBeVisible();
+  await expect(panel.getByText(/Deck overlay: initialized with \d+ accepted features/i)).toBeVisible();
+  await expectNoPageErrors(page);
   // And there is no second, mis-projected geometry surface over it.
   await expect(panel.locator("svg.grid-geometry-overlay")).toHaveCount(0);
 
@@ -197,11 +210,13 @@ for (const viewport of [
     await page.setViewportSize(viewport);
     await page.goto("/");
     await page.evaluate(async () => document.fonts.ready);
+    await expect(page.getByLabel("Map and renderer status").getByText(/Deck overlay: initialized with \d+ accepted features/i)).toBeVisible();
     const dimensions = await page.evaluate(() => ({
       clientWidth: document.documentElement.clientWidth,
       scrollWidth: document.documentElement.scrollWidth,
     }));
     expect(dimensions.scrollWidth).toBeLessThanOrEqual(dimensions.clientWidth);
+    await expectNoPageErrors(page);
     await expectSyntheticProvenance(page);
     await expectSameOriginOnly(page);
   });

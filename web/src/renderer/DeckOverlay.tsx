@@ -4,7 +4,11 @@ import type { LayersList } from "@deck.gl/core";
 import { useControl } from "react-map-gl/maplibre";
 
 /**
- * Interleaved deck canvas owned by MapLibre's WebGL context.
+ * A deck canvas over MapLibre's WebGL canvas.
+ *
+ * MapLibre renders the base map independently in this mode.  The interleaved
+ * control path requires a Mapbox render context that is not present in the
+ * offline MapLibre setup, and can throw during its viewport calculation.
  *
  * `onInitialized` is wired to deck's own `onLoad`, which fires once deck has a
  * device and its resources are ready -- not on React mount. A mount effect
@@ -29,7 +33,6 @@ export function DeckOverlay({
   failed.current = onFailed;
 
   const overlay = useControl(() => new MapboxOverlay({
-    interleaved: true,
     layers,
     onLoad: () => initialized.current?.(),
     onError: (error: unknown) => failed.current?.(error instanceof Error ? error.message : String(error)),
