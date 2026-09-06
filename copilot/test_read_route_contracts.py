@@ -330,21 +330,6 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
         ),
         not_found=_NO_NOT_FOUND,
     ),
-    ("POST", "/interactive/siting/search"): RouteContract(
-        success=Cell(
-            "copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix",
-            200,
-        ),
-        invalid=Cell(
-            "copilot/test_interactive_routes.py::test_siting_search_rejects_invalid_input",
-            422,
-        ),
-        unavailable=Cell(
-            "copilot/test_interactive_routes.py::test_every_route_reports_a_missing_core_as_unavailable",
-            503,
-        ),
-        not_found=_NO_NOT_FOUND,
-    ),
     ("POST", "/ask"): RouteContract(
         success=Cell(
             "copilot/test_ask.py::test_ask_streams_real_sql_evidence_to_an_injected_provider",

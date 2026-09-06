@@ -42,6 +42,7 @@ from copilot.app import create_app
 from copilot.config import Settings
 from copilot.persisted_fixtures import (
     DEFAULT_SCENARIO,
+    PROVENANCE,
     SHA256,
     insert,
     persisted_read_route_database,
@@ -159,7 +160,7 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
             "/interactive/scenario/edit",
             json={
                 "base_scenario_id": "interactive",
-                "ops": [{"op": "outage", "element_id": "line:7"}],
+                "ops": [{"op": "outage", "element_id": "line:10"}],
             },
         ),
         200,
@@ -168,7 +169,7 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
         lambda client: client.post(
             "/interactive/cascade",
             json={
-                "element_ids": ["line:7"],
+                "element_ids": ["line:10"],
                 "scenario_id": "interactive",
                 "hour": 0,
             },
@@ -181,18 +182,6 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
     ),
     ("GET", "/interactive/redundancy"): (
         lambda client: client.get("/interactive/redundancy", params={"bus_id": 7}),
-        200,
-    ),
-    ("POST", "/interactive/siting/search"): (
-        lambda client: client.post(
-            "/interactive/siting/search",
-            json={
-                "kind": "synthetic_generation",
-                "unit_mw": 300,
-                "scenario_id": "interactive",
-                "n": 1,
-            },
-        ),
         200,
     ),
     # ``/ask`` streams; with no provider configured the fixture produces a 200
@@ -268,6 +257,36 @@ def _add_score_artifact(
     )
 
 
+def _add_slack_generator(database: Path) -> None:
+    """Give the fixture grid a reference bus so a DC solve can run.
+
+    `twin.build.build_network` turns the first `gens` row into the pandapower
+    `ext_grid` (the slack).  Without one, `pandapower.rundcpp` refuses with "No
+    reference bus is available" and `POST /interactive/cascade` answers 503 --
+    which `test_the_fixture_drives_every_route_past_its_unavailable_guard`
+    correctly rejects, because a route that never reaches its solver proves
+    nothing about whether reads write.
+    """
+
+    connection = duckdb.connect(str(database))
+    try:
+        insert(
+            connection,
+            "gens",
+            {
+                "gen_id": 1,
+                "bus_id": 1,
+                "fuel": "gas",
+                "pmax_mw": 500.0,
+                "eia_plant_id": None,
+                "source_unit_id": "fixture-slack-1",
+                **PROVENANCE,
+            },
+        )
+    finally:
+        connection.close()
+
+
 def _populate(database: Path) -> None:
     """Build a database every route can read, on the shared artifact contract.
 
@@ -278,6 +297,7 @@ def _populate(database: Path) -> None:
     fixture rather than quietly turning these routes back into 503s.
     """
     persisted_read_route_database(database, site_id=SITE_ID, region=REGION)
+    _add_slack_generator(database)
     prediction_database(database, (Prediction("27000", scenario_id=OTHER_SCENARIO),))
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))

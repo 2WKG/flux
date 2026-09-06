@@ -338,7 +338,6 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `POST /interactive/cascade` (2WKG-436/437) | `{element_ids:[str] (1–64), scenario_id (≤128), hour (0–8760), seed, edit_hash?}` | the DC screening cascade result, unwrapped, plus `cascade_id` — the identity of *this immutable request against this core input snapshot*, **not** a persisted run id (the persisted read is `GET /cascade`, a different route on a different path). Same labels, same 422 and 503 vocabulary; an `edit_hash` this process never issued is `404 not_found`, and an `edit_hash` whose recorded context disagrees with the request is `422 invalid_input` |
 | `GET /interactive/balance` (2WKG-436/437) | `scope ∈ {base, edit}` (default `base`), `scenario_id`, `hour`, `seed`, `edit_hash?` | the balance report, unwrapped, with the same three labels. `edit_hash` is valid only with `scope=edit` and required by it (both 422); an unknown `edit_hash` is `404 not_found` |
 | `GET /interactive/redundancy` (2WKG-436/437) | `bus_id` (required), `scenario_id`, `hour`, `seed` | the N-1 redundancy score for that bus, unwrapped, with the same three labels and the same 422/503 vocabulary |
-| `POST /interactive/siting/search` (2WKG-436/437) | `{kind:"synthetic_generation", unit_mw, scenario_id, hour, n}` | up to `n` ranked synthetic screening candidates, unwrapped, with the same three labels. The candidate source is supplied by the network build; where the build carries none the route is `503 unavailable`, never an empty success |
 | `POST /ask` | see below | `text/event-stream` |
 
 **Browser consumer (D-10, 2WKG-355).** As of Joshua's 2026-09-06 decision the web App is a live
@@ -368,7 +367,7 @@ predict POST; the persisted-artifact reads `GET /cascade`
 (`copilot/routes/predictions.py:445`) and `GET /predictions` (`:248`) are what took their place
 at the root, and no *root* route computes a cascade or a prediction inside a request.
 
-**The `/interactive` prefix (D-3, amended 2026-09-06).** The five interactive-simulation routes
+**The `/interactive` prefix (D-3, amended 2026-09-06).** The four interactive-simulation routes
 compute in-request against the synthetic ACTIVSg2000 topology and persist nothing. They are
 mounted under the `/interactive` prefix by
 `copilot.interactive_routes.create_interactive_router`, and the prefix is load-bearing rather
@@ -377,7 +376,7 @@ than cosmetic: without it `POST /cascade` would share a path with the persisted-
 exactly the conflation this section forbids. `copilot/test_api_route_inventory.py`'s
 `LEGACY_DOCUMENTED_BUT_ABSENT` therefore still holds: no compute route is registered at
 `POST /cascade` or `POST /predict`. `copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix`
-asserts both halves — the five prefixed paths exist and `/cascade` carries no POST operation.
+asserts both halves — the four prefixed paths exist and `/cascade` carries no POST operation.
 `GET /scenarios/{scenario_id}` was implemented and undocumented.
 
 `POST /compare` and `GET /elements/critical` are, as of 2WKG-173, persisted-artifact

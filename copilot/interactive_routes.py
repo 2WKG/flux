@@ -43,15 +43,6 @@ class CascadeRequest(_Request):
     seed: int = Field(default=0, ge=0, le=2_147_483_647)
 
 
-class SitingSearchRequest(_Request):
-    kind: Literal["synthetic_generation"]
-    unit_mw: float = Field(gt=0, le=100_000)
-    scenario_id: str = Field(min_length=1, max_length=128)
-    n: int = Field(ge=1, le=5)
-    hour: int = Field(default=0, ge=0, le=8_760)
-    seed: int = Field(default=0, ge=0, le=2_147_483_647)
-
-
 @dataclass(frozen=True)
 class _Edit:
     scenario_id: str
@@ -141,17 +132,13 @@ class InteractiveService:
             duckdb_path=self.duckdb_path,
         )
 
-    async def siting_search(self, payload: SitingSearchRequest) -> dict[str, object]:
-        _require_static_context(payload.scenario_id, payload.hour, payload.seed)
-        return await _in_thread(_siting_search, payload, duckdb_path=self.duckdb_path)
-
 
 def create_interactive_service(*, duckdb_path: Path) -> InteractiveService:
     return InteractiveService(duckdb_path=duckdb_path)
 
 
 def create_interactive_router(*, service: InteractiveService) -> APIRouter:
-    """Return the five interactive routes, namespaced under ``/interactive``.
+    """Return the four interactive routes, namespaced under ``/interactive``.
 
     The prefix is D-3 (``docs/specs/05-copilot.md``): without it ``POST /cascade``
     would share a path with the persisted-artifact read ``GET /cascade``
@@ -200,10 +187,6 @@ def create_interactive_router(*, service: InteractiveService) -> APIRouter:
         return await service.redundancy(
             bus_id=bus_id, scenario_id=scenario_id, hour=hour, seed=seed
         )
-
-    @router.post("/siting/search")
-    async def siting_search(payload: SitingSearchRequest) -> dict[str, object]:
-        return await service.siting_search(payload)
 
     return router
 
@@ -363,27 +346,6 @@ def _redundancy(
     )
 
 
-def _siting_search(
-    payload: SitingSearchRequest, *, duckdb_path: Path
-) -> dict[str, object]:
-    from siting.search import search_locations
-
-    net = _net(duckdb_path=duckdb_path)
-    return _result(
-        net,
-        {
-            "candidates": search_locations(
-                net,
-                kind="producer",
-                unit_mw=payload.unit_mw,
-                scenario_id=payload.scenario_id,
-                n=payload.n,
-                hour=payload.hour,
-            )
-        },
-    )
-
-
 #: The three fidelity/provenance labels every interactive payload carries.
 #: `network_provenance` is `pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL` verbatim
 #: -- 00-overview.md calls it "the only topology label any route emits", so a
@@ -422,10 +384,27 @@ def _result(net: Any, data: object) -> dict[str, object]:
     if not isinstance(data, Mapping):
         raise TypeError("interactive result payload must be a mapping")
     body = interactive_labels()
-    overlap = set(data) & set(body)
+    payload = dict(data)
+    # A solver may carry its own limitations (`twin.balance.balance_report`
+    # does).  They are disclosures of the same kind about the same result, so
+    # they are appended to the surface's three rather than either list being
+    # silently dropped.  Order is stable and duplicates collapse.
+    extra = payload.pop("limitations", None)
+    if extra is not None:
+        if not isinstance(extra, list) or not all(
+            isinstance(item, str) for item in extra
+        ):
+            raise TypeError("a payload's `limitations` must be a list of strings")
+        merged = list(body["limitations"])  # type: ignore[arg-type]
+        merged.extend(item for item in extra if item not in merged)
+        body["limitations"] = merged
+    overlap = set(payload) & set(body)
     if overlap:
-        raise ValueError(
+        # The other two labels state the fidelity and provenance of the whole
+        # surface; a payload that redefined either would make one response
+        # claim two things.  Fail loudly rather than letting one win.
+        raise TypeError(
             f"interactive payload may not shadow the labels: {sorted(overlap)!r}"
         )
-    body.update(data)
+    body.update(payload)
     return body

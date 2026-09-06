@@ -44,12 +44,6 @@ def _client(monkeypatch) -> TestClient:
     }
     monkeypatch.setitem(sys.modules, "siting.redundancy", redundancy)
 
-    search = ModuleType("siting.search")
-    search.search_locations = lambda net, **kwargs: [
-        {"rank": 1, "candidate_id": "bus-7"}
-    ]
-    monkeypatch.setitem(sys.modules, "siting.search", search)
-
     app = create_app(Settings(duckdb_path=Path("/tmp/grid.duckdb")))
     return TestClient(app)
 
@@ -91,22 +85,12 @@ def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(
             "/interactive/redundancy",
             params={"bus_id": 7, "scenario_id": "interactive", "hour": 0},
         ),
-        client.post(
-            "/interactive/siting/search",
-            json={
-                "kind": "synthetic_generation",
-                "unit_mw": 300,
-                "scenario_id": "interactive",
-                "n": 1,
-            },
-        ),
     ]
     for response in responses:
         assert response.status_code == 200, response.text
         _assert_envelope(response.json())
     assert responses[1].json()["lost_load_mw"] == 2.0
     assert responses[3].json()["bus_id"] == 7
-    assert responses[4].json()["candidates"][0]["candidate_id"] == "bus-7"
     paths = client.get("/openapi.json").json()["paths"]
     # D-3: the interactive compute routes live under /interactive so that
     # POST /cascade never shares a path with the persisted read GET /cascade.
@@ -115,7 +99,6 @@ def test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix(
         "/interactive/cascade",
         "/interactive/balance",
         "/interactive/redundancy",
-        "/interactive/siting/search",
     ):
         assert path in paths, path
     assert "post" not in paths.get("/cascade", {})
@@ -250,7 +233,7 @@ def test_the_synthetic_disclosure_is_present_verbatim(monkeypatch) -> None:
             "ops": [{"op": "outage", "element_id": "line:7"}],
         },
     ).json()
-    assert body["limitations"] == list(INTERACTIVE_LIMITATIONS)
+    assert body["limitations"][:3] == list(INTERACTIVE_LIMITATIONS)
     assert any("Synthetic ACTIVSg2000 topology" in item for item in body["limitations"])
     assert any("DC screening excludes" in item for item in body["limitations"])
     assert any("no route writes DuckDB" in item for item in body["limitations"])
@@ -337,16 +320,6 @@ def test_every_route_refuses_a_context_it_cannot_apply(monkeypatch) -> None:
         ),
         client.get("/interactive/balance", params={"hour": 5}),
         client.get("/interactive/redundancy", params={"bus_id": 7, "hour": 5}),
-        client.post(
-            "/interactive/siting/search",
-            json={
-                "kind": "synthetic_generation",
-                "unit_mw": 300,
-                "scenario_id": "interactive",
-                "hour": 5,
-                "n": 1,
-            },
-        ),
     ]
     for response in refusals:
         assert response.status_code == 422, response.text
@@ -377,34 +350,10 @@ def test_every_route_reports_a_missing_core_as_unavailable(monkeypatch) -> None:
         ),
         client.get("/interactive/balance"),
         client.get("/interactive/redundancy", params={"bus_id": 7}),
-        client.post(
-            "/interactive/siting/search",
-            json={
-                "kind": "synthetic_generation",
-                "unit_mw": 300,
-                "scenario_id": "interactive",
-                "n": 1,
-            },
-        ),
     ]
     for response in responses:
         assert response.status_code == 503, response.text
         assert response.json()["error"]["code"] == "unavailable"
-
-
-def test_siting_search_rejects_invalid_input(monkeypatch) -> None:
-    client = _client(monkeypatch)
-    response = client.post(
-        "/interactive/siting/search",
-        json={
-            "kind": "not_a_kind",
-            "unit_mw": 300,
-            "scenario_id": "interactive",
-            "n": 1,
-        },
-    )
-    assert response.status_code == 422, response.text
-    assert response.json()["error"]["code"] == "invalid_input"
 
 
 def test_cascade_with_an_unknown_edit_hash_is_not_found(monkeypatch) -> None:
@@ -420,3 +369,14 @@ def test_cascade_with_an_unknown_edit_hash_is_not_found(monkeypatch) -> None:
     )
     assert response.status_code == 404, response.text
     assert response.json()["error"]["code"] == "not_found"
+
+
+def test_a_payloads_own_limitations_are_kept_alongside_the_surfaces(
+    monkeypatch,
+) -> None:
+    """`twin.balance.balance_report` carries its own; neither list may be lost."""
+
+    client = _client(monkeypatch)
+    body = client.get("/interactive/balance").json()
+    assert body["limitations"][:3] == list(INTERACTIVE_LIMITATIONS)
+    assert "limitations" not in body.get("data", {})
