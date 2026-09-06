@@ -27,14 +27,14 @@
       "start_utc": "2018-09-17T00:00:00Z",
       "end_utc": "2018-09-20T00:00:00Z"
     },
-    "disposition": "accepted",
-    "selection_basis": "NCEI zone-level Hurricane Florence report intersects the canonical New Hanover County window, and exhaustive EAGLE-I scan observed all 24 outage samples.",
+    "disposition": "candidate_only",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate with complete retained EAGLE-I outage observations; the retained NCEI zone report does not establish county-complete weather coverage for the selected New Hanover County window.",
     "exclusions": [
       "Texas Uri and Beryl are not recataloged as new events."
     ],
     "uncertainties": [
       "NHC advisory scope is system/weather evidence, not county outage evidence.",
-      "Zone report is not countywide; no customer denominator is available."
+      "Zone report is not countywide, so county weather coverage remains unproven; no customer denominator is available."
     ]
   },
   "source_receipts": [
@@ -140,7 +140,7 @@
       "scenario_id": "florence-2018-replay",
       "window_start_utc": "2018-09-14T12:00:00Z",
       "window_end_utc": "2018-09-14T18:00:00Z",
-      "disposition": "accepted",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
         "nhc-florence-2018-archive",
@@ -183,7 +183,7 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
+        "coverage": "uncovered",
         "source_receipt_ids": [
           "nhc-florence-2018-archive",
           "ncei-florence-2018-details"
@@ -191,7 +191,7 @@
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "NCEI reports Hurricane Florence for Inland New Hanover during the canonical window; zone scope is not countywide.",
+        "notes": "NCEI reports Hurricane Florence for Inland New Hanover during the canonical window, but NCZ107 is a forecast-zone report and does not establish county-complete weather coverage.",
         "evidence_kind": "authoritative_event_report",
         "observation_kind": "observed",
         "event_report": {
@@ -220,10 +220,11 @@
         "observation_kind": "observed",
         "event_report": null
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "not_matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": 114640,
         "customer_denominator": {
           "status": "unavailable",

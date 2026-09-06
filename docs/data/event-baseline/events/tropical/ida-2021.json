@@ -27,13 +27,14 @@
       "start_utc": "2021-09-01T00:00:00Z",
       "end_utc": "2021-09-04T00:00:00Z"
     },
-    "disposition": "accepted",
-    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record.",
+    "disposition": "candidate_only",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate with complete retained EAGLE-I outage observations; the retained NCEI forecast-zone reports do not establish county weather coverage for the selected Lafourche Parish window.",
     "exclusions": [
       "Texas Uri and Beryl are not recataloged as new events."
     ],
     "uncertainties": [
-      "NHC advisory scope is system/weather evidence, not county outage evidence."
+      "NHC advisory scope is system/weather evidence, not county outage evidence.",
+      "The retained NCEI forecast-zone reports are partial and noncounty evidence for FIPS 22057."
     ]
   },
   "source_receipts": [
@@ -139,7 +140,7 @@
       "scenario_id": "ida-2021-replay",
       "window_start_utc": "2021-08-29T12:00:00Z",
       "window_end_utc": "2021-08-29T18:00:00Z",
-      "disposition": "accepted",
+      "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
         "nhc-ida-2021-archive",
@@ -182,7 +183,7 @@
         }
       ],
       "weather": {
-        "coverage": "covered",
+        "coverage": "uncovered",
         "source_receipt_ids": [
           "nhc-ida-2021-archive",
           "ncei-ida-2021-details"
@@ -190,7 +191,7 @@
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "notes": "NCEI reports Hurricane Ida for Lafourche forecast zones during the canonical window; zone scope is not countywide.",
+        "notes": "NCEI reports Hurricane Ida for Lafourche forecast zones during the canonical window, but those reports are partial and do not establish county weather coverage for FIPS 22057.",
         "evidence_kind": "authoritative_event_report",
         "observation_kind": "observed",
         "event_report": {
@@ -220,10 +221,11 @@
         "observation_kind": "observed",
         "event_report": null
       },
-      "matched_coverage_decision": "matched",
+      "matched_coverage_decision": "not_matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
         "status": "unavailable",
+        "aggregation": "max_customers_out_over_window_samples",
         "observed_outage_customers": 12721,
         "customer_denominator": {
           "status": "unavailable",
