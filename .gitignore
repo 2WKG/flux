@@ -5,6 +5,9 @@ data/parquet/
 node_modules/
 web/node_modules/
 web/dist/
+# Local 3D asset deliveries; the contract forbids committing binaries
+build/
+web/dist-harness/
 __pycache__/
 *.pyc
 .env
@@ -27,3 +30,10 @@ data/3d/**/*.glb
 data/3d/**/*.gltf
 web/public/**/*.glb
 web/public/**/*.gltf
+
+# Cloudflare Tunnel credentials and the filled-in ingress config live on the
+# origin host, never in Git. deploy/cloudflared/config.example.yml is the
+# template; see docs/runbooks/static-origin-and-tunnel.md.
+.cloudflared/
+deploy/cloudflared/config.yml
+deploy/cloudflared/*.json
