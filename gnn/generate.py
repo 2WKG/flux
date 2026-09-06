@@ -14,7 +14,6 @@ from gnn.contracts import SamplingError
 from gnn.hours import DEFAULT_BA_CODE, hourly_demand_profile, select_hours
 from gnn.label import label_sample
 from gnn.sampler import SamplerConfig, build_plan, canonical_json
-from twin.build import build_network, network_summary
 
 
 @dataclass(frozen=True)
@@ -53,6 +52,8 @@ def generate_training_samples(
         raise SamplingError(
             f"only {len(hours)} observed hours are available; requested {policy.hours}"
         )
+    from twin.build import build_network, network_summary
+
     net = build_network(source)
     plans = build_plan(net, hours, seed=policy.seed, config=policy.sampler)
     scenario_identity = {

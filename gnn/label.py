@@ -8,8 +8,6 @@ from typing import Any
 from gnn.contracts import HourPoint, PlannedSample, SampleLabels, TrainingSample
 from gnn.hours import demand_provenance, scaled_network
 from gnn.sampler import plan_identity
-from twin.cascade import run_cascade
-from twin.edits import add_generator, add_load, outage
 
 
 def label_sample(
@@ -30,6 +28,8 @@ def label_sample(
     demand = demand_provenance(point, ba_code=ba_code, scale_dispatch=scale_dispatch)
     started = time.monotonic()
     try:
+        from twin.cascade import run_cascade
+
         hourly = scaled_network(net, point, scale_dispatch=scale_dispatch)
         nominal = float(hourly.load.loc[hourly.load.in_service, "p_mw"].sum())
         result = run_cascade(hourly, _edits(plan))
@@ -85,6 +85,8 @@ def label_sample(
 
 
 def _edits(plan: PlannedSample):
+    from twin.edits import add_generator, add_load, outage
+
     edits = [outage(element_id) for element_id in plan.element_ids]
     if plan.kind == "placement_gen":
         edits.append(

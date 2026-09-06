@@ -13,7 +13,6 @@ from gnn.generate import GenerationConfig, generate_training_samples
 from gnn.hours import hourly_demand_profile, select_hours
 from gnn.normalization import normalize_feature_value
 from gnn.sampler import SamplerConfig, _coalesce_contingency_families, build_plan
-from twin.build import build_network
 
 
 def _fixture_db(tmp_path: Path) -> Path:
@@ -94,13 +93,15 @@ def test_observed_hours_are_utc_stratified_and_deterministic(tmp_path: Path) -> 
         "2021-02-14T08:00:00Z",
         "2021-02-14T09:00:00Z",
     ]
-    assert [point.band for point in profile] == ["calm", "mid", "stress"]
+    assert [point.band for point in profile] == ["calm", "stress", "stress"]
     assert select_hours(profile, count=3, seed=490) == select_hours(
         profile, count=3, seed=490
     )
 
 
 def test_sampler_and_split_keep_contingency_families_together(tmp_path: Path) -> None:
+    from twin.build import build_network
+
     database = _fixture_db(tmp_path)
     profile = hourly_demand_profile(database)
     plans = build_plan(

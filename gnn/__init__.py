@@ -19,10 +19,9 @@ from gnn.contracts import (
     PlannedSample,
     SampleLabels,
     SamplingError,
+    SamplingUnavailableError,
     TrainingSample,
 )
-from gnn.generate import GenerationConfig, generate_training_samples
-from gnn.sampler import SamplerConfig
 
 __all__ = [
     "BranchFlow",
@@ -32,6 +31,23 @@ __all__ = [
     "SampleLabels",
     "SamplerConfig",
     "SamplingError",
+    "SamplingUnavailableError",
     "TrainingSample",
     "generate_training_samples",
 ]
+
+
+def __getattr__(name: str):
+    """Delay solver imports until a caller asks to generate or label samples."""
+    if name in {"GenerationConfig", "generate_training_samples"}:
+        from gnn.generate import GenerationConfig, generate_training_samples
+
+        return {
+            "GenerationConfig": GenerationConfig,
+            "generate_training_samples": generate_training_samples,
+        }[name]
+    if name == "SamplerConfig":
+        from gnn.sampler import SamplerConfig
+
+        return SamplerConfig
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

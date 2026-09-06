@@ -12,16 +12,19 @@ import hashlib
 from dataclasses import asdict, dataclass, field
 from typing import Any, Literal
 
-from twin.contracts import SYNTHETIC_TOPOLOGY_LABEL, SimulationError
-
 SAMPLE_SCHEMA_VERSION = "gnn-training-sample/v1"
+SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
 
 SampleKind = Literal["baseline", "n1", "n2", "placement_gen", "placement_load"]
 SampleStatus = Literal["labelled", "failed"]
 
 
-class SamplingError(SimulationError):
+class SamplingError(RuntimeError):
     """The requested sampling plan cannot be built from this model or database."""
+
+
+class SamplingUnavailableError(SamplingError):
+    """A required observed input or solver backend is unavailable."""
 
 
 def derive_seed(seed: int, *parts: object) -> int:

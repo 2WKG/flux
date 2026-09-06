@@ -16,8 +16,6 @@ from collections.abc import Iterable
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
-import pandapower as pp
-
 from gnn.contracts import (
     BranchFlow,
     HourPoint,
@@ -69,6 +67,8 @@ def plan_identity(plan: PlannedSample, *, seed: int, scenario_id: str) -> str:
 
 def baseline_branch_flows(net: Any) -> list[BranchFlow]:
     """Solve the unmodified state and return every active labelled branch flow."""
+    import pandapower as pp
+
     try:
         pp.rundcpp(net)
     except Exception as exc:

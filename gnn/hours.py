@@ -21,8 +21,12 @@ from typing import Any
 
 import duckdb
 
-from gnn.contracts import HourPoint, SamplingError, derive_seed
-from twin.contracts import SimulationUnavailableError
+from gnn.contracts import (
+    HourPoint,
+    SamplingError,
+    SamplingUnavailableError,
+    derive_seed,
+)
 
 DEFAULT_BA_CODE = "ERCO"
 CALM_QUANTILE = 0.33
@@ -42,12 +46,12 @@ def hourly_demand_profile(
     """
     path = Path(db_path)
     if not path.is_file():
-        raise SimulationUnavailableError(f"demand database is unavailable: {path}")
+        raise SamplingUnavailableError(f"demand database is unavailable: {path}")
     con = duckdb.connect(str(path), read_only=True)
     try:
         tables = {row[0] for row in con.execute("SHOW TABLES").fetchall()}
         if "ba_load_hourly" not in tables:
-            raise SimulationUnavailableError(
+            raise SamplingUnavailableError(
                 "demand database has no ba_load_hourly table"
             )
         rows = con.execute(
@@ -57,7 +61,7 @@ def hourly_demand_profile(
     finally:
         con.close()
     if not rows:
-        raise SimulationUnavailableError(
+        raise SamplingUnavailableError(
             f"ba_load_hourly has no rows for balancing authority {ba_code!r}"
         )
     observed = [
@@ -66,7 +70,7 @@ def hourly_demand_profile(
         if demand_mw is not None and float(demand_mw) > 0
     ]
     if not observed:
-        raise SimulationUnavailableError(
+        raise SamplingUnavailableError(
             f"ba_load_hourly has no positive observed demand for {ba_code!r}"
         )
     reference = observed[0][2]
@@ -95,7 +99,7 @@ def hourly_demand_profile(
 def _utc_timestamp(value: object) -> str:
     """Render the DuckDB UTC timestamp in the artifact's unambiguous form."""
     if not isinstance(value, datetime):
-        raise SimulationUnavailableError("EIA-930 demand timestamp is not a timestamp")
+        raise SamplingUnavailableError("EIA-930 demand timestamp is not a timestamp")
     if value.tzinfo is not None:
         value = value.astimezone(UTC).replace(tzinfo=None)
     return value.strftime("%Y-%m-%dT%H:%M:%SZ")
