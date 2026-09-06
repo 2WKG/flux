@@ -14,6 +14,16 @@ export const MINNESOTA_BOOKMARK_VERSION = "v1";
 export const MINNESOTA_AGGREGATE_SCENE_ID = "mn:coverage:aggregate:v1";
 export const MINNESOTA_AGGREGATE_ARTIFACT_ID = "mn:aggregate:manifest:v1";
 
+/**
+ * The only v1 identifiers the aggregate comparison route accepts from this
+ * shell. They name persisted server contexts; their presence does not claim
+ * that a particular deployment has those artifacts available.
+ */
+export const MINNESOTA_COMPARISON_CONTEXT_IDS = Object.freeze({
+  baseline: "mn:baseline:v1",
+  candidate: "mn:candidate:v1",
+});
+
 /** The one Minnesota scene this branch can identify without inventing geometry. */
 export const MINNESOTA_AGGREGATE_SCENE = Object.freeze({
   id: MINNESOTA_AGGREGATE_SCENE_ID,
@@ -175,9 +185,8 @@ export type MinnesotaRunResultAcceptance<T> =
   | { readonly kind: "stale" };
 
 /**
- * Comparison is a server-owned result. Until that read contract exists, a
- * user action may name the missing dependency but cannot manufacture a delta,
- * ranking, or effect from the aggregate manifest.
+ * Retained for consumers that need to name an unavailable comparison without
+ * deriving a delta, ranking, or effect from the aggregate manifest.
  */
 export interface MinnesotaComparisonUnavailable {
   readonly kind: "unavailable";

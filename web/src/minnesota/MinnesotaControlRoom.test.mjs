@@ -23,7 +23,7 @@ await build({
 });
 const room = await import(compiled.href);
 
-test("the route shell is aggregate-only and names the missing server contract", () => {
+test("the route shell is aggregate-only, composes its leaf surfaces, and keeps read/inspection unavailable", () => {
   const markup = room.render({ search: "", location: { pathname: "/minnesota", hash: "" } });
   assert.match(markup, /data-scene-mode="aggregate"/);
   assert.match(markup, /Minnesota aggregate baseline/);
@@ -31,6 +31,10 @@ test("the route shell is aggregate-only and names the missing server contract", 
   assert.match(markup, /No server read contract currently supplies a Minnesota aggregate result/);
   assert.match(markup, /Compare baseline/);
   assert.match(markup, /Inspect feature unavailable/);
+  assert.match(markup, /No server timeline artifact is mounted/);
+  assert.match(markup, /Presenter scenes/);
+  assert.match(markup, /mn:baseline:v1/);
+  assert.match(markup, /mn:candidate:v1/);
   assert.doesNotMatch(markup, /synthetic five-bus|ACTIVSg2000/i);
 });
 

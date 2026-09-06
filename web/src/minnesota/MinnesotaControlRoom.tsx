@@ -1,17 +1,26 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
+import { createMinnesotaPresenterSceneActions } from "../demo/mn-scenes";
+import { type ClientState } from "../data/client-state";
 import { FailureState } from "../failure-states/FailureState";
+import { fromClientState } from "../failure-states/adapters";
 import type { RunIdentity } from "../ask/run-state/types";
 import "./MinnesotaControlRoom.css";
+import { FailureTimelinePanel, type MinnesotaFailureTimelineResult } from "./FailureTimelinePanel";
+import {
+  requestMinnesotaComparison,
+  type MinnesotaComparisonResponse,
+} from "./comparison-client";
 import {
   MINNESOTA_AGGREGATE_ARTIFACT_ID,
   MINNESOTA_AGGREGATE_SCENE_ID,
   MINNESOTA_BASELINE_RUN_CONTEXT,
+  MINNESOTA_COMPARISON_CONTEXT_IDS,
+  acceptMinnesotaRunResult,
   createMinnesotaRunIdentity,
   minnesotaBookmarkUrl,
   readMinnesotaBookmark,
   resetMinnesotaRunContext,
-  unavailableMinnesotaComparison,
   type MinnesotaRunContext,
   type MinnesotaRunContextChange,
 } from "./run-context";
@@ -42,14 +51,16 @@ function initialRun(search: string): { readonly parsed: ReturnType<typeof readMi
 
 /**
  * Aggregate-only Minnesota shell. It deliberately contains no map, line, bus,
- * flow, score, or fabricated fallback: those require a server-returned
- * artifact contract that is not present on this branch.
+ * flow, score, or fabricated fallback. The sole comparison view renders only
+ * the mounted server route's persisted aggregate response.
  */
 export function MinnesotaControlRoom({ search, location, onContextChange }: MinnesotaControlRoomProps) {
   const initialSearch = search ?? (typeof window === "undefined" ? "" : window.location.search);
   const [{ parsed, run }, setMounted] = useState(() => initialRun(initialSearch));
   const [bookmarkNotice, setBookmarkNotice] = useState<string | null>(null);
-  const [comparisonRequested, setComparisonRequested] = useState(false);
+  const [comparison, setComparison] = useState<ClientState<MinnesotaComparisonResponse> | null>(null);
+  const currentIdentity = useRef(run.identity);
+  currentIdentity.current = run.identity;
   const targetLocation = location ?? browserLocation();
 
   const reset = () => {
@@ -59,8 +70,19 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
     if (typeof window !== "undefined") window.history.replaceState(null, "", url);
     setMounted({ parsed: { kind: "valid", bookmark: { version: "v1", context } }, run: { context, identity } });
     setBookmarkNotice("Baseline restored. The URL now names the aggregate baseline.");
-    setComparisonRequested(false);
+    setComparison(null);
     onContextChange?.(context, identity);
+  };
+
+  const compareBaseline = async () => {
+    const identity = run.identity;
+    setComparison({ kind: "loading" });
+    const value = await requestMinnesotaComparison({
+      baselineContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.baseline,
+      candidateContextId: MINNESOTA_COMPARISON_CONTEXT_IDS.candidate,
+    });
+    const accepted = acceptMinnesotaRunResult(currentIdentity.current, { identity, value });
+    if (accepted.kind === "accepted") setComparison(accepted.value);
   };
 
   const copyBookmark = async () => {
@@ -93,7 +115,8 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <h1>Minnesota aggregate baseline</h1>
         <p>
           This view is bounded to accepted aggregate metadata. It has no Minnesota topology, facility geometry,
-          allocation, flow, outage, or scenario-result contract.
+          allocation, flow, outage, or feature-inspection contract. Comparison facts appear only when the server
+          returns persisted aggregate artifacts.
         </p>
       </header>
 
@@ -102,20 +125,22 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <p><strong>Artifact:</strong> <code>{MINNESOTA_AGGREGATE_ARTIFACT_ID}</code></p>
         <p><strong>Scene:</strong> <code>{MINNESOTA_AGGREGATE_SCENE_ID}</code></p>
         <p><strong>Run:</strong> <code>{run.identity.contextRevision}</code></p>
+        <p><strong>Comparison contexts:</strong> <code>{MINNESOTA_COMPARISON_CONTEXT_IDS.baseline}</code> → <code>{MINNESOTA_COMPARISON_CONTEXT_IDS.candidate}</code></p>
         <button type="button" onClick={reset}>Reset to baseline</button>
         <button type="button" onClick={copyBookmark}>Copy shareable baseline link</button>
-        <button type="button" onClick={() => setComparisonRequested(true)}>Compare baseline</button>
+        <button type="button" onClick={compareBaseline} disabled={comparison?.kind === "loading"}>
+          {comparison?.kind === "loading" ? "Comparing baseline…" : "Compare baseline"}
+        </button>
         {bookmarkNotice ? <p role="status">{bookmarkNotice}</p> : null}
       </section>
 
-      {comparisonRequested && (() => {
-        const comparison = unavailableMinnesotaComparison(MINNESOTA_BASELINE_RUN_CONTEXT, run.context);
-        return (
-          <section aria-label="Aggregate comparison">
-            <FailureState state={{ kind: comparison.kind, code: comparison.code, message: comparison.message }} onReset={reset} />
-          </section>
-        );
-      })()}
+      {comparison && (
+        <section aria-label="Aggregate comparison" data-comparison-state={comparison.kind}>
+          {comparison.kind === "ready" ? <ServerComparison comparison={comparison.data} /> : (
+            <FailureState state={fromClientState(comparison)!} onRetry={compareBaseline} onReset={reset} />
+          )}
+        </section>
+      )}
 
       <section aria-label="Aggregate scene">
         <h2>Aggregate mode</h2>
@@ -138,6 +163,69 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <p>Picking and inspection stay unavailable until a server artifact names a feature and its evidence.</p>
         <button type="button" disabled aria-disabled="true">Inspect feature unavailable</button>
       </section>
+
+      <FailureTimelinePanel
+        context={{
+          identity: { runId: run.identity.attemptId, contextRevision: run.identity.contextRevision },
+          scenarioId: MINNESOTA_COMPARISON_CONTEXT_IDS.baseline,
+          artifactId: run.context.artifactId,
+          modelMode: "aggregate",
+        }}
+        result={unavailableTimeline(run.identity)}
+      />
+
+      <section aria-label="Minnesota presenter scenes">
+        <h2>Presenter scenes</h2>
+        <p>These cues preserve the active aggregate run. They do not select a map target or fabricate an artifact.</p>
+        <ol>
+          {createMinnesotaPresenterSceneActions(run.context, run.identity, onContextChange).map((action) => (
+            <li key={action.scene.id}>
+              <h3>{action.scene.title}</h3>
+              <p>{action.scene.presenterCue}</p>
+              <button type="button" onClick={action.activate}>{action.scene.actionLabel}</button>
+            </li>
+          ))}
+        </ol>
+      </section>
     </main>
+  );
+}
+
+function unavailableTimeline(identity: RunIdentity): MinnesotaFailureTimelineResult {
+  return {
+    status: "unavailable",
+    identity: { runId: identity.attemptId, contextRevision: identity.contextRevision },
+    message: "No server timeline artifact is mounted for the active Minnesota aggregate run.",
+  };
+}
+
+function ServerComparison({ comparison }: { readonly comparison: MinnesotaComparisonResponse }) {
+  return (
+    <>
+      <h2>Server aggregate comparison</h2>
+      <p><strong>Comparison:</strong> <code>{comparison.comparison_id}</code></p>
+      <p><strong>Baseline:</strong> {comparison.baseline.label} (<code>{comparison.baseline.context_id}</code>)</p>
+      <p><strong>Candidate:</strong> {comparison.candidate.label} (<code>{comparison.candidate.context_id}</code>)</p>
+      <ul aria-label="Server comparison metrics">
+        {comparison.metrics.map((metric) => (
+          <li key={metric.metric_id}>
+            <h3>{metric.label}</h3>
+            <p>Baseline: {metric.baseline_value} {metric.unit}</p>
+            <p>Candidate: {metric.candidate_value} {metric.unit}</p>
+            <p><strong>Server-signed delta:</strong> {metric.delta_signed} {metric.unit}</p>
+            <ul aria-label={`${metric.label} provenance`}>
+              {metric.provenance.map((source) => (
+                <li key={`${source.artifact_id}:${source.source_id}`}>
+                  {source.kind}: {source.source_id} / {source.artifact_id} / {source.version}
+                </li>
+              ))}
+            </ul>
+          </li>
+        ))}
+      </ul>
+      <p><strong>Persisted highlights:</strong></p>
+      <ul aria-label="Persisted highlight identifiers">{comparison.highlight_ids.map((id) => <li key={id}><code>{id}</code></li>)}</ul>
+      {comparison.limitations.length > 0 ? <><p><strong>Server limitations:</strong></p><ul aria-label="Server limitations">{comparison.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></> : null}
+    </>
   );
 }
