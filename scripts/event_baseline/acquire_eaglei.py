@@ -72,7 +72,11 @@ def _complete_csv_rows(payload: bytes, fieldnames: list[str]) -> list[dict[str, 
 
 
 def _range_get(
-    session: requests.Session, url: str, start: int, end: int, expected_etag: str | None = None
+    session: requests.Session,
+    url: str,
+    start: int,
+    end: int,
+    expected_etag: str | None = None,
 ) -> tuple[bytes, RangeReceipt]:
     headers = {"Range": f"bytes={start}-{end}"}
     if expected_etag:
@@ -130,10 +134,132 @@ def outage_field(fieldnames: list[str]) -> str:
     raise EagleiError("no documented customer-outage field is present")
 
 
+def acquire_exhaustive(
+    *,
+    article: dict[str, Any],
+    file: dict[str, Any],
+    event_id: str | None,
+    year: int,
+    start: datetime,
+    end: datetime,
+    states: set[str],
+    fips: set[str],
+    cache_dir: Path,
+    expected_etag: str,
+) -> dict[str, Any]:
+    """Filter a complete annual source file; only this path may establish gaps."""
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    raw_dir = cache_dir / "annual-source"
+    raw_dir.mkdir(exist_ok=True)
+    raw_path = raw_dir / file["name"]
+    source_url = str(file["download_url"])
+    if not raw_path.exists() or raw_path.stat().st_size != int(file["size"]):
+        response = requests.get(
+            source_url, headers={"If-Match": expected_etag}, stream=True, timeout=120
+        )
+        response.raise_for_status()
+        if response.status_code != 200 or response.headers.get("ETag") != expected_etag:
+            raise EagleiError("annual source changed while streaming")
+        with raw_path.open("wb") as handle:
+            for chunk in response.iter_content(chunk_size=1_048_576):
+                if chunk:
+                    handle.write(chunk)
+    raw_hash = hashlib.sha256()
+    with raw_path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1_048_576), b""):
+            raw_hash.update(chunk)
+    if raw_path.stat().st_size != int(file["size"]):
+        raise EagleiError("annual stream byte count differs from Figshare metadata")
+    with raw_path.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        fieldnames = reader.fieldnames or []
+        customers_field = outage_field(fieldnames)
+        selected = [
+            row
+            for row in reader
+            if row["state"] in states
+            and (not fips or row["fips_code"] in fips)
+            and start <= parse_source_time(row["run_start_time"]) < end
+        ]
+    expected = {
+        start + timedelta(minutes=15 * index)
+        for index in range(int((end - start).total_seconds() // 900))
+    }
+    coverage = {}
+    for code in sorted(fips):
+        times = {
+            parse_source_time(row["run_start_time"])
+            for row in selected
+            if row["fips_code"] == code
+        }
+        coverage[code] = {
+            "observed_intervals": len(times),
+            "expected_intervals_at_15_min": len(expected),
+            "missing_intervals": len(expected - times),
+            "availability": "Available" if times else "UncoveredLabel",
+            "coverage_state": "complete_15_min_observation"
+            if times == expected
+            else "partial_15_min_observation"
+            if times
+            else "UncoveredLabel",
+        }
+    slug = f"{event_id + '_' if event_id else ''}eaglei_{year}_{start:%Y%m%dT%H%M%S}_{end:%Y%m%dT%H%M%S}"
+    selected_path = cache_dir / f"{slug}.csv"
+    with selected_path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(selected)
+    receipt = {
+        "receipt_id": f"eaglei-{year}-{file['id']}-{start:%Y%m%dT%H%M%S}-{end:%Y%m%dT%H%M%S}",
+        "event_id": event_id,
+        "provider": "ORNL EAGLE-I via Figshare",
+        "release": FIGSHARE_DOI,
+        "source_system_id": f"figshare:{article['id']}:{file['id']}",
+        "source_url": source_url,
+        "source_file": file["name"],
+        "source_file_bytes": int(file["size"]),
+        "license": {"name": article["license"]["name"], "url": LICENSE_URL},
+        "retrieved_at_utc": utc_now(),
+        "acquisition_method": "exhaustive_annual_stream",
+        "raw_artifact": str(raw_path),
+        "raw_sha256": raw_hash.hexdigest(),
+        "raw_bytes": raw_path.stat().st_size,
+        "etag": expected_etag,
+        "filtered_artifact": str(selected_path),
+        "filtered_sha256": hashlib.sha256(selected_path.read_bytes()).hexdigest(),
+        "filtered_rows": len(selected),
+        "source_columns": fieldnames,
+        "outage_field_source": customers_field,
+        "source_row_identity": ["fips_code", "run_start_time"],
+        "requested_utc_half_open": {"start": start.isoformat(), "end": end.isoformat()},
+        "filters": {
+            "states": sorted(states),
+            "county_fips": sorted(fips),
+            "window": "UTC half-open",
+        },
+        "coverage_by_county": coverage,
+        "gaps": "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel.",
+        "units": {customers_field: "customers", "run_start_time": "UTC"},
+        "timezone_conversion": "none; EAGLE-I documentation states UTC",
+        "grid_index_mapping": None,
+    }
+    (cache_dir / f"{slug}.receipt.json").write_text(
+        json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    return receipt
+
+
 def probe_at(
-    session: requests.Session, url: str, offset: int, size: int, fieldnames: list[str], expected_etag: str
+    session: requests.Session,
+    url: str,
+    offset: int,
+    size: int,
+    fieldnames: list[str],
+    expected_etag: str,
 ) -> tuple[list[dict[str, str]], RangeReceipt]:
-    payload, receipt = _range_get(session, url, offset, offset + size - 1, expected_etag)
+    payload, receipt = _range_get(
+        session, url, offset, offset + size - 1, expected_etag
+    )
     rows = _complete_csv_rows(payload, fieldnames)
     if not rows:
         raise EagleiError(f"no complete CSV rows in range beginning at {offset}")
@@ -158,7 +284,9 @@ def locate_time(
         if hi - lo <= PROBE_BYTES:
             return lo, receipts
         middle = ((lo + hi) // 2) // PROBE_BYTES * PROBE_BYTES
-        rows, receipt = probe_at(session, url, middle, PROBE_BYTES, fieldnames, expected_etag)
+        rows, receipt = probe_at(
+            session, url, middle, PROBE_BYTES, fieldnames, expected_etag
+        )
         receipts.append(receipt)
         first = parse_source_time(rows[0]["run_start_time"])
         last = parse_source_time(rows[-1]["run_start_time"])
@@ -193,7 +321,26 @@ def acquire(
     fieldnames, header_receipt = source_columns(session, source_url)
     customers_out_field = outage_field(fieldnames)
     if not header_receipt.etag:
-        raise EagleiError("source response omitted ETag; cannot pin a multi-range acquisition")
+        raise EagleiError(
+            "source response omitted ETag; cannot pin a multi-range acquisition"
+        )
+    content_total = int((header_receipt.content_range or "").rsplit("/", 1)[-1])
+    if content_total != source_size:
+        raise EagleiError(
+            "HTTP Content-Range total differs from Figshare catalog byte size"
+        )
+    return acquire_exhaustive(
+        article=article,
+        file=file,
+        event_id=event_id,
+        year=year,
+        start=start,
+        end=end,
+        states=states,
+        fips=fips,
+        cache_dir=cache_dir,
+        expected_etag=header_receipt.etag,
+    )
 
     start_offset, start_probes = locate_time(
         session, source_url, source_size, start, fieldnames, header_receipt.etag
@@ -203,12 +350,19 @@ def acquire(
     )
     raw_start = max(0, start_offset - 2 * PROBE_BYTES)
     raw_end = min(source_size - 1, end_offset + 3 * PROBE_BYTES - 1)
-    payload, raw_receipt = _range_get(session, source_url, raw_start, raw_end, header_receipt.etag)
+    payload, raw_receipt = _range_get(
+        session, source_url, raw_start, raw_end, header_receipt.etag
+    )
     rows = _complete_csv_rows(payload, fieldnames)
-    expected_times = {start + timedelta(minutes=15 * index) for index in range(int((end - start).total_seconds() // 900))}
+    expected_times = {
+        start + timedelta(minutes=15 * index)
+        for index in range(int((end - start).total_seconds() // 900))
+    }
     raw_times = {parse_source_time(row["run_start_time"]) for row in rows}
     if not raw_times or min(raw_times) > start or max(raw_times) < max(expected_times):
-        raise EagleiError("final range does not bracket requested window; acquisition may be truncated")
+        raise EagleiError(
+            "final range does not bracket requested window; acquisition may be truncated"
+        )
     selected = [
         row
         for row in rows
