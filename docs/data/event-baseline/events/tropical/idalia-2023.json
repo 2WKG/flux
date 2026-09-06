@@ -1,0 +1,120 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tropical",
+  "event": {
+    "event_id": "idalia-2023",
+    "source_event_ids": [
+      "nhc:AL102023"
+    ],
+    "parent_system_id": "idalia-2023",
+    "primary_hazard": "tropical_cyclone",
+    "secondary_hazards": [
+      "wind",
+      "rain",
+      "storm_surge",
+      "inland_flood"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2023-08-26T21:00:00Z",
+      "end_utc": "2023-09-03T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2023-08-30T09:00:00Z",
+      "end_utc": "2023-08-31T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2023-08-31T00:00:00Z",
+      "end_utc": "2023-09-03T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record, retaining coastal and inland scope.",
+    "exclusions": [
+      "Texas Uri and Beryl are not recataloged as new events."
+    ],
+    "uncertainties": [
+      "NHC advisory scope is system/weather evidence, not county outage evidence.",
+      "EAGLE-I matched-coverage receipt pending."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nhc-idalia-2023-archive",
+      "provider": "NOAA National Hurricane Center",
+      "url": "https://www.nhc.noaa.gov/archive/2023/al10/",
+      "release": "2023 advisory archive",
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "Public NOAA archive",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "advisory text and UTC issue times",
+      "timezone_conversion": "Archive UTC times retained; no local-time conversion",
+      "filters": "Idalia advisory archive; 2023-08-30 representative Florida coastal county-window",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "EAGLE-I receipt and matched-coverage decision pending."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "idalia-2023-12123-2023-08-30t09z",
+      "county_fips": "12123",
+      "boundary_vintage": "Census 2024 county-equivalent FIPS",
+      "scenario_id": "idalia-2023-replay",
+      "window_start_utc": "2023-08-30T09:00:00Z",
+      "window_end_utc": "2023-08-30T15:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nhc-idalia-2023-archive"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "nhc-idalia-2023-archive"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "NHC archived advisories document Idalia's Florida coastal period; county-level weather gridding is not asserted.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "EAGLE-I county-window extraction requested; no absence or zero is inferred.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

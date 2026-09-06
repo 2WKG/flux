@@ -1,0 +1,119 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "tropical",
+  "event": {
+    "event_id": "matthew-2016",
+    "source_event_ids": [
+      "nhc:AL142016"
+    ],
+    "parent_system_id": "matthew-2016",
+    "primary_hazard": "tropical_cyclone",
+    "secondary_hazards": [
+      "wind",
+      "rain",
+      "storm_surge"
+    ],
+    "compound": true,
+    "context_window": {
+      "start_utc": "2016-09-28T00:00:00Z",
+      "end_utc": "2016-10-12T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2016-10-07T09:00:00Z",
+      "end_utc": "2016-10-09T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2016-10-09T00:00:00Z",
+      "end_utc": "2016-10-12T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "Independent Atlantic tropical-cyclone candidate from the NHC archived advisory record.",
+    "exclusions": [
+      "Texas Uri and Beryl are not recataloged as new events."
+    ],
+    "uncertainties": [
+      "NHC advisory scope is system/weather evidence, not county outage evidence.",
+      "EAGLE-I matched-coverage receipt pending."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "nhc-matthew-2016-archive",
+      "provider": "NOAA National Hurricane Center",
+      "url": "https://www.nhc.noaa.gov/archive/2016/MATTHEW.shtml",
+      "release": "2016 advisory archive",
+      "retrieved_at_utc": "2026-09-06T07:20:00Z",
+      "license_or_access": "Public NOAA archive",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "advisory text and UTC issue times",
+      "timezone_conversion": "Archive UTC times retained; no local-time conversion",
+      "filters": "Matthew advisory archive; representative Florida coastal county-window",
+      "grid_index_mapping": "County FIPS only; no physical-grid mapping",
+      "gaps": [
+        "No downloaded advisory artifact hash retained in this candidate-only receipt."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "matthew-2016-12035-2016-10-07t12z",
+      "county_fips": "12035",
+      "boundary_vintage": "Census 2024 county-equivalent FIPS",
+      "scenario_id": "matthew-2016-replay",
+      "window_start_utc": "2016-10-07T12:00:00Z",
+      "window_end_utc": "2016-10-07T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "nhc-matthew-2016-archive"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [
+          "nhc-matthew-2016-archive"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "NHC archived advisory is weather/system evidence for this Florida coastal candidate; it is not a county measurement.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "notes": "EAGLE-I county-window extraction has not yet been matched.",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "event_report": null
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
