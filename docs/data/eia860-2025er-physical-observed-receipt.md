@@ -20,6 +20,11 @@ For Texas 1.0.0, the checked artifact has 4,907 assets: 1,514 plant records,
 EIA plant point is retained only for the plant record; all 3,393 unit records
 have unavailable native geometry, no terminals, and no connectivity edges.
 
+For Minnesota 1.0.0, the checked artifact has 2,405 assets: 850 plant records,
+1,544 non-storage generator-unit records, and 11 storage-unit records. Its
+coverage reports 2,394 generation assets with 1,544 unavailable native
+geometries, plus 11 storage assets with 11 unavailable native geometries.
+
 The EIA 2025 Early Release is not fully edited, may omit records pending
 validation, and is inappropriate for aggregation. These are source-scoped
 observations, not a claim of complete statewide physical coverage. EIA does not
