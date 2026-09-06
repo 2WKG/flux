@@ -611,6 +611,26 @@ def acquire_exhaustive(
                 "none; EAGLE-I rows are keyed by county FIPS, not a model grid index"
             ),
             "gaps": _gap_entries(coverage),
+            "capture_method": (
+                "HTTP GET of the full annual object, ETag-pinned stream, checked "
+                "against the Figshare-published size and md5"
+            ),
+            "verification": {
+                "sha256_computed_from_response_body": True,
+                "row_count_checked": True,
+                "notes": (
+                    "exhaustive_annual_stream; "
+                    f"streamed_this_run={streamed}; "
+                    "cached bytes rehashed against the annual manifest; "
+                    f"manifest ETag matched the requested ETag={expected_etag is not None}"
+                ),
+            },
+            "files": {},
+            "uncertainty": (
+                "Establishes the complete EAGLE-I annual source and the exact "
+                "county-window rows filtered from it. It carries no customer "
+                "denominator, so no outage rate or five-percent label follows from it."
+            ),
         },
         "capture_method": "exhaustive_annual_stream",
         "verification": {
@@ -1016,6 +1036,27 @@ def acquire(
                     "was read, so this receipt cannot establish source-wide coverage"
                 )
             ],
+            "capture_method": (
+                "bounded HTTP range binary search over the annual object; the full "
+                "object was never transferred"
+            ),
+            "verification": {
+                "sha256_computed_from_response_body": True,
+                "content_range_matched_request": True,
+                "row_count_checked": True,
+                "notes": (
+                    "bounded_http_range_binary_search; ETag pinned across every range; "
+                    f"range_probe_count={len(start_probes) + len(end_probes)}; "
+                    f"bytes_transferred_over_the_wire={budget.spent} of {budget.limit}; "
+                    "the full annual file was not streamed"
+                ),
+            },
+            "files": {},
+            "uncertainty": (
+                "Bounded acquisition: only the bracketed byte range was read, so this "
+                "receipt cannot establish source-wide coverage or prove absence, and it "
+                "carries no customer denominator."
+            ),
         },
         "capture_method": "bounded_http_range_binary_search",
         "verification": {
