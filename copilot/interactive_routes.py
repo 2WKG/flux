@@ -54,39 +54,114 @@ class _Edit:
     element_ids: tuple[str, ...]
 
 
-def create_interactive_router(*, duckdb_path: Path, case_path: Path) -> APIRouter:
-    """Create the router; edits live only in this process under immutable hashes."""
+class InteractiveService:
+    """One shared in-memory edit registry and non-persisting core boundary."""
+
+    def __init__(self, *, duckdb_path: Path, case_path: Path) -> None:
+        self.duckdb_path = duckdb_path
+        self.case_path = case_path
+        self._edits: dict[str, _Edit] = {}
+
+    async def scenario_edit(self, payload: ScenarioEditRequest) -> dict[str, object]:
+        result = await _in_thread(
+            _scenario_edit, payload, duckdb_path=self.duckdb_path, case_path=self.case_path
+        )
+        edit_hash = str(result.pop("edit_hash"))
+        self._edits[edit_hash] = _Edit(
+            payload.base_scenario_id,
+            payload.hour,
+            payload.seed,
+            tuple(str(item["element_id"]) for item in result.pop("_ops")),
+        )
+        return result
+
+    async def cascade(self, payload: CascadeRequest) -> dict[str, object]:
+        if payload.edit_hash is not None:
+            saved = self._edits.get(payload.edit_hash)
+            if saved is None:
+                raise NotFoundError("The requested interactive edit is not available.")
+            if (saved.scenario_id, saved.hour, saved.element_ids) != (
+                payload.scenario_id,
+                payload.hour,
+                tuple(payload.element_ids),
+            ):
+                raise InvalidInputError("Cascade inputs do not match the immutable edit hash.")
+        return await _in_thread(
+            _cascade, payload, duckdb_path=self.duckdb_path, case_path=self.case_path
+        )
+
+    async def balance(
+        self,
+        *,
+        scope: Literal["base", "edit"] = "base",
+        scenario_id: str = "interactive",
+        hour: int = 0,
+        edit_hash: str | None = None,
+    ) -> dict[str, object]:
+        return await _in_thread(
+            _balance,
+            _resolve_edit(scope, edit_hash, self._edits),
+            scenario_id=scenario_id,
+            hour=hour,
+            duckdb_path=self.duckdb_path,
+            case_path=self.case_path,
+        )
+
+    async def redundancy(
+        self, *, bus_id: int, scenario_id: str = "interactive", hour: int = 0
+    ) -> dict[str, object]:
+        return await _in_thread(
+            _redundancy,
+            bus_id,
+            scenario_id=scenario_id,
+            hour=hour,
+            duckdb_path=self.duckdb_path,
+            case_path=self.case_path,
+        )
+
+    async def siting_search(self, payload: SitingSearchRequest) -> dict[str, object]:
+        return await _in_thread(
+            _siting_search, payload, duckdb_path=self.duckdb_path, case_path=self.case_path
+        )
+
+
+def create_interactive_service(*, duckdb_path: Path, case_path: Path) -> InteractiveService:
+    """Build the sole shared service for the router and natural-language adapter."""
+    return InteractiveService(duckdb_path=duckdb_path, case_path=case_path)
+
+
+def create_interactive_router(
+    *,
+    service: InteractiveService | None = None,
+    duckdb_path: Path | None = None,
+    case_path: Path | None = None,
+) -> APIRouter:
+    """Create HTTP routes over a supplied shared service or a new one."""
+    if service is None:
+        if duckdb_path is None or case_path is None:
+            raise ValueError("service or both duckdb_path and case_path are required")
+        service = create_interactive_service(duckdb_path=duckdb_path, case_path=case_path)
     router = APIRouter(prefix="/interactive", tags=["interactive-simulation"])
-    edits: dict[str, _Edit] = {}
 
     @router.post("/scenario/edit")
     async def scenario_edit(payload: ScenarioEditRequest) -> dict[str, object]:
-        result = await _in_thread(_scenario_edit, payload, duckdb_path=duckdb_path, case_path=case_path)
-        edit_hash = str(result.pop("edit_hash"))
-        edits[edit_hash] = _Edit(payload.base_scenario_id, payload.hour, payload.seed, tuple(str(item["element_id"]) for item in result.pop("_ops")))
-        return result
+        return await service.scenario_edit(payload)
 
     @router.post("/cascade")
     async def cascade(payload: CascadeRequest) -> dict[str, object]:
-        if payload.edit_hash is not None:
-            saved = edits.get(payload.edit_hash)
-            if saved is None:
-                raise NotFoundError("The requested interactive edit is not available.")
-            if (saved.scenario_id, saved.hour, saved.element_ids) != (payload.scenario_id, payload.hour, tuple(payload.element_ids)):
-                raise InvalidInputError("Cascade inputs do not match the immutable edit hash.")
-        return await _in_thread(_cascade, payload, duckdb_path=duckdb_path, case_path=case_path)
+        return await service.cascade(payload)
 
     @router.get("/balance")
     async def balance(scope: Literal["base", "edit"] = "base", scenario_id: Annotated[str, Query(min_length=1, max_length=128)] = "interactive", hour: Annotated[int, Query(ge=0, le=8_760)] = 0, edit_hash: Annotated[str | None, Query(min_length=16, max_length=64, pattern=r"^[a-f0-9]+$")] = None) -> dict[str, object]:
-        return await _in_thread(_balance, _resolve_edit(scope, edit_hash, edits), scenario_id=scenario_id, hour=hour, duckdb_path=duckdb_path, case_path=case_path)
+        return await service.balance(scope=scope, scenario_id=scenario_id, hour=hour, edit_hash=edit_hash)
 
     @router.get("/redundancy")
     async def redundancy(bus_id: int, scenario_id: Annotated[str, Query(min_length=1, max_length=128)] = "interactive", hour: Annotated[int, Query(ge=0, le=8_760)] = 0) -> dict[str, object]:
-        return await _in_thread(_redundancy, bus_id, scenario_id=scenario_id, hour=hour, duckdb_path=duckdb_path, case_path=case_path)
+        return await service.redundancy(bus_id=bus_id, scenario_id=scenario_id, hour=hour)
 
     @router.post("/siting/search")
     async def siting_search(payload: SitingSearchRequest) -> dict[str, object]:
-        return await _in_thread(_siting_search, payload, duckdb_path=duckdb_path, case_path=case_path)
+        return await service.siting_search(payload)
     return router
 
 
