@@ -3,7 +3,8 @@ import { createReadApiClient, type ClientState, type Transport } from "../data/c
 export interface MinnesotaAggregateSource {
   readonly id: string;
   readonly url: string;
-  readonly file_sha256: Readonly<Record<string, string>>;
+  /** Some approved source records carry their digest in persisted provenance instead. */
+  readonly file_sha256?: Readonly<Record<string, string>>;
 }
 
 export interface MinnesotaAggregateManifest {
@@ -77,9 +78,11 @@ function source(value: unknown): value is MinnesotaAggregateSource {
   return record(value)
     && string(value.id)
     && string(value.url)
-    && record(value.file_sha256)
-    && Object.keys(value.file_sha256).length > 0
-    && Object.values(value.file_sha256).every(string);
+    && (value.file_sha256 === undefined || (
+      record(value.file_sha256)
+      && Object.keys(value.file_sha256).length > 0
+      && Object.values(value.file_sha256).every(string)
+    ));
 }
 
 function manifest(value: unknown): value is MinnesotaAggregateManifest {

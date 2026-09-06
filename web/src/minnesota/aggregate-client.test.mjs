@@ -24,6 +24,10 @@ const response = {
 
 test("aggregate client accepts only a complete persisted aggregate response", () => {
   assert.equal(aggregate.isMinnesotaAggregateResponse(response), true);
+  assert.equal(aggregate.isMinnesotaAggregateResponse({
+    ...response,
+    aggregate_manifest: { ...response.aggregate_manifest, sources: [{ id: "tiger", url: "https://example.invalid/tiger" }] },
+  }), true, "provenance may carry a source digest when the manifest source has none");
   assert.equal(aggregate.isMinnesotaAggregateResponse({ ...response, model_mode: "topology" }), false);
   assert.equal(aggregate.isMinnesotaAggregateResponse({ ...response, provenance: [] }), false);
   assert.equal(aggregate.isMinnesotaAggregateResponse({ ...response, base_mva: 100 }), false);

@@ -203,7 +203,9 @@ function AggregateEvidence({ result, identity }: { readonly result: MinnesotaAgg
       <h4>Accepted source records</h4>
       <ul aria-label="Accepted aggregate source records">
         {result.aggregate_manifest.sources.map((source) => (
-          <li key={source.id}><code>{source.id}</code> — {Object.entries(source.file_sha256).map(([file, digest]) => `${file}: ${digest}`).join(", ")}</li>
+          <li key={source.id}><code>{source.id}</code> — {source.file_sha256
+            ? Object.entries(source.file_sha256).map(([file, digest]) => `${file}: ${digest}`).join(", ")
+            : "Digest is carried in persisted provenance."}</li>
         ))}
       </ul>
       <h4>Provenance</h4>
