@@ -80,79 +80,6 @@ def test_done_is_the_single_successful_terminal_event() -> None:
         stream.tool_call("call-late", "score_site", {})
 
 
-@pytest.mark.parametrize(
-    ("method", "code", "message", "retryable"),
-    [
-        (
-            "disconnected",
-            "cancelled",
-            "The answer attempt was cancelled before it completed.",
-            True,
-        ),
-        (
-            "timed_out",
-            "deadline",
-            "The answer could not finish within the request deadline.",
-            True,
-        ),
-        (
-            "provider_failed",
-            "upstream_error",
-            "The answer provider is unavailable.",
-            True,
-        ),
-        (
-            "refused",
-            "refusal",
-            "The answer provider declined this request.",
-            False,
-        ),
-        (
-            "iteration_limit_reached",
-            "deadline",
-            "The answer reached its iteration limit.",
-            False,
-        ),
-    ],
-)
-def test_named_failures_emit_one_safe_terminal_error(
-    method: str, code: str, message: str, retryable: bool
-) -> None:
-    stream = CopilotEventStream()
-    stream.start()
-    secret_failure = RuntimeError("token=abc123 /secrets/grid.duckdb Traceback")
-
-    event = getattr(stream, method)(secret_failure)
-
-    assert event.event == "error"
-    assert event.seq == 2
-    assert event.data == {
-        "v": 1,
-        "seq": 2,
-        "status": "failed",
-        "error": {"code": code, "message": message, "retryable": retryable},
-    }
-    serialized = event.encode()
-    assert all(
-        value not in serialized for value in ("abc123", "/secrets/", "Traceback")
-    )
-    # The failure is the one and only terminal: neither success nor a second
-    # failure may follow it.
-    with pytest.raises(StreamStateError, match="terminal"):
-        stream.done(verified=True)
-    with pytest.raises(StreamStateError, match="terminal"):
-        getattr(stream, method)()
-    with pytest.raises(StreamStateError, match="terminal"):
-        stream.disconnected()
-
-    # And a failure cannot follow the success terminal either.
-    finished = CopilotEventStream()
-    finished.start()
-    finished.done(verified=True)
-    with pytest.raises(StreamStateError, match="terminal"):
-        getattr(finished, method)(secret_failure)
-
-
 TOOL_TIMEOUT_MESSAGE = "The site scoring tool did not finish in time."
 
 
@@ -330,6 +257,76 @@ def test_rejected_payload_does_not_commit_tool_state_or_sequence() -> None:
     result = stream.tool_result("call-1", "score_site", {}, elapsed_ms=1)
     assert result.seq == 3
     assert stream.done(verified=True).seq == 4
+
+
+@pytest.mark.parametrize(
+    ("method", "code", "message", "retryable"),
+    [
+        (
+            "disconnected",
+            "cancelled",
+            "The answer attempt was cancelled before it completed.",
+            True,
+        ),
+        (
+            "timed_out",
+            "deadline",
+            "The answer could not finish within the request deadline.",
+            True,
+        ),
+        (
+            "provider_failed",
+            "upstream_error",
+            "The answer provider is unavailable.",
+            True,
+        ),
+        (
+            "refused",
+            "refusal",
+            "The answer provider declined this request.",
+            False,
+        ),
+        (
+            "iteration_limit_reached",
+            "deadline",
+            "The answer reached its iteration limit.",
+            False,
+        ),
+    ],
+)
+def test_named_failures_emit_one_safe_terminal_error(
+    method: str, code: str, message: str, retryable: bool
+) -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    secret_failure = RuntimeError("token=abc123 /secrets/grid.duckdb Traceback")
+
+    event = getattr(stream, method)(secret_failure)
+
+    assert event.event == "error"
+    assert event.seq == 2
+    assert event.data == {
+        "v": 1,
+        "seq": 2,
+        "status": "failed",
+        "error": {"code": code, "message": message, "retryable": retryable},
+    }
+    serialized = event.encode()
+    assert all(
+        value not in serialized for value in ("abc123", "/secrets/", "Traceback")
+    )
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(stream, method)()
+    with pytest.raises(StreamStateError, match="terminal"):
+        stream.disconnected()
+
+    finished = CopilotEventStream()
+    finished.start()
+    finished.done(verified=True)
+    with pytest.raises(StreamStateError, match="terminal"):
+        getattr(finished, method)(secret_failure)
 
 
 def test_failed_tool_result_is_non_terminal_and_settles_the_pending_call() -> None:
