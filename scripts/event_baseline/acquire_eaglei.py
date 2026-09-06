@@ -338,10 +338,10 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
     grouped: dict[int, list[dict[str, Any]]] = {}
     for request in requests_data:
         request["start"] = parse_source_time(
-            request["start"].replace("T", "").removesuffix("Z")
+            request["start"].replace("T", " ").removesuffix("Z")
         )
         request["end"] = parse_source_time(
-            request["end"].replace("T", "").removesuffix("Z")
+            request["end"].replace("T", " ").removesuffix("Z")
         )
         request["fips"] = {str(code).zfill(5) for code in request["fips"]}
         request["states"] = set(request["states"])
