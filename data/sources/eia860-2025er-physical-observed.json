@@ -4,7 +4,9 @@
   "source_ref": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
   "source_version": "2025 Early Release",
   "retrieved_at": "2026-09-06T12:00:00Z",
+  "retrieved_at_note": "Rounded to the hour by the original capture and pinned into the published artifacts' created_at and sources[].retrieved_at, so it cannot be re-pointed without changing their content_sha256. The exact instant of the original download is not recoverable from this repository; see verification.archive_redownloaded_at for an independent re-download whose bytes hash to the content_sha256 below.",
   "license_or_terms": "Public EIA data; see EIA terms of use.",
+  "capture_method": "HTTPS GET of the EIA archive URL above; sha256 computed from the response body. The workbook members are read in place from the zip with pandas.read_excel at the published header offset; no cell value is edited or synthesized.",
   "content_sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
   "source_scope": "Form EIA-860 reporting plants and generator records. The EIA early-release notice says these files are not fully edited, may exclude records pending validation, and are inappropriate for aggregation.",
   "coordinate_scope": "Schedule 2 reports plant latitude and longitude. Schedule 3.1 generator and 3.4 storage records attach to plant IDs but do not provide unit coordinates, terminals, network edges, or facility polygons.",
@@ -21,5 +23,13 @@
       "storage_rows": 11,
       "invalid_or_out_of_range_plant_coordinates": 0
     }
+  },
+  "verification": {
+    "archive_redownloaded_at": "2026-09-06T07:43:27Z",
+    "sha256_computed_from_response_body": "An independent HTTPS GET of source_ref returned 23,285,571 bytes hashing to content_sha256 above.",
+    "verified_counts_rederived_from_the_archive": "Schedule 2 plant rows, Schedule 3.1 generator rows, Schedule 3.4 storage rows and out-of-range plant coordinates were recounted per state from that archive and match verified_counts exactly.",
+    "parser_contract_under_test": "pipelines/tests/test_eia860_physical.py runs the parser over pipelines/tests/fixtures/eia860/eia8602025ER-slice.zip, a byte-reproducible slice cut from this archive by scripts/cut_eia860_test_slice.py; see that fixture's PROVENANCE.json.",
+    "artifacts_rederived": "docs/data/acceptance_receipts/eia860-2025er-physical-inventory.json records the artifact and intake hashes re-derived from this archive and the contract commit they were validated against.",
+    "not_verified": "EIA republishes the early release in place and nothing here re-checks the live URL on a schedule; a future download may differ from content_sha256."
   }
 }

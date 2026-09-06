@@ -1,10 +1,11 @@
 {
   "receipt_version": "1.0.0",
-  "checked_at": "2026-09-06T12:00:00Z",
+  "checked_at": "2026-09-06T07:58:46Z",
   "source": {
     "raw_download_path": "data/raw/eia860/2025er/eia8602025ER.zip",
     "url": "https://www.eia.gov/electricity/data/eia860/xls/eia8602025ER.zip",
-    "sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1"
+    "sha256": "bd05bac5149371a6aab869e8a4c737ccb2e6c2f83f0daadac895982af9510bf1",
+    "raw_download_path_note": "data/raw/ is gitignored, so this path is a local working copy, not a committed file. The url and sha256 above are the authority: an independent download on 2026-09-06T07:43:27Z returned 23,285,571 bytes hashing to that sha256."
   },
   "artifacts": {
     "tx": {
@@ -31,12 +32,16 @@
     }
   },
   "validation": {
-    "contract_commit": "b4fc3e03ab6bf37315b769c9a66ec5f68e0413e1",
+    "contract_commit": "b7c57baeb8256ae209e3112c9022ffb08436d2a5",
+    "contract_commit_note": "The merge commit that landed PR #225 (2WKG-441) on master; it is an ancestor of this branch. It supersedes b4fc3e03ab6bf37315b769c9a66ec5f68e0413e1, which was a pre-rebase commit on the #225 branch and no longer exists there.",
+    "contract_version": "1.0.0",
     "checks": [
       "validate_artifact accepted each canonical JSON artifact",
       "artifact content_sha256 matched artifact_sha256",
       "write_artifact persisted each artifact in an empty DuckDB database",
       "no source-backed terminals or connectivity edges were emitted"
-    ]
+    ],
+    "checks_rerun_at": "2026-09-06T07:58:46Z",
+    "checks_result": "All four checks passed for tx and mn against contract_commit. The committed file_sha256, content_sha256, asset_count and source_intake_sha256 values above were each recomputed and matched, and build_physical_inventory_artifact re-derived both artifacts from the source archive bit-for-bit (built == committed)."
   }
 }
