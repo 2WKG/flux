@@ -50,8 +50,14 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "ipykernel", "jupyter"]
-stretch = ["grid2op>=1.10", "torch>=2.4", "torch-geometric>=2.6"]
+stretch = [
+    "grid2op>=1.10",
+]
 embeddings = ["voyageai>=0.3"]
+gnn = [
+    "torch==2.14.0",
+    "torch-geometric==2.8.0.post1",
+]
 
 [tool.uv]
 package = false

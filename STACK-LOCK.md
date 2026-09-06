@@ -27,6 +27,12 @@ The web app reads saved result files only. Python is run before presentation and
 - Serve the build output with a static server (`web/server.mjs`); it serves files only and must not gain an API route.
 - Reuse the existing Cloudflare Tunnel and its configured local origin for `bouncepulse.com`; this task does not create or modify tunnel infrastructure.
 
+## Optional GNN toolchain (2WKG-488)
+
+- `gnn` is a separate optional extra; `stretch` contains only `grid2op`.
+- On Windows with Python 3.12.10, `uv sync --extra gnn` completed successfully with `torch==2.14.0` and `torch-geometric==2.8.0.post1`.
+- Verified imports: `torch.__version__ == "2.14.0+cpu"` and `torch_geometric.__version__ == "2.8.0.post1"`. `torch.cuda.is_available()` is `False`, `torch.version.cuda` is `None`, and a default tensor uses `cpu`.
+
 ## Demo boundary
 
 The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. It does not perform live calculations or fetch data during the demo. The model is a synthetic-grid illustration, not a representation of a real grid.
