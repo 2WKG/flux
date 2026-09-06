@@ -91,6 +91,45 @@ Failure is explicit. A producer never substitutes a plausible value, fallback
 score, or fabricated result. `result` is a bounded safe-to-display
 serialization, not an unlimited backend response.
 
+#### `scene_action` (additive)
+
+A `tool_result` with `ok: true` MAY nest exactly one `scene_action` object in its
+`result`. It is the only channel by which a tool result may declare a scene
+change; a consumer never infers one from a tool name, answer prose, or any other
+nested object. Absence is normal and means no scene change was declared.
+
+Required: `action_id`, `kind`, `tool_call_id`, `reversible`, `status`.
+`tool_call_id` MUST equal the enclosing event's `call_id`, so an action can only
+be declared by its own observed call. `status` is `available` or `unavailable`;
+`unavailable` MAY carry a `reason`.
+
+`kind` is drawn from ONE vocabulary, shared by every producer and every consumer:
+
+| `kind` | required identity | meaning |
+| --- | --- | --- |
+| `focus` | none beyond `action_id` | a client-side view focus |
+| `filter` | none beyond `action_id` | a client-side view filter |
+| `compare` | none beyond `action_id` | a client-side comparison view |
+| `scenario_edit` | `edit_hash` | names a saved edit |
+| `cascade` | `cascade_id` | names a cascade run |
+
+The identity rule is normative and applies to every kind, with no per-kind
+exemption: an action whose `status` is `available` and whose kind's required
+identity is absent is not available, and a consumer MUST render it as
+`unavailable` with a reason naming the missing field. One identity never stands
+in for another — an `edit_hash` names an edit, not a run — and a refused action
+carries no identifier at all, so nothing on screen can be read as the identity
+that is missing.
+
+The web client implements this in exactly one place, `web/src/ask/results/types.ts`
+(`SceneActionKind`, `missingSceneActionIdentity`); `ResultCards`, the
+`AgentSimulationAdapter` seam and `MainAssistant` all read it from there. A new
+kind is added to that table and that module, and nowhere else.
+
+```json
+{"v":1,"seq":9,"call_id":"call_01J8...","tool":"cascade","ok":true,"result":{"scene_action":{"action_id":"action-7","kind":"cascade","tool_call_id":"call_01J8...","cascade_id":"run_01J9...","reversible":true,"status":"available"}},"elapsed_ms":124}
+```
+
 ### `citation`
 
 A retrieved source that may support an external claim. Required: `v`, `seq`,
