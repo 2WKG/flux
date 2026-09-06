@@ -165,63 +165,42 @@ test("main and explainer surfaces retain their declared status boundaries", () =
   const main = surface.renderMainPage();
   const explainer = surface.renderExplainerPage();
 
-  // The fixture screen is a synthetic result. The claim is not that the word
-  // appears somewhere on the page -- the SVG aria-label and three prose
-  // sentences already say "synthetic" -- but that the DERIVED status token the
-  // page publishes is one of the six, and that BOTH places the page spells that
-  // token out render exactly the owner's copy for it. Relabelling either
-  // derivation site fails here, including to a prohibited word.
+  // The Texas topology screen is synthetic. Its machine token remains one of
+  // the six IA values and its nav summary renders the owner's display copy.
   const token = main.match(/<main data-source-status="([a-z_]+)"/)?.[1];
   assert.ok(token, "the main page no longer publishes a derived source status");
   assert.ok(ASSET_STATUS_TOKENS.includes(token), `"${token}" is not one of the six IA status tokens`);
   assert.equal(token, "synthetic");
 
-  // Derivation site 1: the scenario-controls status chip, asserted as a slice so
-  // an unrelated occurrence of the word elsewhere on the page cannot satisfy it.
-  assert.match(
-    main,
-    new RegExp(`<span class="shell-status">${STATUS_COPY[token]} five-bus preview · not Minnesota data</span>`),
-    "the status chip does not render the owner's copy for the derived token",
-  );
-  // Derivation site 2: the nav source summary, which leads with the same label.
+  // The nav source summary leads with the same label.
   const live = main.match(/<div class="live">([\s\S]*?)<\/div>/);
   assert.ok(live, "the nav no longer renders a source summary");
   assert.equal(
     textOf(live[1]),
-    `${STATUS_COPY[token]} · fixture source · no asserted topology · no API required for this scene`,
+    `${STATUS_COPY[token]} ACTIVSg2000 static topology · model API required`,
   );
 
   // And the prohibited browser-invented status word never reaches the screen.
   assert.doesNotMatch(main, new RegExp(PROHIBITED_STATUS_WORD, "i"));
 
-  assert.match(main, /data-request-state="loading"/);
-  assert.match(main, /Checking the evidence API for this scene\./);
+  assert.match(main, /Texas model topology unavailable/);
+  assert.match(main, /Loading the synthetic Texas model\./);
 
-  // The explainer makes no model-result claim. Its page-level source status
-  // and its unavailable result are both explicit rather than inferred from
-  // explanatory prose.
+  // The explainer makes no Texas-model result claim. It exposes its page-level
+  // unavailable status while its mounted teaching sections own their statuses.
   assert.match(explainer, /<main data-source-status="unavailable">/);
-  assert.match(explainer, /data-request-state="unavailable"/);
-  assert.match(explainer, /data-request-status="unavailable"/);
-  assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
-  assert.match(explainer, /Nothing on this page is model output/);
+  assert.match(explainer, /data-source-status="synthetic"/);
+  assert.match(explainer, /data-source-status="hypothetical"/);
+  assert.match(explainer, /data-source-status="unavailable"/);
 
   for (const rendered of [main, explainer]) {
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
 });
 
-test("the main page's mounted inventory surface distinguishes loading, partial, unavailable, and failed reads", () => {
-  // The mount itself is the first claim: `GridInventoryPanel` renders exactly
-  // one root, and MainPage must carry it. Without this the whole inventory
-  // surface could be deleted from the product with this suite still green.
-  const main = surface.renderMainPage();
-  assert.match(main, /<section class="grid-inventory" aria-label="Source-backed physical inventory">/);
-  // ...in its initial read state, the same branch the fixture below renders.
-  assert.match(main, /Requesting the source-backed inventory release\./);
-
-  // These are its real `gridLoad` branches, rendered with the same props
-  // MainPage supplies; they are not a second state vocabulary or a placeholder.
+test("the inventory component distinguishes loading, partial, unavailable, and failed reads", () => {
+  // These are the component's real `gridLoad` branches; the Texas topology
+  // page does not claim this separate physical-inventory surface is mounted.
   const loading = surface.renderInventory({ kind: "loading" });
   assert.match(loading, /Requesting the source-backed inventory release\./);
 

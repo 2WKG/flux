@@ -519,7 +519,7 @@ export function App() {
     <main data-source-status={SOURCE_TRUTH.status}>
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
-        <div className="live"><i />Synthetic ACTIVSg2000 static topology · model API required</div>
+        <div className="live"><i />{STATUS_COPY[SOURCE_TRUTH.status]} ACTIVSg2000 static topology · model API required</div>
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
