@@ -12,7 +12,6 @@ from pipelines.line_upgrade_contracts import (
     UnavailableReason,
 )
 
-
 H = "a" * 64
 PROVENANCE = LineUpgradeProvenance(
     ranking_version="v1",
@@ -22,7 +21,10 @@ PROVENANCE = LineUpgradeProvenance(
     cost_params_sha256=H,
 )
 STORAGE = StorageProvenance(
-    source_name="fixture", source_ref="test", source_version="1", fixture_batch_id="batch-1"
+    source_name="fixture",
+    source_ref="test",
+    source_version="1",
+    fixture_batch_id="batch-1",
 )
 CONGESTION = SimulatedCongestion(usd_per_year=1_000_000, run_id="run-1")
 
@@ -34,8 +36,12 @@ def _result(line_id: int, uplift: float):
         congestion=CONGESTION,
         static_rating_mw=100,
         interventions=(
-            DlrIntervention(uplift_mw=uplift, hours_above_static=20, cost_usd=1_000_000),
-            ReconductorIntervention(uplift_mw=uplift / 2, cost_usd=1_000_000, conductor_material="ACSS"),
+            DlrIntervention(
+                uplift_mw=uplift, hours_above_static=20, cost_usd=1_000_000
+            ),
+            ReconductorIntervention(
+                uplift_mw=uplift / 2, cost_usd=1_000_000, conductor_material="ACSS"
+            ),
         ),
     )
 

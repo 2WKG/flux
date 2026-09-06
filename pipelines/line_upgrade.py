@@ -8,18 +8,15 @@ from dataclasses import dataclass
 
 from pipelines.line_upgrade_contracts import (
     Congestion,
-    DlrIntervention,
     Intervention,
     LineKey,
     LineUpgradeProvenance,
-    ReconductorIntervention,
     ScoredLine,
     StorageProvenance,
     UnavailableLine,
     UnavailableReason,
     mw_per_musd,
 )
-
 
 LineUpgradeResult = ScoredLine | UnavailableLine
 
@@ -41,9 +38,13 @@ def score_line(
     """
 
     if congestion is None:
-        return UnavailableLine(key=key, provenance=provenance, reason=UnavailableReason.NO_CONGESTION_INPUT)
+        return UnavailableLine(
+            key=key, provenance=provenance, reason=UnavailableReason.NO_CONGESTION_INPUT
+        )
     if static_rating_mw is None or static_rating_mw <= 0:
-        return UnavailableLine(key=key, provenance=provenance, reason=UnavailableReason.NO_RATING)
+        return UnavailableLine(
+            key=key, provenance=provenance, reason=UnavailableReason.NO_RATING
+        )
 
     candidates: list[tuple[float, Intervention]] = []
     for intervention in interventions:
@@ -51,13 +52,21 @@ def score_line(
         if score is not None:
             candidates.append((score, intervention))
     if not candidates:
-        return UnavailableLine(key=key, provenance=provenance, reason=UnavailableReason.COST_UNKNOWN)
+        return UnavailableLine(
+            key=key, provenance=provenance, reason=UnavailableReason.COST_UNKNOWN
+        )
 
     # Descending rounded score, then lower cost, then a stable intervention name.
-    candidates.sort(key=lambda item: (-item[0], item[1].cost_usd, item[1].intervention.value))
+    candidates.sort(
+        key=lambda item: (-item[0], item[1].cost_usd, item[1].intervention.value)
+    )
     best_score, best = candidates[0]
     alternative = next(
-        (candidate for _, candidate in candidates[1:] if candidate.intervention != best.intervention),
+        (
+            candidate
+            for _, candidate in candidates[1:]
+            if candidate.intervention != best.intervention
+        ),
         None,
     )
     return ScoredLine(
@@ -80,7 +89,9 @@ def rank_results(results: Iterable[LineUpgradeResult]) -> tuple[LineUpgradeResul
             results,
             key=lambda result: (
                 1 if isinstance(result, UnavailableLine) else 0,
-                result.key.line_id if isinstance(result, UnavailableLine) else result.sort_key(),
+                result.key.line_id
+                if isinstance(result, UnavailableLine)
+                else result.sort_key(),
             ),
         )
     )
@@ -100,9 +111,13 @@ class PersistedRanking:
         document = {
             "detail_rows": self.detail_rows,
             "score_rows": self.score_rows,
-            "unavailable": [record.model_dump(mode="json") for record in self.unavailable],
+            "unavailable": [
+                record.model_dump(mode="json") for record in self.unavailable
+            ],
         }
-        return json.dumps(document, sort_keys=True, separators=(",", ":"), default=str).encode()
+        return json.dumps(
+            document, sort_keys=True, separators=(",", ":"), default=str
+        ).encode()
 
 
 def persist_ranking(
