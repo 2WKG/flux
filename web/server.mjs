@@ -22,15 +22,37 @@ const dist = fileURLToPath(new URL("./dist/", import.meta.url));
  * The read paths that may be forwarded, and the methods each accepts. Nothing
  * else is proxied — a path not in this table is served the SPA shell, so a new
  * upstream route cannot be reached by accident.
+ *
+ * This table is also the single definition of the *public* path surface
+ * (2WKG-274). The Cloudflare Tunnel in `deploy/cloudflared/config.example.yml`
+ * publishes exactly the GET entries below, derived by `INGRESS_PATH_PATTERN`,
+ * so the edge cannot reach a path this same-origin forward refuses. `ingress`
+ * is the same expression as `pattern`, written in the RE2 dialect cloudflared
+ * uses and without the leading slash the joined alternation supplies;
+ * `web/test/ingress-allowlist.test.mjs` asserts the two agree and that the
+ * checked-in config carries the derived string verbatim.
  */
-const PROXIED = [
-  { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, methods: ["GET"] },
-  { pattern: /^\/health$/, methods: ["GET"] },
-  { pattern: /^\/layers\/[^/]+$/, methods: ["GET"] },
-  { pattern: /^\/scenarios$/, methods: ["GET"] },
-  { pattern: /^\/scenarios\/[^/]+$/, methods: ["GET"] },
+export const PROXIED = [
+  { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, ingress: "api/v1/grid/layers/[^/]+", methods: ["GET"] },
+  { pattern: /^\/api\/v1\/grid\/asset-placements$/, ingress: "api/v1/grid/asset-placements", methods: ["GET"] },
+  { pattern: /^\/assets\/flux-grid\/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)$/, ingress: "assets/flux-grid/(?:manifest\\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)", methods: ["GET"] },
+  { pattern: /^\/health$/, ingress: "health", methods: ["GET"] },
+  { pattern: /^\/layers\/[^/]+$/, ingress: "layers/[^/]+", methods: ["GET"] },
+  { pattern: /^\/scenarios$/, ingress: "scenarios", methods: ["GET"] },
+  { pattern: /^\/scenarios\/[^/]+$/, ingress: "scenarios/[^/]+", methods: ["GET"] },
+  // POST. Cloudflared filters paths, not methods, so publishing this at the edge
+  // would expose the Copilot ask surface to the public internet; it stays local.
   { pattern: /^\/ask$/, methods: ["POST"] },
 ];
+
+/**
+ * The `path:` regex the public edge must carry: exactly the GET half of
+ * `PROXIED`, in table order. A path the edge admits but this forward refuses
+ * would be a second, wider public API surface — the thing 2WKG-274 exists to
+ * prevent.
+ */
+export const INGRESS_PATH_PATTERN =
+  `^/(${PROXIED.filter((entry) => entry.methods.includes("GET")).map((entry) => entry.ingress).join("|")})$`;
 
 /** Upstream deadline. An upstream that never answers must not hold a socket open. */
 export const PROXY_TIMEOUT_MS = 30_000;
@@ -162,5 +184,11 @@ export function createApp({ apiOrigin = process.env.FLUX_API_ORIGIN ?? process.e
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const port = Number(process.env.PORT || 4173);
-  createApp().listen(port, () => console.log(`Flux is running at http://localhost:${port}`));
+  // Loopback by default. `listen(port)` with no host binds the unspecified address
+  // (`::`, dual-stack), so this unauthenticated demo origin answered on the LAN while
+  // README.md and docs/runbooks/local-startup.md promised loopback-only endpoints.
+  // Binding an interface is now an explicit opt-in through HOST.
+  const host = process.env.HOST || "127.0.0.1";
+  const shown = host === "127.0.0.1" || host === "::1" ? "localhost" : host;
+  createApp().listen(port, host, () => console.log(`Flux is running at http://${shown}:${port}`));
 }
