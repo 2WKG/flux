@@ -27,7 +27,8 @@ def test_uses_real_polygon_not_bbox_and_records_partial_without_edges():
     first = session.calls[0]
     assert first["geometryType"] == "esriGeometryPolygon"
     assert first["spatialRel"] == "esriSpatialRelIntersects"
-    assert '"type":"Polygon"' in first["geometry"]
+    assert '"rings"' in first["geometry"]
+    assert '"wkid":4326' in first["geometry"]
     coverage = artifact["coverage"][0]
     assert coverage["status"] == "partial"
     assert coverage["denominator_count"] is None
