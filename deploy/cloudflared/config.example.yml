@@ -20,7 +20,7 @@ ingress:
   #   node -e 'import("./web/server.mjs").then(m=>console.log(m.INGRESS_PATH_PATTERN))'
   # Cloudflared routes by path, not method; FastAPI rejects unsupported methods.
   - hostname: bouncepulse.com
-    path: ^/(api/v1/grid/layers/[^/]+|health|layers/[^/]+|scenarios|scenarios/[^/]+)$
+    path: ^/(api/v1/grid/layers/[^/]+|api/v1/grid/asset-placements|assets/flux-grid/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)|health|layers/[^/]+|scenarios|scenarios/[^/]+)$
     service: http://127.0.0.1:8000
 
   # The built static demo (web/server.mjs serving web/dist/).

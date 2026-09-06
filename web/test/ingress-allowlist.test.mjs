@@ -29,6 +29,8 @@ test("every path the edge admits is a path this origin forwards, and vice versa"
     "/health",
     "/layers/mn",
     "/api/v1/grid/layers/mn",
+    "/api/v1/grid/asset-placements",
+    "/assets/flux-grid/manifest.json",
     "/scenarios",
     "/scenarios/heat-wave",
   ];

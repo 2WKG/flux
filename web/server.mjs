@@ -34,6 +34,8 @@ const dist = fileURLToPath(new URL("./dist/", import.meta.url));
  */
 export const PROXIED = [
   { pattern: /^\/api\/v1\/grid\/layers\/[^/]+$/, ingress: "api/v1/grid/layers/[^/]+", methods: ["GET"] },
+  { pattern: /^\/api\/v1\/grid\/asset-placements$/, ingress: "api/v1/grid/asset-placements", methods: ["GET"] },
+  { pattern: /^\/assets\/flux-grid\/(?:manifest\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)$/, ingress: "assets/flux-grid/(?:manifest\\.json|[A-Za-z0-9][A-Za-z0-9._/-]*)", methods: ["GET"] },
   { pattern: /^\/health$/, ingress: "health", methods: ["GET"] },
   { pattern: /^\/layers\/[^/]+$/, ingress: "layers/[^/]+", methods: ["GET"] },
   { pattern: /^\/scenarios$/, ingress: "scenarios", methods: ["GET"] },
@@ -67,7 +69,7 @@ function proxied(pathname, method) {
  */
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' blob:",
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
