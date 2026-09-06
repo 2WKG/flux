@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Generic residential neighborhood</title>
+  <desc id="desc">Neutral preview of a reusable, unsited residential block with four house clusters.</desc>
+  <rect width="512" height="512" fill="#eef2f5"/>
+  <rect x="58" y="58" width="396" height="396" rx="8" fill="#c8d0d5" stroke="#61707b" stroke-width="8"/>
+  <path d="M240 66H272V446H240ZM66 240H446V272H66Z" fill="#697780"/>
+  <g fill="#89969f" stroke="#3c474e" stroke-width="6"><path d="M92 153l48-40 48 40v65H92z"/><path d="M324 153l48-40 48 40v65h-96z"/><path d="M92 326l48-40 48 40v65H92z"/><path d="M324 326l48-40 48 40v65h-96z"/></g>
+  <circle cx="420" cy="316" r="12" fill="#78858f"/><path d="M420 328V372" stroke="#53616a" stroke-width="12" stroke-linecap="round"/>
+  <text x="256" y="486" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#3c474e">GENERIC UNSITED ARCHETYPE</text>
+</svg>
