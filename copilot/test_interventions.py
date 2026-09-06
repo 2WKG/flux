@@ -144,6 +144,38 @@ def test_line_comparison_reads_a_named_persisted_score(tmp_path: Path) -> None:
     assert response.json()["interventions"][0]["intervention_id"] == "line:line-1"
 
 
+def test_unrelated_invalid_score_does_not_poison_a_qualified_comparison(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "comparison-scope.duckdb"
+    db(path)
+    score_artifact(
+        path,
+        "mn:score:0000000000000005",
+        components='{"scenario_id":"mn_fixture","intervention_id":"site:1@300"}',
+    )
+    score_artifact(
+        path,
+        "mn:score:0000000000000006",
+        components='{"scenario_id":"another_scenario","intervention_id":"site:9@300"}',
+    )
+    with duckdb.connect(str(path)) as con:
+        con.execute(
+            "UPDATE mn_score_results SET score_components_json='[]' WHERE artifact_id=?",
+            ["mn:score:0000000000000006"],
+        )
+
+    response = client(path).post(
+        "/compare",
+        json={"scenario_id": "mn_fixture", "intervention_ids": ["site:1@300"]},
+    )
+    assert response.status_code == 200
+    assert (
+        response.json()["interventions"][0]["artifact_id"]
+        == "mn:score:0000000000000005"
+    )
+
+
 def test_critical_elements_use_persisted_values_with_stable_paging(
     tmp_path: Path,
 ) -> None:
