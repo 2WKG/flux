@@ -1,0 +1,175 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "cold-snap",
+  "event": {
+    "event_id": "mn-2019-01-27-arctic",
+    "parent_system_id": "upper_midwest_2019-01-27_arctic",
+    "primary_hazard": "extreme_cold",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": ["800140"],
+    "context_window": {
+      "start_utc": "2019-01-25T00:00:00Z",
+      "end_utc": "2019-02-03T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2019-01-27T00:00:00Z",
+      "end_utc": "2019-02-01T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2019-02-01T00:00:00Z",
+      "end_utc": "2019-02-03T00:00:00Z"
+    },
+    "disposition": "accepted",
+    "selection_basis": "NCEI event 800140 documents extreme cold for the Hennepin NWS zone and the retained EAGLE-I slice has a complete 24/24 Hennepin timestamp set.",
+    "exclusions": [],
+    "uncertainties": [
+      "Customer denominator unavailable; no outage rate or five-percent label asserted."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2019",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+      "release": "c20260323",
+      "retrieved_at_utc": "2026-09-06T07:10:48Z",
+      "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events local begin/end times and event classifications.",
+      "timezone_conversion": "Event 800140 CZ_TIMEZONE CST-6 converted to UTC.",
+      "filters": "MINNESOTA; EPISODE_ID=132801; EVENT_ID=800140; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Raw binary hash and bytes not retained."
+      ]
+    },
+    {
+      "receipt_id": "eaglei-2019-42547885-20190130t120000-20190130t180000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547885",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:16:43Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "7c4c07317e5b72208f2386a585c1a051c548c16ac0f29f0ee740760a37ffeae4",
+      "filtered_sha256": "dd93c66715b3d1a6f96e442ec1a608522b11b62693f33e8e78da15c0a9d2ed69",
+      "bytes": 1224,
+      "etag": "\"4e1b9e1ec0f0ce4a0f2fe34c5540e459-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC.",
+      "filters": "Minnesota; FIPS 27053; UTC [2019-01-30T12:00:00Z,2019-01-30T18:00:00Z).",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Annual slice has no customer denominator."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2019-01-27-arctic-27053-20190130t1200z",
+      "county_fips": "27053",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2019-01-27-arctic-replay",
+      "window_start_utc": "2019-01-30T12:00:00Z",
+      "window_end_utc": "2019-01-30T18:00:00Z",
+      "disposition": "accepted",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2019",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000"
+      ],
+      "source_evidence_status": "available",
+      "source_row_keys": [
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 12:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 12:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 12:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 12:45:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 13:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 13:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 13:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 13:45:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 14:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 14:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 14:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 14:45:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 15:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 15:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 15:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 15:45:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 16:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 16:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 16:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 16:45:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 17:00:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 17:15:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 17:30:00",
+        "eaglei-2019-42547885-20190130t120000-20190130t180000:27053|2019-01-30 17:45:00"
+      ],
+      "source_slices": [
+        {
+          "receipt_id": "eaglei-2019-42547885-20190130t120000-20190130t180000",
+          "county_fips": "27053",
+          "start_utc": "2019-01-30T12:00:00Z",
+          "end_utc": "2019-01-30T18:00:00Z"
+        }
+      ],
+      "weather": {
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2019"
+        ],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": {
+          "source_event_ids": [
+            "800140"
+          ],
+          "source_window": {
+            "start_utc": "2019-01-29T20:00:00Z",
+            "end_utc": "2019-01-31T12:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "CZ_FIPS:060",
+          "limitations": "NWS zone report; it is not a county time series."
+        },
+        "notes": "The source interval intersects the canonical county window."
+      },
+      "outage": {
+        "coverage": "covered",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2019-42547885-20190130t120000-20190130t180000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 24,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Complete exact 15-minute timestamp set; explicit source values range from 1 to 928 customers out."
+      },
+      "matched_coverage_decision": "matched",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

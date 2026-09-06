@@ -1,0 +1,111 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "cold-snap",
+  "event": {
+    "event_id": "mn-2022-12-21-arctic",
+    "parent_system_id": "upper_midwest_2022-12-21_arctic_cyclone",
+    "primary_hazard": "extreme_cold",
+    "secondary_hazards": [
+      "blizzard",
+      "heavy_snow"
+    ],
+    "compound": true,
+    "source_event_ids": ["1064361"],
+    "context_window": {
+      "start_utc": "2022-12-19T00:00:00Z",
+      "end_utc": "2022-12-28T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-12-21T00:00:00Z",
+      "end_utc": "2022-12-26T00:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-12-26T00:00:00Z",
+      "end_utc": "2022-12-28T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI Storm Events episode 175466, event 1064361, is an independent cold candidate pending matched weather/outage evidence.",
+    "exclusions": [],
+    "uncertainties": [
+      "EAGLE-I and canonical county/zone weather coverage have not been collected for this candidate; it cannot be accepted."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2022",
+      "provider": "NOAA NCEI",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "c20260625",
+      "retrieved_at_utc": "2026-09-06T07:10:48Z",
+      "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
+      "raw_sha256": null,
+      "filtered_sha256": null,
+      "bytes": null,
+      "etag": null,
+      "units": "Storm Events local begin/end times and event classifications.",
+      "timezone_conversion": "Local-to-UTC receipt verification is still required for final acceptance.",
+      "filters": "MINNESOTA; EPISODE_ID=175466; EVENT_ID=1064361; EVENT_TYPE=Extreme Cold/Wind Chill.",
+      "grid_index_mapping": "County FIPS resolved against Census TIGER/Line 2024 county vintage; no gridded index used.",
+      "gaps": [
+        "Raw binary hash and bytes not retained."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2022-12-21-arctic-27053-20221223t120000z",
+      "county_fips": "27053",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2022-12-21-arctic-replay",
+      "window_start_utc": "2022-12-23T12:00:00Z",
+      "window_end_utc": "2022-12-23T18:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2022"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Candidate discovery only; county/zone weather evidence has not been matched to this canonical window."
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "EAGLE-I coverage not collected; no zero-outage inference."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}
