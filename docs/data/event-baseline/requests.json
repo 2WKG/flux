@@ -2,30 +2,30 @@
   "receipt": {
     "capture_method": "generated",
     "generator": "event_baseline_requests.py",
-    "generator_commit": "3e48a8c8847568d3935310bba2e0881b1dc6bad9",
+    "generator_commit": "3d40a1f4f368c2686ce953002b2da25691c1ea3b",
     "generator_path": "scripts/data/event_baseline_requests.py",
     "generator_sha256": "6bc2523a94d0b236c89283e7a1cac4c5a23314303300f748b8a9402068d09bba",
     "input_bundle_count": 40,
     "input_bundles": [
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2018-01-01-arctic.json",
-        "sha256": "419ffeee1b400cbcd6d2f0e5305ed3ffd9d82b43c9c4dd3876a2338329e523e1"
+        "sha256": "cef837663c6b11d2fbd25fbf6124db4a718ad46344a725bf77b620e7d6bf0807"
       },
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2019-01-27-arctic.json",
-        "sha256": "dfb69019e2084af9ff69c21a12f9d6c39fd2799761eba0f73c407c87d8e91b28"
+        "sha256": "11c13f12c49f10fed686bd797537b9e45896fabf9792d94a25bc1283600b7e98"
       },
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2020-02-12-arctic.json",
-        "sha256": "2b9377d6706c3d09b81811162f3b630ad1fdec9e28e27af6d34a6c131e571bdd"
+        "sha256": "e055d3925b8bf80a057e07a6b38f42759ac31f8a88957b012bc00e09b90292b5"
       },
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2022-01-25-cold.json",
-        "sha256": "457f52f0fb55e25c7c9d0f0558798d7fac7152dddaa4fdfebd9306ec630efa40"
+        "sha256": "8ddec5c0568094b182bfbed2b6c17890019d7704607a10af247a35490c5d2ca8"
       },
       {
         "path": "docs/data/event-baseline/events/cold-snap/mn-2022-12-21-arctic.json",
-        "sha256": "4c53dd370908ccf36ada72a7e9fc20cd272e7d169ee5984cc4fd8279835dcf20"
+        "sha256": "1e1b63d3890cbddcbe135e810a0d93b7235ff76fda6f1ff25a2e108a7d4aa5a9"
       },
       {
         "path": "docs/data/event-baseline/events/controls/calendar-control-mn-2021-autumn-01.json",
@@ -93,27 +93,27 @@
       },
       {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2019-04-10-ice.json",
-        "sha256": "63b56e6aa669c5831690b9c24d64437ddc24cb629a0a2e8d0a847e61956257a5"
+        "sha256": "08831feefdc179cb8635b401ac43f6c41d5ae2893bf6f17eaa6fcf744f7d98f4"
       },
       {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2020-11-10-ice.json",
-        "sha256": "9781841133682466f5fa0d196b69859d5a1623baf4737daf4ca6099dc76f0d01"
+        "sha256": "39898cf478a7131b885822285cbdb4fe0f1f2a36364a66b2ac2df7aa03ccefdb"
       },
       {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2022-11-10-ice.json",
-        "sha256": "0fb74dba9d0e4336ee6e98befbd02b00356f12e37b1123170a43212ac48e1bda"
+        "sha256": "1fcc6ab6603e583a8ca12ecb8a7059cecdcfb321389ff86a9c559f7929ee8dfc"
       },
       {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-2022-12-12-ice.json",
-        "sha256": "7506e6ca3983739b5be05e63a70d0c5aa85d66d5c283bfb8fad18cd4e6b84152"
+        "sha256": "cd43eff0549fb232673a16642a6d0a0fea86e3d75a523a4f0e355fc61949df0b"
       },
       {
         "path": "docs/data/event-baseline/events/ice-freezing-rain/mn-wi-2022-03-29-ice.json",
-        "sha256": "c7792c643921988822b835e5d9b377b87e843539d1d3ebf1146e854cba9367d3"
+        "sha256": "272c7308b72a552e1bcc2b860acf0d3211108b4f26f2a390cbc1cfabaab12a1c"
       },
       {
         "path": "docs/data/event-baseline/events/nontropical-wind/il-2022-04-14-high-wind.json",
-        "sha256": "982b96ec28a7aa583b63deac4e0df14588d28c9bb7cc65e0dd0ca3a298bf278a"
+        "sha256": "b5b6740385d72a0e828174730c54f5b81ced418aea9086d592815d53a1c428b2"
       },
       {
         "path": "docs/data/event-baseline/events/nontropical-wind/mn-2022-04-06-gradient-wind.json",

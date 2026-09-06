@@ -1,1 +1,0 @@
-split,group_key,event_id,parent_system_id,record_id,county_fips,scenario_id,window_start_utc,window_end_utc,primary_hazard,region,season,mode,label_status,control_weight,source_row_keys

@@ -202,6 +202,17 @@ def test_empty_accepted_set_cannot_freeze_split_manifests() -> None:
         splitter.require_accepted_rows([])
 
 
+def test_an_empty_accepted_set_is_reported_not_passed() -> None:
+    """`main()` reports rather than aborts, so the refusal must survive audit()."""
+    report = splitter.audit([])
+
+    assert report["status"] == "insufficient_corpus"
+    assert report["rows"] == 0
+    reasons = " ".join(report["insufficient_corpus_reasons"])
+    assert "0 < the declared minimum" in reasons
+    assert "the train split is empty" in reasons
+
+
 def test_control_plan_records_unweighted_limited_frame(tmp_path: Path) -> None:
     plan = tmp_path / "preselection-plan.yaml"
     plan.write_text("plan_id: controls-v1\nweights:\n  status: explicitly_unweighted\n")
@@ -416,3 +427,30 @@ def test_load_bundles_finds_a_deeply_nested_bundle(tmp_path: Path) -> None:
 
     with pytest.raises(splitter.AuditError, match="contract validation failed"):
         splitter.load_bundles(tmp_path)
+
+
+def test_acceptance_refuses_a_window_off_the_six_hour_grid() -> None:
+    """A 15Z or 09Z start is not a contract window; the assembler says so itself."""
+    candidate = _accepted_record(
+        row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")
+    )
+    candidate["record"]["window_start_utc"] = "2021-01-01T15:00:00Z"
+    candidate["record"]["window_end_utc"] = "2021-01-01T21:00:00Z"
+
+    with pytest.raises(splitter.AuditError, match="off the 00/06/12/18Z grid"):
+        splitter.accepts(
+            {"event": candidate["event"], "records": [candidate["record"]]}
+        )
+
+
+def test_acceptance_refuses_a_window_that_is_not_six_hours() -> None:
+    candidate = _accepted_record(
+        row("wind-a", "storm-a", "eaglei:27053:2021-01-01T00:00:00Z")
+    )
+    candidate["record"]["window_start_utc"] = "2021-01-01T00:00:00Z"
+    candidate["record"]["window_end_utc"] = "2021-01-01T09:00:00Z"
+
+    with pytest.raises(splitter.AuditError, match="not a six-hour grid window"):
+        splitter.accepts(
+            {"event": candidate["event"], "records": [candidate["record"]]}
+        )

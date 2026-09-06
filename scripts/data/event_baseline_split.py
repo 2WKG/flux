@@ -16,7 +16,7 @@ import json
 import re
 import subprocess
 from collections import Counter, defaultdict
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -131,6 +131,27 @@ def accepts(bundle: dict[str, Any]) -> list[dict[str, Any]]:
         ):
             raise AuditError(
                 f"{event['event_id']}/{record['record_id']}: available denominator must use the versioned five-percent label"
+            )
+        window_start = utc(record["window_start_utc"])
+        window_end = utc(record["window_end_utc"])
+        # The contract's six-hour label grid: 00/06/12/18Z starts, six-hour
+        # windows.  The assembler asserts this itself rather than trusting that
+        # whatever produced the bundle already did.
+        if (
+            window_start.hour not in (0, 6, 12, 18)
+            or window_start.minute
+            or window_start.second
+            or window_start.microsecond
+        ):
+            raise AuditError(
+                f"{event['event_id']}/{record['record_id']}: accepted window start "
+                f"{record['window_start_utc']} is off the 00/06/12/18Z grid"
+            )
+        if (window_end - window_start) != timedelta(hours=6):
+            raise AuditError(
+                f"{event['event_id']}/{record['record_id']}: accepted window "
+                f"{record['window_start_utc']}..{record['window_end_utc']} is not "
+                "a six-hour grid window"
             )
         if record["outage"].get("evidence_kind") != "time_series_or_grid":
             raise AuditError(
@@ -277,6 +298,12 @@ def manifest_rows(rows: list[dict[str, Any]]) -> list[dict[str, str]]:
 
 
 def require_accepted_rows(rows: list[dict[str, Any]]) -> None:
+    """Kept as the in-process guard for callers that want a hard stop.
+
+    `main()` deliberately does not use it: an empty accepted set is reported as
+    `insufficient_corpus` with reasons and a non-zero exit, so the state stays
+    inspectable instead of vanishing behind an abort.
+    """
     if not rows:
         raise AuditError(
             "no accepted county-window records; no split manifests can be frozen"
@@ -514,7 +541,6 @@ def main(argv: list[str] | None = None) -> int:
     try:
         bundles, inputs = load_bundles(args.events_dir)
         rows = [row for bundle in bundles for row in accepts(bundle)]
-        require_accepted_rows(rows)
         manifest = manifest_rows(rows)
         report = audit(manifest)
         report["receipt"] = generation_receipt(args.events_dir, inputs)
