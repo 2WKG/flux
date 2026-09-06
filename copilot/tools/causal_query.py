@@ -20,8 +20,13 @@ from pydantic import ValidationError
 from causal.validation import ValidationResult, validate_artifact
 from copilot.tools.schemas import (
     ArtifactRef,
+    CausalCitation,
     CausalData,
+    CausalDiagnostic,
     CausalQueryInput,
+    CausalQuestion,
+    CausalSample,
+    CausalSource,
     UnavailableOutput,
     unavailable_output,
 )
@@ -51,13 +56,13 @@ class RegisteredCausalArtifact:
 
 @dataclass(frozen=True)
 class CausalEvidence:
-    """Typed evidence payload awaiting the shared CausalData contract join."""
+    """The explicit evidence fields carried by an available causal response."""
 
-    question: Mapping[str, Any]
-    sources: tuple[Mapping[str, Any], ...]
-    sample: Mapping[str, Any]
-    diagnostics: tuple[Mapping[str, Any], ...]
-    citations: tuple[Mapping[str, Any], ...]
+    question: CausalQuestion
+    sources: tuple[CausalSource, ...]
+    sample: CausalSample
+    diagnostics: tuple[CausalDiagnostic, ...]
+    citations: tuple[CausalCitation, ...]
 
 
 class CausalArtifactReader:
@@ -168,29 +173,31 @@ def _unavailable_for_validation(validation: ValidationResult) -> UnavailableOutp
 
 
 def evidence_from_artifact(artifact: Mapping[str, Any]) -> CausalEvidence:
-    """Extract the fields that the shared typed response will expose."""
+    """Extract the validated evidence fields into the public typed contract."""
 
     return CausalEvidence(
-        question=_mapping(artifact["question"]),
-        sources=tuple(_mapping(item) for item in artifact["sources"]),
-        sample=_mapping(artifact["sample"]),
-        diagnostics=tuple(_mapping(item) for item in artifact["diagnostics"]),
-        citations=tuple(_mapping(item) for item in artifact["citations"]),
+        question=CausalQuestion.model_validate(artifact["question"]),
+        sources=tuple(
+            CausalSource.model_validate(item) for item in artifact["sources"]
+        ),
+        sample=CausalSample.model_validate(artifact["sample"]),
+        diagnostics=tuple(
+            CausalDiagnostic.model_validate(item) for item in artifact["diagnostics"]
+        ),
+        citations=tuple(
+            CausalCitation.model_validate(item) for item in artifact["citations"]
+        ),
     )
 
 
 def _available_response(
     artifact: Mapping[str, Any], registration: RegisteredCausalArtifact
 ) -> CausalData:
-    """Map the estimate into the current response while schemas are integrating.
-
-    ``evidence_from_artifact`` retains the typed payload.  The 130 schema join
-    will place that payload in top-level CausalData fields instead of encoding
-    it in free-form evidence rows.
-    """
+    """Map a validated estimate and its required evidence into the response."""
 
     estimate = _mapping(artifact.get("estimate"))
     interval = _mapping(estimate.get("interval"))
+    evidence = evidence_from_artifact(artifact)
     artifact_ref = ArtifactRef(
         artifact_id=_required_text(artifact, "artifact_id"),
         artifact_version=_required_text(artifact, "artifact_version"),
@@ -208,6 +215,11 @@ def _available_response(
             _required_number(interval, "upper"),
         ],
         evidence_rows=[],
+        question=evidence.question,
+        sources=list(evidence.sources),
+        sample=evidence.sample,
+        diagnostics=list(evidence.diagnostics),
+        citations=list(evidence.citations),
     )
 
 
