@@ -42,7 +42,14 @@ class _Provider:
 
 def test_dispatcher_validates_and_executes_a_provider_selected_real_handler() -> None:
     calls: list[tuple[str, object]] = []
-    results, text = asyncio.run(ToolDispatcher(_handlers(calls)).run(_Provider(), question="lines", history=(), context={"scenario_id": "uri_2021"}))
+    results, text = asyncio.run(
+        ToolDispatcher(_handlers(calls)).run(
+            _Provider(),
+            question="lines",
+            history=(),
+            context={"scenario_id": "uri_2021"},
+        )
+    )
     assert text == "Grounded answer."
     assert results[0].name == "top_lines"
     assert calls == [("TopLinesInput", "uri_2021")]
@@ -51,10 +58,16 @@ def test_dispatcher_validates_and_executes_a_provider_selected_real_handler() ->
 def test_dispatcher_fails_closed_on_invalid_provider_arguments() -> None:
     class BadProvider:
         async def next_action(self, **kwargs):
-            return ToolCall("call-1", "top_lines", {"region": "ERCOT", "tech": "bad", "n": 1})
+            return ToolCall(
+                "call-1", "top_lines", {"region": "ERCOT", "tech": "bad", "n": 1}
+            )
 
     with pytest.raises(ValueError, match="invalid arguments"):
-        asyncio.run(ToolDispatcher(_handlers([])).run(BadProvider(), question="x", history=(), context={}))
+        asyncio.run(
+            ToolDispatcher(_handlers([])).run(
+                BadProvider(), question="x", history=(), context={}
+            )
+        )
 
 
 class _InteractiveService:

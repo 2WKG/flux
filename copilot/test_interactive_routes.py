@@ -140,7 +140,8 @@ def test_missing_core_is_an_explicit_unavailable_error(monkeypatch) -> None:
 
     sys.modules["twin.build"].build_network = unavailable
     response = client.post(
-        "/cascade", json={"element_ids": ["line:7"], "scenario_id": "interactive", "hour": 0}
+        "/cascade",
+        json={"element_ids": ["line:7"], "scenario_id": "interactive", "hour": 0},
     )
     assert response.status_code == 503
     assert response.json()["error"]["code"] == "unavailable"

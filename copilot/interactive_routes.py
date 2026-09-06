@@ -73,9 +73,7 @@ class InteractiveService:
         self._edits: dict[str, _Edit] = {}
 
     async def scenario_edit(self, payload: ScenarioEditRequest) -> dict[str, object]:
-        _require_static_context(
-            payload.base_scenario_id, payload.hour, payload.seed
-        )
+        _require_static_context(payload.base_scenario_id, payload.hour, payload.seed)
         result = await _in_thread(_scenario_edit, payload, duckdb_path=self.duckdb_path)
         self._edits[str(result["data"]["edit_hash"])] = _Edit(
             payload.base_scenario_id,
@@ -227,9 +225,7 @@ def _require_static_context(scenario_id: str, hour: int, seed: int) -> None:
         )
 
 
-def _require_edit_context(
-    edit: _Edit, scenario_id: str, hour: int, seed: int
-) -> None:
+def _require_edit_context(edit: _Edit, scenario_id: str, hour: int, seed: int) -> None:
     if (edit.scenario_id, edit.hour, edit.seed) != (scenario_id, hour, seed):
         raise InvalidInputError(
             "Request context does not match the immutable edit hash."

@@ -43,7 +43,10 @@ class Settings(BaseSettings):
     """Runtime settings kept separate from route and provider implementations."""
 
     model_config = SettingsConfigDict(
-        env_file=".env", extra="ignore", hide_input_in_errors=True, populate_by_name=True
+        env_file=".env",
+        extra="ignore",
+        hide_input_in_errors=True,
+        populate_by_name=True,
     )
 
     duckdb_path: Path = Field(default=Path("data/duck/grid.duckdb"))
