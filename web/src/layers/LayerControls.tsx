@@ -45,7 +45,12 @@ export interface LayerControlsProps {
   readonly heading?: string;
 }
 
-/** The IA's user-visible copy, `docs/design/minnesota-demo-narrative-ia.md` truth-label table. */
+/**
+ * The IA's user-visible copy, `docs/design/minnesota-demo-narrative-ia.md:224-231`, quoted
+ * exactly. `src/source-truth.ts`'s `STATUS_COPY` currently carries the unhyphenated
+ * variants ("Source supported"); unifying the two display maps is a call for the owner of
+ * that module, and this panel must not repeat copy the IA table does not use.
+ */
 const statusCopy: Record<SourceStatus, string> = {
   source_supported: "Source-supported",
   source_screened: "Source-screened",
