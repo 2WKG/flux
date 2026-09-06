@@ -249,6 +249,77 @@ def acquire_exhaustive(
     return receipt
 
 
+def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, Any]]:
+    """Scan each cached annual CSV once and dispatch rows to requested windows."""
+    requests_data = json.loads(requests_path.read_text(encoding="utf-8"))
+    if not isinstance(requests_data, list):
+        raise EagleiError("requests JSON must be a list")
+    grouped: dict[int, list[dict[str, Any]]] = {}
+    for request in requests_data:
+        request["start"] = parse_source_time(
+            request["start"].replace("T", "").removesuffix("Z")
+        )
+        request["end"] = parse_source_time(
+            request["end"].replace("T", "").removesuffix("Z")
+        )
+        request["fips"] = {str(code).zfill(5) for code in request["fips"]}
+        request["states"] = set(request["states"])
+        request["rows"] = []
+        grouped.setdefault(int(request["year"]), []).append(request)
+    results = []
+    for year, group in grouped.items():
+        raw_path = cache_dir / "annual-source" / f"eaglei_outages_{year}.csv"
+        if not raw_path.exists():
+            raise EagleiError(f"missing completed annual source: {raw_path}")
+        with raw_path.open(encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            for row in reader:
+                ts = parse_source_time(row["run_start_time"])
+                for request in group:
+                    if (
+                        row["state"] in request["states"]
+                        and row["fips_code"] in request["fips"]
+                        and request["start"] <= ts < request["end"]
+                    ):
+                        request["rows"].append(row)
+        for request in group:
+            expected = {
+                request["start"] + timedelta(minutes=15 * index)
+                for index in range(
+                    int((request["end"] - request["start"]).total_seconds() // 900)
+                )
+            }
+            observed = {
+                code: {
+                    parse_source_time(row["run_start_time"])
+                    for row in request["rows"]
+                    if row["fips_code"] == code
+                }
+                for code in request["fips"]
+            }
+            results.append(
+                {
+                    "event_id": request["event_id"],
+                    "year": year,
+                    "rows": len(request["rows"]),
+                    "coverage_by_county": {
+                        code: {
+                            "observed_intervals": len(times),
+                            "expected_intervals_at_15_min": len(expected),
+                            "missing_intervals": len(expected - times),
+                            "coverage_state": "complete_15_min_observation"
+                            if times == expected
+                            else "partial_15_min_observation"
+                            if times
+                            else "UncoveredLabel",
+                        }
+                        for code, times in sorted(observed.items())
+                    },
+                }
+            )
+    return results
+
+
 def probe_at(
     session: requests.Session,
     url: str,
@@ -528,22 +599,25 @@ def acquire(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--year", type=int, required=True)
+    parser.add_argument("--year", type=int)
+    parser.add_argument(
+        "--requests-json",
+        type=Path,
+        help="batch request list; scans each cached annual source once",
+    )
     parser.add_argument(
         "--event-id",
         help="stable caller event identifier; used only in cache artifact names and receipt",
     )
     parser.add_argument(
         "--start-source-clock",
-        required=True,
+        required=False,
         help="UTC YYYY-MM-DDTHH:MM:SS; EAGLE-I documents run_start_time as UTC",
     )
-    parser.add_argument(
-        "--end-source-clock", required=True, help="exclusive UTC YYYY-MM-DDTHH:MM:SS"
-    )
+    parser.add_argument("--end-source-clock", help="exclusive UTC YYYY-MM-DDTHH:MM:SS")
     parser.add_argument(
         "--states",
-        required=True,
+        required=False,
         help="comma-separated EAGLE-I state names, e.g. Minnesota,Wisconsin",
     )
     parser.add_argument(
@@ -553,6 +627,21 @@ def main() -> None:
     )
     parser.add_argument("--cache-dir", type=Path, required=True)
     args = parser.parse_args()
+    if args.requests_json:
+        print(
+            json.dumps(
+                batch_scan_requests(args.requests_json, args.cache_dir),
+                indent=2,
+                sort_keys=True,
+            )
+        )
+        return
+    if not all(
+        (args.year, args.start_source_clock, args.end_source_clock, args.states)
+    ):
+        parser.error(
+            "--year, --start-source-clock, --end-source-clock, and --states are required without --requests-json"
+        )
     receipt = acquire(
         event_id=args.event_id,
         year=args.year,
