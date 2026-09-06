@@ -70,6 +70,7 @@ def _asset_pack(root: Path) -> Path:
     )
     return pack
 
+
 #: The geography ``persisted_read_route_database`` files its rows under.
 REGION = "mn"
 SITE_ID = 1

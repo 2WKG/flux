@@ -20,11 +20,21 @@ def _pack(root: Path) -> tuple[Path, bytes]:
     (root / "line" / "line.glb").write_bytes(model)
     (root / "symbols" / "atlas.png").write_bytes(b"png")
     (root / "symbols" / "mapping.json").write_text("{}", encoding="utf-8")
-    resource = {"path": "line/line.glb", "sha256": digest, "bytes": len(model), "triangles": 1}
+    resource = {
+        "path": "line/line.glb",
+        "sha256": digest,
+        "bytes": len(model),
+        "triangles": 1,
+    }
     manifest = {
         "schema_version": 1,
         "contract_id": "flux:3d-asset-archetypes:v1",
-        "assets": [{"archetype_id": "transmission_line_segment", "lods": {"lod0": resource, "lod1": resource, "lod2": resource}}],
+        "assets": [
+            {
+                "archetype_id": "transmission_line_segment",
+                "lods": {"lod0": resource, "lod1": resource, "lod2": resource},
+            }
+        ],
         "symbols": {
             "atlas": {"path": "symbols/atlas.png", "sha256": "a" * 64, "bytes": 3},
             "mapping": {"path": "symbols/mapping.json", "sha256": "b" * 64, "bytes": 2},
@@ -38,7 +48,9 @@ def _client(pack: Path) -> TestClient:
     return TestClient(create_app(Settings(asset_pack_root=pack, _env_file=None)))
 
 
-def test_registered_manifest_and_glb_are_served_as_real_http_bytes(tmp_path: Path) -> None:
+def test_registered_manifest_and_glb_are_served_as_real_http_bytes(
+    tmp_path: Path,
+) -> None:
     pack, model = _pack(tmp_path / "pack")
     client = _client(pack)
 
@@ -69,7 +81,9 @@ def test_only_manifest_registered_safe_paths_are_served(tmp_path: Path) -> None:
     assert traversal.json()["error"]["code"] == "not_found"
 
 
-def test_missing_or_unpublished_pack_is_a_named_unavailable_state(tmp_path: Path) -> None:
+def test_missing_or_unpublished_pack_is_a_named_unavailable_state(
+    tmp_path: Path,
+) -> None:
     response = _client(tmp_path / "missing").get("/assets/flux-grid/manifest.json")
 
     assert response.status_code == 503
@@ -79,16 +93,27 @@ def test_missing_or_unpublished_pack_is_a_named_unavailable_state(tmp_path: Path
 
 def test_placement_projection_uses_source_geometry_and_declared_visual_kind() -> None:
     root = Path(__file__).resolve().parents[1] / "data/artifacts/physical_inventory"
-    client = TestClient(create_app(Settings(physical_inventory_root=root, _env_file=None)))
+    client = TestClient(
+        create_app(Settings(physical_inventory_root=root, _env_file=None))
+    )
 
-    response = client.get("/api/v1/grid/asset-placements?state=tx&version=1.1.0&limit=2")
+    response = client.get(
+        "/api/v1/grid/asset-placements?state=tx&version=1.1.0&limit=2"
+    )
 
     assert response.status_code == 200
     body = response.json()
     assert body["placement_contract"] == "flux:3d-asset-placement:v1"
     assert body["items"]
     assert {item["archetype_id"] for item in body["items"]} <= {
-        "transmission_line_segment", "battery_storage"
+        "transmission_line_segment",
+        "battery_storage",
     }
-    assert all(item["coordinate_provenance"] == "physical_inventory_display_geometry" for item in body["items"])
-    assert all(item["status"] in {"source_supported", "source_screened"} for item in body["items"])
+    assert all(
+        item["coordinate_provenance"] == "physical_inventory_display_geometry"
+        for item in body["items"]
+    )
+    assert all(
+        item["status"] in {"source_supported", "source_screened"}
+        for item in body["items"]
+    )

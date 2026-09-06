@@ -69,7 +69,9 @@ def _registered_files(manifest: dict[str, Any]) -> dict[str, str | None]:
         path = _safe_relative(resource.get("path"))
         if path is not None:
             digest = resource.get("sha256")
-            files[path] = digest if isinstance(digest, str) and len(digest) == 64 else None
+            files[path] = (
+                digest if isinstance(digest, str) and len(digest) == 64 else None
+            )
 
     for asset in manifest.get("assets", []):
         if not isinstance(asset, dict):
@@ -191,7 +193,10 @@ def get_asset_placements(
     release = _verified_release(
         request.app.state.settings.physical_inventory_root, state, version
     )
-    if release.get("geography_id") != state or release.get("artifact_version") != version:
+    if (
+        release.get("geography_id") != state
+        or release.get("artifact_version") != version
+    ):
         raise _unavailable("placement_release_identity_mismatch")
     binding = {
         "state": state,
@@ -207,14 +212,18 @@ def get_asset_placements(
             continue
         if viewport is not None:
             try:
-                if not box(*viewport).contains(shape({"type": "Point", "coordinates": placement["position"][:2]})):
+                if not box(*viewport).contains(
+                    shape({"type": "Point", "coordinates": placement["position"][:2]})
+                ):
                     continue
             except Exception as exc:
                 raise _unavailable("placement_geometry_invalid") from exc
         candidates.append(placement)
     page = candidates[offset : offset + limit]
     next_cursor = (
-        _encode_cursor(offset + limit, binding) if offset + limit < len(candidates) else None
+        _encode_cursor(offset + limit, binding)
+        if offset + limit < len(candidates)
+        else None
     )
     return JSONResponse(
         {
@@ -225,7 +234,12 @@ def get_asset_placements(
             "release_sha256": release["content_sha256"],
             "placement_contract": "flux:3d-asset-placement:v1",
             "items": page,
-            "page": {"limit": limit, "cursor": cursor, "next_cursor": next_cursor, "total": len(candidates)},
+            "page": {
+                "limit": limit,
+                "cursor": cursor,
+                "next_cursor": next_cursor,
+                "total": len(candidates),
+            },
         },
         headers={"Cache-Control": "no-cache"},
     )
