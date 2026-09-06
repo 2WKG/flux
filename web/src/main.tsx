@@ -15,7 +15,7 @@ import type { FailureStateInput } from "./failure-states/types";
 import { Inspector } from "./inspector/Inspector";
 import type { InspectorAsset } from "./inspector/types";
 import { LayerControls } from "./layers/LayerControls";
-import { descriptorsFor } from "./layers/descriptor-adapter";
+import { descriptorsFor, type EvidenceDisclosure } from "./layers/descriptor-adapter";
 import { buildRegistrySnapshots, LAYER_REGISTRY, type DataStatus } from "./layers/registry";
 import { legendForLayer } from "./layers/legend";
 import { createReadApiClient } from "./data/client-state";
@@ -48,6 +48,39 @@ type Bundle = {
   network: { buses: Bus[]; lines: Line[]; candidates: Candidate[] };
   scenarios: Record<Id, Scenario>;
 };
+
+function evidenceDisclosure(page: SpatialPage | undefined): EvidenceDisclosure | undefined {
+  const item = page?.items[0];
+  if (page === undefined || item === undefined) return undefined;
+  const coverage = page.coverage[0];
+  const coverageText = coverage === undefined
+    ? `${page.page.total} published ${page.layer} records`
+    : `${coverage.scope}: observed ${coverage.observed ?? "not reported"} of ${coverage.denominator ?? "not reported"}; unavailable ${coverage.unavailable ?? "not reported"}`;
+  return {
+    evidenceClass: "observed",
+    evidence: {
+      source: item.provenance.authority,
+      vintage: item.provenance.source_version,
+      coverage: coverageText,
+      transformation: item.transform_provenance
+        ? `${item.transform_provenance.method}: ${item.transform_provenance.source_crs} → ${item.transform_provenance.display_crs}`
+        : "Server-provided EPSG:4326 display geometry",
+      uncertainty: item.geometry_accuracy_basis ?? coverage?.reason ?? "The release supplied no additional uncertainty note.",
+      syntheticTopologyCaveat: `${page.inventory_mode}; electrical model mode: ${page.electrical_model_mode}.`,
+    },
+  };
+}
+
+function evidenceDisclosuresForGridLoad(load: GridLoad): Readonly<Record<string, EvidenceDisclosure | undefined>> {
+  if (load.kind !== "loaded") return {};
+  const pages = new Map(load.pages.map((page) => [page.layer, page]));
+  const line = evidenceDisclosure(pages.get("line"));
+  return {
+    topology: line,
+    facilities: evidenceDisclosure(pages.get("generation") ?? pages.get("substation") ?? pages.get("storage")),
+    provenance: line,
+  };
+}
 
 const data = fixture as unknown as Bundle;
 const ORDER: Id[] = ["baseline", "a", "b"];
@@ -399,11 +432,11 @@ export function App() {
   // read route is bound -- but it is a real answer to a real request.
   useEffect(() => {
     const controller = new AbortController();
-    loadRegistryDataStatuses(READ_CLIENT, { signal: controller.signal })
+    loadRegistryDataStatuses(READ_CLIENT, { signal: controller.signal, state: gridState })
       .then((statuses) => setDataStatuses(statuses))
       .catch(() => undefined);
     return () => controller.abort();
-  }, []);
+  }, [gridState]);
 
   // The inspector reads the scenario the shell has selected.
   useEffect(() => {
@@ -456,9 +489,10 @@ export function App() {
   const layerSnapshots = useMemo(() => buildRegistrySnapshots(dataStatuses), [dataStatuses]);
   // No producer supplies an evidence disclosure yet, so every layer that would
   // need one is refused by name rather than given a default evidence class.
+  const evidenceDisclosures = useMemo(() => evidenceDisclosuresForGridLoad(gridLoad), [gridLoad]);
   const { layers: layerDescriptors, refusals: layerRefusals } = useMemo(
-    () => descriptorsFor(LAYER_REGISTRY, layerSnapshots),
-    [layerSnapshots],
+    () => descriptorsFor(LAYER_REGISTRY, layerSnapshots, evidenceDisclosures),
+    [layerSnapshots, evidenceDisclosures],
   );
   const layerLegends = useMemo(() => layerSnapshots.map(legendForLayer), [layerSnapshots]);
   const controlRoomProps: ControlRoomProps = {

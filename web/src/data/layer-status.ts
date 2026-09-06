@@ -14,8 +14,8 @@
  * reason too. Nothing here reports `available` on the browser's own authority.
  */
 
-import { adaptLayerToScene } from "../scene/minnesota-adapter";
 import { createReadApiClient, type ClientState, type ReadApiClient } from "./client-state";
+import { loadGridLayer, type GridState } from "./grid-client";
 import { LAYER_REGISTRY, unreportedLayerReason, type DataStatus, type LayerDefinition } from "../layers/registry";
 
 /**
@@ -24,14 +24,13 @@ import { LAYER_REGISTRY, unreportedLayerReason, type DataStatus, type LayerDefin
  * only built layer today, so five of the six have no binding at all and say so.
  */
 export const SERVER_LAYER_NAMES: Readonly<Record<string, string | undefined>> = {
-  topology: "buses",
+  topology: "line",
+  facilities: "generation",
+  provenance: "line",
 };
 
-const isCollection = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
 function unboundReason(definition: LayerDefinition): string {
-  return `No server layer is bound to the ${definition.label} layer; there is no read route that could report it.`;
+  return `No published physical-inventory artifact is available for the ${definition.label} layer in this release.`;
 }
 
 /** Turn one non-ready client state into the layer's data status. */
@@ -56,32 +55,23 @@ export function dataStatusForFailure(state: Exclude<ClientState<unknown>, { kind
 export async function loadLayerDataStatus(
   definition: LayerDefinition,
   client: ReadApiClient = createReadApiClient(),
-  options: { signal?: AbortSignal } = {},
+  options: { signal?: AbortSignal; state?: GridState } = {},
 ): Promise<DataStatus> {
   const name = SERVER_LAYER_NAMES[definition.id];
   if (name === undefined) return { kind: "unavailable", reason: unboundReason(definition) };
-  const state = await client.get(
-    `/layers/${encodeURIComponent(name)}`,
-    isCollection,
-    () => false,
-    options.signal ? { signal: options.signal } : {},
+  const outcome = await loadGridLayer(
+    { state: options.state ?? "mn", layer: name, maxPages: 1, signal: options.signal },
+    client,
   );
-  if (state.kind !== "ready") return dataStatusForFailure(state);
-
-  const adaptation = adaptLayerToScene(state.data);
-  if (adaptation.kind === "rejected") return { kind: "unavailable", reason: adaptation.detail };
-  const label = adaptation.kind === "aggregate_coverage" ? adaptation.allocationStatus : adaptation.placement.statusLabel;
-  // The two terminal tokens are not "available with a terminal status": they are
-  // the absence of data, and they keep their own kind with the server's label as
-  // the reason. Coercing them into the available branch would be the browser
-  // upgrading a refusal into a claim.
-  if (label === "unavailable") {
-    return { kind: "unavailable", reason: `The server labelled the ${definition.label} layer unavailable.` };
+  if (outcome.kind === "refused") {
+    return outcome.status === "unavailable"
+      ? { kind: "unavailable", reason: outcome.message }
+      : { kind: "request_failed", reason: outcome.message, ...(outcome.requestId === undefined ? {} : { requestId: outcome.requestId }) };
   }
-  if (label === "request_failed") {
-    return { kind: "request_failed", reason: `The server labelled the ${definition.label} layer request_failed.` };
-  }
-  return { kind: "available", status: label };
+  const items = outcome.pages.flatMap((page) => page.items);
+  if (items.length === 0) return { kind: "unavailable", reason: `The ${definition.label} read route returned no published records.` };
+  const status = items.every((item) => item.geometry_status === "source") ? "source_supported" : "source_screened";
+  return { kind: "available", status };
 }
 
 /**
@@ -91,7 +81,7 @@ export async function loadLayerDataStatus(
  */
 export async function loadRegistryDataStatuses(
   client: ReadApiClient = createReadApiClient(),
-  options: { signal?: AbortSignal; definitions?: readonly LayerDefinition[] } = {},
+  options: { signal?: AbortSignal; state?: GridState; definitions?: readonly LayerDefinition[] } = {},
 ): Promise<Record<string, DataStatus>> {
   const definitions = options.definitions ?? LAYER_REGISTRY;
   const entries = await Promise.all(definitions.map(async (definition) => {
