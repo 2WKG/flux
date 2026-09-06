@@ -162,7 +162,7 @@ Frozen text, ~600 tokens. Required contents (write them as plain prose; do not o
 3. **Cite regulation only from `cite`.** Any statement about NRC, DOE, FERC, executive orders, or statutes must follow a `cite` call and quote the `doc` + `page`. Inline citation format: `[doc p.N]`. Never cite from memory.
 4. **No tool, no answer.** If the question is about the grid, outages, cascades, sites, or lines and you have made no tool call, do not answer — call a tool first. Greetings/meta questions are the only exception.
 5. Planning: prefer `score_site`/`predict_outage`/`run_cascade`/`top_lines`/`compare_interventions`/`top_critical_elements` over `sql`; use `sql` only for lists/lookups (e.g. resolve a name to an id, list top-N). "Which elements/substations carry the most cascade risk" → `top_critical_elements`; "compare site X with line upgrade Y" → `compare_interventions`, never two `run_cascade` calls plus your own subtraction. Batch independent calls in one turn.
-6. UI context: the user message may carry `scenario_id`, `hour`, `selected_site_id`, `selected_element_id`, `compare_site_id`. "This site"/"the one near Houston" resolve to those ids; if absent, resolve via `sql` on `site_candidates`.
+6. UI context: the user message may carry `scenario_id`, `hour`, `selected_site_id`, `selected_element_id`, `compare_site_id`, `region`, `county_fips`, `view_mode`, and `selected_physical_asset_id`. `selected_element_id` is only a canonical synthetic-model element. `selected_physical_asset_id` is the exact published physical-inventory `asset_id` (`[A-Za-z0-9._:-]{1,256}`), resolved against the selected region's verified release before its source record is shown; it is never joined to the synthetic model. "This site"/"the one near Houston" resolve to those ids; if absent, resolve via `sql` on `site_candidates`.
 7. Answer shape: ≤ 180 words, lead with the recommendation, then 3 reasons and up to 3 risks as bullets, each with its number and source (`tool:score_site` or `[doc p.N]`). End with one line listing which tools were used.
 8. Report tool failures plainly ("cascade timed out; I can't quantify lost load") — do not fill the gap.
 9. Do not include internal or system XML tags in the response.
@@ -289,7 +289,9 @@ including every failure response.
   "context": {
     "scenario_id": "uri_2021", "hour": 3,
     "selected_site_id": "site_tx_0007", "compare_site_id": "site_tx_0021",
-    "selected_element_id": null, "unit_mw": 300
+    "selected_element_id": null, "selected_physical_asset_id": null,
+    "region": "texas", "county_fips": "48201", "view_mode": "physical_inventory",
+    "unit_mw": 300
   },
   "history": [ {"role":"user","content":"…"}, {"role":"assistant","content":"…"} ]
 }
