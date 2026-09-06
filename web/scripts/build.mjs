@@ -9,10 +9,13 @@ const webRoot = path.dirname(fileURLToPath(new URL("../package.json", import.met
 // probe entry into a scratch directory without touching src/ or dist/.
 const entry = process.env.FLUX_WEB_ENTRY ? path.resolve(process.env.FLUX_WEB_ENTRY) : path.join(webRoot, "src", "main.tsx");
 const dist = process.env.FLUX_WEB_DIST ? path.resolve(process.env.FLUX_WEB_DIST) : path.join(webRoot, "dist");
+// FLUX_WEB_HTML picks the page copied in as dist/index.html, so a harness entry can ship
+// its own page instead of silently borrowing the app's and its stylesheet link.
+const html = process.env.FLUX_WEB_HTML ? path.resolve(process.env.FLUX_WEB_HTML) : path.join(webRoot, "index.html");
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "assets"), { recursive: true });
-await cp(path.join(webRoot, "index.html"), path.join(dist, "index.html"));
+await cp(html, path.join(dist, "index.html"));
 
 const result = await build({
   entryPoints: [entry],
