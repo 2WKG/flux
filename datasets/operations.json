@@ -13,6 +13,47 @@
     "freshness_sla_hours": "Age past which the source is stale and must not back a displayed number. null = static source, cannot go stale.",
     "backfill": "safe = re-running any prior window is idempotent. bounded = only the stated window is re-fetchable. none = publisher serves current state only; history is whatever we already captured."
   },
+  "curated_source_mappings": [
+    {
+      "source_name": "activsg2000",
+      "operation_ids": ["activsg2000"]
+    },
+    {
+      "source_name": "census_tiger_county+fema_nri",
+      "operation_ids": ["census-tiger-counties", "fema-nri"],
+      "reconciliation_operation_ids": ["census-tiger-counties"]
+    },
+    {
+      "source_name": "fema_nri",
+      "operation_ids": ["fema-nri"]
+    },
+    {
+      "source_name": "pudl_eia860",
+      "operation_ids": ["pudl-eia860-plants"]
+    },
+    {
+      "source_name": "eia930",
+      "operation_ids": ["eia-930"]
+    },
+    {
+      "source_name": "eaglei",
+      "source_version": "2021",
+      "operation_ids": ["eaglei-2021"]
+    },
+    {
+      "source_name": "eaglei",
+      "source_version": "2024",
+      "operation_ids": ["eaglei-2024"]
+    },
+    {
+      "source_name": "noaa_storm_events",
+      "operation_ids": ["noaa-storm-events"]
+    },
+    {
+      "source_name": "ntad_military_bases",
+      "operation_ids": ["dod-bases-tx"]
+    }
+  ],
   "sources": [
     {
       "id": "activsg2000", "owner": "unassigned", "grain": "one bus / branch / generator row",
@@ -44,6 +85,12 @@
     },
     {
       "id": "eaglei-2021", "owner": "unassigned", "grain": "one county 15-minute observation",
+      "publisher_cadence": "annual archive release", "refresh_mode": "full", "refresh_trigger": "manual",
+      "retention": "all releases", "freshness_sla_hours": null, "backfill": "safe",
+      "note": "Historical archive, not a live feed. Null is not-reported, never zero customers out."
+    },
+    {
+      "id": "eaglei-2024", "owner": "unassigned", "grain": "one county 15-minute observation",
       "publisher_cadence": "annual archive release", "refresh_mode": "full", "refresh_trigger": "manual",
       "retention": "all releases", "freshness_sla_hours": null, "backfill": "safe",
       "note": "Historical archive, not a live feed. Null is not-reported, never zero customers out."

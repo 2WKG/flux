@@ -25,7 +25,18 @@ The optional ingest log is JSONL. Each append-only record needs `source_id`,
 Successful records for sources used by the artifact also carry
 `curated_row_count`: the transformed count written after the raw source count,
 which the gate independently compares with the current curated rows for that
-`source_name`. `datasets/operations.json` does not emit this log yet; the
+source's mapped operations ID. `datasets/operations.json` declares
+`curated_source_mappings` because persisted `source_name` values are stable
+loader provenance labels, while operations IDs are dataset/release identities
+(for example, `eia930` maps to `eia-930`). A version-specific mapping is
+required where a source label covers distinct releases, such as EAGLE-I. A
+composite provenance label maps to every declared input operation; each input
+therefore needs its own successful audit record. Its
+`reconciliation_operation_ids` identifies the input(s) whose transformed count
+represents the shared curated rows, avoiding double-counting a joined output.
+The gate rejects
+unknown labels, unknown mapped IDs, duplicate mappings, and unmapped versions;
+the mapping never makes an arbitrary label operated. `datasets/operations.json` does not emit this log yet; the
 ingestion owner must add this required audit field before any dashboard release.
 It is the source/release evidence described in the ingestion operations guide.
 `--previous-counts` is a reviewed JSON object such as `{ "weather_hourly": 6100 }`.

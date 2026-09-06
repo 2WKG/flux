@@ -20,6 +20,7 @@ threshold suite, or mandatory per-PR approval process.
 | Unit | Spec | Owned paths | Depends on | Integration contribution |
 |---|---|---|---|---|
 | U1 data ingest | 01 | `pipelines/**`, `scripts/data/download.sh` | — | DuckDB schema, source provenance, and scenario data |
+| U1a intake readiness (2WKG-412) | 01, Minnesota amendment | `pipelines/preflight.py`, `docs/data/data-intake-readiness.md` | U1 raw artifacts | Read-only P0 receipt, legacy-contract diagnosis, and fresh-output rebuild guard; it does not make Texas a Minnesota demo |
 | U2 twin build | 03 build | `twin/build.py`, `twin/params.yaml` | U1 | Base pandapower network |
 | U3 outage model | 02 | `models/outage/**` | U1 | Prediction and evaluation artifacts |
 | U4 cascade simulation | 03 cascade | `twin/cascade.py`, `twin/tools.py` | U2 | Scenario replay and cascade results |

@@ -120,6 +120,8 @@ def normalize_state(value: str | int | State) -> State:
 def _flatten(values) -> tuple:
     if values is None:
         return ("TX",)
+    if isinstance(values, StateScope):
+        return values.states
     if isinstance(values, (str, int, float, State)):
         values = (values,)
     result = []
