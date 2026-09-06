@@ -74,15 +74,28 @@ def build_reconductor_artifact(
     """
 
     if baseline is None:
-        return _unavailable(scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING)
+        return _unavailable(
+            scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING
+        )
     if proposed is None:
-        return _unavailable(scenario_id, ReconductorUnavailableReason.MISSING_PROPOSED_RATING)
+        return _unavailable(
+            scenario_id, ReconductorUnavailableReason.MISSING_PROPOSED_RATING
+        )
     if not baseline.conductor or not proposed.conductor:
         return _unavailable(scenario_id, ReconductorUnavailableReason.MISSING_CONDUCTOR)
-    if baseline.unit != "MW" or proposed.unit != "MW" or baseline.mw <= 0 or proposed.mw <= 0:
-        return _unavailable(scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING)
+    if (
+        baseline.unit != "MW"
+        or proposed.unit != "MW"
+        or baseline.mw <= 0
+        or proposed.mw <= 0
+    ):
+        return _unavailable(
+            scenario_id, ReconductorUnavailableReason.MISSING_BASELINE_RATING
+        )
     if proposed.mw <= baseline.mw:
-        return _unavailable(scenario_id, ReconductorUnavailableReason.NON_INCREASING_RATING)
+        return _unavailable(
+            scenario_id, ReconductorUnavailableReason.NON_INCREASING_RATING
+        )
 
     return ReconductorArtifact(
         intervention_type="reconductor",
