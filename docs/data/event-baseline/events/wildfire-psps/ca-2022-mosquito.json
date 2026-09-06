@@ -2,14 +2,109 @@
   "schema_version": "event-baseline/v1",
   "hazard": "wildfire",
   "event": {
-    "event_id": "ca-2022-mosquito", "parent_system_id": "ca-2022-mosquito", "primary_hazard": "wildfire", "secondary_hazards": [], "compound": false,
-    "source_event_ids": ["CALFIRE:/incidents/2022/9/6/mosquito-fire/"],
-    "context_window": {"start_utc": "2022-09-07T01:00:00Z", "end_utc": "2022-10-22T17:18:00Z"},
-    "event_window": {"start_utc": "2022-09-08T00:00:00Z", "end_utc": "2022-09-08T06:00:00Z"},
-    "recovery_window": {"start_utc": "2022-09-08T06:00:00Z", "end_utc": "2022-10-22T17:18:00Z"},
-    "disposition": "candidate_only", "selection_basis": "CAL FIRE Mosquito record and bounded Placer EAGLE-I capture.",
-    "uncertainties": ["No eligible county-weather evidence collected.", "No utility-damage or causal assertion."]
+    "event_id": "ca-2022-mosquito",
+    "parent_system_id": "ca-2022-mosquito",
+    "primary_hazard": "wildfire",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "CALFIRE:/incidents/2022/9/6/mosquito-fire/"
+    ],
+    "context_window": {
+      "start_utc": "2022-09-07T01:00:00Z",
+      "end_utc": "2022-10-22T17:18:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-09-08T00:00:00Z",
+      "end_utc": "2022-09-08T06:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-09-08T06:00:00Z",
+      "end_utc": "2022-10-22T17:18:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "CAL FIRE Mosquito record and bounded Placer EAGLE-I capture.",
+    "uncertainties": [
+      "No eligible county-weather evidence collected.",
+      "No utility-damage or causal assertion."
+    ]
   },
-  "source_receipts": [{"receipt_id": "eaglei-mosquito", "provider": "ORNL EAGLE-I via Figshare", "url": "https://ndownloader.figshare.com/files/42547897", "release": "10.6084/m9.figshare.24237376.v4", "retrieved_at_utc": "2026-09-06T07:18:00Z", "license_or_access": "CC BY 4.0", "raw_sha256": "0ca129e2f3d4de4e2fcc704209b3bb60a80f788e907d9869a57176ee03189529", "filtered_sha256": "8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a", "bytes": 1048576, "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"", "units": "customers_out; UTC 15-minute timestamps", "timezone_conversion": "none; source documents UTC", "filters": "California, FIPS 06061, six-hour window", "grid_index_mapping": "none", "gaps": ["Customer denominator unavailable."]}],
-  "records": [{"record_id": "ca-2022-mosquito-06061-20220908t0000", "county_fips": "06061", "boundary_vintage": "2020 Census", "scenario_id": "ca-2022-mosquito-replay", "window_start_utc": "2022-09-08T00:00:00Z", "window_end_utc": "2022-09-08T06:00:00Z", "disposition": "candidate_only", "mode": "replay", "provenance_receipt_ids": ["eaglei-mosquito"], "source_evidence_status": "unavailable", "source_row_keys": [], "source_slices": [], "weather": {"coverage": "uncovered", "evidence_kind": "not_assessed", "observation_kind": "not_applicable", "source_receipt_ids": [], "expected_samples": null, "observed_samples": null, "missing_timestamps": [], "event_report": null, "notes": "CAL FIRE record supports candidate discovery only; no county-window weather coverage claimed."}, "outage": {"coverage": "covered", "evidence_kind": "time_series_or_grid", "observation_kind": "observed", "source_receipt_ids": ["eaglei-mosquito"], "expected_samples": 24, "observed_samples": 24, "missing_timestamps": [], "event_report": null, "notes": "Complete 15-minute timestamps; denominator unavailable."}, "matched_coverage_decision": "unavailable", "label": {"rule_version": "county_outage_5pct_v1", "status": "unavailable", "observed_outage_customers": null, "customer_denominator": {"status": "unavailable", "value": null}, "outage_rate": null, "positive": null}, "forecast": {"prediction_cutoff_utc": null, "forecast_evaluation": "not_forecast_scored", "inputs": []}}]
+  "source_receipts": [
+    {
+      "receipt_id": "eaglei-mosquito",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T07:18:00Z",
+      "license_or_access": "CC BY 4.0",
+      "raw_sha256": "0ca129e2f3d4de4e2fcc704209b3bb60a80f788e907d9869a57176ee03189529",
+      "filtered_sha256": "8fce9fe79117d85149f45ae8f672f615003c1fb7fe92781fc1af77fae864464a",
+      "bytes": 1048576,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out; UTC 15-minute timestamps",
+      "timezone_conversion": "none; source documents UTC",
+      "filters": "California, FIPS 06061, six-hour window",
+      "grid_index_mapping": "none",
+      "gaps": [
+        "Customer denominator unavailable."
+      ]
+    }
+  ],
+  "records": [
+    {
+      "record_id": "ca-2022-mosquito-06061-20220908t0000",
+      "county_fips": "06061",
+      "boundary_vintage": "2020 Census",
+      "scenario_id": "ca-2022-mosquito-replay",
+      "window_start_utc": "2022-09-08T00:00:00Z",
+      "window_end_utc": "2022-09-08T06:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "eaglei-mosquito"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "CAL FIRE record supports candidate discovery only; no county-window weather coverage claimed."
+      },
+      "outage": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "Bounded range capture is provenance only pending a complete annual-source scan."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "unavailable",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
 }
