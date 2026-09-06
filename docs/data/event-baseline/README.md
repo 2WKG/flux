@@ -19,8 +19,10 @@ The bundle is JSON conforming to
 `docs/data/event-baseline/event_baseline.schema.json`. That file is the single
 structural definition: `scripts/data/event_baseline_validate.py` loads and
 enforces it (including `additionalProperties: false`) before applying the
-cross-field rules a JSON Schema cannot express. Every `*.json` committed under
-`events/` is validated by `tests/data/test_event_baseline_bundles.py`, so
+cross-field rules a JSON Schema cannot express. Discovery is deliberately
+limited to canonical direct paths, `events/<hazard>/<event_id>.json`; nested
+control metadata is not treated as an event bundle. Every discovered bundle is
+validated by `tests/data/test_event_baseline_bundles.py`, so
 `gate/pytest` — not a reviewer's memory — is the enforcement point. The final audit owns
 the assembled `event_catalog.csv` and split manifests. `event_baseline_assemble.py`
 can assemble validated bundles into that catalog, but collection work must not

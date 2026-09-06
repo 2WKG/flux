@@ -151,28 +151,27 @@ def _validate_receipts(receipts: Any, where: str) -> dict[str, dict[str, Any]]:
             "filters",
             "grid_index_mapping",
             "gaps",
+            "capture_method",
+            "verification",
+            "files",
+            "uncertainty",
         ):
             _require(receipt, field, prefix)
-        strict_fields = ("capture_method", "verification", "files", "uncertainty")
-        if any(field in receipt for field in strict_fields):
-            for field in strict_fields:
-                _require(receipt, field, prefix)
-        if "capture_method" in receipt:
-            for field in ("capture_method", "uncertainty"):
-                if not isinstance(receipt[field], str) or not receipt[field].strip():
-                    raise ValidationError(
-                        f"{prefix}.{field}: expected a non-empty statement "
-                        f"(same receipt convention as pipelines/hrrr.py)"
-                    )
-            verification = receipt["verification"]
-            if (
-                not isinstance(verification, dict)
-                or "sha256_computed_from_response_body" not in verification
-            ):
+        for field in ("capture_method", "uncertainty"):
+            if not isinstance(receipt[field], str) or not receipt[field].strip():
                 raise ValidationError(
-                    f"{prefix}.verification: expected an object recording "
-                    "sha256_computed_from_response_body"
+                    f"{prefix}.{field}: expected a non-empty statement "
+                    f"(same receipt convention as pipelines/hrrr.py)"
                 )
+        verification = receipt["verification"]
+        if (
+            not isinstance(verification, dict)
+            or "sha256_computed_from_response_body" not in verification
+        ):
+            raise ValidationError(
+                f"{prefix}.verification: expected an object recording "
+                f"sha256_computed_from_response_body"
+            )
         _utc(receipt["retrieved_at_utc"], f"{prefix}.retrieved_at_utc")
         if not isinstance(receipt["url"], str) or "://" not in receipt["url"]:
             raise ValidationError(f"{prefix}.url: expected absolute URL")
@@ -231,6 +230,7 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
     for field in (
         "rule_version",
         "status",
+        "aggregation",
         "observed_outage_customers",
         "customer_denominator",
         "outage_rate",
@@ -239,17 +239,12 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         _require(label, field, where)
     if label["rule_version"] != LABEL_RULE_VERSION:
         raise ValidationError(f"{where}.rule_version: expected {LABEL_RULE_VERSION}")
-    status = label["status"]
-    if "aggregation" not in label and status == "computed":
-        raise ValidationError(
-            f"{where}.aggregation: computed labels must declare {LABEL_AGGREGATION}"
-        )
-    aggregation = label.get("aggregation", LABEL_AGGREGATION)
-    if aggregation != LABEL_AGGREGATION:
+    if label["aggregation"] != LABEL_AGGREGATION:
         raise ValidationError(
             f"{where}.aggregation: {LABEL_RULE_VERSION} is spec 02's y_out and takes the "
             f"max customers_out over the window's samples ({LABEL_AGGREGATION})"
         )
+    status = label["status"]
     if status not in {"computed", "unavailable", "UncoveredLabel"}:
         raise ValidationError(f"{where}.status: invalid label status")
     denom = label["customer_denominator"]
@@ -501,6 +496,17 @@ def validate_bundle_rules(bundle: dict[str, Any], source: str = "bundle") -> Non
         )
         if end - start != SIX_HOURS:
             raise ValidationError(f"{prefix}: county window must be exactly six hours")
+        if (
+            start.hour not in ALIGNED_WINDOW_START_HOURS
+            or start.minute
+            or start.second
+            or start.microsecond
+        ):
+            raise ValidationError(
+                f"{prefix}: six-hour windows are a closed vocabulary aligned to "
+                f"00/06/12/18 UTC (docs/specs/02-outage-model.md); "
+                f"{record['window_start_utc']} is not an aligned window start"
+            )
         identity = (record["county_fips"], record["scenario_id"], start)
         if identity in identities:
             raise ValidationError(

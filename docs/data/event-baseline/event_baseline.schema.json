@@ -158,7 +158,11 @@
         "timezone_conversion",
         "filters",
         "grid_index_mapping",
-        "gaps"
+        "gaps",
+        "capture_method",
+        "verification",
+        "files",
+        "uncertainty"
       ],
       "properties": {
         "receipt_id": {
@@ -624,6 +628,7 @@
       "required": [
         "rule_version",
         "status",
+        "aggregation",
         "observed_outage_customers",
         "customer_denominator",
         "outage_rate",
@@ -814,7 +819,7 @@
     },
     "window_instant": {
       "type": "string",
-      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:00:00Z$",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T(00|06|12|18):00:00Z$",
       "description": "County-window boundary. Six-hour windows are a closed vocabulary aligned to 00/06/12/18 UTC (docs/specs/02-outage-model.md: 'Window = 6 h, aligned to 00/06/12/18 UTC')."
     }
   }
