@@ -146,3 +146,115 @@ def test_flux_network_uses_immutable_outage_and_cascade_adapters(tmp_path) -> No
     assert result["components"]["n_minus_one_survivability"] == 0.0
     assert result["worst_contingency"]["branch_id"] == "line:1"
     assert result["worst_contingency"]["cascade_metrics"]["lost_load_mw"] == 10.0
+
+
+def test_one_twin_contingency_solve_failure_keeps_topology_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from twin import cascade
+    from twin.contracts import SimulationSolveError
+
+    net = SimpleNamespace(
+        branches=[
+            {"id": "direct", "from_bus": "load", "to_bus": "source_a", "dptf": 90.0},
+            {
+                "id": "spur",
+                "from_bus": "source_a",
+                "to_bus": "spur_bus",
+                "dptf": 80.0,
+            },
+        ],
+        sources=[{"bus": "source_a"}],
+        flux_element_lookup={},
+        flux_bus_metadata={},
+    )
+
+    monkeypatch.setattr(
+        cascade,
+        "island_primitives",
+        lambda _net, _edits: [],
+    )
+
+    calls: list[str] = []
+
+    def run_cascade(_net, edits):
+        calls.append(edits[0].element_id)
+        if edits[0].element_id == "line:direct":
+            raise SimulationSolveError("forced fixture solve failure")
+        return {
+            "lost_load_mw": 0.0,
+            "served_load_mw": 10.0,
+            "edit_hash": "successful-contingency",
+        }
+
+    monkeypatch.setattr(cascade, "run_cascade", run_cascade)
+
+    result = score_redundancy(net, "load", max_contingencies=2)
+
+    # One of two replays is unusable, so the aggregate is a mixed basis and the
+    # evidence must say so rather than claim a full twin cascade.
+    assert result["evidence"]["status"] == "available_with_partial_twin_cascade"
+    assert result["evidence"]["cascade"] == "per_contingency_in_memory_partial"
+    assert result["evidence"]["cascade_unavailable_contingencies"] == 1
+    assert calls == ["line:direct", "line:spur"]
+    assert result["worst_contingency"]["cascade_metrics"] == {
+        "status": "unavailable",
+        "reason": "simulation_solve_error",
+    }
+    assert result["worst_contingency"]["branch_id"] == "line:direct"
+
+
+def _two_branch_twin_net() -> SimpleNamespace:
+    return SimpleNamespace(
+        branches=[
+            {"id": "direct", "from_bus": "load", "to_bus": "source_a", "dptf": 90.0},
+            {"id": "spur", "from_bus": "source_a", "to_bus": "spur_bus", "dptf": 80.0},
+        ],
+        sources=[{"bus": "source_a"}],
+        # A non-None (if empty) element lookup is what selects the twin branch.
+        flux_element_lookup={},
+        flux_bus_metadata={},
+    )
+
+
+def test_every_twin_contingency_solve_failure_degrades_the_evidence_basis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from twin import cascade
+    from twin.contracts import SimulationSolveError
+
+    monkeypatch.setattr(cascade, "island_primitives", lambda _net, _edits: [])
+
+    def run_cascade(_net, _edits):
+        raise SimulationSolveError("forced fixture solve failure")
+
+    monkeypatch.setattr(cascade, "run_cascade", run_cascade)
+
+    result = score_redundancy(_two_branch_twin_net(), "load", max_contingencies=2)
+
+    # Every contingency fell back to topology-only reachability, so the score
+    # has no twin-cascade basis at all and the evidence must not claim one.
+    assert result["evidence"]["contingencies_evaluated"] == 2
+    assert result["evidence"]["cascade_unavailable_contingencies"] == 2
+    assert result["evidence"]["status"] == "available_topology_only"
+    assert result["evidence"]["cascade"] == "unavailable"
+    assert result["evidence"]["status"] != "available_with_twin_cascade"
+    assert result["evidence"]["cascade"] != "per_contingency_in_memory"
+
+
+def test_a_non_solve_twin_failure_is_not_relabelled_a_solve_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # The catch is deliberately narrow: broadening it to ``except Exception``
+    # would report an unrelated bug as reason "simulation_solve_error".
+    from twin import cascade
+
+    monkeypatch.setattr(cascade, "island_primitives", lambda _net, _edits: [])
+
+    def run_cascade(_net, _edits):
+        raise ValueError("unrelated bug inside the twin call")
+
+    monkeypatch.setattr(cascade, "run_cascade", run_cascade)
+
+    with pytest.raises(ValueError, match="unrelated bug inside the twin call"):
+        score_redundancy(_two_branch_twin_net(), "load", max_contingencies=2)

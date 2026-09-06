@@ -22,6 +22,42 @@ SCREENING_LABEL = (
     "synthetic-topology screening; not a physical siting or permitability claim"
 )
 MAX_FULL_WINDOW_COUNTERFACTUALS = 5
+# Named candidate-population states.  A caller must be able to tell the spec'd
+# ``site_candidates`` population (docs/specs/04-siting-engine.md) apart from the
+# synthetic generator-bus attachment points that stand in for it when no
+# candidate table is available.  The substitution is never silent.
+CANDIDATE_POPULATION_DECLARED = "declared_candidate_table"
+CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE = "synthetic_generator_bus_substitute"
+
+# ``model_mode`` is frozen by docs/specs/10-duckdb-contract.md.  It is a closed
+# set, not an open string: a value outside it is a contract break, so this
+# module refuses rather than inventing a fourth token.
+ModelMode = Literal["topology", "aggregate", "not_applicable"]
+MODEL_MODES: frozenset[str] = frozenset({"topology", "aggregate", "not_applicable"})
+MODEL_MODE: ModelMode = "topology"
+
+# The candidate ranking is a comparison between modelled interventions on a
+# synthetic network.  docs/specs/10-minnesota-demo.md and the DuckDB contract
+# call that a hypothetical model comparison, and the topology label is the one
+# token twin/contracts.py owns.
+REGULATORY_LABEL = "hypothetical"
+SYNTHETIC_TOPOLOGY_LABEL = "synthetic (ACTIVSg2000)"
+
+SITING_SEARCH_SCHEMA_VERSION = "siting-search/v1"
+SITING_SEARCH_RESULT_KIND = "synthetic_counterfactual"
+
+# The narrative-IA contract deliberately removed this token; it must never
+# reach a rendered surface.
+PROHIBITED_DISPLAY_TOKEN = "illustrative"
+
+
+def _model_mode(value: str) -> str:
+    if value not in MODEL_MODES:
+        raise SearchUnavailable(
+            f"model_mode {value!r} is outside the frozen contract vocabulary "
+            f"{sorted(MODEL_MODES)}"
+        )
+    return value
 
 
 class SearchUnavailable(RuntimeError):
@@ -85,7 +121,7 @@ def search_locations(
         )
     ):
         raise SearchUnavailable("placement feasibility policy is unavailable")
-    candidates = _candidate_rows(net, kind, policy)
+    candidate_population, candidates = _candidate_rows(net, kind, policy)
     if not candidates:
         return []
 
@@ -161,13 +197,16 @@ def search_locations(
         redundancy = _redundancy(
             net, candidate, kind, unit_mw, scenario_id, hour, candidate_edits, policy
         )
+        # ``balance`` must come from this candidate's own row.  Reading the
+        # loop variable left over from the eligibility pass scored every
+        # preliminary consumer with the last eligible candidate's headroom.
         components = _components(
             kind,
             baseline_peak,
             counterfactual,
             baseline_redundancy,
             redundancy,
-            balance,
+            row["balance"],
         )
         row["peak_counterfactual"] = counterfactual
         row["peak_components"] = components
@@ -257,9 +296,15 @@ def search_locations(
                 "safety_flags": _get(
                     candidate, "safety_flags", "safety_flags_json", default=[]
                 ),
+                "candidate_population": candidate_population,
+                "candidate_provenance": _get(
+                    candidate, "candidate_provenance", default=None
+                ),
                 "balance": row["balance"],
                 "analysis_label": SCREENING_LABEL,
-                "model_mode": "synthetic",
+                "model_mode": _model_mode(MODEL_MODE),
+                "topology": SYNTHETIC_TOPOLOGY_LABEL,
+                "regulatory_label": REGULATORY_LABEL,
                 "evaluation": {
                     "peak_hour": hour,
                     "full_window": _full_window_evaluated(row["counterfactual"]),
@@ -312,14 +357,30 @@ def _adapters(value: SearchAdapters | Mapping[str, object] | None) -> SearchAdap
 
 def _candidate_rows(
     net: object, kind: CandidateKind, policy: SearchAdapters
-) -> list[dict[str, object]]:
+) -> tuple[str, list[dict[str, object]]]:
     source: Iterable[object] | None = None
+    population = CANDIDATE_POPULATION_DECLARED
     if policy.candidates is not None:
         source = _invoke(policy.candidates, net=net, kind=kind)
     elif callable(getattr(net, "search_candidates", None)):
         source = _invoke(net.search_candidates, kind=kind)  # type: ignore[union-attr]
     elif kind == "producer":
         source = _get(net, "site_candidates", "producer_candidates", default=None)
+        if source is None:
+            # The spec'd candidate table is absent.  Synthetic generator-bus
+            # attachment points are a DIFFERENT population, so the result must
+            # say so in a machine-readable field rather than pass them off as
+            # the declared one.
+            population = CANDIDATE_POPULATION_SYNTHETIC_SUBSTITUTE
+            try:
+                from siting.candidate_source import (
+                    SyntheticCandidateSourceUnavailable,
+                    producer_candidates,
+                )
+
+                source = producer_candidates(net)
+            except SyntheticCandidateSourceUnavailable as exc:
+                raise SearchUnavailable(str(exc)) from exc
     else:
         source = _get(net, "consumer_candidates", "load_buses", "loads", default=None)
     if source is None:
@@ -342,7 +403,7 @@ def _candidate_rows(
         candidate.setdefault("bus_id", bus_id)
         candidate.setdefault("synthetic", True)
         rows.append(candidate)
-    return rows
+    return population, rows
 
 
 def _feasibility(
@@ -795,3 +856,145 @@ def _jsonable(value: object) -> object:
     if hasattr(value, "__dict__"):
         return _jsonable(vars(value))
     return repr(value)
+
+
+def build_search_response(
+    net: object,
+    *,
+    kind: CandidateKind,
+    unit_mw: float,
+    scenario_id: str,
+    scenario_label: str | None = None,
+    n: int = 5,
+    hour: int = 0,
+    edits: Sequence[object] = (),
+    adapters: SearchAdapters | Mapping[str, object] | None = None,
+) -> dict[str, object]:
+    """Render ranked results in the shape ``SitingPanel.tsx`` actually accepts.
+
+    The key names below are not guessed: they are the keys
+    ``web/src/interactive/SitingPanel.tsx``'s ``isSitingSearchResponse`` type
+    guard requires, and ``siting/tests/test_search.py`` reads that component's
+    source to prove this envelope still satisfies it.  Every rendered string
+    carries the synthetic-topology and hypothetical truth labels; the token the
+    narrative-IA contract removed never appears.
+    """
+
+    results = search_locations(
+        net,
+        kind=kind,
+        unit_mw=unit_mw,
+        scenario_id=scenario_id,
+        n=n,
+        hour=hour,
+        edits=edits,
+        adapters=adapters,
+    )
+    response = {
+        "schemaVersion": SITING_SEARCH_SCHEMA_VERSION,
+        "resultKind": SITING_SEARCH_RESULT_KIND,
+        "scenario": {
+            "id": scenario_id,
+            "label": scenario_label or scenario_id,
+            "assumptions": [
+                f"Topology: {SYNTHETIC_TOPOLOGY_LABEL}.",
+                f"Regulatory label: {REGULATORY_LABEL} model comparison.",
+                f"Model mode: {_model_mode(MODEL_MODE)}.",
+                f"Peak hour screened: {hour}.",
+                (
+                    "Full-window replay is bounded to "
+                    f"{MAX_FULL_WINDOW_COUNTERFACTUALS} candidates."
+                ),
+            ],
+        },
+        "candidates": [_panel_candidate(result) for result in results],
+        "limitations": [
+            SCREENING_LABEL,
+            (
+                f"Ranking is a {REGULATORY_LABEL} model comparison on "
+                f"{SYNTHETIC_TOPOLOGY_LABEL} topology, not a physical siting, "
+                "interconnection, permitting, or construction recommendation."
+            ),
+            (
+                "Only the "
+                f"{MAX_FULL_WINDOW_COUNTERFACTUALS} strongest peak-hour "
+                "candidates receive a full-window counterfactual."
+            ),
+        ],
+    }
+    _refuse_prohibited_display_token(response)
+    return response
+
+
+def _panel_candidate(result: Mapping[str, object]) -> dict[str, object]:
+    candidate_id = str(result["candidate_id"])
+    edit_hash = str(result["edit_hash"])
+    components = _as_mapping(result["objective_components"])
+    evidence = [
+        {
+            "label": "Objective",
+            "value": f"{float(result['objective']):.6f}",
+            "provenanceRef": f"edit_hash:{edit_hash}",
+        },
+        {
+            "label": "Analysis",
+            "value": str(result["analysis_label"]),
+            "provenanceRef": f"model_mode:{result['model_mode']}",
+        },
+        {
+            "label": "Topology",
+            "value": str(result["topology"]),
+            "provenanceRef": f"regulatory_label:{result['regulatory_label']}",
+        },
+    ]
+    evidence.extend(
+        {
+            "label": str(name),
+            "value": f"{float(value):.6f}",
+            "provenanceRef": f"objective_components.{name}",
+        }
+        for name, value in sorted(components.items())
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    )
+    return {
+        "id": candidate_id,
+        "label": (
+            f"Rank {result['rank']}: {candidate_id} at bus "
+            f"{result['bus_id']} — {result['topology']}, "
+            f"{result['regulatory_label']} comparison"
+        ),
+        "evidence": evidence,
+        "limitations": [
+            str(result["analysis_label"]),
+            f"Topology is {result['topology']}; bus identities are synthetic.",
+            f"Result is a {result['regulatory_label']} model comparison.",
+            (
+                "Full-window counterfactual: "
+                f"{'yes' if result['evaluation']['full_window'] else 'no'}."
+            ),
+        ],
+        "provenance": {
+            "artifactId": f"mn:score:{sha256(edit_hash.encode('utf-8')).hexdigest()[:16]}",
+            "artifactVersion": SITING_SEARCH_SCHEMA_VERSION,
+            "sourceKind": str(result["topology"]),
+        },
+    }
+
+
+def _refuse_prohibited_display_token(value: object) -> None:
+    """Refuse rather than render the token the narrative-IA contract removed."""
+
+    if isinstance(value, str):
+        if PROHIBITED_DISPLAY_TOKEN in value.casefold():
+            raise SearchUnavailable(
+                f"{PROHIBITED_DISPLAY_TOKEN!r} is not an approved display token"
+            )
+        return
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            _refuse_prohibited_display_token(key)
+            _refuse_prohibited_display_token(item)
+        return
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            _refuse_prohibited_display_token(item)

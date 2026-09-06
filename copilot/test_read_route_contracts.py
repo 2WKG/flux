@@ -92,6 +92,18 @@ class RouteContract:
 _NO_NOT_FOUND: Final = Unreachable("the route raises no NotFoundError")
 
 READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
+    ("GET", "/explainer/toy-cascade"): RouteContract(
+        success=Cell(
+            "copilot/test_explainer_route.py::test_the_route_serves_the_persisted_server_solved_trace",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_explainer_route.py::test_a_missing_artifact_is_unavailable_not_an_empty_success",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
     ("GET", "/health"): RouteContract(
         success=Cell(
             "copilot/test_app.py::test_health_opens_a_fixture_database_without_claiming_model_availability",
@@ -119,6 +131,69 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
         ),
         not_found=Cell(
             "copilot/test_layers.py::test_well_formed_undocumented_layer_is_not_found_not_an_empty_success",
+            404,
+        ),
+    ),
+    ("GET", "/demo/model"): RouteContract(
+        success=Cell(
+            "copilot/test_model_geometry.py::test_model_returns_bus_and_branch_geometry_from_synthetic_db",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_model_geometry.py::test_model_rejects_more_than_64_requested_elements",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_model_geometry.py::test_model_missing_database_and_packaged_artifact_is_named_unavailable",
+            503,
+        ),
+        not_found=Unreachable(
+            "unknown element ids return a 200 partial response rather than a 404."
+        ),
+    ),
+    ("GET", "/api/v1/grid/asset-placements"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_placement_projection_uses_source_geometry_and_declared_visual_kind",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_assets.py::test_asset_placements_reject_invalid_input_and_name_missing_releases",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_asset_placements_reject_invalid_input_and_name_missing_releases",
+            503,
+        ),
+        not_found=Unreachable("the release route has no not-found response."),
+    ),
+    ("GET", "/assets/flux-grid/manifest.json"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=NO_INPUT,
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=Unreachable(
+            "the fixed manifest path either serves or is unavailable."
+        ),
+    ),
+    ("GET", "/assets/flux-grid/{asset_path}"): RouteContract(
+        success=Cell(
+            "copilot/test_assets.py::test_registered_manifest_and_glb_are_served_as_real_http_bytes",
+            200,
+        ),
+        invalid=Unreachable(
+            "asset_path accepts every path string; unsafe paths are 404."
+        ),
+        unavailable=Cell(
+            "copilot/test_assets.py::test_missing_or_unpublished_pack_is_a_named_unavailable_state",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_assets.py::test_only_manifest_registered_safe_paths_are_served",
             404,
         ),
     ),
@@ -263,6 +338,72 @@ READ_ROUTE_CONTRACTS: Final[dict[tuple[str, str], RouteContract]] = {
             "copilot/test_predictions.py::test_cascade_run_id_selects_that_run_or_is_not_found",
             404,
         ),
+    ),
+    ("POST", "/interactive/scenario/edit"): RouteContract(
+        success=Cell(
+            "copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_interactive_routes.py::test_unknown_and_malformed_edits_fail_explicitly",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_reports_a_missing_core_as_unavailable",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
+    ),
+    ("POST", "/interactive/cascade"): RouteContract(
+        success=Cell(
+            "copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_refuses_a_context_it_cannot_apply",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_reports_a_missing_core_as_unavailable",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_interactive_routes.py::test_cascade_with_an_unknown_edit_hash_is_not_found",
+            404,
+        ),
+    ),
+    ("GET", "/interactive/balance"): RouteContract(
+        success=Cell(
+            "copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_refuses_a_context_it_cannot_apply",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_reports_a_missing_core_as_unavailable",
+            503,
+        ),
+        not_found=Cell(
+            "copilot/test_interactive_routes.py::test_unknown_and_malformed_edits_fail_explicitly",
+            404,
+        ),
+    ),
+    ("GET", "/interactive/redundancy"): RouteContract(
+        success=Cell(
+            "copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix",
+            200,
+        ),
+        invalid=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_refuses_a_context_it_cannot_apply",
+            422,
+        ),
+        unavailable=Cell(
+            "copilot/test_interactive_routes.py::test_every_route_reports_a_missing_core_as_unavailable",
+            503,
+        ),
+        not_found=_NO_NOT_FOUND,
     ),
     ("POST", "/ask"): RouteContract(
         success=Cell(

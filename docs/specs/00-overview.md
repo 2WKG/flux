@@ -134,6 +134,9 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `physical_asset_terminals` | `artifact_id, terminal_id, asset_id, source_id, source_record_id` — key `(artifact_id, terminal_id)` | 11 | 11, read APIs |
 | `physical_connectivity_edges` | `artifact_id, edge_id, from_terminal_id, to_terminal_id, source_id, source_record_id` — key `(artifact_id, edge_id)` | 11 | 11, read APIs |
 | `physical_coverage` | `artifact_id, asset_class, scope_id, status[complete\|partial\|unknown\|unavailable], observed_count, denominator_count, unknown_count, unavailable_count, denominator_basis, source_scope, reason` — key `(artifact_id, asset_class, scope_id)` | 11 | 11, read APIs |
+| `scenario_edits` | `edit_id, session_id, base_scenario_id, ops_json, created_at, edit_hash` — key `edit_id`; `edit_hash` is the deterministic hash of the ordered op list (amendment A13) | 12 | 12 |
+| `redundancy_scores` | `bus_id, scenario_id, hour, n1_survival_pct, independent_paths, nearest_alt_source_km, headroom_mw, score, components_json` — key `(bus_id, scenario_id, hour)` (amendment A13) | 12 | 12 |
+| `siting_search_runs` | `run_id, objective, kind[producer\|consumer], unit_mw, scenario_id, ranked_json, computed_at` — key `run_id` (amendment A13) | 12 | 12 |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
@@ -175,11 +178,19 @@ def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 
 def sql(query: str | None = None, template_id: str | None = None) -> dict
                                           # legacy query or registered template; read-only DuckDB; row cap 200
 def cite(query: str, k: int = 5) -> dict  # retrieval over regulatory PDFs
-# added by amendment A8 (nine tools total):
+# added by amendment A8 plus the static interactive surface (thirteen tools total):
 def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict   # ids "site:<site_id>" | "line:<line_id>"
 def top_critical_elements(region: str, n: int = 10) -> dict                          # ranks by cascade reach from cascade_runs
 def causal_query(...) -> dict                                                        # spec 07 owns the signature
 # helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
+# added by amendment A13 (spec 12, the interactive-physics lane; thirteen tools total):
+def edit_scenario(base_scenario_id: str, ops: list[dict]) -> dict      # -> {edit_hash, feasibility[]}
+def grid_balance(scope: str, scenario_id: str, hour: int, edit_hash: str | None = None) -> dict
+def redundancy_score(bus_id: int, scenario_id: str, hour: int) -> dict
+def search_locations(kind: Literal["producer", "consumer"], unit_mw: float,
+                     scenario_id: str, n: int = 10) -> dict
+# A13 also adds an optional `edit_hash: str | None = None` to the three existing
+# tools predict_outage, run_cascade and score_site; omitted, they behave as today.
 ```
 
 SQL deployments may register fixed, deployment-owned templates. Every `sql`
@@ -448,7 +459,7 @@ Team size assumed 4–6. Owners are `TBD` — fill in at kickoff. Times are loca
 | 13:00–17:00 | 02 | Train LightGBM; hold out `uri_2021`, `beryl_2024`, `helene_2024`; write `outage_predictions` for all four scenarios. | TBD | AUC on Uri holdout printed; ≥0.75 target [UNVERIFIED achievable]. |
 | 13:00–17:00 | 03 | Cascade loop on real ACTIVSg2000: weather-driven line failure probs → trip → DC PF → overload trip → repeat; county + critical-load translation; write `cascade_runs` for `base_uri_2021`. | TBD | A base run with nonzero `lost_load_mw` and ≥1 DoD load lost. |
 | 13:00–17:00 | 06 | Outage choropleth + actual toggle + time scrubber; cascade playback layer reading `cascade_runs`. | TBD | Beats 2 and 3 click through on fixture data. |
-| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists all nine (A8). |
+| 13:00–17:00 | 05 | Tools wired: `predict_outage`, `run_cascade` calling 02/03; `cite` corpus chunked and embedded (PDFs downloaded). | TBD | Ask "what tools do you have" → lists all thirteen, with interactive tools labelled static synthetic. |
 | 15:00–17:00 | 04 | Safety scorer (`safety_score`, `safety_flags_json`) on all Texas candidates. | TBD | 30 rows in `site_scores` with safety only. |
 | 15:00–17:00 | 07 | pgmpy DAG fit on EAGLE-I + weather + hazard for Texas counties; write `causal/artifacts/decomposition.json`. | TBD | One county decomposition prints. |
 | 17:00–19:00 | 03+04 | Grid-value delta: inject `unit_mw` gen at `site.bus_id`, re-run cascade on stress hours, compute `lol_reduction_mwh`, `congestion_relief_pct`, `blackstart_reach_mw`. | TBD | One `GridValueResult` with `lol_reduction_mwh > 0`; one persisted counterfactual run in `cascade_runs`. |
@@ -534,7 +545,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 | Cascade re-runs for siting too slow (30 sites × 2 sizes × 168 h) | Medium | DC PF is ms-scale; cap hours to the 24 h peak window of Uri; parallelise with multiprocessing; precompute Day 1 night. |
 | HRRR reanalysis for Feb 2021 is large / hard to subset | High | ERA5 county-mean via a small subset; or NOAA ISD station data interpolated to counties; 01 decides, 02 consumes the same columns. |
 | Archived HIFLD lines unreachable | Medium | The demo map uses ACTIVSg2000 line geometry (synthetic lat/lon are provided by the dataset). HIFLD only for the national scale slide; OSM `power=line` as fallback. |
-| `claude-sonnet-5` tool loop slow with nine tools + SSE | Low | Cap tool iterations at 6; pre-warm one answer for beat 5 as a cached transcript fallback. |
+| `claude-sonnet-5` tool loop slow with thirteen tools + SSE | Low | Cap tool iterations at 4; pre-warm one answer for beat 5 as a cached transcript fallback. |
 | NRC July 2026 proposed siting rule PDF not locatable | Low | Located: Federal Register 2026-14341 (16 July 2026), NRC ADAMS ML26176A438. Fallback: cite 10 CFR 100 + Reg Guide 4.7 and mention the proposed rule verbally. |
 | Nobody on the team has run pandapower before | Medium | 03 starts on fixture DB at 08:30; the DC PF example in pandapower docs is 10 lines. |
 
@@ -610,7 +621,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
      elements: [{element_id, kind: line|bus|gen, lost_load_mw, critical_loads_lost: [cl_id], runs: int}]}
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
-  - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
+  - **Tool count.** The contract has **thirteen** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`, plus `scenario_edit`, `cascade`, `balance`, and `redundancy`. The last four use only the labelled static synthetic baseline (`interactive`, hour 0, seed 0) until a validated scenario application adapter exists. A5's "six tool signatures unchanged" still holds — the six are unchanged; three persisted-data tools and four interactive tools are added. `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
 - **A10 — SSE transport.** `POST /ask` uses the v1 event names, envelopes,
   ordering, terminal behavior, heartbeats, and POST-resume identity defined in
   `docs/research/sse-event-schema.md`. Spec 05 and the web client consume that
@@ -646,3 +657,25 @@ These are decisions, not proposals. Every spec is read as if these were in its c
   spec 10's `mn:<artifact_kind>:<sha256-16>`; the divergence and its reason are
   recorded in both specs, and spec 11 owns no `mn_*` table and no Minnesota
   artifact envelope.
+
+- **A13 — the interactive-physics namespace (spec 12).** Registers, for
+  [12-interactive-simulation.md](12-interactive-simulation.md), three additive DuckDB tables —
+  `scenario_edits`, `redundancy_scores`, `siting_search_runs` (rows in §2.2 above) — and four
+  additive copilot tools — `edit_scenario`, `grid_balance`, `redundancy_score`,
+  `search_locations` (signatures in §2.3 above), taking the registry from nine tools to
+  thirteen. It also adds an optional `edit_hash` parameter to the three existing tools
+  `predict_outage`, `run_cascade` and `score_site`; omitted, their behaviour is unchanged, so
+  the change is backward compatible. `run_cascade`, `score_site` and `predict_outage` are
+  **already registered** in the frozen `TOOL_REGISTRY` (`copilot/tools/schemas.py:455-473`) —
+  A13 does not create them, and any spec text saying they "were never built" is wrong.
+  Everything here is additive: no existing table, column, scenario id, route or tool signature
+  changes, and `pipelines/db.py`'s `SCHEMA_VERSION` is untouched.
+  Route inventory: spec 12's five compute routes are mounted under the **`/interactive` prefix**
+  (`POST /interactive/scenario/edit`, `POST /interactive/cascade`, `GET /interactive/balance`,
+  `GET /interactive/redundancy`, `POST /interactive/siting/search`). This does not reopen D-3:
+  no bare-root `POST /cascade` is authorized, and `GET /cascade` remains the only cascade route
+  on the §4.2 read surface. Every `/interactive/*` success body is **unwrapped**, carrying
+  `model_fidelity`, `network_provenance` and `limitations` as top-level siblings of the
+  payload's own fields; `copilot/api/envelope.py` still wraps only failures.
+  `network_provenance` uses the canonical `SYNTHETIC_TOPOLOGY_LABEL`, `"synthetic (ACTIVSg2000)"`
+  (D-5), and no second spelling.

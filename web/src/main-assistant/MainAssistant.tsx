@@ -18,10 +18,9 @@ import { STREAM_ENDED_WITHOUT_TERMINAL } from "../ask/run-state/types";
 import type { RunIdentity, RunState, ToolResultEvent } from "../ask/run-state/types";
 import { FailureState } from "../failure-states/FailureState";
 import { fromStreamClose } from "../failure-states/adapters";
-// The generated browser mirror of `copilot/tools/schemas.py`. Every tool output
-// the v1 `/ask` contract can carry is one of these, and each declares its own
-// `status`. The shapes are imported, never restated here.
-import type { ToolOutput, ToolStatus, Unavailable } from "../contracts/copilot-tools";
+// The ONE reader of the additive `tool_result.result.scene_action` envelope.
+// The shape and the identity rule live there, never restated here.
+import { sceneActionFromResult, type ReceivedSceneAction } from "../interactive/AgentSimulationAdapter";
 
 /**
  * What the caller knows that the stream itself has not said yet. It is narrow
@@ -53,32 +52,39 @@ export interface MainAssistantProps {
 }
 
 /**
- * Whether the received tool results carry scene-usable evidence.
+ * Whether the received tool results carry an applicable scene action.
  *
- * The v1 `/ask` contract has no action, geometry, attribution, or reversal
- * field, so this never says *what* the scene should do -- no scene mutation is
- * inferred from a tool name, from answer prose, or from any field an arbitrary
- * result object happens to contain. What the contract *does* declare is
- * `ToolOutput.status` (`copilot-tools.d.ts`: `"available" | "unavailable"`),
- * and that is the only thing read here.
+ * A scene change is never inferred from a tool name, from answer prose, or from
+ * any field an arbitrary result object happens to contain. The only thing read
+ * here is the explicit additive `tool_result.result.scene_action` envelope
+ * declared in `docs/research/sse-event-schema.md` § "`scene_action` (additive)"
+ * and emitted by `copilot/dispatcher.py::_scene_action`, and it is read through
+ * the ONE reader (`sceneActionFromResult`) that applies the shared kind
+ * vocabulary and identity rule.
+ *
+ * The earlier revision of this seam keyed on `ToolOutput.status` instead. That
+ * field never reaches the browser: `copilot/narration.py::_METADATA_FIELDS`
+ * strips `status`, `provenance` and `unavailable` before `runtime.py` emits the
+ * result, so both of its non-absent arms were unreachable in production. The
+ * envelope below survives that strip, which is why it is what is read.
  */
 export type SceneActionAvailability =
   | {
       readonly availability: "unavailable";
       readonly reason:
-        /** No received tool result carried a contract-shaped output at all. */
+        /** No received tool result carried a scene-action envelope at all. */
         | "absent_from_received_ask_event_data"
-        /** A contract-shaped output arrived and declared itself unavailable. */
+        /** An admissible envelope arrived and declared itself unavailable. */
         | "declared_unavailable_by_received_tool_output";
       /** The producer's own explanation, verbatim, when it supplied one. */
-      readonly unavailable?: Unavailable;
+      readonly declined?: ReceivedSceneAction;
     }
   | {
       readonly availability: "available";
       /** The received event this claim is read from; never a synthesized one. */
       readonly result: ToolResultEvent;
-      /** `ToolOutput.status` as the producer sent it. */
-      readonly status: Extract<ToolStatus, "available">;
+      /** The envelope as the producer sent it. */
+      readonly action: ReceivedSceneAction;
     };
 
 const NO_SCENE_ACTION: SceneActionAvailability = {
@@ -87,43 +93,28 @@ const NO_SCENE_ACTION: SceneActionAvailability = {
 };
 
 /**
- * Narrow an untrusted `tool_result.result` to the contract's `ToolOutput`.
- *
- * A payload without a `status` of exactly `"available"` or `"unavailable"` is
- * not a v1 tool output and is not guessed at: a result carrying, say, a
- * `scene_action` field but no contract status stays invisible to this function.
- */
-function toolOutput(value: unknown): ToolOutput | undefined {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) return undefined;
-  const status = (value as { status?: unknown }).status;
-  return status === "available" || status === "unavailable" ? (value as ToolOutput) : undefined;
-}
-
-/**
  * Derive the availability from the run's received tool results, in the order
- * the calls arrived. The first contract-shaped output that declares itself
- * available wins; otherwise a declared-unavailable output is reported with the
- * producer's own reason, and only a run with neither is "absent".
+ * the calls arrived. The first admissible envelope that declares itself
+ * available wins; otherwise a declared-unavailable envelope is reported with
+ * the producer's own reason, and only a run with neither is "absent".
  */
 export function sceneActionAvailability(run: RunState): SceneActionAvailability {
-  let declinedBy: Unavailable | undefined;
-  let declined = false;
+  let declined: ReceivedSceneAction | undefined;
   for (const trace of Object.values(run.tools)) {
     const result = trace.result;
     if (!result?.ok) continue;
-    const output = toolOutput(result.result);
-    if (!output) continue;
-    if (output.status === "available") {
-      return { availability: "available", result, status: "available" };
+    const action = sceneActionFromResult(result);
+    if (action === null) continue;
+    if (action.status === "available") {
+      return { availability: "available", result, action };
     }
-    declined = true;
-    declinedBy = declinedBy ?? output.unavailable ?? undefined;
+    declined = declined ?? action;
   }
   if (!declined) return NO_SCENE_ACTION;
   return {
     availability: "unavailable",
     reason: "declared_unavailable_by_received_tool_output",
-    ...(declinedBy ? { unavailable: declinedBy } : {}),
+    declined,
   };
 }
 
@@ -168,7 +159,10 @@ export function chatErrorForRun(run: RunState, request: RequestOverlay = {}): Ch
  *
  * `src/data/ask-stream.ts` dispatches the `stream_closed` action on every EOF,
  * abort, and broken read, and the reducer sets `failureCode` when no terminal
- * event had arrived. This turns that state into the frozen request-outcome
+ * event had arrived. (The abort half of that sentence was false until this PR:
+ * the abort branch re-threw before reaching the dispatch. It dispatches with
+ * `reason: "abort"` before re-throwing now, and a test drives a real
+ * `AbortController` through the real transport to keep it that way.) This turns that state into the frozen request-outcome
  * surface: `FailureState` emits `data-request-status="request_failed"` and
  * `data-request-code="stream_ended_without_terminal"`, so the screen shows the
  * machine token and the named cause instead of a bare sentence. `undefined` for
@@ -229,14 +223,13 @@ export function MainAssistant({ chat, run, onCancelRun, request }: MainAssistant
         {sceneAction.availability === "unavailable" ? (
           <p>
             {sceneAction.reason === "declared_unavailable_by_received_tool_output"
-              ? `The received tool output declares itself unavailable${sceneAction.unavailable ? `: ${sceneAction.unavailable.reason}` : "."}`
+              ? `The received scene action declares itself unavailable${sceneAction.declined?.reason ? `: ${sceneAction.declined.reason}` : "."}`
               : "No scene action is available because the received /ask event data has no explicit action envelope."}
           </p>
         ) : (
           <p>
-            Scene evidence available from tool result {sceneAction.result.call_id} ({sceneAction.result.tool}), which
-            declares the contract status {sceneAction.status}. The action itself is still not inferred: v1 carries no
-            action envelope.
+            {sceneAction.action.kind} action supplied by tool result {sceneAction.result.call_id} (
+            {sceneAction.result.tool}), read from the received scene_action envelope {sceneAction.action.actionId}.
           </p>
         )}
       </section>

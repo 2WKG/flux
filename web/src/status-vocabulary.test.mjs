@@ -42,6 +42,9 @@ await build({
       import { GnnSection } from "./explainer/gnn";
       import { EMPTY_SCENE_CONTEXT } from "./chat/ask-contract";
       import { TERMINAL_ERROR_CODES } from "./ask/run-state/types";
+      import { App } from "./pages/MainPage";
+      import { ExplainerPage } from "./pages/ExplainerPage";
+      import { GridInventoryPanel } from "./renderer/GridInventoryPanel";
       export { ASSET_STATUS_TOKENS, STATUS_COPY, TERMINAL_ERROR_CODES };
       export const renderInspector = (status) =>
         renderToStaticMarkup(createElement(Inspector, { asset: { status, artifactLabel: status, name: "Probe", kind: "Facility" } }));
@@ -52,6 +55,13 @@ await build({
           contextRevision: "r1", context: EMPTY_SCENE_CONTEXT, attemptId: "a1",
           sourceLabel: "Fixture demo", sourceStatus: status, status: "idle",
         }));
+      export const renderMainPage = () => renderToStaticMarkup(createElement(App));
+      export const renderExplainerPage = () => renderToStaticMarkup(createElement(ExplainerPage));
+      const noop = () => {};
+      export const renderInventory = (load) => renderToStaticMarkup(createElement(GridInventoryPanel, {
+        load, state: "mn", layers: ["line"], query: "", selected: null,
+        onStateChange: noop, onLayersChange: noop, onQueryChange: noop, onSelect: noop, onRetry: noop,
+      }));
       export const renderCausalSection = () => renderToStaticMarkup(createElement(CausalSection));
       export const renderJepaSection = () => renderToStaticMarkup(createElement(JepaSection));
       export const renderGnnSection = () => renderToStaticMarkup(createElement(GnnSection));
@@ -122,6 +132,44 @@ test("the six display strings are declared in one place, and every declaration i
   }
 });
 
+/**
+ * The test above only sees a file that binds **three or more** of the six tokens
+ * to a label string. That threshold is why the gate was silent, by construction,
+ * on every panel that re-spelled a single status word -- four surfaces in the
+ * Texas panel batch did exactly that and stayed green. This widens the same
+ * detection to a single binding, with an explicit exemption list, so a new
+ * re-spelling has to be argued for here rather than slipping through under the
+ * quorum.
+ */
+test("no browser file binds even one status token to its own label string", async () => {
+  // Case-sensitive: a lowercase `unavailable: "unavailable"` is a token map, not
+  // a display label. Only a rendered display spelling counts.
+  const DISPLAY_VALUE = /^(?:Source[ -]supported|Source[ -]screened|Hypothetical|Synthetic|Unavailable|Request[ -]failed)$/;
+  const restated = new Map();
+  for (const file of await browserSources()) {
+    const source = stripComments(await readFile(file, "utf8"));
+    const bound = new Map();
+    for (const match of source.matchAll(/\b(source_supported|source_screened|hypothetical|synthetic|unavailable|request_failed)\s*:\s*"([^"]*)"/g)) {
+      if (DISPLAY_VALUE.test(match[2])) bound.set(match[1], match[2]);
+    }
+    if (bound.size > 0) restated.set(path.relative(webRoot.pathname, file), bound);
+  }
+
+  // The pinned inventory of every file that writes a display spelling at all.
+  // A new entry means a surface re-spelled a status word instead of reading
+  // STATUS_COPY, and has to be argued for here.
+  assert.deepEqual(
+    [...restated.keys()],
+    ["src/ask/results/ResultCards.tsx", "src/layers/LayerControls.tsx", "src/source-truth.ts"],
+    "a surface wrote its own copy of a status display string instead of reading STATUS_COPY",
+  );
+  for (const [file, bound] of restated) {
+    for (const [token, value] of bound) {
+      assert.equal(value, STATUS_COPY[token], `${file} spells ${token} differently from its owner`);
+    }
+  }
+});
+
 test("the inspector renders the owner's copy, and never the unhyphenated spelling", () => {
   for (const status of ASSET_STATUS_TOKENS) {
     const rendered = textOf(surface.renderInspector(status));
@@ -149,6 +197,99 @@ test("the chat dock renders the owner's copy", () => {
     assert.ok(rendered.includes(`Truth: ${STATUS_COPY[status]}`), `the dock did not render ${STATUS_COPY[status]}`);
     for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
   }
+});
+
+test("main and explainer surfaces retain their declared status boundaries", () => {
+  const main = surface.renderMainPage();
+  const explainer = surface.renderExplainerPage();
+
+  // The fixture screen is a synthetic result. The claim is not that the word
+  // appears somewhere on the page -- the SVG aria-label and three prose
+  // sentences already say "synthetic" -- but that the DERIVED status token the
+  // page publishes is one of the six, and that BOTH places the page spells that
+  // token out render exactly the owner's copy for it. Relabelling either
+  // derivation site fails here, including to a prohibited word.
+  const token = main.match(/<main data-source-status="([a-z_]+)"/)?.[1];
+  assert.ok(token, "the main page no longer publishes a derived source status");
+  assert.ok(ASSET_STATUS_TOKENS.includes(token), `"${token}" is not one of the six IA status tokens`);
+  assert.equal(token, "synthetic");
+
+  // Derivation site 1: the scenario-controls status chip, asserted as a slice so
+  // an unrelated occurrence of the word elsewhere on the page cannot satisfy it.
+  assert.match(
+    main,
+    new RegExp(`<span class="shell-status">${STATUS_COPY[token]} five-bus preview · not Minnesota data</span>`),
+    "the status chip does not render the owner's copy for the derived token",
+  );
+  // Derivation site 2: the nav source summary, which leads with the same label.
+  const live = main.match(/<div class="live">([\s\S]*?)<\/div>/);
+  assert.ok(live, "the nav no longer renders a source summary");
+  assert.equal(
+    textOf(live[1]),
+    `${STATUS_COPY[token]} · fixture source · no asserted topology · no API required for this scene`,
+  );
+
+  // And the prohibited browser-invented status word never reaches the screen.
+  assert.doesNotMatch(main, new RegExp(PROHIBITED_STATUS_WORD, "i"));
+
+  assert.match(main, /data-request-state="loading"/);
+  assert.match(main, /Checking the evidence API for this scene\./);
+
+  // The explainer makes no model-result claim. Its page-level source status
+  // and its unavailable result are both explicit rather than inferred from
+  // explanatory prose.
+  assert.match(explainer, /<main data-source-status="unavailable">/);
+  assert.match(explainer, /data-request-state="unavailable"/);
+  assert.match(explainer, /data-request-status="unavailable"/);
+  assert.ok(textOf(explainer).includes(STATUS_COPY.unavailable));
+  assert.match(explainer, /Nothing on this page is model output/);
+
+  for (const rendered of [main, explainer]) {
+    for (const rival of RIVAL_SPELLINGS) assert.doesNotMatch(rendered, rival);
+  }
+});
+
+test("the main page's mounted inventory surface distinguishes loading, partial, unavailable, and failed reads", () => {
+  // The mount itself is the first claim: `GridInventoryPanel` renders exactly
+  // one root, and MainPage must carry it. Without this the whole inventory
+  // surface could be deleted from the product with this suite still green.
+  const main = surface.renderMainPage();
+  assert.match(main, /<section class="grid-inventory" aria-label="Source-backed physical inventory">/);
+  // ...in its initial read state, the same branch the fixture below renders.
+  assert.match(main, /Requesting the source-backed inventory release\./);
+
+  // These are its real `gridLoad` branches, rendered with the same props
+  // MainPage supplies; they are not a second state vocabulary or a placeholder.
+  const loading = surface.renderInventory({ kind: "loading" });
+  assert.match(loading, /Requesting the source-backed inventory release\./);
+
+  const page = {
+    api_version: "v1", state: "mn", artifact_version: "1.0.0", artifact_id: "flux:mn-physical:v1",
+    release_sha256: "sha-256", layer: "line", inventory_mode: "physical_observed", electrical_model_mode: "none",
+    items: [], page: { limit: 100, cursor: null, next_cursor: "next-1", total: 250 },
+    coverage: [{
+      assetClass: "generation", status: "partial", scopeId: "eia-860", scope: "EIA-860 2024",
+      reason: "Retired-unit coordinates are absent.", observed: 1200, denominator: 1500, unknown: 44, unavailable: 256,
+    }],
+  };
+  const partial = surface.renderInventory({ kind: "loaded", pages: [page], truncated: true, nextCursor: "next-1" });
+  assert.match(partial, /generation · partial/);
+  assert.match(partial, /Observed 1200 of 1500; unknown 44; unavailable 256\./);
+  assert.match(partial, /The page walk stopped at its cap; more records exist after cursor <code>next-1<\/code>/);
+
+  // `FailureState` hardcodes its own `copy.unavailable`/`copy.request_failed`
+  // rather than importing STATUS_COPY, so these two are a bidirectional pin
+  // across two owners, not a tautology.
+  const unavailable = surface.renderInventory({ kind: "refused", status: "unavailable", code: "artifact_missing", message: "The accepted inventory artifact is unavailable." });
+  assert.match(unavailable, new RegExp(STATUS_COPY.unavailable));
+  assert.match(unavailable, /artifact_missing/);
+  assert.match(unavailable, /The accepted inventory artifact is unavailable\./);
+
+  const failed = surface.renderInventory({ kind: "refused", status: "request_failed", code: "invalid_input", message: "The inventory request was rejected." });
+  assert.match(failed, new RegExp(STATUS_COPY.request_failed));
+  assert.match(failed, /invalid_input/);
+  assert.match(failed, /The inventory request was rejected\./);
+  assert.match(failed, /Retry the inventory request/);
 });
 
 test("each mounted explainer section renders a canonical truth status and no provenance status", () => {

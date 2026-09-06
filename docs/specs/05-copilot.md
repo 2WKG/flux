@@ -14,7 +14,7 @@ Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.du
 
 ## Purpose
 
-A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, and (c) hosts the tool-calling copilot behind `POST /ask`, running on either Claude or Gemini (§Providers; Gemini is the default).
+A FastAPI service that (a) is the single read API the web app uses for map layers and scenario metadata, (b) fronts the engine tools (`predict_outage`, `run_cascade`, `score_site`, `top_lines`, and per 00 §A8 `compare_interventions`, `top_critical_elements`) as HTTP routes for the UI, (c) exposes four labelled-static interactive tools (`scenario_edit`, `cascade`, `balance`, `redundancy`) under the `/interactive` prefix, and (d) hosts the provider-agnostic tool-calling copilot behind `POST /ask`, running on either Claude or Gemini (§Providers; Gemini is the default).
 
 The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
@@ -116,9 +116,24 @@ Rules that hold for both:
   selection is fully determined by `COPILOT_PROVIDER` and its credential, so
   `copilot/app.py:create_app` calls `providers.build_narration_provider` once at
   startup and stores it on `app.state.narration_provider`. Construction opens no
-  connection. Tool orchestration stays deployment-injected (`ask_backend`); a
-  backend that carries its own `provider` outranks the configured one, and
-  `/ask` uses exactly one resolved provider for both the stream and its headers.
+  connection. **Tool orchestration is now built the same way (2WKG-230).**
+  `create_app` calls `copilot.agent.build_ask_backend(settings, provider)` and
+  stores the result on `app.state.ask_backend`; it is `None` exactly when the
+  deployment cannot ground an answer -- no configured provider, or a provider
+  that cannot plan a tool call -- and `/ask` then emits the same documented
+  unavailable terminal rather than guessing. A deployment or a test may still
+  inject its own backend (including `None`) through the same `_UNSET` sentinel
+  `narration_provider` uses. A backend that carries its own `provider` outranks
+  the configured one, and `/ask` uses exactly one resolved provider for both
+  the stream and its headers.
+- **The planner and the narrator are the same model.** `providers/selection.py`
+  owns the planning turn (`ToolSelector`, `ToolSelection`,
+  `SELECTION_SYSTEM_PROMPT`) exactly as `providers/grounding.py` owns the
+  narration turn, and both adapters implement `select_tool` over the same
+  frozen `TOOL_SCHEMAS` rendering `tools_for()` already produced. `tool_choice`
+  is `auto`, never forced: forcing a call would make "no tool fits"
+  unrepresentable and require the model to invent an argument to satisfy the
+  force. A turn that calls no tool is reported as the named refusal below.
 - **Run metadata names the provider that answered.** The
   `X-Flux-Copilot-Provider` / `X-Flux-Copilot-Model` headers are read from that
   resolved provider, never from `Settings`, and are **omitted** when no provider
@@ -194,7 +209,7 @@ Rules:
 
 ### Tool schemas (`tools/schemas.py`)
 
-All nine use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract (00 §2.4 + amendment A8) and must not change. `tools/schemas.py` bounds the two ranking page sizes to `1 ≤ n ≤ 50` (`TOP_LINES_MAX_LIMIT`; `top_critical_elements.n` carries the same bound); `top_lines` exposes no `offset` or `sort` parameter — pagination is not model-facing and the result order is spec 08's `mw_per_musd` desc, owned by the implementation. The nine: the six below plus `compare_interventions`, `top_critical_elements` (both A8, rows below), and `causal_query` (spec 07 owns its schema; registered here in the same list).
+All thirteen use `strict: true`, `additionalProperties: false`, explicit `required`. Signatures are the shared contract (00 §2.4 plus the static interactive addition) and must not change. `tools/schemas.py` bounds the two ranking page sizes to `1 ≤ n ≤ 50` (`TOP_LINES_MAX_LIMIT`; `top_critical_elements.n` carries the same bound); `top_lines` exposes no `offset` or `sort` parameter — pagination is not model-facing and the result order is spec 08's `mw_per_musd` desc, owned by the implementation. The nine persisted-data tools are the six below plus `compare_interventions`, `top_critical_elements` (both A8, rows below), and `causal_query` (spec 07 owns its schema); `scenario_edit`, `cascade`, `balance`, and `redundancy` are the four static interactive tools.
 
 | name | input schema (required unless default) | returns (JSON dict) |
 | --- | --- | --- |
@@ -207,6 +222,10 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 | `compare_interventions` (A8) | `scenario_id: str` (same enum), `intervention_ids: list[str]` (each `site:<site_id>`, `site:<site_id>@300`, or `line:<line_id>`; 1–5 ids) | `{scenario_id, baseline_run_id, interventions:[{intervention_id, kind: site\|line, run_id, lol_reduction_mwh, customer_hours_avoided, critical_loads_protected:[cl_id]}], assumptions:[str]}` — sorted by `lol_reduction_mwh` desc; the tool computes every delta, the model reports them. **Reconciliation (2WKG-173):** that sentence describes the *tool* (`compare_interventions` in `tools/impl.py`), which may compute. The HTTP `POST /compare` route above is a different surface: it only reads deltas a pipeline already persisted and answers `persisted_delta_unavailable` when they are absent. The output shape is shared; the obligation to compute is not |
 | `top_critical_elements` (A8) | `region: str` (`"ERCOT"`, `"TX"`, or a county fips), `n: int = 10` | `{region, n, scenario_ids:[str], elements:[{element_id, kind: line\|bus\|gen, lost_load_mw, critical_loads_lost:[cl_id], runs:int}], partial?:bool}` — ranked by cascade reach from persisted `cascade_runs`; `partial: true` when fewer than `n` elements have any persisted run |
 | `causal_query` | `kind: "attribution"\|"effect"\|"counterfactual"`, optional selected county/site/treatment and the declared scenario/capacity fields | `{answer_numbers, method, assumptions, interval, evidence_rows, question:{treatment,outcome,target_population}, sources:[{source_id,name,version,locator,coverage}], sample:{unit,n_total,n_treated,n_control,period}, diagnostics:[{name,status:"pass",evidence}], citations:[{source_id,locator}]}` from one exact registered evidence artifact; malformed, fixture, missing, or insufficient evidence is canonical unavailable with no effect number |
+| `scenario_edit` | static `base_scenario_id:"interactive"`, outage ops, `hour:0`, `seed:0` | labelled synthetic service envelope, with an additive `scene_action` bound to the emitted tool call |
+| `cascade` | static element ids, `scenario_id:"interactive"`, `hour:0`, `seed:0`, optional edit hash | labelled synthetic service envelope, with an additive `scene_action` bound to the emitted tool call |
+| `balance` | static `scope`, scenario/hour/seed, optional edit hash | labelled synthetic service envelope |
+| `redundancy` | `bus_id`, static scenario/hour/seed | labelled synthetic service envelope |
 
 `resolve_site(lat: float, lon: float) -> {site_id, name, distance_km}` (A8) is a helper inside `impl.py`, not in `TOOL_SCHEMAS`: when a question carries a bare lat/lon (the description's `score_site(latitude, longitude, capacity)` shape), the `score_site` wrapper resolves it to the nearest `site_candidates` row (error if > 25 km) and the UI context / answer names that `site_id`. The model never sees lat/lon-shaped `score_site` arguments.
 
@@ -301,11 +320,23 @@ routes now import) in the record itself, not only on the response envelope, so
 a second consumer that serialises one record still ships the disclosure.
 
 Each entry of `critical_loads` is `{id, name, kind, bus_id, binding_method,
-binding_distance_km}`. The facility key is **`id`**, matching the
-`critical_loads` layer row above and `TexasNodeCriticalFacility` in
-`web/src/texas-nodes/types.ts` (2WKG-438); the adapter's earlier `cl_id` spelling
-was the drift and is gone. `binding_distance_km` is `null` whenever no receipt
-row describes this exact `(cl_id, bus_id)` pair.
+binding_distance_km}`. The facility key is **`id`** and its JSON type is a
+**number**: `critical_loads.cl_id` is a DuckDB `BIGINT` and
+`pipelines/node_annotations.py` emits it unconverted as
+`struct_pack(id := c.cl_id, …)`. The adapter in `web/src/texas-nodes/adapter.ts`
+(2WKG-438) matches that today — it declares `id: number` and refuses a record
+that is not (`if (!number(id)) return null`), which surfaces as
+`request_failed` for the whole layer. The type is therefore a **cross-surface
+contract, and both sides must move in the same change**;
+`pipelines/tests/test_label_vocabulary.py::
+test_the_critical_facility_id_type_is_pinned_to_what_the_client_expects` is the
+server-side pin. Note this is *not* the same convention as the feature-level
+`bus_id`, which `copilot/routes/layers.py` stringifies — stringifying the
+facility `id` to match was proposed under 2WKG-427 and **rejected**, because the
+client that would have required it has since moved to `number` and the change
+would have broken it. The adapter's earlier `cl_id` spelling was the drift and
+is gone. `binding_distance_km` is `null` whenever no receipt row describes this
+exact `(cl_id, bus_id)` pair.
 
 `read_node_annotations` returns exactly one record per `buses` row and raises
 `ValueError` if it ever does not — `_annotated_buses_collection` indexes the
@@ -330,6 +361,10 @@ Arrow responses: `pyarrow.ipc.new_stream(sink: pa.BufferOutputStream, schema)` (
 | `POST /compare` (A8; 2WKG-173 persisted-artifact read) | `{scenario_id (≤128), intervention_ids:[str]}` (1–5 ids, each `site:<id>`, `site:<id>@300\|@1000`, or `line:<id>`) | the `compare_interventions` dict — `{status, provenance:[ArtifactRef], scenario_id, baseline_run_id, interventions:[{intervention_id, kind, run_id, lol_reduction_mwh, customer_hours_avoided, critical_loads_protected}], assumptions}` — **plus** two documented additions: `evidence` (the persisted score behind each row: `artifact_id`, `model_mode`, `metric`, `score_value`, `score_unit`, `score_components`, `regulatory_label`, `provenance`, `limitations`, `assumptions`) and `comparison_status: "persisted_scores_not_derived_deltas"`. The A8 fields validate against the frozen `InterventionsData`/`Intervention` models verbatim; `scenario_id` follows the Minnesota `^[a-z0-9][a-z0-9_-]*$` shape of `GET /predictions`, which is wider than the tool's four-value `ScenarioId` enum. **This route reads persisted deltas; it never derives one.** Every A8 measure comes from the artifact's `score_components_json`; a component the artifact does not carry is `503` reason `persisted_delta_unavailable` naming the `field` and `intervention_id`, never a zero or an omission. `provenance` is built only from persisted `mn_artifact_provenance` rows, with `source_kind` derived by the same label deriver `GET /cascade` uses — an unlabelable source is `503` reason `source_kind_unavailable`. Qualification is read from the manifest, never from the request: `artifact_kind='score'`, `geography_id='mn'`, `identity_json.source_identity` = `{family:'comparison', scenario_id, intervention_id}`. Failures: absent DB → `database_missing`; absent `mn_artifact_manifests` → `missing`; fewer qualified artifacts than requested ids → `no_qualified_result` (never a 200 carrying a subset); two qualified artifacts for one intervention, or artifacts citing different `baseline_run_id`s → `ambiguous_identity`; a declared-unavailable manifest → `artifact_unavailable`; `model_mode ≠ 'topology'` → `unsupported_model_mode`; identity/values disagreement → `invalid_persisted_result`; column drift → `schema_mismatch`; malformed ids are the shared 422 `invalid_input` |
 | `GET /elements/critical` (A8; 2WKG-173 persisted-artifact read) | `region` (1–128), `n=10` (1–50), `offset=0` (0–10,000) | the `top_critical_elements` dict — `{status, provenance:[ArtifactRef], region, n, scenario_ids, elements:[{element_id, kind, lost_load_mw, critical_loads_lost, runs}], partial}` — **plus** two documented additions: `offset` (the page cursor) and `evidence` (the persisted score behind each element). The A8 fields validate against the frozen `CriticalElementsData`/`CriticalElement` models. `scenario_ids` is the sorted set of the served elements' persisted `scenario_id`s. `partial` is `true` when fewer than `n` elements have any persisted run — counted over the whole filtered relation, so a short last page under `offset` is **not** `partial`. The page is a total order (`score_value` desc, then the `mn_score_results.artifact_id` primary key asc) via `copilot.api.pagination.DeterministicOrder`, so paging cannot repeat or skip an element. Failure reasons are the same closed vocabulary as `POST /compare` |
 | `GET /api/v1/grid/layers/{layer}` (2WKG-89 published physical-inventory read) | path `layer` (an `asset_class` present in the release, or `all`); `state ∈ {tx, mn}` and `version` (`^\d+\.\d+\.\d+$`) both required; `bbox?` = `west,south,east,north` in WGS84; `limit=50` (1–100); `cursor?` (opaque, base64url) | one deterministic page of the published release, unwrapped: `{api_version:"v1", state, artifact_version, artifact_id, release_sha256, layer, inventory_mode, electrical_model_mode, items:[{asset_id, asset_class, asset_kind, availability ∈ {available, unavailable}, display_geometry (GeoJSON, WGS84) or null, display_crs or null, native_geometry, native_crs, geometry_status, geometry_accuracy_basis, geometry_precision_m, transform_provenance:{method, source_crs, display_crs} or null, provenance:{source_id, source_record_id, authority, source_ref, source_version, retrieved_at}}], page:{limit, cursor, next_cursor, total}, coverage:[the release's coverage rows for this layer]}`. `api_version` restates the `X-Flux-Api-Version` header inside this payload and is sanctioned here; `total` counts the whole filtered selection, not the page. The page is a total order on `asset_id` asc, so paging cannot repeat or skip an asset; `next_cursor` is `null` on the last page. The cursor is bound to `(state, version, layer, bbox, release_sha256)` — replaying it against a different request is the shared 422 `invalid_input`, so a page can never be read against a different release. This route is transport only: it never derives topology, coverage totals, or coordinates for an asset the release calls `unavailable` (those come back `display_geometry: null`, `availability: "unavailable"`, and are excluded from a `bbox` page rather than co-located into it). The WGS84 `display_geometry` is a rendering copy produced by `pyproj` `always_xy` from the release's own `geometry_crs`; the native geometry and CRS are always carried alongside it. Before any byte is served the release is verified against `manifest-{version}.json`: the manifest row's `published_path` must name the opened file, its `compressed_sha256` must equal the file's bytes, its `canonical_content_sha256` must equal the release's `content_sha256`, and the release must be self-consistent (`artifact_sha256(release) == content_sha256`). Verification is cached on both files' `(st_mtime_ns, st_size)`, so an immutable release is verified once per file version and a file replaced underneath re-verifies rather than serving a stale parse. Failures are all `503 unavailable` with `details.artifact = "physical_inventory"` and a named `reason`: no release or manifest for `(state, version)` → `release_not_found`; unparseable manifest or no row for the state → `invalid_manifest`; unreadable gzip → `unreadable_release`; a release that is not an object with an `assets` list → `invalid_release`; any of the four digest conjuncts failing → `release_hash_mismatch`; a verified release whose `geography_id`/`artifact_version` disagree with the request → `release_identity_mismatch`; a selected asset with no matching `sources` row → `provenance_missing`; a geometry that is neither `unavailable` nor a transformable object → `invalid_geometry` / `display_transform_failed`. An unknown `layer` is `404 not_found`; a malformed `bbox`, `limit`, `state`, `version`, or `cursor` is the shared 422 `invalid_input`. There is no empty success and no default: an absent release is always a named refusal |
+| `POST /interactive/scenario/edit` (2WKG-436/437 interactive simulation) | `{base_scenario_id (≤128), ops:[{op:"outage", element_id (≤160)}] (1–64), hour=0 (0–8760), seed=0}` | the immutable edit identity, unwrapped: `{model_fidelity:"dc_screening", network_provenance:"synthetic (ACTIVSg2000)", limitations:[str], edit_hash, …}`. Non-persisting: the edit lives in process memory and no route writes DuckDB. Only the static interactive scenario at hour 0 with seed 0 exists, so any other `(scenario_id, hour, seed)` is the shared 422 `invalid_input` rather than a silently ignored parameter; a missing simulation core is `503 unavailable` reason `synthetic_core_unavailable` |
+| `POST /interactive/cascade` (2WKG-436/437) | `{element_ids:[str] (1–64), scenario_id (≤128), hour (0–8760), seed, edit_hash?}` | the DC screening cascade result, unwrapped, plus `cascade_id` — the identity of *this immutable request against this core input snapshot*, **not** a persisted run id (the persisted read is `GET /cascade`, a different route on a different path). Same labels, same 422 and 503 vocabulary; an `edit_hash` this process never issued is `404 not_found`, and an `edit_hash` whose recorded context disagrees with the request is `422 invalid_input` |
+| `GET /interactive/balance` (2WKG-436/437) | `scope ∈ {base, edit}` (default `base`), `scenario_id`, `hour`, `seed`, `edit_hash?` | the balance report, unwrapped, with the same three labels. `edit_hash` is valid only with `scope=edit` and required by it (both 422); an unknown `edit_hash` is `404 not_found` |
+| `GET /interactive/redundancy` (2WKG-436/437) | `bus_id` (required), `scenario_id`, `hour`, `seed` | the N-1 redundancy score for that bus, unwrapped, with the same three labels and the same 422/503 vocabulary |
 | `POST /ask` | see below | `text/event-stream` |
 
 **Browser consumer (D-10, 2WKG-355).** As of Joshua's 2026-09-06 decision the web App is a live
@@ -351,12 +386,24 @@ through `web/src/data/`. Three properties of that consumer are contractual, not 
   browser side; the server side is unchanged.)
 
 
-**Route inventory (D-3).** The twelve rows above are exactly what `copilot/app.py:68-76` mounts,
+**Route inventory (D-3).** The rows above are exactly what `copilot/app.py` mounts,
 regenerated from `app.openapi()['paths']` and matched against
-`copilot/test_read_route_contracts.py:95-250`. Two compute-style routes were listed here and
-**have never existed on `master`** — a cascade POST and a predict POST; the persisted-artifact
-reads `GET /cascade` (`copilot/routes/predictions.py:445`) and `GET /predictions` (`:248`) are
-what took their place, and no route computes a cascade or a prediction inside a request.
+`copilot/test_read_route_contracts.py`'s `READ_ROUTE_CONTRACTS`. Two compute-style routes were
+listed here and **have never existed on `master`** at the public root — a cascade POST and a
+predict POST; the persisted-artifact reads `GET /cascade`
+(`copilot/routes/predictions.py:445`) and `GET /predictions` (`:248`) are what took their place
+at the root, and no *root* route computes a cascade or a prediction inside a request.
+
+**The `/interactive` prefix (D-3, amended 2026-09-06).** The four interactive-simulation routes
+compute in-request against the synthetic ACTIVSg2000 topology and persist nothing. They are
+mounted under the `/interactive` prefix by
+`copilot.interactive_routes.create_interactive_router`, and the prefix is load-bearing rather
+than cosmetic: without it `POST /cascade` would share a path with the persisted-artifact read
+`GET /cascade`, so one path would carry two unrelated contracts distinguished only by method —
+exactly the conflation this section forbids. `copilot/test_api_route_inventory.py`'s
+`LEGACY_DOCUMENTED_BUT_ABSENT` therefore still holds: no compute route is registered at
+`POST /cascade` or `POST /predict`. `copilot/test_interactive_routes.py::test_all_ticket_436_routes_are_mounted_under_the_interactive_prefix`
+asserts both halves — the four prefixed paths exist and `/cascade` carries no POST operation.
 `GET /scenarios/{scenario_id}` was implemented and undocumented.
 
 `POST /compare` and `GET /elements/critical` are, as of 2WKG-173, persisted-artifact
@@ -375,7 +422,9 @@ route here, return unwrapped payloads (`copilot/api/envelope.py`: only the failu
 envelope is wrapped). `GET /cascade` returns only the latest persisted run for a scenario
 whose model result is validated and whose available topology manifest has nonempty
 provenance and limitations. It invokes no compute behaviour at all: the compute-style cascade route
-previously described here was never implemented (D-3), so `GET /cascade` is the only cascade route. `GET /predictions` excludes
+previously described here was never implemented at the root (D-3), so `GET /cascade` is the only
+cascade route at the public root; the in-request screening cascade is
+`POST /interactive/cascade`, on its own path, and it persists nothing. `GET /predictions` excludes
 unqualified evaluation artifacts; a missing or unqualified prediction artifact returns the
 documented unavailable failure envelope rather than an empty success.
 
@@ -460,7 +509,9 @@ Run: `uv run uvicorn copilot.app:app --port 8000 --reload`.
 1. `GET /health` returns `ok: true`, lists all 16 contract tables, and `corpus_chunks > 500`.
 2. `GET /scenarios` returns exactly the four scenario ids `uri_2021, beryl_2024, helene_2024, forecast_72h` with `has_cascade` and `has_predictions` true for `uri_2021`.
 3. Every `/layers/{name}` in the table returns 200 when its artifact is built, or the shared 503 `unavailable` envelope with `details.reason: "not_built"` when it is not, in < 300 ms warm; `lines` for Texas is < 3 MB gzipped.
-4. `POST /site-score` returns the persisted `site_scores` row described in its route row above — it is a persisted read and never calls `score_site` in the request (see §Routes, 2WKG-172). The previous criterion here asserted the opposite (that the route was a pass-through returning the Python function's dict, tested by equality) and named a cascade POST route that does not exist; it is removed (D-3b).
+4. `POST /site-score` returns the persisted `site_scores` row described in its route row above — it is a persisted read and never calls `score_site` in the request (see §Routes, 2WKG-172). The previous criterion here asserted the opposite (that the route was a pass-through returning the Python function's dict, tested by equality) and named a cascade POST route that does not exist at the public root; it is removed (D-3b).
+The in-request screening cascade is `POST /interactive/cascade` (see §Routes and the
+`/interactive` prefix note), which is a different route with a different contract.
 5. `sql` rejects every statement in `eval/sql_denylist.txt` (INSERT/UPDATE/DELETE/DROP/ATTACH/COPY/PRAGMA/multi-statement/`SELECT … ; DROP`) with a 4xx-shaped tool error and never mutates the DB (file hash unchanged after the run).
 6. `POST /ask` streams at least one `tool_call` event before any `text` event containing a digit, for every question in `eval/questions.yaml`.
 7. For the two demo questions, the emitted tool-call sequence matches the expected trace (order-insensitive within a turn) in `eval/questions.yaml`, and `done.verified == true`.

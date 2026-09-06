@@ -111,8 +111,17 @@ export async function runAsk(
         chunk = await connection.data.reader.read();
       } catch (error) {
         // A caller-directed abort is intentional cancellation, not a stream
-        // failure. The caller retains the rejected promise in that case.
-        if (options.signal?.aborted) throw error;
+        // failure. The caller retains the rejected promise in that case -- but
+        // the run still has to stop being `streaming`. Re-throwing straight out
+        // of here skipped the `stream_closed` dispatch at the end of this
+        // function entirely (the `finally` only closes the connection), so an
+        // aborted run kept whatever phase it had and `chatStatusForRun` would
+        // report `streaming` forever. Declare the close first, with its own
+        // reason, and only then re-throw.
+        if (options.signal?.aborted) {
+          dispatch({ type: "stream_closed", identity, reason: "abort" });
+          throw error; // `finally` below still closes the connection.
+        }
 
         // Browser idle timeouts and broken sockets reject read() after the
         // stream was accepted instead of yielding EOF. Route that path through

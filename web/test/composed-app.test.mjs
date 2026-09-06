@@ -60,13 +60,22 @@ test("every landed panel is mounted in the one App", () => {
     "failure state": /class="failure-state"/,
     "layer controls": /class="layer-controls"/,
     "layer status legend": /aria-label="Layer status legend"/,
-    "inspector": /class="asset-inspector"/,
-    "physical inventory panel": /aria-label="Source-backed physical inventory"/,
-    "inventory coverage disclosure": /aria-label="Coverage and geometry availability"/,
-    "inventory map slot": /class="grid-map"/,
+    "Texas topology workspace": /aria-label="Full synthetic Texas topology workspace"/,
+    "Texas model mount": /class="map scene-viewport"/,
+    "named model-route fallback": /Texas model topology unavailable/,
   };
   const missing = Object.entries(mounted).filter(([, pattern]) => !pattern.test(markup)).map(([name]) => name);
   assert.deepEqual(missing, [], `not mounted in App: ${missing.join(", ")}`);
+});
+
+test("the default composition mounts the Texas model surface without a five-bus inspector rail", () => {
+  // The full network is the primary surface. The old scenario inspector and
+  // physical-inventory panel remain separate components for their own routes,
+  // but neither may displace the model viewport on the default route.
+  assert.match(markup, /<section class="workspace model-workspace" aria-label="Full synthetic Texas topology workspace">/);
+  assert.match(markup, /class="map scene-viewport"/);
+  assert.match(markup, /Texas model topology unavailable/);
+  assert.doesNotMatch(markup, /class="asset-inspector"|aria-label="Scenario inspector"|Source-backed physical inventory/);
 });
 
 test("the chat dock and run trace are mounted only through the one assistant seam", () => {
@@ -92,18 +101,6 @@ test("the assistant seam is in a shipped chunk, not only in its own test", async
   assert.ok(bundle.includes("absent_from_received_ask_event_data"), "the seam's machine reason is in no built chunk");
 });
 
-test("the inspector is composed without borrowing the shell's own column class", () => {
-  // `.inspector` is the shell's flex column (`styles.css`), written for its own
-  // metric stack. Handing it to `Inspector` inherits rules meant for something
-  // else, so exactly one element may carry it: the shell's own aside.
-  const inspectorClasses = [...markup.matchAll(/class="([^"]*)"/g)]
-    .map((match) => match[1].split(/\s+/))
-    .filter((classes) => classes.includes("inspector"));
-  assert.equal(inspectorClasses.length, 1, "exactly one element may carry the shell's own .inspector class");
-  assert.match(markup, /<aside class="inspector" aria-label="Scenario inspector">/);
-  assert.match(markup, /class="asset-inspector"/, "the composed inspector must carry its own class");
-});
-
 test("the composed shell publishes the machine provenance token, not prose", () => {
   assert.match(markup, /<main data-source-status="synthetic">/);
 });
@@ -121,13 +118,22 @@ test("every layer renders unavailable with a named producer reason before any ro
 });
 
 test("the composed screen renders no status label but the ones its data supports", () => {
-  // The synthetic fixture and six unavailable layers can produce exactly two of
-  // the six display strings. Relabelling any surface introduces a third.
+  // The synthetic fixture and six unavailable layers produce two of the six
+  // display strings. The mounted scenario edit composer (2WKG-440) adds exactly
+  // one more: an edit a user composes is a proposal, and `hypothetical` is the
+  // IA's token for a proposal (`docs/design/texas-demo-narrative-ia.md`, the
+  // truth-label table). It is rendered from `STATUS_COPY`, not written here.
+  // The set stays exact, so relabelling any surface still introduces a fourth
+  // and fails.
   const shown = Object.entries(app.STATUS_COPY)
     .filter(([, label]) => new RegExp(`(^| )${label}( |$|\\.)`).test(text))
     .map(([token]) => token)
     .sort();
-  assert.deepEqual(shown, ["synthetic", "unavailable"].sort());
+  assert.deepEqual(shown, ["hypothetical", "synthetic", "unavailable"].sort());
+  // And the three that would be claims this screen cannot make stay absent.
+  for (const token of ["source_supported", "source_screened", "request_failed"]) {
+    assert.ok(!shown.includes(token), `the composed screen renders ${token}`);
+  }
 });
 
 test("the run trace, when mounted, carries the scene's own status and not the reducer default", () => {
