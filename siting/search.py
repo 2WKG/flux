@@ -87,7 +87,9 @@ def search_locations(
 
     baseline_peak = _cascade(net, scenario_id, hour, tuple(edits), policy)
     baseline_redundancy: object | None = (
-        _redundancy(net, None, kind, unit_mw, scenario_id, hour, tuple(edits), policy)
+        _baseline_redundancy(
+            net, candidates, kind, unit_mw, scenario_id, hour, tuple(edits), policy
+        )
         if kind == "producer"
         else None
     )
@@ -154,7 +156,9 @@ def search_locations(
     # reference scenario.
     baseline_full = _cascade(net, scenario_id, None, tuple(edits), policy)
     baseline_full_redundancy: object | None = (
-        _redundancy(net, None, kind, unit_mw, scenario_id, None, tuple(edits), policy)
+        _baseline_redundancy(
+            net, candidates, kind, unit_mw, scenario_id, None, tuple(edits), policy
+        )
         if kind == "producer"
         else None
     )
@@ -323,8 +327,54 @@ def _redundancy(net: object, candidate: Mapping[str, object] | None, kind: Candi
     if fn is None:
         raise SearchUnavailable("redundancy policy is unavailable")
     if candidate is None:
-        raise SearchUnavailable("baseline redundancy requires a candidate-scoped adapter")
-    return _invoke(fn, net=net, bus_id=_required(candidate, "bus_id"), scenario_id=scenario_id, hour=0 if hour is None else hour)
+        raise SearchUnavailable("candidate-scoped redundancy requires a candidate")
+    score_net = net
+    if edits:
+        apply = _import_callable("twin.edits", "apply_edits")
+        if apply is None:
+            raise SearchUnavailable("immutable edit application is unavailable")
+        score_net = _invoke(apply, net=net, edits=edits)
+    return _invoke(
+        fn,
+        net=score_net,
+        bus_id=_required(candidate, "bus_id"),
+        scenario_id=scenario_id,
+        hour=0 if hour is None else hour,
+    )
+
+
+def _baseline_redundancy(
+    net: object,
+    candidates: Sequence[Mapping[str, object]],
+    kind: CandidateKind,
+    unit_mw: float,
+    scenario_id: str,
+    hour: int | None,
+    edits: tuple[object, ...],
+    policy: SearchAdapters,
+) -> object:
+    """Return a producer baseline without inventing a network-wide score.
+
+    The 434 contract scores one bus at a time.  A producer search therefore
+    uses the arithmetic mean of the same candidate-bus population before any
+    candidate edit.  Each counterfactual is then evaluated at its own bus,
+    making ``mean_redundancy_uplift`` a measurable difference on a declared
+    population rather than a fabricated system-wide redundancy number.
+    """
+
+    if policy.redundancy is not None or _find_callable(net, "redundancy", "redundancy_score"):
+        return _redundancy(
+            net, None, kind, unit_mw, scenario_id, hour, edits, policy
+        )
+    values = [
+        _redundancy_value(
+            _redundancy(net, candidate, kind, unit_mw, scenario_id, hour, edits, policy)
+        )
+        for candidate in candidates
+    ]
+    if not values:
+        raise SearchUnavailable("producer search has no candidate buses for redundancy baseline")
+    return {"mean_redundancy": sum(values) / len(values)}
 
 
 def _cascade(net: object, scenario_id: str, hour: int | None, edits: tuple[object, ...], policy: SearchAdapters) -> object:
