@@ -172,6 +172,24 @@ def load_storm_events(
             "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
             ["noaa_storm_events", f"{year}:zone:%"],
         )
+        con.execute(
+            "DELETE FROM ingest_warnings WHERE source = ? AND source_key LIKE ?",
+            ["noaa_storm_events", f"{year}:scope:%"],
+        )
+        if selected.empty:
+            # A scope with no rows is reported, never recorded as a clean load.
+            con.execute(
+                "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
+                [
+                    "noaa_storm_events",
+                    f"{year}:scope:{selected_scope.slug}",
+                    (
+                        f"0 Storm Events rows in {path.name} for scope "
+                        f"{selected_scope.slug}; the source has no rows for "
+                        f"{', '.join(selected_scope.names)}"
+                    ),
+                ],
+            )
         scope_label = "Texas" if selected_scope.is_texas_only else "scoped"
         for zone, count in unmatched_zones.items():
             con.execute(
