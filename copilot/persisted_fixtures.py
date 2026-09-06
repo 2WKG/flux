@@ -185,6 +185,25 @@ def add_site_score_manifest(
             "input_artifact_ids_json": json.dumps([]),
         },
     )
+    if availability == "available":
+        # The mn contract refuses an available manifest with no provenance
+        # (`pipelines/minnesota_schema.py`), so the fixture must carry one.
+        insert(
+            con,
+            "mn_artifact_provenance",
+            {
+                "artifact_id": artifact_id,
+                "provenance_ordinal": 0,
+                "source_name": "fixture:site-score",
+                "source_ref": "fixture://site-score",
+                "source_version": "v1",
+                "retrieved_at": datetime(2026, 1, 1, tzinfo=UTC),
+                "license_or_terms": "test fixture",
+                "source_record_id": artifact_id,
+                "content_sha256": SHA256,
+                "is_derived": False,
+            },
+        )
     return artifact_id
 
 
