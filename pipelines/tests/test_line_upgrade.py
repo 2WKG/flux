@@ -21,6 +21,7 @@ from pipelines.line_upgrade_contracts import (
     ScoredLine,
     SimulatedCongestion,
     StorageProvenance,
+    UnattributedCongestion,
     UnavailableLine,
     UnavailableReason,
 )
@@ -128,6 +129,20 @@ def test_missing_prerequisites_are_unavailable_not_partial_scores():
     assert isinstance(result, UnavailableLine)
     assert result.reason is UnavailableReason.NO_CONGESTION_INPUT
     assert persist_ranking((result,), STORAGE).score_rows == ()
+
+
+def test_unattributed_congestion_is_unavailable_and_never_persisted_as_a_score():
+    result = _score(
+        2,
+        (_dlr(10),),
+        congestion=UnattributedCongestion(reason=UnavailableReason.UNMAPPED_CONSTRAINT),
+    )
+
+    assert isinstance(result, UnavailableLine)
+    assert result.reason is UnavailableReason.UNMAPPED_CONSTRAINT
+    artifact = persist_ranking((result,), STORAGE)
+    assert artifact.score_rows == ()
+    assert artifact.detail_rows == ()
 
 
 @pytest.mark.parametrize("rating", [None, 0, -5.0, float("inf"), float("nan")])
