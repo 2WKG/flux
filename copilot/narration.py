@@ -14,6 +14,8 @@ from dataclasses import dataclass
 from types import MappingProxyType
 from typing import Literal
 
+from pydantic import ValidationError
+
 from copilot.tools.schemas import (
     TOOL_REGISTRY,
     ArtifactRef,
@@ -22,6 +24,7 @@ from copilot.tools.schemas import (
     RetrievalHit,
     ToolOutput,
     Unavailable,
+    UnavailableCode,
     UnavailableOutput,
 )
 
@@ -33,7 +36,12 @@ class GroundedNarration:
     ``evidence`` is the tool's typed payload excluding transport metadata.  It
     is intentionally kept beside the summary so a later provider or browser
     cannot turn a status-only sentence into an unsupported operational, legal,
-    or physical claim.  ``citations`` contain only hits returned by ``cite``.
+    or physical claim.  It is frozen all the way down (nested mappings become
+    read-only views and nested lists become tuples) so a renderer cannot make
+    ``evidence`` disagree with ``citations``.  ``citations`` contain only hits
+    returned by ``cite``.  An unavailable narration may still carry the
+    tool's ``provenance`` (which artifacts were consulted) while ``evidence``
+    stays empty.
     """
 
     status: Literal["available", "unavailable"]
@@ -83,12 +91,26 @@ def narrate(tool_name: str, result: ToolOutput) -> GroundedNarration:
         return _unavailable(
             "invalid_prerequisite", "tool result is not a validated output"
         )
+    # Fail closed on our own boundary rather than trusting that the caller ran
+    # validation: a ``model_construct``-built result (or one mutated after
+    # validation) is re-checked against its own contract before narration.
+    try:
+        result = type(result).model_validate(result.model_dump(mode="json"))
+    except ValidationError:
+        return _unavailable(
+            "invalid_prerequisite", "tool result failed contract validation"
+        )
 
     if result.status == "unavailable":
+        # ``UnavailableOutput`` is shared by every registered tool, so any tool
+        # name accepts it here; the tool-name check above already ran.
         if not isinstance(result, UnavailableOutput) or result.unavailable is None:
             return _unavailable(
                 "invalid_prerequisite", "tool result has an invalid unavailable shape"
             )
+        # The reason is copied verbatim; it is tool-authored text, not model
+        # prose.  A later /ask loop must treat any numbers in it as
+        # tool-provenanced when running its number trace, not as invented.
         return GroundedNarration(
             status="unavailable",
             text=result.unavailable.reason,
@@ -116,7 +138,7 @@ def narrate(tool_name: str, result: ToolOutput) -> GroundedNarration:
         citations = tuple(result.hits)
 
     payload = result.model_dump(mode="json")
-    evidence = MappingProxyType(
+    evidence = _freeze(
         {key: value for key, value in payload.items() if key not in _METADATA_FIELDS}
     )
     return GroundedNarration(
@@ -127,6 +149,16 @@ def narrate(tool_name: str, result: ToolOutput) -> GroundedNarration:
         citations=citations,
         limitations=_limitations(result),
     )
+
+
+def _freeze(value: object) -> object:
+    """Return a read-only deep copy: dicts become proxies, lists become tuples."""
+
+    if isinstance(value, dict):
+        return MappingProxyType({key: _freeze(item) for key, item in value.items()})
+    if isinstance(value, list):
+        return tuple(_freeze(item) for item in value)
+    return value
 
 
 def _summary(tool_name: str, citations: tuple[RetrievalHit, ...]) -> str:
@@ -148,15 +180,7 @@ def _limitations(result: ToolOutput) -> tuple[str, ...]:
     return tuple(dict.fromkeys(limitations))
 
 
-def _unavailable(
-    code: Literal[
-        "artifact_unavailable",
-        "invalid_prerequisite",
-        "unsupported_request",
-        "insufficient_evidence",
-    ],
-    reason: str,
-) -> GroundedNarration:
+def _unavailable(code: UnavailableCode, reason: str) -> GroundedNarration:
     unavailable = Unavailable(code=code, reason=reason)
     return GroundedNarration(
         status="unavailable",
