@@ -21,32 +21,33 @@ import { expect, test, type Page } from "@playwright/test";
  *     `no_api_origin_configured`, so killing the API turns this suite red
  *     instead of leaving it quietly green.
  *
- * KNOWN RED, and deliberately not silenced -- two causes, neither this file's
- * to decide:
+ * KNOWN RED, and deliberately not silenced. There is now exactly ONE open
+ * cause, and it is not this file's to decide:
  *
- *  a. CSP vs WebAssembly. Every case below asserts the page reported no CSP
- *     violation. At master `eac05eb` all nine failed with
- *     `script-src wasm-eval`: `web/server.mjs`'s policy is `script-src 'self'`,
- *     which forbids WebAssembly compilation, while the glTF path bundles
- *     meshoptimizer's decoder -- it probes for SIMD with `WebAssembly.validate`
- *     then calls `WebAssembly.instantiate` on a bundled buffer, and Chromium
- *     refuses both. The one directive that would permit it is
- *     `'wasm-unsafe-eval'` (WebAssembly compilation only: no `eval`, no
- *     `new Function`, no off-origin source). Adding it is a security decision
- *     for the owner of that policy, so it is NOT taken here. Measured at
- *     `eac05eb` with the API booted: with the directive added locally all 12
- *     cases pass; without it 7 fail on this assertion and 5 pass.
- *  b. The page moved. At master `5325957` (#358, 2WKG-486) `/` renders the
- *     ACTIVSg2000 Texas topology, not the Minnesota five-bus synthetic
- *     explorer, so most locators below find nothing and no map mounts on `/`
- *     at all -- which is also why (a) no longer fires there. Which surface owns
- *     `/`, and where this proof should now point, is a product decision, not a
- *     test fix. The cases are left failing rather than weakened, skipped, or
- *     marked expected-failure.
+ *  The page moved. At master `5325957` (#358, 2WKG-486) `/` renders the
+ *  ACTIVSg2000 Texas topology, not the Minnesota five-bus synthetic explorer,
+ *  so most locators below find nothing and no map mounts on `/` at all. Which
+ *  surface owns `/`, and where this proof should now point, is a product
+ *  decision, not a test fix. The cases are left failing rather than weakened,
+ *  skipped, or marked expected-failure. Measured at this branch's head:
+ *  3 passed / 10 failed, all ten on locators the Texas page does not render.
  *
- * The one case here that survives (b) is the chat dock, and it passes: it is
- * the case that pins the API's own refusal, so it is live proof that the stack
- * below really boots `copilot.app`.
+ * CLOSED, and no longer a deferral: CSP vs WebAssembly. Every case below still
+ * asserts the page reported no CSP violation. At master `eac05eb` all nine
+ * static-explorer cases failed with `script-src wasm-eval`, because the policy
+ * was then `script-src 'self'` while the glTF path bundles meshoptimizer's
+ * decoder -- it probes for SIMD with `WebAssembly.validate` then calls
+ * `WebAssembly.instantiate` on a bundled buffer, and Chromium refused both.
+ * `'wasm-unsafe-eval'` (WebAssembly compilation only: no `eval`, no
+ * `new Function`, no off-origin source) LANDED ON MASTER in `7baa60c`
+ * ("fix(web): permit WebAssembly model decoding"), which is an ancestor of this
+ * branch: `web/server.mjs`'s policy here already reads
+ * `script-src 'self' 'wasm-unsafe-eval'`. Nothing in this PR widens it, and no
+ * residual failure below may be attributed to it.
+ *
+ * The one case here that survives the page move is the chat dock, and it
+ * passes: it is the case that pins the API's own refusal, so it is live proof
+ * that the stack below really boots `copilot.app`.
  */
 
 /**
@@ -212,7 +213,9 @@ test("the physical-inventory map is mounted inside the one App, with its disclos
   // longer has. Without the API this note reads the unavailable copy and fails.
   await expect(panel.getByLabel("Coverage and geometry availability")).toBeVisible();
   const note = panel.locator(".grid-map-note");
-  await expect(note).toContainText(/\d+ rendered from \d+ loaded records/, { timeout: 20_000 });
+  await expect(note).toContainText(/[1-9]\d* rendered from [1-9]\d* loaded records/, {
+    timeout: 20_000,
+  });
   await expect(note).toContainText(/Release SHA-256: [0-9a-f]{64}/);
   await expectSameOriginOnly(page);
 });
