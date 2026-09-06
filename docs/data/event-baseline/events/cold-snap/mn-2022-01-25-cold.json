@@ -7,7 +7,9 @@
     "primary_hazard": "extreme_cold",
     "secondary_hazards": [],
     "compound": false,
-    "source_event_ids": ["1002375"],
+    "source_event_ids": [
+      "1002375"
+    ],
     "context_window": {
       "start_utc": "2022-01-23T00:00:00Z",
       "end_utc": "2022-01-28T00:00:00Z"
@@ -21,10 +23,10 @@
       "end_utc": "2022-01-28T00:00:00Z"
     },
     "disposition": "candidate_only",
-    "selection_basis": "NCEI Storm Events episode 164673, event 1002375, is an independent cold candidate pending matched weather/outage evidence.",
+    "selection_basis": "NCEI Storm Events episode 164673, event 1002375, is an independent cold candidate with matched NCEI weather evidence but incomplete EAGLE-I outage coverage.",
     "exclusions": [],
     "uncertainties": [
-      "EAGLE-I and canonical county/zone weather coverage have not been collected for this candidate; it cannot be accepted."
+      "The EAGLE-I annual traversal does not provide a complete 24-sample outage window; no zero imputation, outage rate, or five-percent label is asserted."
     ]
   },
   "source_receipts": [
@@ -46,6 +48,40 @@
       "gaps": [
         "Raw binary hash and bytes not retained."
       ]
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20220125t060000-20220125t120000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:13:37Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states run_start_time is UTC.",
+      "filters": "Full annual 2022 traversal; Minnesota FIPS 27151; UTC [2022-01-25T06:00:00Z,2022-01-25T12:00:00Z).",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Explicit zeros are observations; missing row meaning is unknown and is UncoveredLabel."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/mn-2022-01-25-cold-27151-20220125060000_eaglei_2022_20220125T060000_20220125T120000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      }
     }
   ],
   "records": [
@@ -59,7 +95,8 @@
       "disposition": "candidate_only",
       "mode": "replay",
       "provenance_receipt_ids": [
-        "ncei_stormevents_2022"
+        "ncei_stormevents_2022",
+        "eaglei-2022-42547897-20220125t060000-20220125t120000"
       ],
       "source_evidence_status": "unavailable",
       "source_row_keys": [],
@@ -68,13 +105,20 @@
         "coverage": "covered",
         "evidence_kind": "authoritative_event_report",
         "observation_kind": "observed",
-        "source_receipt_ids": ["ncei_stormevents_2022"],
+        "source_receipt_ids": [
+          "ncei_stormevents_2022"
+        ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
         "event_report": {
-          "source_event_ids": ["1002375"],
-          "source_window": {"start_utc": "2022-01-25T06:15:00Z", "end_utc": "2022-01-25T15:00:00Z"},
+          "source_event_ids": [
+            "1002375"
+          ],
+          "source_window": {
+            "start_utc": "2022-01-25T06:15:00Z",
+            "end_utc": "2022-01-25T15:00:00Z"
+          },
           "spatial_scope": "zone",
           "scope_identifier": "CZ_FIPS:055",
           "limitations": "NCEI weather-zone report; not a county time series."
@@ -82,20 +126,47 @@
         "notes": "The NCEI source interval intersects this canonical county window."
       },
       "outage": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
-        "expected_samples": null,
-        "observed_samples": null,
-        "missing_timestamps": [],
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20220125t060000-20220125t120000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2022-01-25T06:00:00Z",
+          "2022-01-25T06:15:00Z",
+          "2022-01-25T06:30:00Z",
+          "2022-01-25T06:45:00Z",
+          "2022-01-25T07:00:00Z",
+          "2022-01-25T07:15:00Z",
+          "2022-01-25T07:30:00Z",
+          "2022-01-25T07:45:00Z",
+          "2022-01-25T08:00:00Z",
+          "2022-01-25T08:15:00Z",
+          "2022-01-25T08:30:00Z",
+          "2022-01-25T08:45:00Z",
+          "2022-01-25T09:00:00Z",
+          "2022-01-25T09:15:00Z",
+          "2022-01-25T09:30:00Z",
+          "2022-01-25T09:45:00Z",
+          "2022-01-25T10:00:00Z",
+          "2022-01-25T10:15:00Z",
+          "2022-01-25T10:30:00Z",
+          "2022-01-25T10:45:00Z",
+          "2022-01-25T11:00:00Z",
+          "2022-01-25T11:15:00Z",
+          "2022-01-25T11:30:00Z",
+          "2022-01-25T11:45:00Z"
+        ],
         "event_report": null,
-        "notes": "EAGLE-I coverage not collected; no zero-outage inference."
+        "notes": "Full annual traversal found no source rows; missing observations are UncoveredLabel and are not imputed as zero."
       },
       "matched_coverage_decision": "unavailable",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "unavailable",
+        "status": "UncoveredLabel",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",

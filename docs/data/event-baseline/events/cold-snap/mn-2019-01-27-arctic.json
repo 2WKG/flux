@@ -35,17 +35,30 @@
       "release": "c20260323",
       "retrieved_at_utc": "2026-09-06T07:10:48Z",
       "license_or_access": "Public NOAA access; license not independently verified in this collection pass.",
-      "raw_sha256": null,
-      "filtered_sha256": null,
-      "bytes": null,
+      "raw_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+      "filtered_sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6",
+      "bytes": 11602648,
       "etag": null,
       "units": "Storm Events local begin/end times and event classifications.",
-      "timezone_conversion": "Event 800140 CZ_TIMEZONE CST-6 converted to UTC.",
+      "timezone_conversion": "Event 800140 CZ_TIMEZONE CST-6 converted to UTC: local [2019-01-29 14:00, 2019-01-31 06:00) maps to [2019-01-29T20:00:00Z, 2019-01-31T12:00:00Z).",
       "filters": "MINNESOTA; EPISODE_ID=132801; EVENT_ID=800140; EVENT_TYPE=Extreme Cold/Wind Chill.",
       "grid_index_mapping": "No gridded index used.",
-      "gaps": [
-        "Raw binary hash and bytes not retained."
-      ]
+      "gaps": [],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "retained_ncei_annual_gzip_exact_event_id_filter",
+        "source_system_id": "ncei:stormevents:details:2019",
+        "source_file": "StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+        "source_file_id": "StormEvents_details-ftp_v1.0_d2019_c20260323.csv.gz",
+        "source_file_bytes": 11602648,
+        "integrity_basis": "SHA-256 of retained NCEI annual gzip; exact native EVENT_ID=800140 CSV serialization",
+        "raw_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz",
+        "raw_artifact_sha256": "f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b",
+        "source_sidecar_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/f5043ecc776818b0feffdf1e0fcbaf63329db0635eab1057c7b8ba00ef332e3b.csv.gz.source.json",
+        "source_sidecar_sha256": "cf782848b2a11f9e2c6cb8ac42187f0f3d155322aace956abdb33572c8278cf9",
+        "filtered_artifact_uri": "/Users/joshua/buckeye-swarm/flux/data/raw/event-baseline/weather-or-context/ncei_stormevents_2019_event_800140.csv",
+        "filtered_artifact_sha256": "3942657a0ec20105a4c989a77ad6fe16ed79a935ea2bd61edebf3d919a9b3fe6"
+      }
     },
     {
       "receipt_id": "eaglei-2019-42547885-mn-2019-01-27-arctic-27053-20190130120000-20190130t120000-20190130t180000",
