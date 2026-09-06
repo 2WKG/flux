@@ -185,7 +185,7 @@ def test_store_manifest_round_trips_through_schema_meta(tmp_path):
 
 
 def _stage_minnesota_release(
-    _raw_dir: str, db_path: str, _tz, parquet_dir: str, _states=None
+    _raw_dir: str, db_path: str, _tz, parquet_dir: str, **_kwargs
 ) -> dict:
     """Stand-in for the loaders: a Minnesota release that passes the MN checks."""
     con = connect(db_path)

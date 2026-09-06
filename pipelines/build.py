@@ -55,18 +55,23 @@ def _dod_filename(states=None) -> str:
     )
 
 
-def _p0_raw_inputs() -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
-    """Read the P0 raw-file contract from the shared dataset catalog."""
+def _p0_raw_inputs(
+    catalog: Path | None = None,
+) -> tuple[tuple[str, tuple[tuple[str, ...], ...]], ...]:
+    """Read the P0 raw-file contract from the shared dataset catalog.
+
+    This is the only reader of ``p0_raw_inputs``; the preflight receipt imports
+    it so the builder and the receipt cannot drift apart.
+    """
+    catalog = catalog or P0_RAW_INPUTS_CATALOG
     try:
-        inputs = json.loads(P0_RAW_INPUTS_CATALOG.read_text())["p0_raw_inputs"]
+        inputs = json.loads(catalog.read_text(encoding="utf-8"))["p0_raw_inputs"]
         return tuple(
             (item["label"], tuple(tuple(path) for path in item["paths"]))
             for item in inputs
         )
     except (KeyError, OSError, TypeError, json.JSONDecodeError) as error:
-        raise RuntimeError(
-            f"invalid P0 raw-input catalog: {P0_RAW_INPUTS_CATALOG}"
-        ) from error
+        raise RuntimeError(f"invalid P0 raw-input catalog: {catalog}") from error
 
 
 def _missing_p0_inputs(
@@ -192,7 +197,11 @@ def _build_mutating(
         dod = _required(
             raw, "ntad_military_bases", "fy2024", _dod_filename(selected_scope)
         )
-        assert dod
+        if not dod:
+            raise IncompleteP0BuildError(
+                "P0 build was not promoted; missing required input: "
+                f"ntad_military_bases/fy2024/{_dod_filename(selected_scope)}"
+            )
         counts["critical_loads_dod"] = load_dod(con, str(dod), states=selected_scope)
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
         validate_schema(con)
@@ -333,9 +342,7 @@ def build(
         else:
             stage_parquet.mkdir()
         args = (str(raw), str(stage_db), eaglei_source_tz, str(stage_parquet))
-        counts = (
-            _build_mutating(*args) if states is None else _build_mutating(*args, states)
-        )
+        counts = _build_mutating(*args, states=states)
         _write_stage_manifest(stage_db, stage_parquet, states)
         checks = run_checks(str(stage_db), states)
         if not all(check.passed for check in checks):
@@ -361,7 +368,7 @@ def main() -> int:
     parser.add_argument(
         "--states",
         action="append",
-        help="USPS names/codes or comma-separated state scope",
+        help="USPS codes, full names, FIPS, or comma-separated state scope (default: Texas)",
     )
     args = parser.parse_args()
     counts = build(args.raw_dir, args.db, args.eaglei_source_tz, args.states)

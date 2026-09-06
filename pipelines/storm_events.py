@@ -16,6 +16,10 @@ from pipelines.state_scope import scope
 _TEXAS_CZ_TIMEZONES = {
     "CST-6": "Etc/GMT+6",
     "MST-7": "Etc/GMT+7",
+    # NCEI's current files also emit daylight labels. Respect their explicit
+    # UTC offsets instead of rejecting an otherwise valid P0 event release.
+    "CDT-5": "Etc/GMT+5",
+    "MDT-6": "Etc/GMT+6",
 }
 
 
@@ -190,7 +194,7 @@ def load_storm_events(
                     ),
                 ],
             )
-        scope_label = "Texas" if selected_scope.is_texas_only else "scoped"
+        scope_label = "Texas" if selected_scope.is_texas_only else selected_scope.slug
         for zone, count in unmatched_zones.items():
             con.execute(
                 "INSERT INTO ingest_warnings VALUES (?, ?, ?, current_timestamp)",
