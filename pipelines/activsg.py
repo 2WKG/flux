@@ -43,6 +43,17 @@ def _haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     )))
 
 
+def _is_transformer(from_kv: float, to_kv: float) -> bool:
+    """Match the P0 impedance-branch contract, not a MATPOWER tap heuristic.
+
+    The current ACTIVSg2000 case has phase-shifting same-voltage branches with
+    non-zero taps. They are lines for the documented 2,359 line / 847
+    transformer split; only a base-kV transition belongs in the transformer
+    overload path.
+    """
+    return bool(not np.isclose(from_kv, to_kv))
+
+
 def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: datetime | None = None) -> dict[str, int]:
     """Populate synthetic contract/helper tables from one validated case pair."""
     case = Path(case_path)
@@ -85,7 +96,7 @@ def load_activsg(con, aux_path: str, case_path: str, *, source_retrieved_at: dat
         from_bus, to_bus = int(row[0]), int(row[1])
         from_record, to_record = bus_by_id.loc[from_bus], bus_by_id.loc[to_bus]
         tap = row[8]
-        transformer = bool(not np.isclose(from_record.base_kv, to_record.base_kv) or not np.isclose(tap, 0.0))
+        transformer = _is_transformer(from_record.base_kv, to_record.base_kv)
         length_km = 0.0 if transformer else 1.15 * _haversine_km(from_record.lat, from_record.lon, to_record.lat, to_record.lon)
         branch_rows.append({
             "line_id": index, "from_bus": from_bus, "to_bus": to_bus, "circuit": str(index),

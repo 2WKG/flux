@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import json
 
+import geopandas as gpd
 import pandas as pd
 import pytest
 from shapely.geometry import Polygon
 
-from pipelines.critical_loads import load_dod
+from pipelines.critical_loads import _ntad_source_ids, _unique_stable_ids, load_dod
 from pipelines.db import connect, replace_frame
 from pipelines.joins import join_critical_loads_to_bus
 from pipelines.storm_events import _cz_timezone, load_storm_events
@@ -41,7 +42,32 @@ def test_storm_events_uses_each_rows_cz_timezone(tmp_path):
 
 def test_storm_events_rejects_undocumented_timezone():
     with pytest.raises(ValueError, match="unsupported Storm Events CZ_TIMEZONE"):
-        _cz_timezone("CDT-5")
+        _cz_timezone("PST-8")
+
+
+def test_storm_events_accepts_ncei_daylight_offset_labels():
+    assert _cz_timezone("CDT-5") == "Etc/GMT+5"
+    assert _cz_timezone("MDT-6") == "Etc/GMT+6"
+
+
+def test_ntad_source_ids_resolve_hash_collisions_and_reserve_other_load_ids(monkeypatch):
+    monkeypatch.setattr("pipelines.critical_loads._stable_id", lambda *_args: 17)
+
+    ids = _unique_stable_ids(pd.Series(["OBJECTID:2", "OBJECTID:1"]), reserved={17})
+
+    assert ids.nunique() == 2
+    assert set(ids).isdisjoint({17})
+
+
+def test_ntad_source_ids_fall_back_to_unique_objectid_when_primary_id_is_blank():
+    active = gpd.GeoDataFrame(
+        {"mirtaLocationsIdpk": ["", ""], "OBJECTID": [11, 12]},
+        geometry=[Polygon([(-99, 29), (-98, 29), (-98, 30), (-99, 29)]),
+                  Polygon([(-97, 29), (-96, 29), (-96, 30), (-97, 29)])],
+        crs=4326,
+    )
+
+    assert _ntad_source_ids(active).tolist() == ["OBJECTID:11", "OBJECTID:12"]
 
 
 def test_storm_events_records_unmatched_zone_assignments(tmp_path):
