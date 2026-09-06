@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import duckdb
@@ -66,6 +67,45 @@ def test_model_missing_database_and_packaged_artifact_is_named_unavailable(
     from copilot.routes import model_geometry
 
     monkeypatch.setattr(model_geometry, "_artifact_path", tmp_path / "missing.json.gz")
+    response = TestClient(
+        create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))
+    ).get("/demo/model")
+    assert response.status_code == 503
+    assert response.json()["error"]["details"] == {
+        "artifact": "synthetic_model_geometry",
+        "reason": "unavailable",
+    }
+
+
+def test_packaged_texas_topology_fallback_is_complete(tmp_path: Path) -> None:
+    response = TestClient(
+        create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))
+    ).get("/demo/model")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "available"
+    assert body["data"]["counts"] == {
+        "buses": 2000,
+        "branches": 3206,
+        "lines": 2359,
+        "impedance_branches": 847,
+    }
+    assert len(body["data"]["elements"]) == 6875
+    assert body["data"]["topology"]["synthetic"] is True
+    assert body["data"]["provenance"]["coordinate_source"] == "tamu_aux"
+
+
+def test_model_rejects_tampered_packaged_topology(monkeypatch, tmp_path: Path) -> None:
+    from copilot.routes import model_geometry
+
+    artifact_path = tmp_path / "topology.json.gz"
+    source_manifest = model_geometry._artifact_path.with_suffix(".manifest.json")
+    artifact_path.write_bytes(model_geometry._artifact_path.read_bytes())
+    manifest = json.loads(source_manifest.read_text())
+    manifest["compressed_sha256"] = "0" * 64
+    artifact_path.with_suffix(".manifest.json").write_text(json.dumps(manifest))
+    monkeypatch.setattr(model_geometry, "_artifact_path", artifact_path)
+
     response = TestClient(
         create_app(Settings(duckdb_path=tmp_path / "missing.duckdb"))
     ).get("/demo/model")
