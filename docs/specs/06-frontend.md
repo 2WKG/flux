@@ -10,11 +10,15 @@ Status: draft, weekend build. Owner: web lane. Depends on spec 05 (copilot API) 
 > describe what the server can serve today (`copilot/routes/layers.py:44`, `:59`); Minnesota
 > supersedes them as plan, not as behaviour.
 >
-> **What `web/` on `master` actually is.** The shipped page is the offline static explorer:
-> `web/src/main.tsx` imports `data/demo/bundle.json` at build time and
+> **What `web/` on `master` actually is.** The shipped site is offline and static. `web/src/main.tsx`
+> mounts a shell that routes two pages (`web/src/router/index.ts`), each loaded as its own bundle
+> chunk: the scenario explorer at `/` and the method explainer at `/explainer` (2WKG-478).
+> `web/src/pages/MainPage.tsx` imports `data/demo/bundle.json` at build time and
 > `web/test/static-demo.test.mjs:17-27` forbids the literal `fetch(` in both the source and the
 > built bundle. None of the deck.gl/MapLibre map described below is wired, and none of the routes
 > in *Inputs* is called by the shipped entry.
+
+> **Visual direction.** [UI style guide](../design/ui-style-guide.md) and its [token reference](../design/ui-tokens.css) guide visual and interaction decisions for future UI work only. They do not change the API, data, geography, scenario, or provenance contracts, and the token file is not imported by the current application.
 
 ## Purpose
 
