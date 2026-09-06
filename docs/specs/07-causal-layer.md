@@ -155,8 +155,9 @@ diff     = per county per hour: customers_out_factual − customers_out_cf (from
 
 The persisted evidence artifact and the `causal_query` wire response are separate contracts; see [`docs/causal-evidence-artifact.md`](../causal-evidence-artifact.md) for the artifact sufficiency criteria and field mapping.
 
-`causal_query` is registered in the shared Copilot tool registry with the 5 s timeout specified
-by spec 05. It returns
+`causal_query`'s contract is declared in `TOOL_REGISTRY` (`copilot/tools/schemas.py`); the
+dispatching tool loop and the 5 s per-tool timeout land with spec 05's `/ask`, which does not exist
+in the repository yet, so nothing calls `causal_query()` today. It returns
 `{answer_numbers: dict, method: str, assumptions: list[str], interval: [lo, hi] | None,
 evidence_rows: list[dict], question: {treatment, outcome, target_population},
 sources: [{source_id, name, version, locator, coverage}],
@@ -233,8 +234,8 @@ CLI: `uv run python -m causal.bn --fit --states TX`; `uv run python -m causal.bn
 8. `replay_with_site("uri_2021", top site, 1000)` runs in < 60 s on cached failure draws, and `customer_hours_avoided ≥ 0` for ≥ 4 of the top-5 sites (a site that makes things worse is reported, not hidden).
 9. Determinism: running `replay_with_site` twice with the same `factual_run_id` yields identical `cf_run_id` results (same seed contract with spec 03).
 10. `counterfactual_runs` has ≥ 10 rows (5 sites × 2 capacities) for `uri_2021` before the demo; at least one row has a non-empty `critical_loads_kept`.
-11. `causal_query` responses validate against `copilot/schemas/causal_query.json`; a unit test asserts every number in `answer_numbers` appears in `evidence_rows` or `hardening_effect.json`.
-12. Mutation probe: deleting `causal/artifacts/hardening_effect.json` makes `causal_query("effect")` return `{"answer_numbers": {}, "method": "unavailable"}` — the copilot must not hallucinate an effect (test in `causal/tests/test_tool_fail_closed.py`).
+11. `causal_query` responses validate against the `CausalData` model in `copilot/tools/schemas.py` (exported to `web/src/contracts/copilot-tools.schema.json`); `copilot/tools/test_causal_query.py` asserts the `effect` in `answer_numbers` appears in the single `evidence_rows` entry together with `estimand`, `interval`, `confidence_level`, and the estimate's evidence citations.
+12. Mutation probe: deleting the registered evidence artifact makes `causal_query("effect", …)` return the canonical unavailable envelope (`status: "unavailable"`, `unavailable.code: "artifact_unavailable"`, no `answer_numbers` field) — the copilot must not hallucinate an effect (test in `copilot/tools/test_causal_query.py`). Non-UTF-8 bytes, an artifact exceeding the wire bounds, or any other artifact that cannot be mapped into the contract is likewise an unavailable envelope, never a raised exception.
 
 ## Demo hook
 
