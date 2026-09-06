@@ -75,6 +75,30 @@ test("focusing statewide with any id other than the named reset target is reject
   assert.equal(result.reason, "invalid_statewide_target");
 });
 
+test("focusing a non-statewide target with no id is rejected, not left unaddressable", () => {
+  for (const id of ["", "   ", "\t\n"]) {
+    for (const scale of ["region", "facility"]) {
+      const result = focus(createNavigationState(), { scale, id, label: null });
+      assert.equal(result.kind, "rejected", `${scale} ${JSON.stringify(id)} must be refused`);
+      assert.equal(result.reason, "missing_target_id", `${scale} ${JSON.stringify(id)}`);
+      assert.equal(result.state, undefined, "a refusal must carry no state");
+    }
+  }
+});
+
+test("an id-less target never reaches the breadcrumb trail, so goToBreadcrumb cannot return one", () => {
+  const state = focus(createNavigationState(), region).state;
+  const rejected = focus(state, { scale: "facility", id: " ", label: null });
+  assert.equal(rejected.kind, "rejected");
+  // The trail is unchanged and every crumb on it is addressable.
+  assert.deepEqual(state.breadcrumbs, [STATEWIDE_RESET_TARGET, region]);
+  for (let index = 0; index < state.breadcrumbs.length; index += 1) {
+    const walked = goToBreadcrumb(state, index);
+    assert.equal(walked.kind, "navigated");
+    assert.ok(walked.state.current.id.trim().length > 0, "every reachable breadcrumb must have an id");
+  }
+});
+
 test("goToBreadcrumb walks back to an exact index, never partway or past the end", () => {
   const deep = focus(focus(createNavigationState(), region).state, facility).state;
   assert.deepEqual(deep.breadcrumbs, [STATEWIDE_RESET_TARGET, region, facility]);
