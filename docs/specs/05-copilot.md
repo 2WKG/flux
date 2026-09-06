@@ -227,6 +227,11 @@ route contract. `GET /predictions` excludes unqualified evaluation artifacts; a 
 or unqualified prediction artifact returns the documented unavailable failure envelope
 rather than an empty success.
 
+Every response carries `X-Request-ID` and `X-Flux-Api-Version: v1` without wrapping a
+success body. `X-Flux-Artifact` appears only on a successful `GET /cascade` response
+and equals that payload's resolved immutable `artifact_id`; it is omitted elsewhere,
+including every failure response.
+
 `POST /ask` request:
 
 ```json
