@@ -1,0 +1,21 @@
+{
+  "retrieved_at": "2026-09-06T00:00:00Z",
+  "provider": "NOAA HRRR archive on AWS Open Data",
+  "source_url": "https://registry.opendata.aws/noaa-hrrr-pds/",
+  "license_access": "U.S. government public data",
+  "capture_method": "HTTPS GET of the published .grib2.idx sidecar; byte-for-byte, no edit",
+  "purpose": "Test fixture. These are index sidecars only: no GRIB payload, no weather value, and no weather_hourly row is derived from them.",
+  "files": {
+    "hrrr.20210211.t00z.wrfsfcf00.grib2.idx": {
+      "url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20210211/conus/hrrr.t00z.wrfsfcf00.grib2.idx",
+      "bytes": 9093,
+      "sha256": "d96959ea450fd15609924996f66c201334733a03139382ee1f5cc937cfd32dd2"
+    },
+    "hrrr.20210210.t23z.wrfsfcf01.grib2.idx": {
+      "url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20210210/conus/hrrr.t23z.wrfsfcf01.grib2.idx",
+      "bytes": 10271,
+      "sha256": "2f9c0dcb44cff7892db9cecd95014eccf39c12c5a80ef68fd229dc1fdd45fa2f"
+    }
+  },
+  "uncertainty": "Captured 2026-09-06. The bucket is append-only for historical runs, but nothing in this repository re-verifies these two objects against the bucket; tests read the checked-in bytes only."
+}

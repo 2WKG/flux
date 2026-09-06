@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono&family=Manrope:wght@400;500;600;700;800&display=swap');
+
 :root {
   --ink: #edf5ff;
   --muted: #9eb5c8;
@@ -9,17 +11,17 @@
   --mid: #ffcc66;
   --high: #ff7d68;
   --relief: #54dbb5;
-  font-family: system-ui, sans-serif;
+  font-family: Manrope, system-ui;
   background: #071221;
   color: var(--ink);
 }
 
 * { box-sizing: border-box }
 body { margin: 0; background: radial-gradient(circle at 75% -20%, #173c5c 0, #071221 47%); min-width: 320px }
-main { max-width: 1440px; margin: auto; padding: 24px 38px 60px }
+main { max-width: 1520px; margin: auto; padding: 20px 28px 36px }
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px }
-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #8be2ff; overflow-wrap: anywhere }
+code { font-family: 'DM Mono'; color: #8be2ff }
 
 nav { height: 52px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--line) }
 .brand { display: flex; gap: 12px; align-items: center }
@@ -30,44 +32,46 @@ nav { height: 52px; display: flex; align-items: center; justify-content: space-b
 .ghost { border: 1px solid #315673; padding: 8px 12px; border-radius: 6px; transition: background .18s, border-color .18s }
 .ghost:hover { background: #12293d; border-color: #4b7c9e }
 
-header { max-width: 860px; padding: 54px 0 26px }
+header { max-width: 860px; padding: 32px 0 18px }
 h1 { font-size: clamp(2.4rem, 4.6vw, 4.6rem); line-height: 1.03; letter-spacing: -.055em; margin: 9px 0 20px }
 header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 700px }
-.eyebrow { color: var(--accent); font: 700 .7rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
+.eyebrow { color: var(--accent); font: 700 .7rem 'DM Mono', monospace; letter-spacing: .11em; margin: 0; text-transform: uppercase }
+
+/* The shell deliberately leaves its largest continuous area to the scene. */
+.shell-intro h1 { max-width: 760px }
+.shell-controls { display: flex; justify-content: space-between; align-items: end; gap: 20px; margin: 0 0 12px }
+.shell-controls > div > p:last-child { color: var(--muted); font-size: .78rem; margin: 5px 0 0; max-width: 570px }
+.shell-status { flex: 0 0 auto; color: #d6b77a; border: 1px solid #694f2f; background: #251d13; border-radius: 999px; padding: 7px 10px; font: 700 .65rem 'DM Mono', monospace; letter-spacing: .04em }
 
 /* Comparison rail — every option visible at once, so the judge never has to remember a number. */
-.rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px }
+.rail { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px }
 .card {
-  text-align: left; padding: 18px; border-radius: 12px; border: 1px solid #24455f; background: #0a1a2b;
+  text-align: left; padding: 13px 15px; border-radius: 10px; border: 1px solid #24455f; background: #0a1a2b;
   display: flex; flex-direction: column; gap: 12px; transition: transform .18s, border-color .18s, background .18s;
 }
 .card:hover { transform: translateY(-2px); border-color: #3d6b8d }
 .card.selected { border-color: var(--accent); background: #0e2438; box-shadow: 0 0 0 1px var(--accent), 0 18px 40px -28px var(--accent) }
 .card-head { display: flex; align-items: center; gap: 9px; flex-wrap: wrap }
-.card-head .key { font: 700 .68rem ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); letter-spacing: .08em }
+.card-head .key { font: 700 .68rem 'DM Mono', monospace; color: var(--accent); letter-spacing: .08em }
 .card-head .name { font-weight: 700 }
-.badge { font: 700 .6rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
+.badge { font: 700 .6rem 'DM Mono', monospace; letter-spacing: .07em; text-transform: uppercase; color: #072036; background: var(--relief); padding: 3px 7px; border-radius: 20px }
 .card-figure { display: flex; align-items: baseline; gap: 7px }
-.card-figure strong { font-size: 2.5rem; letter-spacing: -.05em; line-height: 1 }
+.card-figure strong { font-size: 2rem; letter-spacing: -.05em; line-height: 1 }
 .card-figure small { color: var(--dim); font-size: .78rem }
 .meter { height: 6px; border-radius: 4px; background: #142c41; overflow: hidden }
 .meter i { display: block; height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--low), var(--mid)); transition: width .5s cubic-bezier(.22, 1, .36, 1) }
 .card.selected .meter i { background: linear-gradient(90deg, var(--accent), var(--mid)) }
 .card-foot { color: var(--dim); font-size: .74rem; line-height: 1.5 }
 
-.workspace { display: grid; grid-template-columns: 1.65fr .85fr; gap: 16px }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(280px, 360px); gap: 14px; align-items: stretch }
 .map, aside > div, .pipeline { border: 1px solid #234962; background: var(--panel); border-radius: 12px }
-.model-scene { border: 1px solid #234962; background: var(--panel); border-radius: 12px; overflow: hidden; }
-.model-scene__head { padding: 18px 18px 0; }
-.model-scene .map-foundation { margin-top: 12px; min-block-size: 20rem; }
-.model-scene .maplibregl-map { min-block-size: 20rem; }
-.map { padding: 18px; display: flex; flex-direction: column }
+.map { padding: 16px; display: flex; flex-direction: column }
+.scene-viewport { min-height: clamp(500px, 64vh, 700px) }
+.scene-viewport .frame { flex: 1; min-height: 0; display: grid; place-items: center }
+.scene-viewport .network { max-height: 100%; min-height: 330px }
+.inspector { display: flex; flex-direction: column; min-width: 0 }
+.inspector > div { min-width: 0 }
 .map-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
-.map-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
-.agent-static { display: grid; gap: 16px; }
-.agent-static__trace { border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
-.agent-static__trace h3 { font-size: .92rem; margin: 0 0 6px; }
-.agent-static__trace > p { color: var(--muted); font-size: .85rem; line-height: 1.45; margin: 0 0 10px; }
 .hint { margin: 6px 0 0; color: var(--dim); font-size: .78rem }
 .toggle { display: flex; border: 1px solid #2b5170; border-radius: 8px; overflow: hidden }
 .toggle button { padding: 8px 13px; font-size: .78rem; font-weight: 700; color: #a8c4d8; transition: background .18s, color .18s }
@@ -79,7 +83,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .corridor .hit { stroke: transparent; stroke-width: 26; stroke-linecap: round }
 .corridor .wire { stroke-linecap: round; transition: stroke .45s ease, stroke-width .45s cubic-bezier(.22, 1, .36, 1) }
 .corridor .reading rect { fill: #0a1c2c; stroke: #27506e }
-.corridor .reading text { fill: #cfe4f4; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; text-anchor: middle; dominant-baseline: middle }
+.corridor .reading text { fill: #cfe4f4; font: 700 11px 'DM Mono', monospace; text-anchor: middle; dominant-baseline: middle }
 .corridor.active .wire { filter: brightness(1.25) }
 .corridor.active .reading rect { stroke: var(--accent) }
 .corridor:focus { outline: none }
@@ -102,7 +106,7 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .pin .halo { fill: none; stroke: var(--mid); stroke-width: 2; opacity: .85; animation: pulse 2.4s ease-out infinite }
 .pin.chosen .disc { fill: var(--mid) }
 .pin text { fill: #061525; font-weight: 800; font-size: 14px; text-anchor: middle }
-.pin .tag { fill: #9fc4dd; font: 700 10px ui-monospace, SFMono-Regular, Menlo, monospace }
+.pin .tag { fill: #9fc4dd; font: 700 10px 'DM Mono', monospace }
 @keyframes pulse { 0% { r: 21; opacity: .9 } 70% { r: 31; opacity: 0 } 100% { opacity: 0 } }
 @media (prefers-reduced-motion: reduce) { .pin .halo { animation: none } * { transition-duration: .01ms !important } }
 
@@ -117,12 +121,18 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .tip-row em.relief { color: var(--relief) }
 .tip-row em.tone-low { color: var(--low) } .tip-row em.tone-mid { color: var(--mid) } .tip-row em.tone-high { color: var(--high) }
 
-.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem ui-monospace, SFMono-Regular, Menlo, monospace; color: #8ba8be; flex-wrap: wrap }
+.legend { display: flex; align-items: center; gap: 7px; font: 700 .68rem 'DM Mono', monospace; color: #8ba8be; flex-wrap: wrap }
 .legend i { width: 16px; height: 4px; border-radius: 3px; margin-left: 9px }
 .legend i:first-child { margin-left: 0 }
 .legend .tone-low { background: var(--low) } .legend .tone-mid { background: var(--mid) } .legend .tone-high { background: var(--high) }
 .legend .tone-none { background: #3d5f7c } .legend .tone-some { background: #3fbfa0 } .legend .tone-strong { background: #5df0c0 }
 .legend span { color: #6e8ca4 }
+
+.timeline { display: grid; grid-template-columns: auto minmax(90px, 1fr) auto; align-items: center; gap: 12px; border-top: 1px solid #23405a; margin-top: 12px; padding-top: 12px }
+.timeline strong { display: block; font-size: .78rem; margin-top: 4px }
+.timeline-track { height: 5px; background: #1c3a51; border-radius: 999px; overflow: hidden }
+.timeline-track i { display: block; width: 12%; height: 100%; border-radius: inherit; background: var(--accent) }
+.timeline > span { color: var(--dim); font: 700 .65rem 'DM Mono', monospace; text-align: right }
 
 .outcome { padding: 25px }
 .outcome > strong { font-size: 4.4rem; letter-spacing: -.08em; line-height: 1; display: block; font-variant-numeric: tabular-nums }
@@ -145,22 +155,51 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .pipeline h2 { font-size: 1.5rem; margin: .4rem 0 }
 .pipeline > p { max-width: 520px; margin: 0 }
 
+/* In flow, not floating. A fixed dock parks itself over the inspector column and
+   hides the headline metric while the page is scrolled, so the dock sits at the
+   end of the document where the JSX already puts it. */
+.chat-dock { margin-top: 14px; border: 1px solid #315873; border-radius: 12px; background: #0b1d2e; overflow: hidden }
+.chat-dock.collapsed { border-color: #294c69 }
+.chat-dock.expanded { border-color: #3d6b8d }
+.chat-toggle { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 14px; text-align: left }
+.chat-toggle strong { display: block; font-size: .85rem; margin-top: 4px }
+.chat-state { color: #d6b77a; font: 700 .61rem 'DM Mono', monospace; line-height: 1.35; text-align: right }
+.chat-body { border-top: 1px solid #264963; color: #bed0df; font-size: .8rem; line-height: 1.55; padding: 0 14px 12px }
+.chat-body p { margin: 11px 0 0 }
+
 .overlay { position: fixed; inset: 0; background: #020911cc; display: grid; place-items: center; padding: 20px; z-index: 9 }
 .modal { position: relative; width: min(570px, 100%); background: #10273a; border: 1px solid #4c7795; border-radius: 12px; padding: 30px; max-height: 86vh; overflow: auto }
 .modal button { position: absolute; right: 16px; top: 10px; font-size: 2rem; line-height: 1 }
-.modal dt { color: var(--accent); font: 700 .7rem ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
+.modal dt { color: var(--accent); font: 700 .7rem 'DM Mono'; letter-spacing: .08em; text-transform: uppercase; margin-top: 12px }
 .modal dd { color: #c5dbea; line-height: 1.6; margin: 8px 0 0 }
 .modal li { color: #c5dbea; line-height: 1.6; margin: 8px 0 }
 
+@media (max-width: 1180px) {
+  main { padding: 18px 22px 32px }
+  .workspace { grid-template-columns: minmax(0, 1fr) minmax(280px, 320px) }
+  .card { padding: 11px 12px; gap: 9px }
+  .card-figure strong { font-size: 1.7rem }
+  .card-foot { font-size: .68rem }
+  .timeline { grid-template-columns: auto 1fr }
+  .timeline > span { grid-column: 1 / -1; text-align: left }
+}
 @media (max-width: 980px) {
   main { padding: 18px }
   .rail { grid-template-columns: 1fr }
   .workspace { grid-template-columns: 1fr }
   .pipeline { display: block }
   .map-head { flex-direction: column }
+  .scene-viewport { min-height: auto }
+  .scene-viewport .network { min-height: 260px }
+  .inspector { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+  .inspector .insight { grid-column: 1 / -1; margin-top: 0 }
+  .shell-controls { align-items: flex-start; flex-direction: column }
+
 }
 @media (max-width: 500px) {
   h1 { font-size: 2.5rem }
   .outcome > strong { font-size: 3.6rem }
   .stats { grid-template-columns: 1fr }
+  .timeline { grid-template-columns: 1fr }
+
 }

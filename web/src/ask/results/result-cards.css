@@ -13,3 +13,7 @@
 .ask-result__citations blockquote { margin: 6px 0; color: #c9d8e8; }
 .ask-result button { margin-top: 12px; padding: 8px 10px; border: 1px solid #77b4e9; border-radius: 5px; color: #071827; background: #b9ddfa; cursor: pointer; }
 .ask-result button:focus-visible { outline: 3px solid #f1c76a; outline-offset: 2px; }
+.ask-result__citation.is-fixture { border-left: 3px solid #e1ad55; padding-left: 8px; }
+.ask-result__fixture-marker { display: block; color: #e1ad55; font-size: .74rem; text-transform: uppercase; letter-spacing: .06em; }
+.ask-result__unverified-number { padding: 0 3px; border-radius: 3px; color: #2a1d02; background: #e1ad55; }
+.ask-result__number { color: #b9ddfa; }

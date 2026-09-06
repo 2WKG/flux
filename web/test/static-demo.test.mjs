@@ -14,9 +14,11 @@ const files = () => Promise.all([
   readFile(new URL("../../data/demo/bundle.json", import.meta.url), "utf8").then(JSON.parse),
 ]);
 
-test("static demo bundles the current fixture and keeps API paths out of its artifact", async () => {
+test("frozen static demo bundles the current fixture without fetching", async () => {
   const [source, app, fixture] = await files();
 
+  assert.doesNotMatch(source, /\bfetch\s*\(/);
+  assert.doesNotMatch(app, /\bfetch\s*\(/);
   // Any spelling of the demo route in the bundle (string, template, or URL constant) is a request path.
   assert.doesNotMatch(app, /["'`]\/api\/demo["'`]/);
   assert.doesNotMatch(app, /\/api\/demo\b/);

@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { cp, mkdir, rm } from "node:fs/promises";
+import { cp, mkdir, readFile, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { assertBrowserBundle } from "./assert-browser-bundle.mjs";
@@ -9,21 +9,13 @@ const webRoot = path.dirname(fileURLToPath(new URL("../package.json", import.met
 // probe entry into a scratch directory without touching src/ or dist/.
 const entry = process.env.FLUX_WEB_ENTRY ? path.resolve(process.env.FLUX_WEB_ENTRY) : path.join(webRoot, "src", "main.tsx");
 const dist = process.env.FLUX_WEB_DIST ? path.resolve(process.env.FLUX_WEB_DIST) : path.join(webRoot, "dist");
+// FLUX_WEB_HTML picks the page copied in as dist/index.html, so a harness entry can ship
+// its own page instead of silently borrowing the app's and its stylesheet link.
+const html = process.env.FLUX_WEB_HTML ? path.resolve(process.env.FLUX_WEB_HTML) : path.join(webRoot, "index.html");
 
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, "assets"), { recursive: true });
-await cp(path.join(webRoot, "index.html"), path.join(dist, "index.html"));
-// MapLibre's ESM bundle resolves this worker from the absolute assets path.
-// Keep the installed, version-locked artifact with the browser bundle rather than
-// falling back to a CDN or allowing a missing worker to degrade map rendering.
-await cp(
-  path.join(webRoot, "node_modules", "maplibre-gl", "dist", "maplibre-gl-worker.mjs"),
-  path.join(dist, "assets", "maplibre-gl-worker.mjs"),
-);
-await cp(
-  path.join(webRoot, "node_modules", "maplibre-gl", "dist", "maplibre-gl-shared.mjs"),
-  path.join(dist, "assets", "maplibre-gl-shared.mjs"),
-);
+await cp(html, path.join(dist, "index.html"));
 
 const result = await build({
   entryPoints: [entry],
@@ -38,6 +30,22 @@ const result = await build({
   // check does not depend on the caller's cwd (running from the repo root used to bypass it).
   absWorkingDir: webRoot,
 });
+
+// MapLibre's ESM bundle resolves its worker from the absolute /assets path at
+// runtime, and that worker imports ./maplibre-gl-shared.mjs from the same
+// directory. Neither is inlined by esbuild, so an entry that bundles MapLibre
+// needs both files beside app.js -- and an entry that does not must not carry
+// half a megabyte of dead weight. The bundle itself decides, by whether the
+// worker URL survived into it.
+const bundledApp = await readFile(path.join(dist, "assets", "app.js"), "utf8");
+if (bundledApp.includes("maplibre-gl-worker.mjs")) {
+  for (const name of ["maplibre-gl-worker.mjs", "maplibre-gl-shared.mjs"]) {
+    await cp(
+      path.join(webRoot, "node_modules", "maplibre-gl", "dist", name),
+      path.join(dist, "assets", name),
+    );
+  }
+}
 
 try {
   assertBrowserBundle(result.metafile, webRoot);
