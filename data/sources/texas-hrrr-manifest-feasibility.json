@@ -15,5 +15,7 @@
     {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20240707/conus/hrrr.t00z.wrfsfcf00.grib2", "http_status": 206, "bytes": 146603655, "etag": "3da03f42e5b22b4d9e16573a68651abc", "last_modified": "2024-07-07T00:50:07Z"},
     {"url": "https://noaa-hrrr-bdp-pds.s3.amazonaws.com/hrrr.20240706/conus/hrrr.t23z.wrfsfcf01.grib2", "http_status": 206, "bytes": 158505158, "etag": "8080b2e27c187d7d547413a47d2d424f", "last_modified": "2024-07-06T23:52:25Z"}
   ],
-  "blocker": "The windows and source-run rule are sufficiently specified for a reproducible manifest. This clone has no HRRR loader, county-grid index, GRIB field-subsetting/aggregation transform, or weather_hourly validation artifact. Fetching or calling a complete weather input valid without those components would not meet the P0 provenance contract."
+  "historical_snapshot": "At this feasibility capture, the clone lacked the loader, county-grid index, GRIB transform, and validation artifact needed to promote this manifest.",
+  "superseded_by": "data/sources/texas-hrrr-2021-2024-run.json",
+  "current_status": "The completed run receipt records the subsequently implemented loader/index/transform, checksum-bound ignored database, and validated Uri/Beryl county-hour coverage."
 }
