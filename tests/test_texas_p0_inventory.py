@@ -41,8 +41,8 @@ def test_checked_in_texas_p0_inventory_validates_and_labels_public_scope(
     assert report["summary"] == {
         "excluded": 1,
         "ingested": 0,
-        "unavailable": 2,
-        "validated": 8,
+        "unavailable": 1,
+        "validated": 9,
     }
     assert "synthetic" in report["synthetic_geometry_caveat"].lower()
     assert "not the real ercot" in report["synthetic_geometry_caveat"].lower()
@@ -154,7 +154,7 @@ def _weaken_caveat(inventory: dict, index: int, status: str) -> None:
             "ingested record needs an ingestion_timestamp",
         ),
         (
-            _flip_status,
+            _drop_receipt,
             EAGLEI_INDEX,
             "validated",
             "validated record needs a checked_in_receipt path",

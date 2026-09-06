@@ -14,11 +14,18 @@ an untracked database artifact available in a fresh clone.
 | NOAA Storm Events 2021 and 2024 | [`texas-noaa-storm-events-2021-2024.json`](../../data/sources/texas-noaa-storm-events-2021-2024.json) | `load_storm_events` loaded 10,355 qualified expanded rows; 22 unsupported 2021 legacy-zone rows are retained in the receipt. |
 | NWS bp16ap26 zone-to-county crosswalk | [`texas-nws-zone-county-bp16ap26.json`](../../data/sources/texas-nws-zone-county-bp16ap26.json) | 308 TX rows cover 298 zones and all 254 county FIPS. |
 | NTAD military bases FY2024 | [`texas-ntad-military-bases-fy2024.json`](../../data/sources/texas-ntad-military-bases-fy2024.json) | `load_dod` loaded 21 active, at-least-1-km² facilities from 32 TX source features. |
+| EAGLE-I 2021 and 2024 annual outages | [`texas-eaglei-2021-2024.json`](../../data/sources/texas-eaglei-2021-2024.json) | UTC streaming intake loaded 2,443,041 (2021) and 2,921,200 (2024) TX observations; Uri and Beryl fixed-window coverage and blank targets are recorded. |
 
 The source URLs, versions, licenses, raw paths, byte counts, SHA-256 values,
 coverage, units, and uncertainty boundaries remain in the inventory and linked
 receipts. Raw archives/Parquet and temporary DuckDB validation outputs are
 gitignored.
+
+[`texas-hrrr-manifest-feasibility.json`](../../data/sources/texas-hrrr-manifest-feasibility.json)
+records a reproducible rule for the fixed Uri and Beryl contract windows and
+four byte-range probes of official archive objects. It is not an ingestion
+receipt: this checkout has no HRRR county-grid index, loader, or aggregation
+artifact to validate `weather_hourly`.
 
 ## Reproduce the bounded intake
 
@@ -42,10 +49,8 @@ curl --fail --location --output data/raw/ntad_military_bases/fy2024/texas.geojso
 uv run --extra dev python scripts/validate_texas_p0_inventory.py --raw-root data/raw
 ```
 
-The full legacy Texas builder still requires EAGLE-I and its annual source
-coverage; its 1.1–1.4 GB annual files are downloading separately and are not
-validated until whole-file hashes and the streaming loader's required windows
-are recorded. HRRR also remains unavailable without a selected run/lead
-manifest. Storm Events has a qualified-row receipt, not complete 2021
-zone-event coverage: the receipt names all 22 rejected legacy-zone event IDs.
+HRRR remains unavailable despite a reproducible fixed-window manifest because
+this checkout lacks the county-grid index, loader, and aggregation transform.
+Storm Events has a current-crosswalk qualified-row receipt; historical NWS
+crosswalk editions require explicit provenance-aware event-window selection.
 No successful source receipt authorizes a synthetic-to-real connectivity claim.
