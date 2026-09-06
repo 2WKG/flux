@@ -41,7 +41,11 @@ test("client-side failure causes stay distinct instead of all reading 'connectio
 });
 
 const SSE_V1_CODES = ["invalid_request", "unavailable", "deadline", "upstream_error", "tool_error", "refusal", "cancelled", "protocol_error"];
-const FROZEN_UI_STATUS = new Set(["source_supported", "source_screened", "hypothetical", "synthetic", "unavailable", "request_failed"]);
+const labelsBundle = await build({ entryPoints: [new URL("../labels.ts", import.meta.url).pathname], bundle: true, format: "esm", platform: "node", write: false, absWorkingDir: root });
+const { ASSET_STATUS_TOKENS } = await import(`data:text/javascript;base64,${Buffer.from(labelsBundle.outputFiles[0].contents).toString("base64")}`);
+// Read the frozen set from its single definition, not a restatement.
+const FROZEN_UI_STATUS = new Set(ASSET_STATUS_TOKENS);
+assert.equal(FROZEN_UI_STATUS.size, 6);
 
 test("every closed v1 SSE terminal code maps to a rendered failure with a frozen token", () => {
   for (const code of SSE_V1_CODES) {

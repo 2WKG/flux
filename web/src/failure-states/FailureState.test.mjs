@@ -15,6 +15,7 @@ import { build } from "esbuild";
 const webRoot = path.dirname(new URL("../../package.json", import.meta.url).pathname);
 const componentPath = path.join(webRoot, "src/failure-states/FailureState.tsx");
 const typesPath = path.join(webRoot, "src/failure-states/types.ts");
+const labelsPath = path.join(webRoot, "src/labels.ts");
 
 /** Bundle a TSX entry for node and import it, so the server render exercises the real source. */
 async function serverRender(source) {
@@ -47,6 +48,8 @@ const RENDER_ENTRY = `
 import { renderToStaticMarkup } from "react-dom/server";
 import { FailureState } from ${JSON.stringify(componentPath)};
 import { FAILURE_STATUS_BY_KIND } from ${JSON.stringify(typesPath)};
+import { ASSET_STATUS_TOKENS } from ${JSON.stringify(labelsPath)};
+export const frozenTokens = ASSET_STATUS_TOKENS;
 
 export const kinds = Object.keys(FAILURE_STATUS_BY_KIND);
 export const statusByKind = FAILURE_STATUS_BY_KIND;
@@ -62,17 +65,13 @@ export function render(state, { retry = true, reset = true } = {}) {
 `;
 
 const rendered = await serverRender(RENDER_ENTRY);
-const { kinds, statusByKind, render } = rendered;
+const { kinds, statusByKind, render, frozenTokens } = rendered;
 
-// Frozen Gate-0 UI status set (docs/design/minnesota-gate-0-approval.md §3).
-const FROZEN_UI_STATUS = new Set([
-  "source_supported",
-  "source_screened",
-  "hypothetical",
-  "synthetic",
-  "unavailable",
-  "request_failed",
-]);
+// The frozen Gate-0 UI status set, read from its single definition
+// (src/labels.ts) rather than restated, so a drift there fails here too.
+const FROZEN_UI_STATUS = new Set(frozenTokens);
+assert.equal(FROZEN_UI_STATUS.size, 6, "the Gate-0 UI status set is frozen at six tokens");
+assert.ok(FROZEN_UI_STATUS.has("request_failed"));
 
 const RETRYABLE = new Set([
   "unavailable",
