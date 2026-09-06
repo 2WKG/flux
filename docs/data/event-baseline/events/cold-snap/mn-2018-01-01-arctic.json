@@ -26,8 +26,7 @@
     "selection_basis": "NCEI Storm Events episode 121337, event 726380, is an independent cold candidate pending matched weather/outage evidence.",
     "exclusions": [],
     "uncertainties": [
-      "EAGLE-I coverage has not been collected for this candidate; it cannot be accepted.",
-      "NCEI event 726380 is retained as zone-level candidate context only; its report is not a county time series and cannot establish county weather coverage."
+      "EAGLE-I coverage has not been collected for this candidate; it cannot be accepted."
     ]
   },
   "source_receipts": [
@@ -135,15 +134,28 @@
       "source_row_keys": [],
       "source_slices": [],
       "weather": {
-        "coverage": "uncovered",
-        "evidence_kind": "not_assessed",
-        "observation_kind": "not_applicable",
-        "source_receipt_ids": [],
+        "coverage": "covered",
+        "evidence_kind": "authoritative_event_report",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "ncei_stormevents_2018"
+        ],
         "expected_samples": null,
         "observed_samples": null,
         "missing_timestamps": [],
-        "event_report": null,
-        "notes": "NCEI event 726380 is retained as zone-level candidate context; its report is not a county time series, so county weather coverage is not assessed."
+        "event_report": {
+          "source_event_ids": [
+            "726380"
+          ],
+          "source_window": {
+            "start_utc": "2018-01-01T06:00:00Z",
+            "end_utc": "2018-01-01T14:00:00Z"
+          },
+          "spatial_scope": "zone",
+          "scope_identifier": "NWS public forecast zone MNZ083 (Blue Earth); NCEI CZ_FIPS:083",
+          "limitations": "NWS zone report, not a county time series. MNZ083 is 1:1 with county 27013 (Blue Earth) in the NWS zone/county correlation, so it is county-wide in extent; it states occurrence over the reported interval and no sample series."
+        },
+        "notes": "NCEI event 726380 report interval intersects this canonical county window. Zone MNZ083 maps to county 27013 (Blue Earth) and to no other county, and 27013 contains no other zone, in the receipted NWS zone/county correlation (receipt nws_zone_county_correlation_bp05mr24), so the zone report is county-wide in extent."
       },
       "outage": {
         "coverage": "UncoveredLabel",

@@ -251,6 +251,10 @@ jobs:
     steps:
       - uses: actions/checkout@v7
         with:
+          # The PR head itself, not GitHub's synthetic merge commit: the freeze
+          # manifest records the sha256 of files as they are *on this branch*, and
+          # a merge commit carries master's newer copy of them instead.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
       - name: Frozen contract files require a spec amendment in the same PR
         run: |
@@ -272,6 +276,76 @@ jobs:
           done
           echo "::error::frozen contract file(s)$touched changed but none of [$specs] did. Amend the owning spec (00-overview for the shared contract, 05-copilot for tool/envelope shapes, 10-duckdb-contract for tables, docs/data/event-baseline/README.md for the event baseline schema) in this PR."
           exit 1
+      - name: Frozen submission files match the 2WKG-87 freeze manifest
+        run: |
+          set -euo pipefail
+          doc=docs/runbooks/2wkg-87-freeze-readiness-2026-09-06.md
+          if [ ! -f "$doc" ]; then echo "::error::$doc is missing; the freeze manifest has no source"; exit 1; fi
+          manifest=$(sed -n '/freeze-manifest:begin/,/freeze-manifest:end/p' "$doc" \
+            | grep -E '^[0-9a-f]{64}  [^ ]+$' || true)
+          if [ -z "$manifest" ]; then
+            echo "::error::no sha256 lines found between the freeze-manifest markers in $doc"
+            exit 1
+          fi
+          # Scoped to what THIS pull request changes. A frozen file can only ever change
+          # through some pull request, and that pull request is the one that must update
+          # the receipt -- so nothing is lost by ignoring drift the branch did not cause,
+          # and a long-lived branch is not red-lit every time master edits a listed file.
+          if [ "${{ github.event_name }}" = "merge_group" ]; then
+            changed=$(printf '%s\n' "$manifest" | awk '{print $2}')
+          else
+            git fetch --no-tags origin "$BASE_BRANCH"
+            changed=$(git diff --name-only "origin/$BASE_BRANCH...HEAD")
+          fi
+          printf '%s\n' "$manifest" > /tmp/freeze-manifest.txt
+          printf '%s\n' "$changed" > /tmp/freeze-changed.txt
+          : > /tmp/freeze-scoped.txt
+          while read -r sum file; do
+            [ -n "$file" ] || continue
+            if [ ! -f "$file" ]; then
+              echo "::error::$doc lists $file, which does not exist. Update the manifest or restore the file."
+              exit 1
+            fi
+            if grep -qx "$file" /tmp/freeze-changed.txt; then
+              printf '%s  %s\n' "$sum" "$file" >> /tmp/freeze-scoped.txt
+            fi
+          done < /tmp/freeze-manifest.txt
+          scoped=$(cat /tmp/freeze-scoped.txt)
+          if [ -z "$scoped" ]; then
+            echo "this PR changes none of the frozen submission files"
+            exit 0
+          fi
+          cat /tmp/freeze-scoped.txt
+          if ! sha256sum -c /tmp/freeze-scoped.txt; then
+            echo "::error::this PR changes a frozen submission file but $doc still records its old sha256. Regenerate with 'sha256sum data/demo/bundle.json README.md web/server.mjs' and update the manifest between the freeze-manifest markers in the same PR, or revert the change."
+            exit 1
+          fi
+          echo "every frozen submission file this PR touches matches the recorded manifest"
+
+  deploy-preflight:
+    name: gate/deploy-preflight
+    # tunnel.ps1 is a Windows operator script: USERPROFILE, and Invoke-WebRequest
+    # throwing on a non-2xx response, are both real only here. Running it on ubuntu
+    # would test a different program from the one the operator runs.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Invoke-Pester over deploy/test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          # Windows ships Pester 3 in the box; the suite is Pester 5. Install only if
+          # the runner image does not already carry a 5.x.
+          if (-not (Get-Module Pester -ListAvailable | Where-Object { $_.Version.Major -eq 5 })) {
+            Install-Module Pester -MinimumVersion 5.5.0 -MaximumVersion 5.99.99 -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+          Import-Module Pester -MinimumVersion 5.0.0 -MaximumVersion 5.99.99
+          Write-Host "Pester $((Get-Module Pester).Version)"
+          $config = New-PesterConfiguration
+          $config.Run.Path = 'deploy/test'
+          $config.Run.Throw = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
 
   linear-key:
     name: gate/linear-key
