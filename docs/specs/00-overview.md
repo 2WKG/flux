@@ -134,7 +134,8 @@ def predict_outage(county_fips: str, scenario_id: str, horizon_h: int = 72) -> d
 def run_cascade(element_ids: list[str], scenario_id: str, hour: int) -> dict
 def score_site(site_id: str, unit_mw: int, scenario_id: str) -> dict
 def top_lines(region: str, tech: Literal["dlr", "reconductor", "any"], n: int = 10) -> dict
-def sql(query: str) -> dict            # read-only DuckDB; rejects anything but SELECT/WITH; row cap 200
+def sql(query: str | None = None, template_id: str | None = None) -> dict
+                                          # legacy query or registered template; read-only DuckDB; row cap 200
 def cite(query: str, k: int = 5) -> dict  # retrieval over regulatory PDFs
 # added by amendment A8 (nine tools total):
 def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict   # ids "site:<site_id>" | "line:<line_id>"
@@ -142,6 +143,17 @@ def top_critical_elements(region: str, n: int = 10) -> dict                     
 def causal_query(...) -> dict                                                        # spec 07 owns the signature
 # helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
 ```
+
+SQL deployments may register fixed, deployment-owned templates. Every `sql`
+call supplies exactly one of `query` or `template_id`; the input boundary
+rejects an empty call and a call carrying both. In registry
+mode, the caller supplies one advertised `template_id` matching
+`^[a-z][a-z0-9_]{0,63}$`; raw `query` text is rejected before database access.
+Each template declares its complete approved-view relation set, which is
+validated against the parsed statement at registry construction. A deployment
+without a registry retains legacy `query` input and answers a `template_id`
+with an explicit unavailable result naming the missing registry. Bound values
+are not yet a public SQL input surface.
 
 `cite` corpus (in `data/raw/regs/`, chunked by spec 05): 10 CFR Part 100; DOE coal-to-nuclear reports
 (Sept 2022, Sept 2024); EO 14299, 14300, 14301, 14302 (May 2025); NRC July 2026 proposed rule
@@ -459,7 +471,7 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     | `compare_interventions(scenario, intervention_ids)` | `compare_interventions(scenario_id, intervention_ids)` | **new**, below |
     | `top_critical_elements(region, count)` | `top_critical_elements(region, n)` | **new**, below |
     | `top_line_upgrades(region, technology, count)` | `top_lines(region, tech, n)` | rename only |
-    | `sql(query)` | `sql(query)` | identical |
+    | `sql(query)` | `sql(query | template_id)` | Exactly one of legacy query text or a deployment-owned registered template. |
     | — | `cite(query, k)` | contract-only (retrieval) |
     | — | `causal_query(...)` | contract-only; spec 07 owns the signature and implementation; registered here so the tool count is consistent |
 
