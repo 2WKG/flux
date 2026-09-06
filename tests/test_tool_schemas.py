@@ -313,6 +313,43 @@ def test_causal_interval_round_trips_as_a_json_list() -> None:
         assumptions=[],
         interval=[0.1, 0.9],
         evidence_rows=[],
+        question={
+            "treatment": {
+                "name": "hardening",
+                "definition": "test treatment",
+                "unit_or_category": "category",
+                "source_id": "source-1",
+            },
+            "outcome": {
+                "name": "duration",
+                "definition": "test outcome",
+                "unit_or_category": "hours",
+                "source_id": "source-1",
+            },
+            "target_population": {
+                "description": "test population",
+                "geography": "Texas",
+                "time_window": "2021",
+            },
+        },
+        sources=[
+            {
+                "source_id": "source-1",
+                "name": "test source",
+                "version": "v1",
+                "locator": "test-row",
+                "coverage": "2021",
+            }
+        ],
+        sample={
+            "unit": "county",
+            "n_total": 2,
+            "n_treated": 1,
+            "n_control": 1,
+            "period": "2021",
+        },
+        diagnostics=[{"name": "balance", "status": "pass", "evidence": "recorded"}],
+        citations=[{"source_id": "source-1", "locator": "test-row"}],
     )
 
     assert response.interval == [0.1, 0.9]

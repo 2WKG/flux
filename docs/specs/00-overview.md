@@ -1,12 +1,14 @@
-# 00 — Overview: Flux — Grid Digital Twin, Outage Prediction, Nuclear Siting (Texas first)
+# 00 — Overview: Flux — State-Configurable Grid Resilience Analysis
 
-> **Scope decision (2WKG-295):** The Minnesota fixture contract coexists with this
-> Texas-first overview; it neither supersedes this overview wholesale nor derives
-> Minnesota fixture data from it. [`10-minnesota-demo.md`](10-minnesota-demo.md)
-> is authoritative for Minnesota-specific geography, model, scenario, and demo
-> claims. [`10-duckdb-contract.md`](10-duckdb-contract.md) is the geography-neutral
-> storage contract shared by both cases and contains no geographic fixture records.
-> Texas references below describe the Texas case, not the Minnesota demo.
+> **State scope:** Flux can ingest public context for a selected U.S. state when
+> its declared source artifacts and configuration are supplied. Topology-backed
+> analysis remains available only for a state with a validated topology contract.
+> The repository's only topology adapter is Texas / ACTIVSg2000 / ERCOT, and it
+> requires its source artifacts and build. The checked-in
+> five-bus preview represents no state. [`10-minnesota-demo.md`](10-minnesota-demo.md)
+> is planning authority for a Minnesota demonstration; it does not create a
+> Minnesota fixture or topology. [`10-duckdb-contract.md`](10-duckdb-contract.md)
+> remains the geography-neutral storage contract.
 
 Status: frozen for the weekend build. Product name: **Flux** (amendment A8; the repository and package stay `flux`).
 Source pitch: `docs/pitch/hackathon-pitches-and-designs.md` (v2, 3 Sept 2026, "Two ideas").
@@ -40,8 +42,8 @@ is duplicated whichever pitch leads.
 | Headline | Idea 1 — **Flux**: grid digital twin + outage prediction + nuclear siting |
 | Embedded screen | Line-upgrade ranking, one screen inside the twin (`08-line-upgrade-screen.md`); also the wire half of the backup |
 | Backup pitch | Idea 2 — Speed-to-Power: large-load verification (load half, `dc_*` tables) + grid headroom ranking (wire half = spec 08), separate deck (`09-backup-idea2-datacenter-load.md`) |
-| Geographic scope | **Texas first.** ACTIVSg2000 synthetic grid, ERCOT balancing authority, 254 Texas counties. |
-| National | A single scale slide (static map render of a larger synthetic grid or H3-aggregated HIFLD lines). Not interactive. Not a build target. |
+| Geographic scope | **State-configurable public context.** Each selected state needs declared, validated source artifacts. The repository's only topology adapter is the ACTIVSg2000 synthetic grid, ERCOT balancing authority, and 254 Texas counties; it requires its source artifacts and build. |
+| Other-state topology | Not implied by state-context ingestion. A state needs a validated network and explicit model contract before Flux can show topology, flow, cascade, or siting results there. |
 | Topology honesty | Synthetic topology, stated plainly on the slide and in the copilot system prompt. Real topology is CEII; architecture has a slot for it. |
 | LLM | Claude via the Anthropic SDK, model id `claude-sonnet-5` for tool loops. |
 
@@ -103,7 +105,7 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `outage_predictions` | `scenario_id, county_fips, ts, p_out, customers_at_risk, driver` | 02 | 03, 05, 06 |
 | `cascade_runs` | `run_id, scenario_id, hour, tripped_element_ids_json, lost_load_mw, counties_dark_json, critical_loads_lost_json` | 03 (and 04 for counterfactual runs) | 04, 05, 06 |
 | `site_scores` | `site_id, scenario_id, unit_mw, safety_score, safety_flags_json, grid_value_score, lol_reduction_mwh, congestion_relief_pct, blackstart_reach_mw` | 04 | 05, 06 |
-| `line_upgrade_scores` | `line_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible` | 08 | 05, 06 |
+| `line_upgrade_scores` | `line_id, scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, dlr_cost_usd, reconductor_cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible, ranking_version, contract_version, computed_at, simulation_run_id, grid_input_sha256, weather_input_sha256, cost_params_sha256, source_kind` — key `(line_id, scenario_id)`; `source_kind` is explicit fixture/observed/simulated/heuristic provenance and legacy NULL is unavailable, see A10 | 08 | 05, 06 |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
@@ -360,7 +362,7 @@ agent (03); `forecast_72h` from live NWS alerts (01/02); Beryl replay on the map
 4. **"Is the outage model any good?"** — It is a county-level LightGBM trained on EAGLE-I 2014–2025 with three storms held out. We show the held-out score on screen. It predicts *where and how many*, not *which pole*.
 5. **"Is the cascade real?"** — It is DC power flow with iterative overload tripping on a synthetic grid, with weather-driven initial failure probabilities. It is the standard academic cascade model, not an RTO-grade EMS. Hour-by-hour element order is illustrative; the aggregate lost-load and critical-load exposure is the claim.
 6. **"Your siting safety score is not an NRC review."** — Correct. It re-implements the published OR-SAGE/STAND screening criteria on open layers (population density within 20 miles, seismic PGA, floodplain, cooling water, protected land, wildfire, state moratorium flag). It is a screener, like DOE's 2022 tool, but ours has a grid model under it.
-7. **"Why Texas only?"** — One weekend. ERCOT is a single balancing authority with public hourly load, the best public synthetic grid, and the best-documented storm (Uri). The national model is the same pipeline on ACTIVSg82k/GridSFM — that is the scale slide.
+7. **"Which states can Flux cover?"** — Public context can be ingested for a selected U.S. state when its declared local source artifacts are supplied. The repository's Texas topology adapter has an ACTIVSg2000 / ERCOT path because ERCOT has public hourly load and Uri is well documented, but it still requires its source artifacts and build. Another state needs its own validated topology and model contract before Flux can present topology, flow, cascade, or siting results. The checked-in five-bus preview is not a state model.
 8. **"Line-upgrade numbers?"** — Congestion dollars are a twin-loading proxy, not RTO shadow prices (we did not map ERCOT constraint names to lines this weekend). DLR uplift is IEEE 738 on county-mean wind. Reconductor uplift and costs are LBNL REFA / GridLab assumptions. All three are labelled as estimates.
 9. **"The copilot hallucinates."** — The model never computes. Every number in an answer came from a tool call the judge can see on screen, and every regulatory claim comes from `cite()` with the page reference.
 
@@ -484,8 +486,24 @@ These are decisions, not proposals. Every spec is read as if these were in its c
     ```
     Route: `GET /elements/critical`. Timeout 5 s. If fewer than `n` elements have any persisted cascade, return what exists with `{"partial": true}` — do not fabricate.
   - **Tool count.** With A8 the contract has **nine** tools: `predict_outage`, `run_cascade`, `score_site`, `top_lines`, `sql`, `cite`, `compare_interventions`, `top_critical_elements`, `causal_query`. A5's "six tool signatures unchanged" still holds — the six are unchanged; three are added. Spec 05 registers all nine; `resolve_site` is an internal helper called by spec 05's `score_site` route/tool wrapper, not a model-facing tool.
-
 - **A10 — SSE transport.** `POST /ask` uses the v1 event names, envelopes,
   ordering, terminal behavior, heartbeats, and POST-resume identity defined in
   `docs/research/sse-event-schema.md`. Spec 05 and the web client consume that
   single transport contract; no route or client invents a second event shape.
+
+- **A11 — line-upgrade artifacts are scenario-scoped (2WKG-179/182; `pipelines/db.py` `SCHEMA_VERSION 2.0.0`).**
+  `line_upgrade_scores` and `line_upgrade_detail` are keyed by `(line_id, scenario_id)`, not `line_id`:
+  the same branch is ranked separately for a historical replay, a forecast, or a declared aggregate
+  period, and rows from different scenarios coexist. Both tables gain the typed calculation-contract
+  columns `ranking_version TEXT`, `contract_version TEXT`, `computed_at TIMESTAMP`,
+  `simulation_run_id TEXT` (nullable), `grid_input_sha256`, `weather_input_sha256` (nullable), and
+  `cost_params_sha256` (sha256 hex, CHECK-constrained), ahead of the shared provenance columns.
+  `simulation_run_id` is set only when the congestion input was a Flux twin run; observed and proxy
+  inputs persist `NULL` and must not imply a run. `contract_version` here is the pydantic
+  `pipelines.line_upgrade_contracts.CONTRACT_VERSION` (`1.0.0`), distinct from
+  `schema_meta.contract_version` (the DuckDB `SCHEMA_VERSION`, now `2.0.0`, superseding the `1.0.0`
+  recorded in A9). The index `line_upgrade_scores_scenario_rank (scenario_id, mw_per_musd, line_id)`
+  is a scenario equality-filter aid for `top_lines`, not an ORDER BY accelerator. There is no
+  in-place migration from a `1.0.0` `grid.duckdb`: `ensure_schema` refuses it with a named error
+  before running any DDL; delete `data/duck/grid.duckdb` and re-run the ingest. `top_lines` and any
+  reader of these tables must filter by `scenario_id`.

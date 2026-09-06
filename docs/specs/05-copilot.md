@@ -1,6 +1,6 @@
 # 05 — Copilot service (`copilot/`)
 
-> **Scope order:** Minnesota is the current case ([`10-minnesota-demo.md`](10-minnesota-demo.md)); Texas is second; further states follow. Texas references below describe the second case, not the current one.
+> **State scope:** Tools must expose a selected state only when its declared artifacts and validation contract are present. Texas references below describe the repository's topology adapter, which requires its source artifacts and build. [`10-minnesota-demo.md`](10-minnesota-demo.md) is planning authority, not a checked-in Minnesota fixture.
 
 Status: draft, weekend build. Owner: copilot lane. Depends on `data/duck/grid.duckdb` being populated by specs 01–04 (twin, outage model, cascade, siting/line-upgrade).
 
@@ -10,7 +10,7 @@ A FastAPI service that (a) is the single read API the web app uses for map layer
 
 The copilot is the "answers questions in English with citations" layer of Idea 1 — **Flux** (pitch §"What it does" item 5, Layer 6). The prior briefing's tool names (`top_line_upgrades`, `score_site(lat, lon, capacity)`, …) map onto the contract names per 00-overview amendment A8; only the contract names exist in code. Its contract with the judges is the one in the shared stack: **the model narrates and plans; it never computes.** Every number in an answer must come from a tool result; every regulatory claim must come from a `cite` hit. If the model cannot get a tool result it says so instead of answering.
 
-Texas-first: every tool defaults to the Texas twin (ACTIVSg2000 join); the national 82k model is a scale slide, not a copilot target this weekend.
+State-aware: public-context tools operate only on the selected state's available artifacts. Topology, flow, cascade, and siting tools are available only where a validated topology contract exists; the repository's Texas ACTIVSg2000 adapter also requires its source artifacts and build. The checked-in five-bus preview is not a state model.
 
 ## Inputs
 
@@ -128,11 +128,12 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 | `predict_outage` | `county_fips: str`, `scenario_id: str` (enum `uri_2021,beryl_2024,helene_2024,forecast_72h`), `horizon_h: int = 72` | `{county_fips, county_name, scenario_id, horizon_h, peak_p_out, peak_ts, customers_at_risk, driver, series:[{ts,p_out,customers_at_risk}]}` (series downsampled to ≤ 24 points) |
 | `run_cascade` | `element_ids: list[str]`, `scenario_id: str`, `hour: int` | `{run_id, scenario_id, hour, tripped_element_ids, lost_load_mw, counties_dark:[fips], critical_loads_lost:[{id,name,kind,hour_lost}], steps:int}` |
 | `score_site` | `site_id: str`, `unit_mw: int` (enum 300, 1000), `scenario_id: str` | `{site_id, name, kind, county_fips, unit_mw, safety_score, safety_flags:[str], grid_value_score, lol_reduction_mwh, congestion_relief_pct, blackstart_reach_mw, critical_loads_protected:[str], regulatory_path:str}` |
-| `top_lines` | `region: str` (e.g. `"ERCOT"`, `"TX"`, or a county fips), `tech: "dlr"\|"reconductor"\|"any"`, `n: int = 10` | `{region, tech, lines:[{line_id, from_bus, to_bus, kv, congestion_usd_yr, uplift_mw, cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible}]}` |
+| `top_lines` | `region: str` (e.g. `"ERCOT"`, `"TX"`, or a county fips), `tech: "dlr"\|"reconductor"\|"any"`, `n: int = 10` | `{region, scenario_id, artifact_id, tech, lines:[{line_id, source_class, intervention_type, status, from_bus, to_bus, kv, congestion_usd_yr, uplift_mw, cost_usd, mw_per_musd, ferc_screen_pass, spark_eligible}]}`; ambiguous or legacy-unqualified artifacts are unavailable |
 | `sql` | `query: str` | `{columns:[str], rows:[[…]], row_count, truncated}` |
 | `cite` | `query: str`, `k: int = 5` | `{hits:[{doc, title, page, chunk_id, score, text}]}` |
 | `compare_interventions` (A8) | `scenario_id: str` (same enum), `intervention_ids: list[str]` (each `site:<site_id>`, `site:<site_id>@300`, or `line:<line_id>`; 1–5 ids) | `{scenario_id, baseline_run_id, interventions:[{intervention_id, kind: site\|line, run_id, lol_reduction_mwh, customer_hours_avoided, critical_loads_protected:[cl_id]}], assumptions:[str]}` — sorted by `lol_reduction_mwh` desc; the tool computes every delta, the model reports them |
 | `top_critical_elements` (A8) | `region: str` (`"ERCOT"`, `"TX"`, or a county fips), `n: int = 10` | `{region, n, scenario_ids:[str], elements:[{element_id, kind: line\|bus\|gen, lost_load_mw, critical_loads_lost:[cl_id], runs:int}], partial?:bool}` — ranked by cascade reach from persisted `cascade_runs`; `partial: true` when fewer than `n` elements have any persisted run |
+| `causal_query` | `kind: "attribution"\|"effect"\|"counterfactual"`, optional selected county/site/treatment and the declared scenario/capacity fields | `{answer_numbers, method, assumptions, interval, question:{treatment,outcome,target_population}, sources:[{source_id,name,version,locator,coverage}], sample:{unit,n_total,n_treated,n_control,period}, diagnostics:[{name,status:"pass",evidence}], citations:[{source_id,locator}]}` from one exact registered evidence artifact; malformed, fixture, missing, or insufficient evidence is canonical unavailable with no effect number |
 
 `resolve_site(lat: float, lon: float) -> {site_id, name, distance_km}` (A8) is a helper inside `impl.py`, not in `TOOL_SCHEMAS`: when a question carries a bare lat/lon (the description's `score_site(latitude, longitude, capacity)` shape), the `score_site` wrapper resolves it to the nearest `site_candidates` row (error if > 25 km) and the UI context / answer names that `site_id`. The model never sees lat/lon-shaped `score_site` arguments.
 
@@ -144,7 +145,7 @@ All nine use `strict: true`, `additionalProperties: false`, explicit `required`.
 
 Frozen text, ~600 tokens. Required contents (write them as plain prose; do not over-prescribe, Opus 5 follows short rules well):
 
-1. Identity: grid-planning copilot for a Texas grid digital twin (synthetic ACTIVSg2000 topology, real counties/plants/outages). Say the topology is synthetic if asked about accuracy.
+1. Identity: grid-planning copilot for the selected state's declared data and model contract. The repository's only topology adapter is synthetic ACTIVSg2000 Texas and requires its source artifacts and build; say when topology is synthetic and report unavailable when the selected state has context only.
 2. **Never compute.** Every number (MW, MWh, %, counts, dollars, probabilities, distances, scores) you state must be copied from a tool result in this conversation. Do not add, subtract, average, convert units, or estimate. If a comparison needs a number you don't have, call a tool. If no tool can produce it, say you cannot answer that part.
 3. **Cite regulation only from `cite`.** Any statement about NRC, DOE, FERC, executive orders, or statutes must follow a `cite` call and quote the `doc` + `page`. Inline citation format: `[doc p.N]`. Never cite from memory.
 4. **No tool, no answer.** If the question is about the grid, outages, cascades, sites, or lines and you have made no tool call, do not answer — call a tool first. Greetings/meta questions are the only exception.
