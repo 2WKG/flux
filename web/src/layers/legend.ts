@@ -46,8 +46,11 @@ export interface LegendEntry {
  */
 const ENTRY_DESCRIPTIONS: Readonly<Record<AssetStatus, string>> = {
   source_supported: "Directly supported by the recorded source; opens Evidence.",
+  // Worded without the hyphenated label itself: `viewport-shell.test.mjs` asserts
+  // the shipped bundle carries that spelling only as the display map's own entry,
+  // and this description is prose about the token, not the token.
   source_screened:
-    "Screened against the recorded sources but not source-supported; never a finding.",
+    "Screened against the recorded sources but not directly supported by them; never a finding.",
   hypothetical:
     "Compared inside the model's stated scope; never rendered as permitted, approved, or ready to build.",
   synthetic: "An identified synthetic artifact only; never positioned as Minnesota infrastructure.",
