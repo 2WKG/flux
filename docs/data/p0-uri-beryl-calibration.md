@@ -1,6 +1,6 @@
 # P0 Uri/Beryl calibration status
 
-Generated from `data/calibration/p0-uri-beryl-calibration-ledger-v1.json` (SHA-256 `85eedd5e8d8a5fb33a3b72ceb70a021478932afeb4c8c27ca1f01b234c92fa60`). This is a reproducible fail-closed report, not a reconstruction or calibration claim.
+Generated from `data/calibration/p0-uri-beryl-calibration-ledger-v1.json` (SHA-256 `56d385ae89548dadc20e4f5b51101eba2169f0871b580ae507b33009f4575e50`). This is a reproducible fail-closed report, not a reconstruction or calibration claim.
 
 ## Result classes
 
@@ -19,7 +19,7 @@ No P0 Uri or Beryl calibration is available. The report fails closed because req
 
 ## Citable topology context, not calibration evidence
 
-`data/sources/activsg2000.json` (SHA-256 `f7b8d294386f87c4aad632981e763401eaa15a24958825b2911fcfedc00235ff`) records: A.B. Birchfield et al., Grid Structural Characteristics as Validation Criteria for Synthetic Networks, IEEE Transactions on Power Systems, 2017, doi:10.1109/TPWRS.2016.2616385. ACTIVSg2000 is a synthetic Texas test case. It is not ERCOT topology and supplies no SCADA, nodal telemetry, ratings, restricted data, or real-world asset mapping.
+`data/sources/activsg2000.json` (SHA-256 `da8335a0b2c73792574207a8999293c932a1885f7dd71c7c394c71b2d75920ed`) records: A.B. Birchfield et al., Grid Structural Characteristics as Validation Criteria for Synthetic Networks, IEEE Transactions on Power Systems, 2017, doi:10.1109/TPWRS.2016.2616385. ACTIVSg2000 is a synthetic Texas test case. It is not ERCOT topology and supplies no SCADA, nodal telemetry, ratings, restricted data, or real-world asset mapping.
 
 ## Per-result limits
 
