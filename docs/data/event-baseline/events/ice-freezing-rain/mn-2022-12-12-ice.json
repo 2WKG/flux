@@ -1,0 +1,193 @@
+{
+  "schema_version": "event-baseline/v1",
+  "hazard": "ice-freezing-rain",
+  "event": {
+    "event_id": "mn-2022-12-12-ice",
+    "parent_system_id": "upper_midwest_2022-12-12_winter_storm",
+    "primary_hazard": "ice_storm",
+    "secondary_hazards": [],
+    "compound": false,
+    "source_event_ids": [
+      "ncei:2022:176409:1071180"
+    ],
+    "context_window": {
+      "start_utc": "2022-12-11T00:00:00Z",
+      "end_utc": "2022-12-16T00:00:00Z"
+    },
+    "event_window": {
+      "start_utc": "2022-12-12T23:00:00Z",
+      "end_utc": "2022-12-13T12:00:00Z"
+    },
+    "recovery_window": {
+      "start_utc": "2022-12-13T12:00:00Z",
+      "end_utc": "2022-12-16T00:00:00Z"
+    },
+    "disposition": "candidate_only",
+    "selection_basis": "NCEI episode 176409/event 1071180 records freezing drizzle and light freezing rain in the Nobles forecast zone during the first phase of a long-duration winter storm.",
+    "exclusions": [],
+    "uncertainties": [
+      "NCEI CZ_TYPE=Z record is zone evidence.",
+      "The 18:00Z canonical window has only a one-hour intersection with the NCEI report; it is retained as a candidate, not an accepted event.",
+      "The NCEI Nobles-zone report does not establish full county-window observed weather coverage.",
+      "The qualified exhaustive EAGLE-I annual scan found no county observations in this canonical window; that is UncoveredLabel, never zero.",
+      "No native customer denominator is available."
+    ]
+  },
+  "source_receipts": [
+    {
+      "receipt_id": "ncei_stormevents_2022_c20260625_dec",
+      "provider": "NOAA NCEI Storm Events Database",
+      "url": "https://www.ncei.noaa.gov/pub/data/swdi/stormevents/csvfiles/StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz",
+      "release": "StormEvents_details-ftp_v1.0_d2022_c20260625.csv.gz; Last-Modified 2026-06-25T18:39:38Z",
+      "retrieved_at_utc": "2026-09-06T07:18:49Z",
+      "license_or_access": "NOAA public-data access; no file-specific license asserted by the directory response.",
+      "raw_sha256": "7d6b79d0049a6edec96b061738289daddba90be26fc9afe7b0a6fd617f21452e",
+      "filtered_sha256": "c966ce69d7b0ad9df3508d7e05b1542273123a70262dcd493401ba568564c7d2",
+      "bytes": 11817849,
+      "etag": "\"b45379-6551850843637\"",
+      "units": "NCEI local begin/end times; ice accumulation in inches.",
+      "timezone_conversion": "CST-6: [2022-12-12T23:00:00Z, 2022-12-13T12:00:00Z).",
+      "filters": "EVENT_ID=1071180; EPISODE_ID=176409; STATE=MINNESOTA; EVENT_TYPE=Ice Storm.",
+      "grid_index_mapping": "No grid index; NCEI zone 089 NOBLES.",
+      "gaps": [
+        "Raw gzip and canonical filtered row remain outside Git."
+      ],
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    },
+    {
+      "receipt_id": "eaglei-2022-42547897-20221212t180000-20221213t000000",
+      "provider": "ORNL EAGLE-I via Figshare",
+      "url": "https://ndownloader.figshare.com/files/42547897",
+      "release": "10.6084/m9.figshare.24237376.v4",
+      "retrieved_at_utc": "2026-09-06T08:14:20.676242Z",
+      "license_or_access": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)",
+      "raw_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+      "filtered_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce",
+      "bytes": 1187596176,
+      "etag": "\"7ce929dfa22696fee774022c7c5e5cba-2\"",
+      "units": "customers_out in customers; run_start_time UTC.",
+      "timezone_conversion": "none; EAGLE-I documentation states UTC.",
+      "filters": "Minnesota; FIPS 27105; UTC half-open [2022-12-12T18:00:00Z,2022-12-13T00:00:00Z); exhaustive annual stream.",
+      "grid_index_mapping": "No gridded index used.",
+      "gaps": [
+        "Qualified exhaustive annual scan found 0 of 24 expected 15-minute observations; this is UncoveredLabel, never zero.",
+        "Full annual source is in approved ignored storage; Figshare MD5 and ETag match the annual source sidecar.",
+        "No customer denominator; no population substitution."
+      ],
+      "acquisition": {
+        "acquisition_complete": true,
+        "acquisition_method": "exhaustive_annual_stream",
+        "source_system_id": "figshare:24237376:42547897",
+        "source_file": "eaglei_outages_2022.csv",
+        "source_file_id": 42547897,
+        "source_file_bytes": 1187596176,
+        "integrity_basis": "figshare_file_metadata_md5_and_size+etag_pinned_full_stream",
+        "raw_artifact_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv",
+        "raw_artifact_sha256": "ff8b58ae30fcbaf290f820bcd4f1420e536994bc9f0a87bb80991130478461b0",
+        "source_sidecar_uri": "data/raw/event-baseline/annual-source/eaglei_outages_2022.csv.source.json",
+        "source_sidecar_sha256": "23da56ec0ae7c65d1b3b08083ffb1e6d9ba53ed1ec13c9d7ebf30e507c815d08",
+        "filtered_artifact_uri": "data/raw/event-baseline/mn-2022-12-12-ice-27105-20221212180000_eaglei_2022_20221212T180000_20221213T000000.csv",
+        "filtered_artifact_sha256": "667414ea56241b52767e755562beeb3e385879b06fce7400258c1f497d8791ce"
+      },
+      "capture_method": "historical source metadata recorded in this bundle; source bytes were not acquired by this bundle",
+      "verification": {
+        "sha256_computed_from_response_body": false,
+        "notes": "No response body was fetched by this bundle; any supplied digest is source metadata, not a newly computed claim."
+      },
+      "files": {},
+      "uncertainty": "This receipt identifies historical source metadata only; it does not prove local byte availability or complete source coverage."
+    }
+  ],
+  "records": [
+    {
+      "record_id": "mn-2022-12-12-ice-27105-20221212t1800z",
+      "county_fips": "27105",
+      "boundary_vintage": "Census TIGER/Line 2024",
+      "scenario_id": "mn-2022-12-12-ice-replay",
+      "window_start_utc": "2022-12-12T18:00:00Z",
+      "window_end_utc": "2022-12-13T00:00:00Z",
+      "disposition": "candidate_only",
+      "mode": "replay",
+      "provenance_receipt_ids": [
+        "ncei_stormevents_2022_c20260625_dec",
+        "eaglei-2022-42547897-20221212t180000-20221213t000000"
+      ],
+      "source_evidence_status": "unavailable",
+      "source_row_keys": [],
+      "source_slices": [],
+      "weather": {
+        "coverage": "uncovered",
+        "evidence_kind": "not_assessed",
+        "observation_kind": "not_applicable",
+        "source_receipt_ids": [],
+        "expected_samples": null,
+        "observed_samples": null,
+        "missing_timestamps": [],
+        "event_report": null,
+        "notes": "NCEI zone event is retained as candidate context; no full county-window weather evidence is retained."
+      },
+      "outage": {
+        "coverage": "UncoveredLabel",
+        "evidence_kind": "time_series_or_grid",
+        "observation_kind": "observed",
+        "source_receipt_ids": [
+          "eaglei-2022-42547897-20221212t180000-20221213t000000"
+        ],
+        "expected_samples": 24,
+        "observed_samples": 0,
+        "missing_timestamps": [
+          "2022-12-12T18:00:00Z",
+          "2022-12-12T18:15:00Z",
+          "2022-12-12T18:30:00Z",
+          "2022-12-12T18:45:00Z",
+          "2022-12-12T19:00:00Z",
+          "2022-12-12T19:15:00Z",
+          "2022-12-12T19:30:00Z",
+          "2022-12-12T19:45:00Z",
+          "2022-12-12T20:00:00Z",
+          "2022-12-12T20:15:00Z",
+          "2022-12-12T20:30:00Z",
+          "2022-12-12T20:45:00Z",
+          "2022-12-12T21:00:00Z",
+          "2022-12-12T21:15:00Z",
+          "2022-12-12T21:30:00Z",
+          "2022-12-12T21:45:00Z",
+          "2022-12-12T22:00:00Z",
+          "2022-12-12T22:15:00Z",
+          "2022-12-12T22:30:00Z",
+          "2022-12-12T22:45:00Z",
+          "2022-12-12T23:00:00Z",
+          "2022-12-12T23:15:00Z",
+          "2022-12-12T23:30:00Z",
+          "2022-12-12T23:45:00Z"
+        ],
+        "event_report": null,
+        "notes": "Qualified exhaustive annual scan: 0/24 county observations; UncoveredLabel, never a zero outage."
+      },
+      "matched_coverage_decision": "unavailable",
+      "label": {
+        "rule_version": "county_outage_5pct_v1",
+        "status": "UncoveredLabel",
+        "observed_outage_customers": null,
+        "customer_denominator": {
+          "status": "unavailable",
+          "value": null
+        },
+        "outage_rate": null,
+        "positive": null,
+        "aggregation": "max_customers_out_over_window_samples"
+      },
+      "forecast": {
+        "prediction_cutoff_utc": null,
+        "forecast_evaluation": "not_forecast_scored",
+        "inputs": []
+      }
+    }
+  ]
+}

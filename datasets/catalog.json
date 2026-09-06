@@ -573,7 +573,7 @@
       "source_url": "https://catalog.data.gov/dataset/military-bases-24048",
       "license": "CC0 / US government public data per service metadata",
       "use": "Publicly releasable military-installation boundaries for Minnesota",
-      "caveat": "Not a comprehensive inventory of sensitive or restricted facilities; load_dod ties each facility to a nearest synthetic bus, so Minnesota features stay acquired-not-loaded while the bus model is Texas-only",
+      "caveat": "Not a comprehensive inventory of sensitive or restricted facilities; python -m pipelines.build_state_context --state MN --dod <path> loads it county-assigned only (load_dod never calls join_critical_loads_to_bus for this path), so bus_id stays NULL while the synthetic topology is Texas-only",
       "downloads": [{"filename": "ntad_military_bases_mn.geojson", "url": "https://services.arcgis.com/xOi1kZaI0eWDREZv/arcgis/rest/services/NTAD_Military_Bases/FeatureServer/0/query?where=stateNameCode%3D%27MN%27&outFields=*&returnGeometry=true&outSR=4326&f=geojson"}]
     },
     {
