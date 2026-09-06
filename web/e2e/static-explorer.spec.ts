@@ -22,10 +22,26 @@ const SOURCE_BACKED_CLAIM = /source[_ -]?backed|source[_ -]?supported|source[_ -
 /** Every request the page made, recorded for the same-origin assertion. */
 const recorded = new WeakMap<Page, string[]>();
 
+/** Content-Security-Policy violations the page itself reported. */
+const violations = new WeakMap<Page, string[]>();
+
 test.beforeEach(async ({ page }) => {
   const requests: string[] = [];
   recorded.set(page, requests);
+  // Both events: a request the CSP blocks may never reach `request`, so a
+  // reintroduced third-party call could otherwise slip past the origin filter.
   page.on("request", (request) => requests.push(request.url()));
+  page.on("requestfailed", (request) => requests.push(request.url()));
+
+  const reported: string[] = [];
+  violations.set(page, reported);
+  await page.exposeFunction("__fluxCspViolation", (uri: string) => { reported.push(uri); });
+  await page.addInitScript(() => {
+    document.addEventListener("securitypolicyviolation", (event) => {
+      (window as unknown as { __fluxCspViolation: (uri: string) => void })
+        .__fluxCspViolation(`${event.violatedDirective} ${event.blockedURI}`);
+    });
+  });
 });
 
 /**
@@ -46,6 +62,9 @@ async function expectSameOriginOnly(page: Page): Promise<void> {
   const requests = recorded.get(page) ?? [];
   const offOrigin = requests.filter((url) => new URL(url).origin !== baseOrigin);
   expect(offOrigin).toEqual([]);
+  // And the policy itself saw nothing to block: a request the CSP stopped before
+  // it reached the network is still an off-origin request the page tried to make.
+  expect(violations.get(page) ?? []).toEqual([]);
 }
 
 /** The provenance tokens the product's honesty claim rests on. */
