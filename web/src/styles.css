@@ -441,8 +441,8 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
   .grid-map { min-height: 20rem }
 }
 
-/* Main assistant seam. Folded in from main-assistant/main-assistant.css:
-   src/styles.css is the one physical sheet (web/test/stylesheet-unification.test.mjs). */
+/* Main assistant (folded in from src/main-assistant/main-assistant.css:
+   `test/stylesheet-unification.test.mjs` requires one physical sheet). */
 .flux-main-assistant {
   display: grid;
   gap: 0.8rem;

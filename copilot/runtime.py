@@ -65,6 +65,13 @@ _TOOL_UNAVAILABLE_MESSAGE = (
     "A required tool result is unavailable, so no answer was produced."
 )
 _NO_PROVIDER_MESSAGE = "No model provider is configured."
+# The gap a provider stream is allowed to leave between two deltas.  Each SDK
+# already carries a wall-clock timeout on the HTTP exchange
+# (`copilot.providers.grounding.REQUEST_TIMEOUT_SECONDS`), but a connection that
+# stays open and simply stops producing text is not an SDK error: without this
+# bound `/ask` would heartbeat forever and the `deadline` terminal in
+# `copilot.sse` would be unreachable.
+PROVIDER_DELTA_TIMEOUT_SECONDS = 60.0
 _EMPTY_ANSWER_MESSAGE = "The model produced no answer."
 
 
@@ -146,6 +153,7 @@ async def stream_turn(
     *,
     stream: CopilotEventStream | None = None,
     include_lifecycle: bool = True,
+    delta_timeout: float | None = None,
 ) -> AsyncIterator[SseEvent]:
     """Yield one turn through the same safe emitter contract as ``run_turn``.
 
@@ -187,9 +195,23 @@ async def stream_turn(
 
     iterator: AsyncIterator[str] | None = None
     deltas: list[str] = []
+    # Resolved per call, not bound at definition time, so a deployment (or a
+    # test) can lower the bound without reaching into a default argument.
+    timeout = PROVIDER_DELTA_TIMEOUT_SECONDS if delta_timeout is None else delta_timeout
     try:
         iterator = provider.text(narration)
-        async for delta in iterator:
+        while True:
+            step = iterator.__anext__()
+            try:
+                delta = await asyncio.wait_for(step, timeout)
+            except StopAsyncIteration:
+                break
+            except TimeoutError:
+                # The provider stopped producing without failing.  Close the
+                # iterator before terminating so the socket is not left open.
+                await _close_iterator(iterator)
+                yield active.timed_out()
+                return
             if delta:
                 deltas.append(delta)
                 yield active.text(delta)
