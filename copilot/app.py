@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from copilot.agent import build_ask_backend
 from copilot.api import (
     API_VERSION,
     API_VERSION_HEADER,
@@ -42,6 +43,8 @@ from copilot.routes.health import router as health_router
 from copilot.routes.interventions import router as interventions_router
 from copilot.routes.layers import router as layers_router
 from copilot.routes.lines import router as lines_router
+from copilot.routes.model_geometry import configure_model_geometry
+from copilot.routes.model_geometry import router as model_geometry_router
 from copilot.routes.physical_layers import router as physical_layers_router
 from copilot.routes.predictions import router as predictions_router
 from copilot.routes.scenarios import router as scenarios_router
@@ -53,7 +56,7 @@ _UNSET: object = object()
 def create_app(
     settings: Settings | None = None,
     *,
-    ask_backend: AskBackend | None = None,
+    ask_backend: AskBackend | None | object = _UNSET,
     narration_provider: AsyncNarrationProvider | None | object = _UNSET,
     tool_provider: ToolCallingProvider | None = None,
     tool_dispatcher: ToolDispatcher | None = None,
@@ -61,11 +64,8 @@ def create_app(
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings if settings is not None else load_settings()
-    # Tool orchestration stays deployment-injected: there is no default plan, so
-    # an unconfigured deployment answers `unavailable` rather than guessing.
-    app.state.ask_backend = ask_backend
-    # The narration provider, by contrast, *is* configuration: `COPILOT_PROVIDER`
-    # plus its credential fully determine it, so the app constructs it here.
+    # The narration provider *is* configuration: `COPILOT_PROVIDER` plus its
+    # credential fully determine it, so the app constructs it here.
     # Construction opens no connection; an unconfigured provider is `None` and
     # `/ask` emits the documented unavailable terminal.  Tests may pass an
     # explicit provider (including `None`) to bypass local configuration.
@@ -73,6 +73,17 @@ def create_app(
         build_narration_provider(app.state.settings)
         if narration_provider is _UNSET
         else narration_provider
+    )
+    # Tool orchestration is configuration too, and is built from the provider
+    # above so the planner and the narrator are always the same model.  It is
+    # `None` exactly when this deployment cannot ground an answer -- no
+    # provider, or a provider that cannot plan a tool call -- and `/ask` then
+    # emits the same documented unavailable terminal rather than guessing.  A
+    # deployment or a test may still inject its own backend (including `None`).
+    app.state.ask_backend = (
+        build_ask_backend(app.state.settings, app.state.narration_provider)
+        if ask_backend is _UNSET
+        else ask_backend
     )
     # The tool-calling transport is deployment-injected for the same reason the
     # ask backend is: there is no configured default, so an uninjected
@@ -121,6 +132,8 @@ def create_app(
     app.include_router(physical_layers_router)
     app.include_router(interventions_router)
     app.include_router(lines_router)
+    configure_model_geometry(duckdb_path=app.state.settings.duckdb_path)
+    app.include_router(model_geometry_router)
     app.include_router(comparisons_router)
     app.include_router(scenarios_router)
     app.include_router(predictions_router)

@@ -134,6 +134,9 @@ All geometry as WKB (`geom_wkb BLOB`) or `lon DOUBLE, lat DOUBLE`, EPSG:4326. Ti
 | `physical_asset_terminals` | `artifact_id, terminal_id, asset_id, source_id, source_record_id` — key `(artifact_id, terminal_id)` | 11 | 11, read APIs |
 | `physical_connectivity_edges` | `artifact_id, edge_id, from_terminal_id, to_terminal_id, source_id, source_record_id` — key `(artifact_id, edge_id)` | 11 | 11, read APIs |
 | `physical_coverage` | `artifact_id, asset_class, scope_id, status[complete\|partial\|unknown\|unavailable], observed_count, denominator_count, unknown_count, unavailable_count, denominator_basis, source_scope, reason` — key `(artifact_id, asset_class, scope_id)` | 11 | 11, read APIs |
+| `scenario_edits` | `edit_id, session_id, base_scenario_id, ops_json, created_at, edit_hash` — key `edit_id`; `edit_hash` is the deterministic hash of the ordered op list (amendment A13) | 12 | 12 |
+| `redundancy_scores` | `bus_id, scenario_id, hour, n1_survival_pct, independent_paths, nearest_alt_source_km, headroom_mw, score, components_json` — key `(bus_id, scenario_id, hour)` (amendment A13) | 12 | 12 |
+| `siting_search_runs` | `run_id, objective, kind[producer\|consumer], unit_mw, scenario_id, ranked_json, computed_at` — key `run_id` (amendment A13) | 12 | 12 |
 
 `element_ids` (the `run_cascade` input) are plain element id strings as they appear in `lines.line_id` /
 `buses.bus_id` / `gens.gen_id`. `cascade_runs.tripped_element_ids_json` is owned by spec 03: an ordered
@@ -180,6 +183,14 @@ def compare_interventions(scenario_id: str, intervention_ids: list[str]) -> dict
 def top_critical_elements(region: str, n: int = 10) -> dict                          # ranks by cascade reach from cascade_runs
 def causal_query(...) -> dict                                                        # spec 07 owns the signature
 # helper, not a model-facing tool: resolve_site(lat, lon) -> site_id (A8)
+# added by amendment A13 (spec 12, the interactive-physics lane; thirteen tools total):
+def edit_scenario(base_scenario_id: str, ops: list[dict]) -> dict      # -> {edit_hash, feasibility[]}
+def grid_balance(scope: str, scenario_id: str, hour: int, edit_hash: str | None = None) -> dict
+def redundancy_score(bus_id: int, scenario_id: str, hour: int) -> dict
+def search_locations(kind: Literal["producer", "consumer"], unit_mw: float,
+                     scenario_id: str, n: int = 10) -> dict
+# A13 also adds an optional `edit_hash: str | None = None` to the three existing
+# tools predict_outage, run_cascade and score_site; omitted, they behave as today.
 ```
 
 SQL deployments may register fixed, deployment-owned templates. Every `sql`
@@ -646,3 +657,25 @@ These are decisions, not proposals. Every spec is read as if these were in its c
   spec 10's `mn:<artifact_kind>:<sha256-16>`; the divergence and its reason are
   recorded in both specs, and spec 11 owns no `mn_*` table and no Minnesota
   artifact envelope.
+
+- **A13 — the interactive-physics namespace (spec 12).** Registers, for
+  [12-interactive-simulation.md](12-interactive-simulation.md), three additive DuckDB tables —
+  `scenario_edits`, `redundancy_scores`, `siting_search_runs` (rows in §2.2 above) — and four
+  additive copilot tools — `edit_scenario`, `grid_balance`, `redundancy_score`,
+  `search_locations` (signatures in §2.3 above), taking the registry from nine tools to
+  thirteen. It also adds an optional `edit_hash` parameter to the three existing tools
+  `predict_outage`, `run_cascade` and `score_site`; omitted, their behaviour is unchanged, so
+  the change is backward compatible. `run_cascade`, `score_site` and `predict_outage` are
+  **already registered** in the frozen `TOOL_REGISTRY` (`copilot/tools/schemas.py:455-473`) —
+  A13 does not create them, and any spec text saying they "were never built" is wrong.
+  Everything here is additive: no existing table, column, scenario id, route or tool signature
+  changes, and `pipelines/db.py`'s `SCHEMA_VERSION` is untouched.
+  Route inventory: spec 12's five compute routes are mounted under the **`/interactive` prefix**
+  (`POST /interactive/scenario/edit`, `POST /interactive/cascade`, `GET /interactive/balance`,
+  `GET /interactive/redundancy`, `POST /interactive/siting/search`). This does not reopen D-3:
+  no bare-root `POST /cascade` is authorized, and `GET /cascade` remains the only cascade route
+  on the §4.2 read surface. Every `/interactive/*` success body is **unwrapped**, carrying
+  `model_fidelity`, `network_provenance` and `limitations` as top-level siblings of the
+  payload's own fields; `copilot/api/envelope.py` still wraps only failures.
+  `network_provenance` uses the canonical `SYNTHETIC_TOPOLOGY_LABEL`, `"synthetic (ACTIVSg2000)"`
+  (D-5), and no second spelling.
