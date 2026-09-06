@@ -1,5 +1,6 @@
 import { useEffect, useId } from "react";
 import { isAssetStatus, type AssetStatus } from "../labels";
+import { STATUS_COPY } from "../source-truth";
 import "./layer-controls.css";
 
 /**
@@ -46,19 +47,11 @@ export interface LayerControlsProps {
 }
 
 /**
- * The IA's user-visible copy, `docs/design/minnesota-demo-narrative-ia.md:224-231`, quoted
- * exactly. `src/source-truth.ts`'s `STATUS_COPY` currently carries the unhyphenated
- * variants ("Source supported"); unifying the two display maps is a call for the owner of
- * that module, and this panel must not repeat copy the IA table does not use.
+ * The IA's user-visible copy, `docs/design/minnesota-demo-narrative-ia.md:224-231`.
+ * It is not restated here: `../source-truth.ts`'s `STATUS_COPY` owns the six display
+ * strings and now carries the IA's hyphenated spellings, so this panel imports them.
  */
-const statusCopy: Record<SourceStatus, string> = {
-  source_supported: "Source-supported",
-  source_screened: "Source-screened",
-  hypothetical: "Hypothetical",
-  synthetic: "Synthetic",
-  unavailable: "Unavailable",
-  request_failed: "Request failed",
-};
+const statusCopy: Record<SourceStatus, string> = STATUS_COPY;
 
 /**
  * Accompanying copy the IA binds to the label itself rather than to a producer field.

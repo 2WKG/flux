@@ -7,8 +7,32 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const dist = fileURLToPath(new URL("./dist/", import.meta.url));
 
+/**
+ * The offline demo's policy, sent as a header as well as the `index.html` meta tag.
+ * A header covers `frame-ancestors` (which a meta tag cannot carry) and every
+ * response, not just the shell. It names no off-origin source, so the basemap,
+ * tiles, glyphs, sprites, and any API are all unreachable from the page.
+ */
+export const CONTENT_SECURITY_POLICY = [
+  "default-src 'self'",
+  "connect-src 'self'",
+  "img-src 'self' data: blob:",
+  "worker-src 'self' blob:",
+  "child-src 'self' blob:",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "font-src 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "base-uri 'none'",
+].join("; ");
+
 export function createApp() {
   const app = express();
+  app.use((_req, res, next) => {
+    res.setHeader("Content-Security-Policy", CONTENT_SECURITY_POLICY);
+    next();
+  });
   app.use(express.static(dist));
   // `root` + relative name, not an interpolated absolute path: under Express 5 on Windows
   // `res.sendFile("<abs>/index.html")` raises NotFoundError, which 404s every SPA client route.
