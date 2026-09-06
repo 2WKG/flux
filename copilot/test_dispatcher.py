@@ -20,7 +20,6 @@ from copilot.non_interactive_tool_handlers import (
     NonInteractiveToolServices,
     non_interactive_tool_handlers,
 )
-from copilot.providers.claude import ClaudeNarrationProvider
 from copilot.tools.schemas import TOOL_REGISTRY, unavailable_output, validate_tool_input
 
 
@@ -192,51 +191,40 @@ def test_ask_uses_provider_selected_pydantic_handler_and_nests_scene_action() ->
     }
 
 
-def test_configured_app_provider_reaches_dispatcher_over_http_without_network(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A configured app uses the production Claude transport through ``/ask``."""
+def test_injected_app_provider_reaches_dispatcher_over_http_without_network() -> None:
+    """An injected tool transport reaches the dispatcher through ``/ask``.
 
-    class FakeMessages:
+    The tool-calling transport is deployment-injected, exactly like
+    ``ask_backend``: ``create_app`` constructs no default, so an unconfigured
+    deployment keeps the documented unavailable terminal.  This test injects one
+    and proves the wiring from ``/ask`` down to the interactive handler.
+    """
+
+    class RecordingProvider:
+        name = "claude"
+        model = "claude-test"
+
         def __init__(self) -> None:
             self.calls: list[dict[str, object]] = []
-            self.responses = [
-                SimpleNamespace(
-                    content=[
-                        SimpleNamespace(
-                            type="tool_use",
-                            id="configured-scene-edit",
-                            name="scenario_edit",
-                            input={
-                                "base_scenario_id": "interactive",
-                                "ops": [
-                                    {"op": "outage", "element_id": "line:7"}
-                                ],
-                                "hour": 0,
-                                "seed": 0,
-                            },
-                        )
-                    ]
+            self.actions = [
+                ToolCall(
+                    "configured-scene-edit",
+                    "scenario_edit",
+                    {
+                        "base_scenario_id": "interactive",
+                        "ops": [{"op": "outage", "element_id": "line:7"}],
+                        "hour": 0,
+                        "seed": 0,
+                    },
                 ),
-                SimpleNamespace(content=[SimpleNamespace(type="text", text="Done.")]),
+                AssistantText("Done."),
             ]
 
-        async def create(self, **kwargs: object) -> object:
+        async def next_action(self, **kwargs: object):
             self.calls.append(dict(kwargs))
-            return self.responses.pop(0)
+            return self.actions.pop(0)
 
-    messages = FakeMessages()
-    built = []
-
-    def configured_factory(settings: Settings) -> ClaudeNarrationProvider:
-        built.append(settings.provider_status())
-        return ClaudeNarrationProvider(
-            "injected-test-key",
-            settings.model_for("claude"),
-            client=SimpleNamespace(messages=messages),
-        )
-
-    monkeypatch.setattr("copilot.app.build_tool_provider", configured_factory)
+    provider = RecordingProvider()
     dispatcher = ToolDispatcher(interactive_tool_handlers(_InteractiveService()))
     client = TestClient(
         create_app(
@@ -244,7 +232,9 @@ def test_configured_app_provider_reaches_dispatcher_over_http_without_network(
                 duckdb_path=Path("/tmp/grid.duckdb"),
                 anthropic_api_key="unused-configured-key",
             ),
+            narration_provider=None,
             tool_dispatcher=dispatcher,
+            tool_provider=provider,
         )
     )
 
@@ -266,9 +256,6 @@ def test_configured_app_provider_reaches_dispatcher_over_http_without_network(
         ("text", None),
         ("done", None),
     ]
-    assert len(built) == 1
-    assert built[0].provider == "claude"
-    assert built[0].ready is True
     assert events[2][1]["result"]["scene_action"] == {
         "action_id": "scenario_edit:configured-scene-edit",
         "kind": "scenario_edit",
@@ -277,11 +264,32 @@ def test_configured_app_provider_reaches_dispatcher_over_http_without_network(
         "reversible": True,
         "status": "available",
     }
-    assert [tool["name"] for tool in messages.calls[0]["tools"]] == [
+    assert [tool["name"] for tool in provider.calls[0]["tools"]] == [
         definition.name for definition in TOOL_REGISTRY
     ]
-    replay = messages.calls[1]["messages"][-2:]
-    assert replay[1]["content"][0]["type"] == "tool_result"
+
+
+def test_unconfigured_app_keeps_the_unavailable_terminal() -> None:
+    """Without an injected transport ``/ask`` still refuses rather than guessing."""
+
+    client = TestClient(
+        create_app(
+            Settings(duckdb_path=Path("/tmp/grid.duckdb")),
+            narration_provider=None,
+        )
+    )
+    events = _events(
+        client.post(
+            "/ask",
+            json={
+                "attempt_id": "unconfigured_dispatcher_1",
+                "question": "Make this outage edit.",
+                "history": [],
+            },
+        )
+    )
+    assert [event for event, _ in events] == ["lifecycle", "error"]
+    assert events[-1][1]["error"]["code"] == "unavailable"
 
 
 def test_dispatcher_nests_distinct_cascade_request_identity_in_scene_action() -> None:
