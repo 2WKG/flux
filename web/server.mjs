@@ -73,7 +73,13 @@ export const CONTENT_SECURITY_POLICY = [
   "img-src 'self' data: blob:",
   "worker-src 'self' blob:",
   "child-src 'self' blob:",
-  "script-src 'self'",
+  // `'wasm-unsafe-eval'` is the narrow WebAssembly permission, not `'unsafe-eval'`:
+  // it allows compiling and instantiating a WASM module and nothing else -- no
+  // `eval`, no `new Function`, no inline or remote script. deck.gl/luma.gl's
+  // WebGL runtime needs it, and without it every page load reported
+  // `script-src wasm-eval` violations that `web/e2e/static-explorer.spec.ts`
+  // correctly refuses. Scripts still load only from this origin.
+  "script-src 'self' 'wasm-unsafe-eval'",
   "style-src 'self' 'unsafe-inline'",
   "font-src 'self'",
   "object-src 'none'",

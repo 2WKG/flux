@@ -125,13 +125,22 @@ test("the served shell carries a CSP that blocks every off-origin request", asyn
     assert.ok(directives[directive], `CSP has no ${directive}`);
     for (const value of directives[directive]) {
       assert.ok(
-        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'"].includes(value),
+        // `'wasm-unsafe-eval'` permits compiling a WebAssembly module and
+        // nothing else. It names no source, so it can reach no server; deck.gl's
+        // WebGL runtime needs it, and without it the shell reported a
+        // `script-src wasm-eval` violation on every load.
+        ["'self'", "'none'", "data:", "blob:", "'unsafe-inline'", "'wasm-unsafe-eval'"].includes(value),
         `${directive} allows ${value}, which can reach an off-origin server`,
       );
     }
   }
   assert.ok(directives["connect-src"].includes("'self'"));
   assert.ok(!directives["connect-src"].includes("*"));
+  // Bounded: the broad script-eval permissions stay refused on the shell too, so
+  // the narrow WASM permission cannot be widened unnoticed.
+  for (const forbidden of ["'unsafe-eval'", "'unsafe-hashes'", "*"]) {
+    assert.ok(!csp.includes(forbidden), `the shell CSP allows ${forbidden}`);
+  }
 });
 
 test("the overlay's initialized signal comes from deck's own load event, not from mount", async () => {

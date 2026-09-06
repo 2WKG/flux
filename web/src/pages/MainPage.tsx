@@ -36,6 +36,7 @@ import { loadGridInventory, GRID_LAYERS, type GridState } from "../data/grid-cli
 import type { SpatialItem } from "../data/grid-inventory";
 import { GridInventoryPanel, type GridLoad } from "../renderer/GridInventoryPanel";
 import { ScenarioEditContainer } from "../interactive/ScenarioEditContainer";
+import { InteractivePanels } from "../interactive/InteractivePanels";
 import { isTexasModelPayload, TexasTopologyMap, type TexasModelPayload } from "../renderer/TexasTopologyMap";
 
 type Id = "baseline" | "a" | "b";
@@ -678,6 +679,8 @@ export function App() {
         onSelect={setGridSelected}
         onRetry={() => setGridAttempt((value) => value + 1)}
       />
+
+      <InteractivePanels scenarioId={selected} busId="load" />
 
       <ScenarioEditContainer baseScenarioId={data.execution.assumptionSetId} />
 
