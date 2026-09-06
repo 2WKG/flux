@@ -224,6 +224,7 @@ function App() {
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -263,14 +264,14 @@ function App() {
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
 
   return (
-    <main>
+    <main className="app-shell">
       <nav>
         <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
         <div className="live"><i />bundled synthetic fixture · no API required</div>
         <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
       </nav>
 
-      <header>
+      <header className="shell-intro">
         <p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p>
         <h1>Where does 300 MW cut the most unmet demand?</h1>
         <p>
@@ -280,10 +281,18 @@ function App() {
         </p>
       </header>
 
+      <section className="shell-controls" aria-label="Scenario controls">
+        <div>
+          <p className="eyebrow">Scenario comparison</p>
+          <p>Choose a bundled run. All choices keep the same synthetic five-bus assumptions.</p>
+        </div>
+        <span className="shell-status">Offline preview · no Minnesota coverage</span>
+      </section>
+
       <CompareRail selected={selected} onSelect={select} />
 
-      <section className="workspace">
-        <article className="map">
+      <section className="workspace viewport-shell" aria-label="Viewport-first scenario workspace">
+        <article className="map scene-viewport">
           <div className="map-head">
             <div>
               <p className="eyebrow">NETWORK STATE · {scenario.label.toUpperCase()}</p>
@@ -302,9 +311,17 @@ function App() {
               ? <><i className="tone-low" />under 75% <i className="tone-mid" />75–89% <i className="tone-high" />90%+ <span>· {scenario.units.lineLoading} of rating</span></>
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
+          <section className="timeline compact-panel" aria-label="Scenario timeline">
+            <div>
+              <p className="eyebrow">Timeline</p>
+              <strong>Fixed {data.execution.assumptions.durationHours}-hour snapshot</strong>
+            </div>
+            <div className="timeline-track" aria-hidden="true"><i /></div>
+            <span>Bundled output · playback unavailable</span>
+          </section>
         </article>
 
-        <aside>
+        <aside className="inspector" aria-label="Scenario inspector">
           <div className="outcome">
             <p className="eyebrow">MODELED UNMET DEMAND</p>
             <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
@@ -356,6 +373,22 @@ function App() {
             : "Comparison unavailable: scenario assumptions differ."}{" "}
           Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
         </p>
+      </section>
+
+      <section className={`chat-dock ${chatOpen ? "expanded" : "collapsed"}`} aria-label="Evidence chat dock">
+        <button className="chat-toggle" onClick={() => setChatOpen((open) => !open)} aria-expanded={chatOpen} aria-controls="chat-dock-body">
+          <span>
+            <span className="eyebrow">Evidence chat</span>
+            <strong>{chatOpen ? "Chat contract and limits" : "Ask about visible evidence"}</strong>
+          </span>
+          <span className="chat-state">{chatOpen ? "Collapse" : "Unavailable in static preview"}</span>
+        </button>
+        {chatOpen && (
+          <div id="chat-dock-body" className="chat-body">
+            <p>This offline synthetic preview has no Copilot endpoint, model result, or Minnesota artifact to query.</p>
+            <p>When a server-backed evidence surface is available, this dock must show its tool trail, citations, status, and limitations instead of inventing an answer.</p>
+          </div>
+        )}
       </section>
 
       {detail && (
