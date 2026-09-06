@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import math
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal
+from typing import Any, Literal
 
 import duckdb
 from fastapi import APIRouter, Request
@@ -37,14 +37,6 @@ class _OutcomeMetadata:
     artifact_id: str
     model_mode: object
     limitations_json: object
-
-
-class CompareRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    scenario_id: str = Field(min_length=1, max_length=128)
-    intervention_ids: list[
-        Annotated[str, Field(pattern=r"^(site:[^@:\s]+(?:@(300|1000))?|line:[^:\s]+)$")]
-    ] = Field(min_length=1, max_length=5)
 
 
 def unavailable(reason: str, artifact: str = "site_scores") -> UnavailableError:
@@ -276,26 +268,3 @@ def _no_outcome(
 @router.post("/site-score")
 def site_score(payload: SiteScoreRequest, request: Request) -> dict[str, Any]:
     return read_site(str(request.app.state.settings.duckdb_path), payload)
-
-
-@router.post("/compare")
-def compare(payload: CompareRequest, request: Request) -> dict[str, Any]:
-    if any(not item.startswith("site:") for item in payload.intervention_ids):
-        raise unavailable("unsupported_request", "comparison")
-    scores = []
-    for item in payload.intervention_ids:
-        scores.append(
-            read_site(
-                str(request.app.state.settings.duckdb_path),
-                SiteScoreRequest(
-                    site_id=item[5:].split("@", 1)[0],
-                    unit_mw=int(item.split("@", 1)[1]) if "@" in item else 300,
-                    scenario_id=payload.scenario_id,
-                ),
-            )
-        )
-    return {
-        "scenario_id": payload.scenario_id,
-        "interventions": scores,
-        "comparison_status": "values_are_not_derived_deltas",
-    }
