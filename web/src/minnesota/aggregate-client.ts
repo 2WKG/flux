@@ -46,6 +46,16 @@ export interface MinnesotaAggregateProvenance {
 /** The only server result this aggregate-only screen is allowed to render. */
 export interface MinnesotaAggregateResponse {
   readonly artifact_id: string;
+  readonly artifact_contract_version: string;
+  readonly artifact_identity: {
+    readonly artifact_id: string;
+    readonly artifact_kind: "model_result";
+    readonly geography_id: "mn";
+    readonly model_mode: "aggregate";
+    readonly source_identity: "minnesota_aggregate_manifest_v1";
+    readonly source_version: string;
+    readonly content_sha256: string;
+  };
   readonly model_mode: "aggregate";
   readonly availability: "available";
   readonly aggregate_manifest: MinnesotaAggregateManifest;
@@ -121,6 +131,17 @@ function provenance(value: unknown): value is MinnesotaAggregateProvenance {
     && typeof value.is_derived === "boolean";
 }
 
+function identity(value: unknown, artifactId: string): value is MinnesotaAggregateResponse["artifact_identity"] {
+  return record(value)
+    && value.artifact_id === artifactId
+    && value.artifact_kind === "model_result"
+    && value.geography_id === "mn"
+    && value.model_mode === "aggregate"
+    && value.source_identity === "minnesota_aggregate_manifest_v1"
+    && string(value.source_version)
+    && /^[a-f0-9]{64}$/.test(String(value.content_sha256));
+}
+
 /**
  * Validate the complete server projection before rendering it. The browser
  * accepts neither a topology-shaped response nor a partial aggregate result.
@@ -128,6 +149,8 @@ function provenance(value: unknown): value is MinnesotaAggregateProvenance {
 export function isMinnesotaAggregateResponse(value: unknown): value is MinnesotaAggregateResponse {
   return record(value)
     && string(value.artifact_id)
+    && string(value.artifact_contract_version)
+    && identity(value.artifact_identity, value.artifact_id)
     && value.model_mode === "aggregate"
     && value.availability === "available"
     && manifest(value.aggregate_manifest)

@@ -192,6 +192,9 @@ function AggregateEvidence({ result, identity }: { readonly result: MinnesotaAgg
       <h3>Persisted aggregate record</h3>
       <p><strong>Run:</strong> <code>{identity.contextRevision}</code></p>
       <p><strong>Artifact:</strong> <code>{result.artifact_id}</code></p>
+      <p><strong>Artifact contract:</strong> {result.artifact_contract_version}</p>
+      <p><strong>Source identity:</strong> {result.artifact_identity.source_identity} / {result.artifact_identity.source_version}</p>
+      <p><strong>Verified manifest digest:</strong> <code>{result.artifact_identity.content_sha256}</code></p>
       <p><strong>Model mode:</strong> {result.model_mode}</p>
       <p><strong>Record format:</strong> {result.aggregate_manifest.format}</p>
       <p><strong>Metric:</strong> {metric.metric_name}: {metric.metric_value} {metric.unit}</p>
