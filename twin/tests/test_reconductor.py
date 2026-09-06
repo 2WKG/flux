@@ -87,7 +87,7 @@ def test_missing_prerequisites_return_shared_unavailable_reasons(kwargs, reason)
 # hand-computed spec 08 section 4 cases.
 # --------------------------------------------------------------------------
 
-KEY = LineKey(line_id=4711, region="ERCOT")
+KEY = LineKey(line_id=4711, region="ERCOT", scenario_id="uri_2021")
 ONE_MILE_KM = 1.609344
 FULL_COSTS = {
     **COSTS,
@@ -409,6 +409,17 @@ def test_guards_are_checked_in_rating_conductor_cost_order():
 def test_empty_scenario_id_is_an_identity_error_not_an_unavailable_line():
     with pytest.raises(ValueError):
         _build(scenario_id="")
+
+
+def test_artifact_scenario_id_must_match_the_line_key_scenario_id():
+    with pytest.raises(ValueError, match="must match the line key scenario_id"):
+        _build(scenario_id="annual_2024")
+    with pytest.raises(ValueError, match="must match the line key scenario_id"):
+        _build(scenario_id="annual_2024", material=None)
+    artifact = _build(
+        key=LineKey(line_id=4711, region="ERCOT", scenario_id="x1"), scenario_id="x1"
+    )
+    assert artifact.key.scenario_id == artifact.scenario_id == "x1"
 
 
 def test_ready_artifact_never_carries_a_non_finite_number():

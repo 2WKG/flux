@@ -1,21 +1,22 @@
 # Flux demo stack lock
 
-> **⚠ Unresolved contradiction with `README.md`.** This file locks React + Vite served statically,
-> with no API. `README.md` describes the built app as Node/Express with a `GET /api/demo` route and
-> states it "intentionally does not use Vite". Both cannot be true. Recorded here rather than
-> resolved — the team owns this call. See Linear 2WKG-296.
-
 This hackathon demo is a static web app backed by precomputed local JSON.
+
+> **Runtime contract decided (2WKG-300): static assets, no demo API.** The client bundles
+> `data/demo/bundle.json` at build time and issues no runtime request; `web/server.mjs` serves the
+> built `web/dist/` and exposes no API route. This resolves the contradiction previously recorded
+> here and in `README.md` under 2WKG-296. The bundler is esbuild (`web/scripts/build.mjs`), not
+> Vite — corrected here because the earlier "React + Vite" wording never matched the build.
 
 ## Chosen stack
 
 | Layer | Choice |
 | --- | --- |
-| Web | React + Vite + TypeScript |
+| Web | React + esbuild + TypeScript |
 | Map | MapLibre GL JS + deck.gl |
 | Calculation | Python + pandapower |
 | Result handoff | JSON files written to disk |
-| Presentation | Built Vite assets served by a local static server through the existing `bouncepulse.com` Cloudflare Tunnel |
+| Presentation | Built static assets served by a local static server through the existing `bouncepulse.com` Cloudflare Tunnel |
 
 The web app reads saved result files only. Python is run before presentation and writes the final JSON bundle to disk for the web app to serve. There is no API, database, authentication, queue, live feed, or new deployment service.
 
@@ -23,9 +24,9 @@ The web app reads saved result files only. Python is run before presentation and
 
 - Pin the Node and Python package versions in the web and model manifests after their first successful build/import check.
 - Keep the JSON bundle small and local. Copy the generated bundle into the web app's static assets as part of the export step.
-- Serve the Vite build output with a static server; do not use Vite's preview server as the judge-facing origin.
+- Serve the build output with a static server (`web/server.mjs`); it serves files only and must not gain an API route.
 - Reuse the existing Cloudflare Tunnel and its configured local origin for `bouncepulse.com`; this task does not create or modify tunnel infrastructure.
 
 ## Demo boundary
 
-The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. It does not perform live calculations or fetch data during the demo. The model is a synthetic-grid illustration, not a representation of the real Texas grid.
+The app presents one fixed stress snapshot, baseline plus two 300 MW candidate additions, and signed saved comparisons. It does not perform live calculations or fetch data during the demo. The model is a synthetic-grid illustration, not a representation of a real grid.

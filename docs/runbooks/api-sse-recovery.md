@@ -7,8 +7,9 @@ configuration values, or substitute polling for SSE.
 
 ## User-visible response
 
-1. Keep the static scenario demo open. It uses the checked-in synthetic fixture
-   served by `GET /api/demo`; it does not require the Copilot API or SSE.
+1. Keep the static scenario demo open. It uses the checked-in synthetic fixture,
+   bundled into the client at build time; it makes no runtime request at all, so
+   it does not require the Copilot API or SSE.
 2. Do not claim that the Ask/Copilot interaction is connected. State that the
    interactive Copilot service is temporarily unavailable and continue with
    the static demo.
@@ -55,10 +56,15 @@ The 404 is expected for the current static origin and proves that it did not
 pretend to provide an SSE or polling fallback. Stop the local process after the
 check. Use a different free port if `4317` is occupied.
 
+That `/api/demo` line records what was observed on 2026-09-05 and is kept as
+evidence. It is no longer current: 2WKG-300 settled the runtime contract as
+static assets only and removed the route, so the same request now returns the
+SPA shell.
+
 ## Local recovery order
 
-1. Build and start the static origin as above. Verify `/` and `/api/demo`
-   locally before considering external routing.
+1. Build and start the static origin as above. Verify `/` and
+   `/assets/app.js` locally before considering external routing.
 2. If a deployed Copilot API is available, use its owner-documented startup
    procedure and non-secret configuration names. Verify its documented
    `/health` response locally. Do not infer a database path or API key.

@@ -6,7 +6,7 @@
 
 ## Authority and scope
 
-This Minnesota contract **coexists with** the Texas-first overview. It does not
+This Minnesota contract **coexists with** the state-configurable overview. It does not
 supersede that overview wholesale or derive Minnesota fixture data from Texas
 records. [10-minnesota-demo.md](10-minnesota-demo.md) supersedes the legacy Texas,
 ERCOT, Uri, and ACTIVSg2000 demo contract. This document makes its required artifact
@@ -179,6 +179,11 @@ state without a domain row.
 | `mn_score_results` | `artifact_id TEXT PK`, `metric TEXT NOT NULL`, `score_value DOUBLE NOT NULL`, `score_unit TEXT NOT NULL`, `score_components_json JSON NOT NULL`, `regulatory_label TEXT NOT NULL` | FK to manifest; finite value. Regulatory label is `hypothetical`, `source_screened`, or `source_supported`. |
 | `mn_citation_chunks` | `chunk_id TEXT PK`, `corpus_artifact_id TEXT NOT NULL`, `doc TEXT NOT NULL`, `title TEXT NOT NULL`, `page INTEGER NOT NULL`, `chunk_ordinal INTEGER NOT NULL`, `text TEXT NOT NULL` | FK corpus artifact to manifest; page is positive, ordinal nonnegative, and `(corpus_artifact_id, doc, page, chunk_ordinal)` is unique. This is versioned local corpus storage for 2WKG-128, not retrieval implementation. |
 | `mn_citation_hits` | `(artifact_id TEXT, hit_ordinal INTEGER) PK`, `chunk_id TEXT NOT NULL`, `doc TEXT NOT NULL`, `title TEXT NOT NULL`, `page INTEGER NOT NULL`, `score DOUBLE NOT NULL`, `text TEXT NOT NULL` | FKs to manifest and chunk; ordinal nonnegative and score finite. It preserves the exact `doc`, `title`, `page`, `chunk ID`, `score`, and `text` required in a cited API/Copilot evidence artifact. |
+
+
+### 2WKG-128 corpus ingestion
+
+`copilot.retrieval.ingest.ingest_corpus` is the sole local writer for a versioned citation corpus. It accepts explicit `SourceDocument` values, requires an exact positive source page, and stores a deterministic chunk set plus the existing manifest and provenance rows. The source document identifier is retained as `source_record_id`, so `load_corpus_chunks` restores each chunk's source URI, version, retrieved date, license terms, content SHA-256, and fixture/source classification. Reingesting an identical corpus is a no-op; a manifest, provenance, or chunk conflict raises before evidence is replaced. A caller may ingest a repository Minnesota decision document using its actual repository path, commit, and date, but it must never be described as an external observation or a substitute for a missing Minnesota dataset.
 
 ## 2WKG-98 implementation handoff
 
