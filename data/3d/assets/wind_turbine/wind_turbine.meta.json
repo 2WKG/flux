@@ -1,0 +1,68 @@
+{
+  "archetype_id": "wind_turbine",
+  "contract_id": "flux:3d-asset-archetypes:v1",
+  "semantic_name": "Wind turbines",
+  "category": "generation",
+  "source_scene": "wind_turbine.scene.json",
+  "export": {
+    "container": "glb",
+    "specification": "glTF 2.0",
+    "pipeline_outputs": {
+      "model_file": "wind_turbine.glb",
+      "preview_file": "wind_turbine.preview.png"
+    },
+    "preview_source": "wind_turbine.preview.svg",
+    "preview_pixels": 512,
+    "binary_storage": "Produced by the Minnesota asset pipeline; GLB binaries are intentionally not committed to Git."
+  },
+  "transform": {
+    "length_unit": "meter",
+    "unit_scale": 1.0,
+    "up_axis": "Y",
+    "forward_axis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center"
+  },
+  "footprint_m": {
+    "length": 20,
+    "width": 20
+  },
+  "connectors": [
+    {
+      "name": "CONN_MV_FEED_0",
+      "role": "MV_FEED",
+      "position_m": [
+        0,
+        0,
+        8
+      ]
+    }
+  ],
+  "material_slots": [
+    {
+      "name": "MAT_STATUS",
+      "default": "neutral",
+      "runtime_tinted": true,
+      "allowed_labels": [
+        "source_supported",
+        "source_screened",
+        "hypothetical",
+        "synthetic",
+        "unavailable",
+        "request_failed"
+      ]
+    }
+  ],
+  "triangles": {
+    "lod0": 16000,
+    "lod1": 6000,
+    "lod2": 1800
+  },
+  "triangles_lod0": 16000,
+  "triangles_lod1": 6000,
+  "triangles_lod2": 1800,
+  "author": "Flux team",
+  "license": "MIT",
+  "source_of_shape": "Original generic Flux wind-turbine procedural archetype; it depicts no real turbine, wind farm, output, owner, or Minnesota placement.",
+  "limit": "Rotor motion, if animated, is decorative and never represents generation, wind speed, capacity, ownership, or Minnesota placement identity."
+}
