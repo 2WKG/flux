@@ -40,11 +40,11 @@
       "provider": "U.S. Energy Information Administration",
       "url": "https://www.eia.gov/todayinenergy/detail.php?id=54039",
       "release": null,
-      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "retrieved_at_utc": "2026-09-06T08:18:58Z",
       "license_or_access": "U.S. government public information",
-      "raw_sha256": "199c0b7d1d93a14b01d457a69bf1ff0d147a66a79db442bfc592cb811413e97a",
+      "raw_sha256": "9d1a820c8c32e247cb22b9272223556ade5a737753d430a3abcf2b3d52dc42c1",
       "filtered_sha256": null,
-      "bytes": 53512,
+      "bytes": 54530,
       "etag": null,
       "units": "megawatts demand context",
       "timezone_conversion": "EIA narrative reports local timing; canonical label is UTC",
@@ -52,7 +52,8 @@
       "grid_index_mapping": "not applicable; BA context is not county-level",
       "gaps": [
         "No county-grid weather extraction",
-        "No county outage label from BA demand"
+        "No county outage label from BA demand",
+        "Mutable web response was recaptured; current byte hash retained in approved raw storage."
       ]
     },
     {

@@ -40,11 +40,11 @@
       "provider": "U.S. Energy Information Administration",
       "url": "https://www.eia.gov/todayinenergy/detail.php?id=57240",
       "release": null,
-      "retrieved_at_utc": "2026-09-06T07:11:09Z",
+      "retrieved_at_utc": "2026-09-06T08:18:58Z",
       "license_or_access": "U.S. government public information",
-      "raw_sha256": "22ebf01123ee313e830c72612e73dbace600942e9b5143170f1e6152d74acd5a",
+      "raw_sha256": "534d725a45dc008f99321c7f4da095293d35b7484392a208e16134c92a82e114",
       "filtered_sha256": null,
-      "bytes": 54202,
+      "bytes": 55220,
       "etag": null,
       "units": "megawatthours hourly BA demand context",
       "timezone_conversion": "EIA reports Central Time; canonical county window is UTC",
@@ -53,7 +53,8 @@
       "gaps": [
         "No county-grid weather extraction",
         "No EAGLE-I slice receipt yet",
-        "No county outage label from BA demand"
+        "No county outage label from BA demand",
+        "Mutable web response was recaptured; current byte hash retained in approved raw storage."
       ]
     },
     {
