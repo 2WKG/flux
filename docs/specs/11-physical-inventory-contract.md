@@ -34,6 +34,11 @@ the accuracy basis must say so. Derived geometry also requires an explicit
 derivation method. Unavailable geometry has null geometry, CRS, precision,
 accuracy, and derivation fields.
 
+The CRS must be a registered `EPSG:<code>` or `ESRI:<code>` authority string.
+For example, Minnesota source geometry may truthfully retain `ESRI:103705`;
+the validator resolves the declared authority rather than treating a numeric
+WKID as an EPSG code. Unrecognized authority codes fail validation.
+
 Terminals and connectivity edges are optional. When present, both carry their
 own source record identity, and an edge can only join two persisted sourced
 terminals. Producers must omit unknown connectivity; they may not infer it from
