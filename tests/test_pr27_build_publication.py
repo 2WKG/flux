@@ -48,7 +48,7 @@ def _published_state(
 
 def _staged_builder(marker: str):
     def build_stage(
-        _raw_dir: str, db_path: str, _tz: str | None, parquet_dir: str
+        _raw_dir: str, db_path: str, _tz: str | None, parquet_dir: str, **_kwargs
     ) -> dict[str, int]:
         con = connect(db_path)
         try:
@@ -91,7 +91,7 @@ def test_loader_failure_never_publishes_staged_database_or_parquet(
     monkeypatch.setattr(build_module, "_missing_p0_inputs", lambda *_args: [])
 
     def fail_after_staging(
-        _raw_dir: str, stage_db: str, _tz: str | None, stage_parquet: str
+        _raw_dir: str, stage_db: str, _tz: str | None, stage_parquet: str, **_kwargs
     ) -> dict[str, int]:
         _staged_builder(phase)(_raw_dir, stage_db, _tz, stage_parquet)
         raise RuntimeError(f"{phase} failed")

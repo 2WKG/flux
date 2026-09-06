@@ -1,0 +1,290 @@
+{
+  "schemaVersion": 1,
+  "contractId": "flux:3d-asset-archetypes:v1",
+  "contractDoc": "docs/design/3d-asset-contract.md",
+  "scope": "Reusable geometry archetypes shared by the Texas and Minnesota 3D demo projects. An archetype is a shape and its import metadata. It carries no place, no owner, no operator, and no measured value; a placement binds identity from a server artifact and never from this catalog.",
+  "runtime": {
+    "container": "glb",
+    "specification": "glTF 2.0",
+    "reason": "Single-file binary glTF loads without sidecar fetches, is supported by three.js/deck.gl loaders already permitted in the browser bundle, and keeps one artifact per archetype for checksum pinning.",
+    "textures": "KTX2/Basis where a texture is required; plain PNG is acceptable for a first pass",
+    "compression": "Draco geometry compression optional; if used it must be declared per file and the uncompressed triangle budget still applies"
+  },
+  "transform": {
+    "lengthUnit": "meter",
+    "unitScale": 1.0,
+    "upAxis": "Y",
+    "forwardAxis": "-Z",
+    "handedness": "right",
+    "pivot": "ground_center",
+    "pivotDefinition": "Origin sits on the ground plane at the footprint centre: y=0 is the base, x/z centred on the footprint rectangle. A model whose pivot floats or sits at a bounding-box centre cannot be placed on terrain without per-asset correction.",
+    "orientation": "Author facing -Z. The placement pipeline applies yaw; the model must not bake a site-specific rotation."
+  },
+  "footprint": {
+    "shape": "axis_aligned_rectangle",
+    "unit": "meter",
+    "definition": "length is the -Z extent at author orientation, width the X extent. The rectangle is the selection and collision proxy; it is nominal author geometry, not a surveyed parcel boundary.",
+    "tolerance": "Rendered geometry must fit inside its declared footprint rectangle within 5%."
+  },
+  "connectors": {
+    "definition": "Named empty nodes marking where a line or feeder attaches. A connector is a geometric attachment point only; it asserts no electrical connectivity, rating, or energisation.",
+    "naming": "CONN_<role>_<index>, e.g. CONN_HV_IN_0",
+    "roles": {
+      "HV_IN": "High-voltage attachment, incoming side",
+      "HV_OUT": "High-voltage attachment, outgoing side",
+      "MV_FEED": "Medium-voltage feeder attachment",
+      "NONE": "Archetype exposes no electrical attachment point"
+    }
+  },
+  "statusMaterials": {
+    "definition": "A shared material slot the runtime tints from the server-asserted label carried by the placement's artifact. The model ships neutral; it must not bake a status colour.",
+    "slotName": "MAT_STATUS",
+    "labelSource": "docs/design/minnesota-demo-narrative-ia.md status-label table",
+    "allowedLabels": [
+      "source_supported",
+      "source_screened",
+      "hypothetical",
+      "synthetic",
+      "unavailable",
+      "request_failed"
+    ],
+    "note": "There is deliberately no decorative or 'illustrative' state. The narrative-IA contract removed it because nothing on master asserts it, and a label the browser invents would breach the 00-overview browser/server boundary.",
+    "pairing": "Every colour must be paired with a readable text label and a glyph or pattern; colour alone never carries the claim."
+  },
+  "budgets": {
+    "perArchetypeTrianglesLod0": 40000,
+    "perArchetypeFileBytes": 3145728,
+    "textureMaxPixels": 2048,
+    "sceneTriangleBudget": 4000000,
+    "lodLevels": ["lod0", "lod1", "lod2"],
+    "lodRule": "lod1 <= 40% of lod0 triangles, lod2 <= 12%. lod2 must stay recognisable in silhouette at statewide zoom.",
+    "note": "Budgets are per archetype instance as authored. Scene-level streaming, culling, and instancing are 2WKG-371's problem, not this contract's; the scene budget is stated so an archetype author knows the ceiling they share."
+  },
+  "deliverables": {
+    "required": [
+      "<archetype_id>.glb",
+      "<archetype_id>.preview.png",
+      "<archetype_id>.meta.json"
+    ],
+    "previewPixels": 512,
+    "metaFields": [
+      "archetype_id",
+      "contract_id",
+      "triangles_lod0",
+      "triangles_lod1",
+      "triangles_lod2",
+      "footprint_m",
+      "connectors",
+      "author",
+      "license",
+      "source_of_shape"
+    ],
+    "licence": "Every delivered model must state a licence that permits redistribution in this repository. A model derived from a third-party asset must name that asset and its licence in source_of_shape.",
+    "storage": "Binary model files are not committed to Git. They are produced and stored per the asset-pipeline work item (2WKG-374 Minnesota / 2WKG-320 Texas); this contract governs their shape, not their hosting."
+  },
+  "crossProjectReuse": {
+    "rule": "Geometry is shared; identity is not. The same archetype_id may be instanced in the Texas and Minnesota scenes.",
+    "identityRule": "A Minnesota placement takes its id, coordinates, coverage, provenance, and status label from an accepted Minnesota server artifact. It must never inherit a Texas placement's identity, nor be relabelled from the ACTIVSg2000 synthetic case, which is Texas-shaped synthetic topology.",
+    "placementPrerequisite": "Minnesota placement is gated on accepted Minnesota coverage (2WKG-364 inventory, 2WKG-367 adapter). Until an accepted artifact exists, an archetype may be previewed in a catalogue view but must not be positioned as Minnesota infrastructure."
+  },
+  "archetypes": [
+    {
+      "id": "transmission_line_segment",
+      "semantic_name": "Transmission towers and line segments",
+      "category": "network",
+      "texas_issue": "2WKG-322",
+      "minnesota_issue": "2WKG-376",
+      "footprint_m": { "length": 12, "width": 12 },
+      "connectors": ["HV_IN", "HV_OUT"],
+      "lod_triangles": { "lod0": 18000, "lod1": 7000, "lod2": 2000 },
+      "limit": "A tower is scene furniture. It never implies a real circuit, rating, energisation, or a Minnesota network; topology scenes stay disabled until the network decision gate accepts a solver-complete source."
+    },
+    {
+      "id": "substation_transformer_yard",
+      "semantic_name": "Substation and transformer yard",
+      "category": "network",
+      "texas_issue": "2WKG-323",
+      "minnesota_issue": "2WKG-377",
+      "footprint_m": { "length": 120, "width": 90 },
+      "connectors": ["HV_IN", "HV_OUT", "MV_FEED"],
+      "lod_triangles": { "lod0": 34000, "lod1": 13000, "lod2": 3800 },
+      "limit": "Equipment count and layout are generic. They assert no bay configuration, capacity, or ownership."
+    },
+    {
+      "id": "military_base",
+      "semantic_name": "Military base",
+      "category": "critical_load",
+      "texas_issue": "2WKG-324",
+      "minnesota_issue": "2WKG-378",
+      "footprint_m": { "length": 200, "width": 160 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 30000, "lod1": 11000, "lod2": 3200 },
+      "limit": "A generic installation silhouette. It depicts no real facility, perimeter, or asset disposition."
+    },
+    {
+      "id": "hospital",
+      "semantic_name": "Hospital",
+      "category": "critical_load",
+      "texas_issue": "2WKG-325",
+      "minnesota_issue": "2WKG-379",
+      "footprint_m": { "length": 90, "width": 60 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 26000, "lod1": 9500, "lod2": 2800 },
+      "limit": "Bed count, service level, and backup generation are not represented and must not be inferred."
+    },
+    {
+      "id": "water_treatment_plant",
+      "semantic_name": "Water treatment plant",
+      "category": "critical_load",
+      "texas_issue": "2WKG-326",
+      "minnesota_issue": "2WKG-380",
+      "footprint_m": { "length": 140, "width": 100 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 28000, "lod1": 10500, "lod2": 3000 },
+      "limit": "Process stages are illustrative geometry, not a treatment-capacity or service-population claim."
+    },
+    {
+      "id": "coal_plant_retiring_site",
+      "semantic_name": "Coal plant and retiring plant site",
+      "category": "generation",
+      "texas_issue": "2WKG-327",
+      "minnesota_issue": "2WKG-381",
+      "footprint_m": { "length": 260, "width": 180 },
+      "connectors": ["HV_OUT"],
+      "lod_triangles": { "lod0": 38000, "lod1": 14000, "lod2": 4200 },
+      "limit": "Retirement state is a server-asserted attribute of the placement, never a variant baked into the mesh."
+    },
+    {
+      "id": "nuclear_smr_module",
+      "semantic_name": "New nuclear and SMR module",
+      "category": "generation",
+      "texas_issue": "2WKG-328",
+      "minnesota_issue": "2WKG-382",
+      "footprint_m": { "length": 120, "width": 100 },
+      "connectors": ["HV_OUT"],
+      "lod_triangles": { "lod0": 32000, "lod1": 12000, "lod2": 3400 },
+      "limit": "A generic module massing. It is not a vendor design, a licensed reactor, or a sited project, and carries no permitting status."
+    },
+    {
+      "id": "data_center_campus",
+      "semantic_name": "Data center campus",
+      "category": "load",
+      "texas_issue": "2WKG-329",
+      "minnesota_issue": "2WKG-383",
+      "footprint_m": { "length": 220, "width": 150 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 28000, "lod1": 10000, "lod2": 3000 },
+      "limit": "Hall count implies no MW demand. Load comes from an artifact, not from geometry."
+    },
+    {
+      "id": "residential_neighborhood",
+      "semantic_name": "Residential neighborhood",
+      "category": "load",
+      "texas_issue": "2WKG-330",
+      "minnesota_issue": "2WKG-384",
+      "footprint_m": { "length": 180, "width": 180 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 36000, "lod1": 13000, "lod2": 3600 },
+      "limit": "A repeating block used for texture and scale. It represents no census population, household count, or customer count."
+    },
+    {
+      "id": "commercial_buildings",
+      "semantic_name": "Commercial buildings",
+      "category": "load",
+      "texas_issue": "2WKG-331",
+      "minnesota_issue": "2WKG-385",
+      "footprint_m": { "length": 120, "width": 100 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 24000, "lod1": 9000, "lod2": 2600 },
+      "limit": "Generic massing for district context only."
+    },
+    {
+      "id": "factory_industrial_facility",
+      "semantic_name": "Factory and industrial facility",
+      "category": "load",
+      "texas_issue": "2WKG-332",
+      "minnesota_issue": "2WKG-386",
+      "footprint_m": { "length": 200, "width": 140 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 30000, "lod1": 11000, "lod2": 3200 },
+      "limit": "Depicts no process, output, or emissions profile."
+    },
+    {
+      "id": "natural_gas_plant",
+      "semantic_name": "Natural-gas power plant",
+      "category": "generation",
+      "texas_issue": "2WKG-333",
+      "minnesota_issue": "2WKG-387",
+      "footprint_m": { "length": 200, "width": 140 },
+      "connectors": ["HV_OUT"],
+      "lod_triangles": { "lod0": 34000, "lod1": 12500, "lod2": 3600 },
+      "limit": "Unit count is generic and implies no capacity, heat rate, or fuel arrangement."
+    },
+    {
+      "id": "wind_turbine",
+      "semantic_name": "Wind turbines",
+      "category": "generation",
+      "texas_issue": "2WKG-334",
+      "minnesota_issue": "2WKG-388",
+      "footprint_m": { "length": 20, "width": 20 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 16000, "lod1": 6000, "lod2": 1800 },
+      "limit": "Rotor motion, if animated, is decorative. It must never be driven by, or read as, a generation or wind-speed value."
+    },
+    {
+      "id": "solar_array",
+      "semantic_name": "Solar arrays",
+      "category": "generation",
+      "texas_issue": "2WKG-335",
+      "minnesota_issue": "2WKG-389",
+      "footprint_m": { "length": 150, "width": 120 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 22000, "lod1": 8000, "lod2": 2400 },
+      "limit": "Panel rows are a tiled pattern; they encode no array size, tracking mode, or output."
+    },
+    {
+      "id": "battery_storage",
+      "semantic_name": "Battery storage",
+      "category": "storage",
+      "texas_issue": "2WKG-336",
+      "minnesota_issue": "2WKG-390",
+      "footprint_m": { "length": 80, "width": 50 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 18000, "lod1": 7000, "lod2": 2000 },
+      "limit": "Container count implies no MWh, no duration, and no state of charge. The demo has no stateful storage model."
+    },
+    {
+      "id": "warehouse_logistics_center",
+      "semantic_name": "Warehouse and logistics center",
+      "category": "load",
+      "texas_issue": "2WKG-337",
+      "minnesota_issue": "2WKG-391",
+      "footprint_m": { "length": 180, "width": 120 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 20000, "lod1": 7500, "lod2": 2200 },
+      "limit": "Generic distribution massing."
+    },
+    {
+      "id": "ev_charging_station",
+      "semantic_name": "EV charging station",
+      "category": "load",
+      "texas_issue": "2WKG-338",
+      "minnesota_issue": "2WKG-392",
+      "footprint_m": { "length": 40, "width": 25 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 14000, "lod1": 5000, "lod2": 1500 },
+      "limit": "Stall count implies no charger rating or utilisation."
+    },
+    {
+      "id": "school_emergency_services",
+      "semantic_name": "School and emergency-services building",
+      "category": "critical_load",
+      "texas_issue": "2WKG-339",
+      "minnesota_issue": "2WKG-393",
+      "footprint_m": { "length": 100, "width": 70 },
+      "connectors": ["MV_FEED"],
+      "lod_triangles": { "lod0": 22000, "lod1": 8500, "lod2": 2400 },
+      "limit": "Depicts no shelter designation, capacity, or emergency role; those are artifact attributes."
+    }
+  ]
+}

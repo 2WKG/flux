@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from types import MappingProxyType
 
 import pytest
 
@@ -725,3 +726,16 @@ def test_done_reports_unverified_findings_only_when_unverified() -> None:
         "unverified_citations": ["[d p.1]"],
         "reason": "regulatory_claim_without_cite",
     }
+
+
+def test_nested_immutable_tool_payload_is_normalized_at_the_sse_boundary() -> None:
+    stream = CopilotEventStream()
+    stream.start()
+    payload = MappingProxyType(
+        {"nested": MappingProxyType({"values": ("one", MappingProxyType({"two": 2}))})}
+    )
+
+    event = stream.tool_call("call-1", "score_site", payload)
+
+    assert event.data["input"] == {"nested": {"values": ["one", {"two": 2}]}}
+    assert json.loads(event.encode().split("data: ", 1)[1]) == dict(event.data)
