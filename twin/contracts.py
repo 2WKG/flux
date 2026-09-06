@@ -87,7 +87,9 @@ class CascadeResult:
             "served_load_mw": float(self.served_load_mw),
             "county_impacts": [dict(item) for item in self.county_impacts],
             "critical_loads_lost": [dict(item) for item in self.critical_loads_lost],
-            "loading_by_element": {key: float(value) for key, value in self.loading_by_element.items()},
+            "loading_by_element": {
+                key: float(value) for key, value in self.loading_by_element.items()
+            },
             "topology": self.topology,
             "solver": self.solver,
         }

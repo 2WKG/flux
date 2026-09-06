@@ -18,7 +18,13 @@ from twin.contracts import (
 from twin.edits import apply_edits, edit_hash
 
 
-def run_cascade(net: Any, edits: Iterable[GridEdit] = (), *, overload_limit_pct: float = 100.0, max_stages: int = 12) -> dict[str, Any]:
+def run_cascade(
+    net: Any,
+    edits: Iterable[GridEdit] = (),
+    *,
+    overload_limit_pct: float = 100.0,
+    max_stages: int = 12,
+) -> dict[str, Any]:
     """Apply immutable edits, shed unsupplied islands, and trip DC overloads.
 
     This does not pretend ordinary generators can black-start an island.  Only
@@ -30,14 +36,30 @@ def run_cascade(net: Any, edits: Iterable[GridEdit] = (), *, overload_limit_pct:
     edits_tuple = tuple(edits)
     scenario = apply_edits(net, edits_tuple)
     events = _edit_events(net, edits_tuple)
-    lost = sum(float(scenario.load.at[index, "p_mw"]) for event in events if event.kind == "load" for _, index in [scenario.flux_element_lookup[event.element_id]])
-    dark_buses = {int(scenario.load.at[index, "bus"]) for event in events if event.kind == "load" for _, index in [scenario.flux_element_lookup[event.element_id]]}
+    lost = sum(
+        float(scenario.load.at[index, "p_mw"])
+        for event in events
+        if event.kind == "load"
+        for _, index in [scenario.flux_element_lookup[event.element_id]]
+    )
+    dark_buses = {
+        int(scenario.load.at[index, "bus"])
+        for event in events
+        if event.kind == "load"
+        for _, index in [scenario.flux_element_lookup[event.element_id]]
+    }
     loading: dict[str, float] = {}
     for stage in range(1, max_stages + 1):
         island_lost, buses, island_events = _shed_unsupplied_islands(scenario, stage)
         lost += island_lost
         dark_buses.update(buses)
         events.extend(island_events)
+        deficit_lost, deficit_buses, deficit_events = _shed_capacity_deficits(
+            scenario, stage
+        )
+        lost += deficit_lost
+        dark_buses.update(deficit_buses)
+        events.extend(deficit_events)
         _solve(scenario)
         overloads = _overloads(scenario, overload_limit_pct)
         loading.update({item[0]: item[3] for item in overloads})
@@ -45,11 +67,30 @@ def run_cascade(net: Any, edits: Iterable[GridEdit] = (), *, overload_limit_pct:
             break
         for element_id, table, index, percent in overloads:
             scenario[table].at[index, "in_service"] = False
-            events.append(CascadeEvent(element_id, "line" if table == "line" else "impedance", stage, "overload", round(percent, 6)))
+            events.append(
+                CascadeEvent(
+                    element_id,
+                    "line" if table == "line" else "impedance",
+                    stage,
+                    "overload",
+                    round(percent, 6),
+                )
+            )
     else:
-        raise SimulationSolveError(f"cascade did not stabilize after {max_stages} stages")
+        raise SimulationSolveError(
+            f"cascade did not stabilize after {max_stages} stages"
+        )
     served = float(scenario.load.loc[scenario.load.in_service, "p_mw"].sum())
-    result = CascadeResult(edit_hash(edits_tuple), tuple(events), round(lost, 6), round(served, 6), tuple(_county_impacts(scenario)), tuple(_critical_impacts(scenario, dark_buses)), loading, str(scenario.get("flux_topology", "synthetic (ACTIVSg2000)")))
+    result = CascadeResult(
+        edit_hash(edits_tuple),
+        tuple(events),
+        round(lost, 6),
+        round(served, 6),
+        tuple(_county_impacts(scenario)),
+        tuple(_critical_impacts(scenario, dark_buses)),
+        loading,
+        str(scenario.get("flux_topology", "synthetic (ACTIVSg2000)")),
+    )
     return result.json()
 
 
@@ -65,13 +106,26 @@ def island_primitives(net: Any, edits: Iterable[GridEdit] = ()) -> list[dict[str
     sources = _source_buses(candidate)
     rows = []
     for component in sorted(nx.connected_components(graph), key=lambda item: min(item)):
-        rows.append({
-            "bus_ids": [int(candidate.flux_bus_metadata[int(bus)]["bus_id"]) for bus in sorted(component)],
-            "load_mw": round(float(candidate.load[candidate.load.in_service & candidate.load.bus.isin(component)].p_mw.sum()), 6),
-            "available_generation_mw": round(_capacity(candidate, component), 6),
-            "has_grid_forming_source": bool(sources.intersection(component)),
-            "edit_hash": edit_hash(edits_tuple),
-        })
+        rows.append(
+            {
+                "bus_ids": [
+                    int(candidate.flux_bus_metadata[int(bus)]["bus_id"])
+                    for bus in sorted(component)
+                ],
+                "load_mw": round(
+                    float(
+                        candidate.load[
+                            candidate.load.in_service
+                            & candidate.load.bus.isin(component)
+                        ].p_mw.sum()
+                    ),
+                    6,
+                ),
+                "available_generation_mw": round(_capacity(candidate, component), 6),
+                "has_grid_forming_source": bool(sources.intersection(component)),
+                "edit_hash": edit_hash(edits_tuple),
+            }
+        )
     return rows
 
 
@@ -86,7 +140,12 @@ def _edit_events(before: Any, edits: tuple[GridEdit, ...]) -> list[CascadeEvent]
             continue  # apply_edits raises the useful user error.
         if table == "ext_grid":
             continue
-        kind = {"line": "line", "impedance": "impedance", "gen": "generator", "load": "load"}.get(table)
+        kind = {
+            "line": "line",
+            "impedance": "impedance",
+            "gen": "generator",
+            "load": "load",
+        }.get(table)
         if kind is not None:
             events.append(CascadeEvent(edit.element_id, kind, 0, "forced"))
     return events
@@ -98,7 +157,9 @@ def _graph(net: Any) -> nx.Graph:
     for table in ("line", "impedance", "trafo"):
         if table not in net or net[table].empty:
             continue
-        first, second = ("hv_bus", "lv_bus") if table == "trafo" else ("from_bus", "to_bus")
+        first, second = (
+            ("hv_bus", "lv_bus") if table == "trafo" else ("from_bus", "to_bus")
+        )
         for _, row in net[table][net[table].in_service].iterrows():
             graph.add_edge(int(row[first]), int(row[second]))
     return graph
@@ -111,13 +172,23 @@ def _source_buses(net: Any) -> set[int]:
 def _capacity(net: Any, buses: set[int]) -> float:
     capacity = 0.0
     if not net.gen.empty:
-        capacity += float(net.gen[net.gen.in_service & net.gen.bus.isin(buses)].max_p_mw.fillna(0.0).sum())
+        capacity += float(
+            net.gen[net.gen.in_service & net.gen.bus.isin(buses)]
+            .max_p_mw.fillna(0.0)
+            .sum()
+        )
     if not net.sgen.empty and "max_p_mw" in net.sgen:
-        capacity += float(net.sgen[net.sgen.in_service & net.sgen.bus.isin(buses)].max_p_mw.fillna(0.0).sum())
+        capacity += float(
+            net.sgen[net.sgen.in_service & net.sgen.bus.isin(buses)]
+            .max_p_mw.fillna(0.0)
+            .sum()
+        )
     return capacity
 
 
-def _shed_unsupplied_islands(net: Any, stage: int) -> tuple[float, set[int], list[CascadeEvent]]:
+def _shed_unsupplied_islands(
+    net: Any, stage: int
+) -> tuple[float, set[int], list[CascadeEvent]]:
     sources = _source_buses(net)
     lost, dark, events = 0.0, set(), []
     for component in nx.connected_components(_graph(net)):
@@ -127,8 +198,58 @@ def _shed_unsupplied_islands(net: Any, stage: int) -> tuple[float, set[int], lis
             net.load.at[index, "in_service"] = False
             lost += float(net.load.at[index, "p_mw"])
             dark.add(int(net.load.at[index, "bus"]))
-            events.append(CascadeEvent(str(net.load.at[index, "flux_element_id"]), "load", stage, "island"))
+            events.append(
+                CascadeEvent(
+                    str(net.load.at[index, "flux_element_id"]), "load", stage, "island"
+                )
+            )
     return lost, dark, events
+
+
+def _shed_capacity_deficits(
+    net: Any, stage: int
+) -> tuple[float, set[int], list[CascadeEvent]]:
+    """Proportionally shed an energized island whose finite supply is short."""
+    sources = _source_buses(net)
+    lost, dark, events = 0.0, set(), []
+    for component in nx.connected_components(_graph(net)):
+        if not sources.intersection(component):
+            continue
+        demand = float(
+            net.load.loc[
+                net.load.in_service & net.load.bus.isin(component), "p_mw"
+            ].sum()
+        )
+        available = _available_capacity(net, component)
+        if demand <= 0 or available >= demand:
+            continue
+        served_fraction = max(available, 0.0) / demand
+        for index in net.load.index[net.load.in_service & net.load.bus.isin(component)]:
+            before = float(net.load.at[index, "p_mw"])
+            shed = before * (1.0 - served_fraction)
+            if shed <= 0:
+                continue
+            net.load.at[index, "p_mw"] = before - shed
+            lost += shed
+            dark.add(int(net.load.at[index, "bus"]))
+            events.append(
+                CascadeEvent(
+                    str(net.load.at[index, "flux_element_id"]), "load", stage, "island"
+                )
+            )
+    return lost, dark, events
+
+
+def _available_capacity(net: Any, buses: set[int]) -> float:
+    available = _capacity(net, buses)
+    for _, row in net.ext_grid[
+        net.ext_grid.in_service & net.ext_grid.bus.isin(buses)
+    ].iterrows():
+        limit = row.get("max_p_mw")
+        if limit is None or float(limit) != float(limit):
+            return float("inf")
+        available += max(float(limit), 0.0)
+    return available
 
 
 def _solve(net: Any) -> None:
@@ -144,15 +265,31 @@ def _overloads(net: Any, limit: float) -> list[tuple[str, str, int, float]]:
     output: list[tuple[str, str, int, float]] = []
     for index, loading in net.res_line.loading_percent.items():
         if bool(net.line.at[index, "in_service"]) and float(loading) > limit:
-            output.append((str(net.line.at[index, "flux_element_id"]), "line", int(index), float(loading)))
+            output.append(
+                (
+                    str(net.line.at[index, "flux_element_id"]),
+                    "line",
+                    int(index),
+                    float(loading),
+                )
+            )
     for index, row in net.res_impedance.iterrows():
         if not bool(net.impedance.at[index, "in_service"]):
             continue
         rating = float(net.impedance.at[index, "sn_mva"])
         if rating > 0:
-            loading = max(abs(float(row.p_from_mw)), abs(float(row.p_to_mw))) / rating * 100.0
+            loading = (
+                max(abs(float(row.p_from_mw)), abs(float(row.p_to_mw))) / rating * 100.0
+            )
             if loading > limit:
-                output.append((str(net.impedance.at[index, "flux_element_id"]), "impedance", int(index), loading))
+                output.append(
+                    (
+                        str(net.impedance.at[index, "flux_element_id"]),
+                        "impedance",
+                        int(index),
+                        loading,
+                    )
+                )
     return sorted(output, key=lambda item: item[0])
 
 
@@ -164,10 +301,20 @@ def _county_impacts(net: Any) -> list[dict[str, Any]]:
         county = metadata.get("county_fips")
         if county is None:
             continue
-        totals[county] = totals.get(county, 0.0) + float(row.p_mw)
-        if not bool(row.in_service):
-            lost[county] = lost.get(county, 0.0) + float(row.p_mw)
-    return [{"county_fips": county, "lost_mw": round(value, 6), "fraction_dark": round(value / totals[county], 6), "basis": "synthetic modeled load; customer count unavailable"} for county, value in sorted(lost.items())]
+        nominal = float(row.get("flux_nominal_p_mw", row.p_mw))
+        totals[county] = totals.get(county, 0.0) + nominal
+        served = float(row.p_mw) if bool(row.in_service) else 0.0
+        if nominal > served:
+            lost[county] = lost.get(county, 0.0) + nominal - served
+    return [
+        {
+            "county_fips": county,
+            "lost_mw": round(value, 6),
+            "fraction_dark": round(value / totals[county], 6),
+            "basis": "synthetic modeled load; customer count unavailable",
+        }
+        for county, value in sorted(lost.items())
+    ]
 
 
 def _critical_impacts(net: Any, dark_buses: set[int]) -> list[dict[str, str]]:
