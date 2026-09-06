@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import shutil
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -123,3 +125,23 @@ def test_invalid_viewport_and_unknown_physical_layer_use_shared_errors() -> None
     assert invalid.json()["error"]["code"] == "invalid_input"
     assert unknown.status_code == 404
     assert unknown.json()["error"]["code"] == "not_found"
+
+
+def test_manifest_digest_mismatch_is_unavailable_not_stale_provenance(
+    tmp_path: Path,
+) -> None:
+    root = tmp_path / "physical_inventory"
+    shutil.copytree(ROOT, root)
+    manifest_path = root / "manifest-1.1.0.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    next(entry for entry in manifest["artifacts"] if entry["state"] == "tx")[
+        "canonical_content_sha256"
+    ] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    response = TestClient(create_app(Settings(physical_inventory_root=root))).get(
+        "/api/v1/grid/layers/line?state=tx&version=1.1.0"
+    )
+
+    assert response.status_code == 503
+    assert response.json()["error"]["details"]["reason"] == "release_hash_mismatch"
