@@ -276,7 +276,8 @@ export interface SqlData {
 }
 
 export interface SqlInput {
-  query: string;
+  query?: string | null;
+  template_id?: string | null;
 }
 
 export interface ToolOutput {

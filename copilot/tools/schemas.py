@@ -129,7 +129,30 @@ class TopLinesInput(ContractModel):
 
 
 class SqlInput(ContractModel):
-    query: Annotated[str, Field(min_length=1, max_length=5_000)]
+    query: Annotated[
+        str | None,
+        Field(
+            min_length=1,
+            max_length=5_000,
+            description="Legacy free-form SQL; unavailable when a template registry is configured.",
+        ),
+    ] = None
+    template_id: Annotated[
+        str | None,
+        Field(
+            pattern=r"^[a-z][a-z0-9_]{0,63}$",
+            description="Named query advertised by the deployment's approved-template registry.",
+        ),
+    ] = None
+
+    @model_validator(mode="after")
+    def _exactly_one_input(self) -> SqlInput:
+        # 00-overview A8 amendment: ``sql`` takes ``query`` XOR ``template_id``.
+        # Enforced at the pydantic boundary so neither ``{}`` nor both fields
+        # can reach an executor.
+        if (self.query is None) == (self.template_id is None):
+            raise ValueError("sql requires exactly one of query or template_id")
+        return self
 
 
 class CiteInput(ContractModel):
