@@ -10,6 +10,7 @@ import {
   minnesotaBookmarkUrl,
   readMinnesotaBookmark,
   resetMinnesotaRunContext,
+  unavailableMinnesotaComparison,
   type MinnesotaRunContext,
   type MinnesotaRunContextChange,
 } from "./run-context";
@@ -47,6 +48,7 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
   const initialSearch = search ?? (typeof window === "undefined" ? "" : window.location.search);
   const [{ parsed, run }, setMounted] = useState(() => initialRun(initialSearch));
   const [bookmarkNotice, setBookmarkNotice] = useState<string | null>(null);
+  const [comparisonRequested, setComparisonRequested] = useState(false);
   const targetLocation = location ?? browserLocation();
 
   const reset = () => {
@@ -56,6 +58,7 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
     if (typeof window !== "undefined") window.history.replaceState(null, "", url);
     setMounted({ parsed: { kind: "valid", bookmark: { version: "v1", context } }, run: { context, identity } });
     setBookmarkNotice("Baseline restored. The URL now names the aggregate baseline.");
+    setComparisonRequested(false);
     onContextChange?.(context, identity);
   };
 
@@ -100,8 +103,18 @@ export function MinnesotaControlRoom({ search, location, onContextChange }: Minn
         <p><strong>Run:</strong> <code>{run.identity.contextRevision}</code></p>
         <button type="button" onClick={reset}>Reset to baseline</button>
         <button type="button" onClick={copyBookmark}>Copy shareable baseline link</button>
+        <button type="button" onClick={() => setComparisonRequested(true)}>Compare baseline</button>
         {bookmarkNotice ? <p role="status">{bookmarkNotice}</p> : null}
       </section>
+
+      {comparisonRequested && (() => {
+        const comparison = unavailableMinnesotaComparison(MINNESOTA_BASELINE_RUN_CONTEXT, run.context);
+        return (
+          <section aria-label="Aggregate comparison">
+            <FailureState state={{ kind: comparison.kind, code: comparison.code, message: comparison.message }} onReset={reset} />
+          </section>
+        );
+      })()}
 
       <section aria-label="Aggregate scene">
         <h2>Aggregate mode</h2>

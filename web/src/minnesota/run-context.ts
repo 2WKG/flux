@@ -174,6 +174,32 @@ export type MinnesotaRunResultAcceptance<T> =
   | { readonly kind: "accepted"; readonly value: T }
   | { readonly kind: "stale" };
 
+/**
+ * Comparison is a server-owned result. Until that read contract exists, a
+ * user action may name the missing dependency but cannot manufacture a delta,
+ * ranking, or effect from the aggregate manifest.
+ */
+export interface MinnesotaComparisonUnavailable {
+  readonly kind: "unavailable";
+  readonly code: "mn_server_compare_contract_missing";
+  readonly baseline: Readonly<MinnesotaRunContext>;
+  readonly candidate: Readonly<MinnesotaRunContext>;
+  readonly message: string;
+}
+
+export function unavailableMinnesotaComparison(
+  baseline: Readonly<MinnesotaRunContext>,
+  candidate: Readonly<MinnesotaRunContext>,
+): MinnesotaComparisonUnavailable {
+  return {
+    kind: "unavailable",
+    code: "mn_server_compare_contract_missing",
+    baseline,
+    candidate,
+    message: "No server comparison contract supplies a Minnesota aggregate baseline, candidate, or effect.",
+  };
+}
+
 /** Consumers use this seam before rendering any future server response. */
 export function acceptMinnesotaRunResult<T>(
   current: RunIdentity,

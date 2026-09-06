@@ -29,6 +29,7 @@ test("the route shell is aggregate-only and names the missing server contract", 
   assert.match(markup, /Minnesota aggregate baseline/);
   assert.match(markup, /mn:aggregate:manifest:v1/);
   assert.match(markup, /No server read contract currently supplies a Minnesota aggregate result/);
+  assert.match(markup, /Compare baseline/);
   assert.match(markup, /Inspect feature unavailable/);
   assert.doesNotMatch(markup, /synthetic five-bus|ACTIVSg2000/i);
 });
