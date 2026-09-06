@@ -198,7 +198,7 @@
       "matched_coverage_decision": "matched",
       "label": {
         "rule_version": "county_outage_5pct_v1",
-        "status": "UncoveredLabel",
+        "status": "unavailable",
         "observed_outage_customers": null,
         "customer_denominator": {
           "status": "unavailable",
