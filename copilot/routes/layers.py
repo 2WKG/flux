@@ -58,6 +58,7 @@ GEOJSON_MEDIA_TYPE: Final = "application/geo+json"
 CRS_NAME: Final = "EPSG:4326"
 SYNTHETIC_TOPOLOGY_LABEL: Final = "synthetic (ACTIVSg2000)"
 _FIXTURE_PREFIX: Final = "fixture:"
+_FIXTURE_SOURCE: Final = "fixture"
 _ACTIVSG_MARKER: Final = "activsg"
 
 BUS_ATTRIBUTES: Final[dict[str, dict[str, str | None]]] = {
@@ -115,7 +116,7 @@ def _derive_labels(*fields: str) -> tuple[str | None, str | None]:
     """Explicit rules only: ``fixture:`` prefix, or an ACTIVSg reference."""
 
     source_name = fields[0]
-    if source_name.startswith(_FIXTURE_PREFIX):
+    if source_name == _FIXTURE_SOURCE or source_name.startswith(_FIXTURE_PREFIX):
         return "fixture", None
     if _ACTIVSG_MARKER in " ".join(fields).casefold():
         return "simulated", SYNTHETIC_TOPOLOGY_LABEL

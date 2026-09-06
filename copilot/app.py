@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import http_exception_handler
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from copilot.api import (
     API_VERSION,
-    InvalidInputError,
     NotFoundError,
     install_error_handlers,
     request_id_of,
@@ -41,13 +41,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return failure_response(
                 NotFoundError("No route matches the request path."), request_id
             )
-        return failure_response(
-            InvalidInputError(
-                "The request is not part of the documented contract.",
-                details={"http_status": str(exc.status_code)},
-            ),
-            request_id,
-        )
+        return await http_exception_handler(request, exc)
 
     app.include_router(health_router)
     app.include_router(layers_router)
