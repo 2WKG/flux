@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from jsonschema import Draft202012Validator
 from pydantic import ValidationError
 
 from copilot.tools.schemas import (
@@ -17,6 +18,7 @@ from copilot.tools.schemas import (
     unavailable_output,
     validate_tool_input,
 )
+from scripts.ci.export_tool_contracts import build_schema_document, render_ts
 
 
 def test_registry_has_exactly_the_nine_shared_contract_tools() -> None:
@@ -128,6 +130,46 @@ def test_sql_template_id_keeps_the_frozen_identifier_pattern() -> None:
 
     schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")
     assert set(schema["input_schema"]["properties"]) == {"query", "template_id"}
+
+
+def test_sql_tool_schema_encodes_the_exactly_one_input_contract() -> None:
+    schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")[
+        "input_schema"
+    ]
+    validator = Draft202012Validator(schema)
+
+    # Strict tool schemas require every declared key, so the unused XOR member
+    # is explicit null rather than omitted.
+    assert validator.is_valid({"query": "SELECT 1", "template_id": None})
+    assert validator.is_valid({"query": None, "template_id": "summary_rows"})
+    for payload in (
+        {},
+        {"query": "SELECT 1"},
+        {"template_id": "summary_rows"},
+        {"query": None, "template_id": None},
+        {"query": "SELECT 1", "template_id": "summary_rows"},
+    ):
+        assert not validator.is_valid(payload)
+
+
+def test_exported_sql_contract_keeps_the_xor_in_json_schema_and_typescript() -> None:
+    document = build_schema_document()
+    schema = {"$ref": "#/$defs/SqlInput", "$defs": document["$defs"]}
+    validator = Draft202012Validator(schema)
+
+    # The exported public contract preserves the original query-only form;
+    # strict provider schemas add the explicit null companion above.
+    assert validator.is_valid({"query": "SELECT 1"})
+    assert validator.is_valid({"template_id": "summary_rows"})
+    assert validator.is_valid({"query": "SELECT 1", "template_id": None})
+    assert validator.is_valid({"query": None, "template_id": "summary_rows"})
+    assert not validator.is_valid({"query": None, "template_id": None})
+    assert not validator.is_valid({"query": "SELECT 1", "template_id": "summary_rows"})
+    assert (
+        "export type SqlInput = { query?: string | null; template_id?: string | null; } "
+        "& ({ query: string; template_id?: null; } | { query?: null; template_id: string; });"
+        in render_ts(document)
+    )
 
 
 def test_representative_unavailable_output_keeps_provenance() -> None:

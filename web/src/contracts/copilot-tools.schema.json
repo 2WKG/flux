@@ -1613,6 +1613,34 @@
     },
     "SqlInput": {
       "additionalProperties": false,
+      "oneOf": [
+        {
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "template_id": {
+              "type": "null"
+            }
+          },
+          "required": [
+            "query"
+          ]
+        },
+        {
+          "properties": {
+            "query": {
+              "type": "null"
+            },
+            "template_id": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "template_id"
+          ]
+        }
+      ],
       "properties": {
         "query": {
           "anyOf": [
