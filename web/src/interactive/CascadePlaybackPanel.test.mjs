@@ -86,6 +86,11 @@ test("an element kind outside the frozen union is refused, never given a plausib
 
 test("the network provenance token is rendered as its published label", () => {
   assert.equal(networkProvenanceLabel("synthetic_activsg2000"), "synthetic (ACTIVSg2000)");
+  // `copilot/interactive_routes.py`'s `interactive_labels()` sends
+  // `pipelines.labels.SYNTHETIC_TOPOLOGY_LABEL` itself, not a token, so the
+  // published label must survive the mapping unchanged rather than be reported
+  // as unlabelled.
+  assert.equal(networkProvenanceLabel("synthetic (ACTIVSg2000)"), "synthetic (ACTIVSg2000)");
   // A token with no published label is named as unlabelled, not printed as prose.
   assert.match(networkProvenanceLabel("some_other_case"), /unlabelled provenance token/);
 });

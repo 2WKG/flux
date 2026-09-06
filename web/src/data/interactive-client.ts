@@ -78,15 +78,42 @@ export function interactiveFailure(state: ClientState<unknown>): InteractiveRequ
   }
 }
 
-function isEnvelope(value: unknown): value is InteractiveEnvelope<unknown> {
-  if (typeof value !== "object" || value === null) return false;
-  const envelope = value as Record<string, unknown>;
-  return typeof envelope.model_fidelity === "string"
-    && typeof envelope.network_provenance === "string"
-    && Array.isArray(envelope.limitations)
-    && envelope.limitations.every((item) => typeof item === "string")
-    && typeof envelope.data === "object"
-    && envelope.data !== null;
+/**
+ * The three labels `interactive_labels()` puts on every interactive success
+ * body. `copilot/interactive_routes.py`'s `_result()` returns the payload
+ * UNWRAPPED — the solver's own keys sit at the top level beside these three,
+ * and `_result()` refuses a payload that would shadow any of them — so the
+ * body is a flat mapping, not `{data: …}`.
+ */
+const LABEL_KEYS = ["model_fidelity", "network_provenance", "limitations"] as const;
+
+function isLabelledBody(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
+  const body = value as Record<string, unknown>;
+  return typeof body.model_fidelity === "string"
+    && typeof body.network_provenance === "string"
+    && Array.isArray(body.limitations)
+    && body.limitations.every((item) => typeof item === "string");
+}
+
+/**
+ * Re-nest the flat route body into the shape the panel renders. The labels are
+ * lifted out and everything else becomes `data`; nothing is invented and
+ * nothing is dropped. The panel keeps one shape whether or not the route ever
+ * moves back to a wrapped body.
+ */
+export function toEnvelope<T>(body: Record<string, unknown>): InteractiveEnvelope<T> {
+  const data: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(body)) {
+    if ((LABEL_KEYS as readonly string[]).includes(key)) continue;
+    data[key] = item;
+  }
+  return {
+    data: data as T,
+    model_fidelity: body.model_fidelity as string,
+    network_provenance: body.network_provenance as string,
+    limitations: body.limitations as readonly string[],
+  };
 }
 
 async function post<T>(
@@ -104,13 +131,16 @@ async function post<T>(
       signal,
       retries: 0,
     });
-    state = toClientState(
+    const validated = toClientState(
       await validateJsonResponse(
         response,
-        (value): value is InteractiveEnvelope<T> => isEnvelope(value),
+        (value): value is Record<string, unknown> => isLabelledBody(value),
       ),
       () => false,
     );
+    state = validated.kind === "ready"
+      ? { ...validated, data: toEnvelope<T>(validated.data) }
+      : (validated as ClientState<InteractiveEnvelope<T>>);
   } catch (error) {
     // The shared client already names cancellation, deadline and size failures.
     state = transportFailure<InteractiveEnvelope<T>>(error);

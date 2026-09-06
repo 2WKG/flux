@@ -128,7 +128,17 @@ const NETWORK_PROVENANCE_LABELS: Readonly<Record<string, string>> = {
   synthetic_activsg2000: "synthetic (ACTIVSg2000)",
 };
 
+/**
+ * `pipelines/labels.py` is the single owner of the label, and
+ * `copilot/interactive_routes.py`'s `interactive_labels()` already sends
+ * `SYNTHETIC_TOPOLOGY_LABEL` itself rather than a token, so the published
+ * label is accepted as it stands. A token that is neither the label nor a
+ * mapped one is named as unlabelled rather than printed as if it were prose.
+ */
+const PUBLISHED_LABELS: ReadonlySet<string> = new Set(Object.values(NETWORK_PROVENANCE_LABELS));
+
 export function networkProvenanceLabel(token: string): string {
+  if (PUBLISHED_LABELS.has(token)) return token;
   return NETWORK_PROVENANCE_LABELS[token] ?? `unlabelled provenance token “${token}”`;
 }
 
