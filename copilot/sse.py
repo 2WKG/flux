@@ -363,8 +363,25 @@ class CopilotEventStream:
         if "v" in data or "seq" in data:
             raise ValueError("event data cannot override the envelope fields")
         seq = self._next_seq
-        envelope = {"v": SCHEMA_VERSION, "seq": seq, **data}
+        envelope = _json_native({"v": SCHEMA_VERSION, "seq": seq, **data})
         # Serialize eagerly so malformed/non-finite values cannot enter a stream.
         json.dumps(envelope, ensure_ascii=False, allow_nan=False)
         self._next_seq += 1
         return SseEvent(event=event, seq=seq, data=MappingProxyType(envelope))
+
+
+def _json_native(value: Any) -> Any:
+    """Copy nested immutable containers into values accepted by ``json.dumps``.
+
+    Tool evidence is intentionally immutable before it reaches the transport
+    boundary, so nested ``MappingProxyType`` and tuples are expected here.
+    Normalize every mapping and sequence, not only the outer event payload;
+    the eager ``allow_nan=False`` serialization below remains the fail-closed
+    validation for scalars and unsupported values.
+    """
+
+    if isinstance(value, Mapping):
+        return {str(key): _json_native(item) for key, item in value.items()}
+    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
+        return [_json_native(item) for item in value]
+    return value
