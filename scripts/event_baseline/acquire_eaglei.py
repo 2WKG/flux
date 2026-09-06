@@ -359,7 +359,13 @@ def acquire_exhaustive(
 
 def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, Any]]:
     """Scan each cached annual CSV once and dispatch rows to requested windows."""
-    requests_data = json.loads(requests_path.read_text(encoding="utf-8"))
+    payload = json.loads(requests_path.read_text(encoding="utf-8"))
+    if isinstance(payload, dict):
+        if payload.get("request_schema_version") != "flux-460-final-requests/v1":
+            raise EagleiError("requests JSON has an unsupported schema version")
+        requests_data = payload.get("requests")
+    else:
+        requests_data = payload
     if not isinstance(requests_data, list):
         raise EagleiError("requests JSON must be a list")
     grouped: dict[int, list[dict[str, Any]]] = {}
