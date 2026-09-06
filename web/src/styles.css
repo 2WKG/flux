@@ -62,6 +62,10 @@ header > p:last-child, .pipeline > p { color: var(--muted); line-height: 1.7; fo
 .map { padding: 18px; display: flex; flex-direction: column }
 .map-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap }
 .map-actions { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; }
+.agent-static { display: grid; gap: 16px; }
+.agent-static__trace { border: 1px solid var(--line); border-radius: 8px; padding: 14px; }
+.agent-static__trace h3 { font-size: .92rem; margin: 0 0 6px; }
+.agent-static__trace > p { color: var(--muted); font-size: .85rem; line-height: 1.45; margin: 0 0 10px; }
 .hint { margin: 6px 0 0; color: var(--dim); font-size: .78rem }
 .toggle { display: flex; border: 1px solid #2b5170; border-radius: 8px; overflow: hidden }
 .toggle button { padding: 8px 13px; font-size: .78rem; font-weight: 700; color: #a8c4d8; transition: background .18s, color .18s }
