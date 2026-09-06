@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 from copilot.app import create_app
 from copilot.config import Settings
 from copilot.narration import GroundedNarration, narrate
+from copilot.persisted_fixtures import persisted_site_database
 from copilot.retrieval.chunking import SourceDocument, chunk_document
 from copilot.retrieval.search import SparseIndex, retrieve
 from copilot.routes.ask import HEARTBEAT_SECONDS, AskRequest, _heartbeat
@@ -249,23 +250,14 @@ def _client(path: Path, backend: object | None) -> TestClient:
 
 
 def _database(path: Path) -> None:
+    """The site half is built through the real DDL, never a hand-typed schema."""
+
+    persisted_site_database(path)
     con = duckdb.connect(str(path))
     try:
         con.execute("CREATE TABLE rows (id INTEGER, label TEXT)")
         con.execute("INSERT INTO rows VALUES (1, 'evidence-row')")
         con.execute("CREATE VIEW mn_summary AS SELECT * FROM rows")
-        con.execute(
-            "CREATE TABLE site_candidates (site_id BIGINT,name TEXT,kind TEXT,county_fips TEXT,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
-        )
-        con.execute(
-            "CREATE TABLE site_scores (site_id BIGINT,scenario_id TEXT,unit_mw INTEGER,safety_score DOUBLE,safety_flags_json JSON,grid_value_score DOUBLE,lol_reduction_mwh DOUBLE,congestion_relief_pct DOUBLE,blackstart_reach_mw DOUBLE,model_mode TEXT,limitations_json JSON,source_name TEXT,source_ref TEXT,source_version TEXT,source_retrieved_at TIMESTAMP,fixture_batch_id TEXT)"
-        )
-        con.execute(
-            "INSERT INTO site_candidates VALUES (1, 'fixture site', 'coal_retired', '27001', 'fixture:site', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
-        )
-        con.execute(
-            "INSERT INTO site_scores VALUES (1, 'mn_fixture', 300, 10, '[]', 2, 3, 4, 5, 'topology', '[\"fixture limitation\"]', 'fixture:site-score', 'fixture-score.json', 'v1', '2026-01-01', 'batch')"
-        )
     finally:
         con.close()
 
