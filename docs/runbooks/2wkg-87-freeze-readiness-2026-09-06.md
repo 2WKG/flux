@@ -60,14 +60,36 @@ than a 3 a.m. commit nobody notices.
 <!-- freeze-manifest:begin -->
 ```
 7a59e2edc921aad536068bb62ab66c286e04aaea934b6115cccf6fa11378403a  data/demo/bundle.json
-29c9305b903f59ff1a3642f58e8ae4f2055a334aa16962a32a9086ec5b8f4069  README.md
-a577300b76273f9d5be1943e63c6b56b39933557949085619d1c0342c158fc9f  web/server.mjs
+e8f0d2cf17cf548305a1e20924b86ae817972bcf060f35f99e3cf27c150d6cd7  README.md
+bc2078015d6dde402a807f490da6f9ef5ab40ff5efffd96cca2c954a00e346d3  web/server.mjs
 ```
 <!-- freeze-manifest:end -->
 
 Regenerate after an intentional change with
 `shasum -a 256 data/demo/bundle.json README.md web/server.mjs`
 (`sha256sum` on Linux) and paste the result between the markers.
+
+### Re-recorded 2026-09-06 (2WKG-395)
+
+`README.md` and `web/server.mjs` were changed after this manifest was first
+written, and the PRs that changed them merged without regenerating it — so the
+gate above was failing on master and on every open pull request, including ones
+that touch neither file. The hashes are re-recorded here against what those
+merges actually shipped, so the ledger states the truth rather than an
+already-dead freeze. `data/demo/bundle.json` never changed and keeps its
+original hash.
+
+- `README.md`: `1b3f306`, `3363757` and `49e3a3d` (the 2WKG-407 local demo
+  launcher handoff and its Minnesota boundary restatement), merged in `c2d6b71`
+  (#340).
+- `web/server.mjs`: `66fd9ae`, `de10b23`, `fe60619` and `f72e1bd` (the composed
+  App, the named refusal for an allowlisted path with no upstream, verified
+  asset scenegraphs and the registered Flux Grid asset routes) plus `49e3a3d`,
+  merged in `82720fb` (#355) and `c2d6b71` (#340).
+
+Re-recording a hash is not review: it records that the change happened and is
+now the frozen content. The freeze itself still means what it says — the next
+change to any listed file must update this manifest in its own PR.
 
 ## Acceptance status at this snapshot
 
