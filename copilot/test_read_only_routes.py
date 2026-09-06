@@ -53,6 +53,7 @@ Request = Callable[[TestClient], object]
 REGION = "mn"
 SITE_ID = 1
 CRITICAL_ARTIFACT = "mn:score:critical-line-10"
+COMPARISON_ARTIFACT = "mn:score:comparison-site-1"
 
 #: Every registered route, the request that drives its read path against the
 #: fixture below, and the status that fixture produces.  A 503 here would mean
@@ -119,27 +120,31 @@ READ_REQUESTS: dict[tuple[str, str], tuple[Request, int]] = {
 }
 
 
-def _add_critical_element(connection: duckdb.DuckDBPyConnection) -> None:
-    """The one persisted artifact ``persisted_read_route_database`` omits."""
-    identity = {
-        "source_identity": {
-            "family": "critical_elements",
-            "region": REGION,
-            "scenario_id": DEFAULT_SCENARIO,
-            "element_id": "line-10",
-        }
-    }
+def _add_score_artifact(
+    connection: duckdb.DuckDBPyConnection,
+    artifact_id: str,
+    *,
+    metric: str,
+    source_identity: dict[str, str],
+    components: dict[str, object],
+) -> None:
+    """One available ``mn_*`` score artifact: manifest, provenance and result.
+
+    ``persisted_read_route_database`` builds the site-score family only; the
+    ``comparison`` and ``critical_elements`` families that ``POST /compare`` and
+    ``GET /elements/critical`` read are added through this.
+    """
     insert(
         connection,
         "mn_artifact_manifests",
         {
-            "artifact_id": CRITICAL_ARTIFACT,
+            "artifact_id": artifact_id,
             "artifact_kind": "score",
             "contract_version": "1.0.0",
             "geography_id": REGION,
             "availability": "available",
             "model_mode": "topology",
-            "identity_json": json.dumps(identity),
+            "identity_json": json.dumps({"source_identity": source_identity}),
             "created_at": datetime(2026, 1, 1, tzinfo=UTC),
             "assumptions_json": json.dumps([]),
             "limitations_json": json.dumps(["Fixture topology evidence only."]),
@@ -150,14 +155,14 @@ def _add_critical_element(connection: duckdb.DuckDBPyConnection) -> None:
         connection,
         "mn_artifact_provenance",
         {
-            "artifact_id": CRITICAL_ARTIFACT,
+            "artifact_id": artifact_id,
             "provenance_ordinal": 0,
-            "source_name": "fixture:critical-elements",
-            "source_ref": "fixture://critical-elements",
+            "source_name": "fixture:score",
+            "source_ref": "fixture://score",
             "source_version": "v1",
             "retrieved_at": datetime(2026, 1, 1, tzinfo=UTC),
             "license_or_terms": "test fixture",
-            "source_record_id": CRITICAL_ARTIFACT,
+            "source_record_id": artifact_id,
             "content_sha256": SHA256,
             "is_derived": False,
         },
@@ -166,19 +171,11 @@ def _add_critical_element(connection: duckdb.DuckDBPyConnection) -> None:
         connection,
         "mn_score_results",
         {
-            "artifact_id": CRITICAL_ARTIFACT,
-            "metric": "critical_element",
+            "artifact_id": artifact_id,
+            "metric": metric,
             "score_value": 12.5,
             "score_unit": "MW",
-            "score_components_json": json.dumps(
-                {
-                    "scenario_id": DEFAULT_SCENARIO,
-                    "element_id": "line-10",
-                    "kind": "line",
-                    "runs": 1,
-                    "critical_loads_lost": ["cl-1"],
-                }
-            ),
+            "score_components_json": json.dumps(components),
             "regulatory_label": "hypothetical",
         },
     )
@@ -198,7 +195,43 @@ def _populate(database: Path) -> None:
     cascade_database(database, (Run("run-1"),))
     connection = duckdb.connect(str(database))
     try:
-        _add_critical_element(connection)
+        _add_score_artifact(
+            connection,
+            CRITICAL_ARTIFACT,
+            metric="critical_element",
+            source_identity={
+                "family": "critical_elements",
+                "region": REGION,
+                "scenario_id": DEFAULT_SCENARIO,
+                "element_id": "line-10",
+            },
+            components={
+                "scenario_id": DEFAULT_SCENARIO,
+                "element_id": "line-10",
+                "kind": "line",
+                "runs": 1,
+                "critical_loads_lost": ["cl-1"],
+            },
+        )
+        _add_score_artifact(
+            connection,
+            COMPARISON_ARTIFACT,
+            metric="comparison",
+            source_identity={
+                "family": "comparison",
+                "scenario_id": DEFAULT_SCENARIO,
+                "intervention_id": site_intervention_id(SITE_ID, 300),
+            },
+            components={
+                "scenario_id": DEFAULT_SCENARIO,
+                "intervention_id": site_intervention_id(SITE_ID, 300),
+                "baseline_run_id": "run-baseline",
+                "run_id": "run-with",
+                "lol_reduction_mwh": 3.0,
+                "customer_hours_avoided": 12.0,
+                "critical_loads_protected": ["cl-1"],
+            },
+        )
     finally:
         connection.close()
 
