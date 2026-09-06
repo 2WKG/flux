@@ -30,7 +30,7 @@ Minnesota claim.
 
 | Decision | Value | Why this one |
 | --- | --- | --- |
-| Container | `.glb` (glTF 2.0 binary) | One file per archetype, no sidecar fetches, loadable by the three.js/deck.gl stack, and checksum-pinnable as a single artifact |
+| Container | `.glb` (glTF 2.0 binary) | One file per archetype, no sidecar fetches, loadable by the deck.gl/loaders.gl stack already in the web bundle (`@deck.gl/mesh-layers`, `@loaders.gl/gltf`), and checksum-pinnable as a single artifact. three.js is **not** a current dependency; adopting it would be a new one and a separate decision |
 | Length unit | metre, unit scale `1.0` | A mixed-unit import is the most common cause of a scene that silently renders at 1/100 scale |
 | Up axis | `Y` | glTF's own convention; converting at load time is a per-asset correction waiting to be forgotten |
 | Forward axis | `-Z` | Placement applies yaw; a model must not bake a site rotation |
@@ -110,8 +110,15 @@ from a third-party asset names that asset and its licence in `source_of_shape`.
 
 **Binaries are not committed to Git.** This contract governs their shape; the
 asset pipeline (2WKG-374 Minnesota / 2WKG-320 Texas) produces, stores, and
-verifies them. `tests/test_asset_archetypes.py` asserts no `.glb` has been
-committed alongside the catalog, so the boundary does not erode quietly.
+verifies them. The boundary is enforced two ways rather than described, on both
+scanned trees: `data/3d/**` and `web/public/**` `.glb`/`.gltf` are git-ignored,
+and `tests/test_asset_archetypes.py` asserts `git ls-files` tracks no `.glb` or
+`.gltf` at all — so committing one (which takes a deliberate `git add -f`) turns
+the suite red. Presence is reported separately and without judgement:
+`validate_asset_archetypes.py` *derives* `modelFilesPresent` by walking `data/`
+and `web/` for `.glb`/`.gltf` and lists every hit in the report's `modelFiles`,
+so a model the pipeline writes locally is visible in the report while a
+developer's suite stays green, exactly as it does in CI.
 
 ## The eighteen archetypes
 

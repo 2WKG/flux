@@ -1,0 +1,15 @@
+{
+  "retrieved_at": "2026-09-06T05:20:00Z",
+  "provider": "Oak Ridge National Laboratory via figshare",
+  "source_url": "https://api.figshare.com/v2/articles/24237376",
+  "vintage": "figshare article 24237376 version 4",
+  "license_access": "CC BY 4.0",
+  "files": {
+    "eaglei_outages_2021.csv": {"bytes": 1141058232, "sha256": "e3e7ac40a40d92d92488501881ab381b8931833e486941424ac55ea20ffde319", "figshare_file_id": 42547891},
+    "eaglei_outages_2024.csv": {"bytes": 1444846424, "sha256": "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6", "figshare_file_id": 53581661},
+    "MCC.csv": {"bytes": 40584, "sha256": "d7fbe0d60ea71273f68bd744408059491fbc7f85b6254882d17783d7762bf65e", "figshare_file_id": 42547708},
+    "coverage_history.csv": {"bytes": 11965, "sha256": "a5f102ee31d7c8ea5676679ec8a89a1e786bbe482d48f85c9a058a388a593267", "figshare_file_id": 42547714}
+  },
+  "validation": {"loader": "pipelines.eaglei.load_eaglei", "source_timezone": "UTC", "annual": {"2021": {"raw_tx_rows": 2534532, "loaded": 2443041, "blank_targets": 91491, "negative": 0, "duplicate": 0, "source_counties": 252}, "2024": {"raw_tx_rows": 2921200, "loaded": 2921200, "blank_targets": 0, "negative": 0, "duplicate": 0, "source_counties": 253}}, "uri_window_utc": {"range": "[2021-02-13T00:00Z,2021-02-21T00:00Z)", "observations": 125083, "counties": 250, "peak_customers_out": 4257873, "peak_timestamp": "2021-02-16T19:00Z", "peak_records": 229}, "beryl_window_utc": {"range": "[2024-07-07T00:00Z,2024-07-13T00:00Z)", "observations": 66939, "counties": 249, "peak_customers_out": 2762057, "peak_timestamp": "2024-07-08T19:45Z", "peak_records": 162}, "result": "passed"},
+  "uncertainty": "Blank customers_out targets in 2021 are missing observations, never zero. Official source timestamps are UTC; applying America/Chicago to the timezone-naive UTC values creates artificial spring-DST duplicates and was rejected."
+}
