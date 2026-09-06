@@ -1008,14 +1008,16 @@
       "path": ["nws_zone_county", "bp10nv20", "bp10nv20.dbx"],
       "valid_from": "2021-02-11T00:00:00",
       "valid_until": "2021-02-21T00:00:00",
-      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx"
+      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp10nv20.dbx",
+      "sha256": "7c3c79f01618199a30fe458b038768436098a444c5b068918e3b77efaa999eb6"
     },
     {
       "release": "bp05mr24",
       "path": ["nws_zone_county", "bp05mr24", "bp05mr24.dbx"],
       "valid_from": "2024-07-07T00:00:00",
       "valid_until": "2024-07-11T00:00:00",
-      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx"
+      "source_url": "https://www.weather.gov/source/gis/Shapefiles/County/bp05mr24.dbx",
+      "sha256": "ca0b04f84273f95748d1dd0c501c1a806235ac4e9ba170c5e95bcac2e2eb468e"
     }
   ]
 }
