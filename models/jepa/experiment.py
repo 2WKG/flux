@@ -1,11 +1,7 @@
-"""A small, reproducible joint-embedding predictive architecture.
+"""A small, reproducible JEPA for historical EAGLE-I count trajectories.
 
-The context encoder maps an observed 15-minute outage-count history to a latent
-space.  A predictor maps that context embedding to the future embedding made by
-an exponential-moving-average target encoder.  The target encoder is
-stop-gradient, so this is a JEPA objective rather than a count regression.
-After fitting it, a linear probe decodes the predicted embedding into count
-trajectories for an explicitly chronological held-out window.
+This module evaluates a fixed late-2024 interval. It does not turn a row count,
+county ordering, storm label, or contingency label into a split.
 """
 
 from __future__ import annotations
@@ -16,7 +12,7 @@ import json
 import math
 from collections.abc import Iterable
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from itertools import pairwise
 from pathlib import Path
 
@@ -24,8 +20,12 @@ import numpy as np
 
 EXPERIMENT_KIND = "experimental_jepa_count_forecast"
 CADENCE_MINUTES = 15
-STRATEGY_CHRONOLOGICAL = "chronological window split"
-STRATEGY_UNORDERED = "unordered window split"
+EXPECTED_EAGLEI_2024_SHA256 = (
+    "d5d75ea4ef3943446aaf0623e9b451cb4e7796d20cc379de9cf497106ebab2e6"
+)
+FIXED_HOLDOUT_START_UTC = "2024-10-01T00:00:00Z"
+FIXED_HOLDOUT_END_UTC = "2024-12-31T23:45:00Z"
+SPLIT_STRATEGY = "fixed_temporal_holdout_interval"
 
 
 @dataclass(frozen=True)
@@ -36,18 +36,34 @@ class JepaConfig:
     epochs: int = 80
     learning_rate: float = 0.02
     ema_momentum: float = 0.97
-    holdout_fraction: float = 0.2
-    max_windows: int = 2400
+    max_windows: int | None = 2400
     seed: int = 7
+    holdout_start_utc: str = FIXED_HOLDOUT_START_UTC
+    holdout_end_utc: str = FIXED_HOLDOUT_END_UTC
 
 
 @dataclass(frozen=True)
 class Window:
     county_fips: str
     county_name: str
+    context_start_utc: str
     context_end_utc: str
+    target_start_utc: str
+    target_end_utc: str
     context: tuple[float, ...]
     target: tuple[float, ...]
+
+
+@dataclass(frozen=True)
+class TemporalSplit:
+    train: tuple[Window, ...]
+    holdout: tuple[Window, ...]
+    candidate_train_windows: int
+    candidate_holdout_windows: int
+    discarded_boundary_windows: int
+    discarded_outside_interval_windows: int
+    holdout_start_utc: str
+    holdout_end_utc: str
 
 
 def sha256_file(path: Path) -> str:
@@ -58,142 +74,212 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _parse_utc(value: str) -> datetime:
+    parsed = datetime.fromisoformat(value.strip())
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
+
+
+def _format_utc(value: datetime) -> str:
+    return value.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+
+def _window_time(window: Window, field: str) -> datetime:
+    return _parse_utc(getattr(window, field))
+
+
 def load_windows(
-    source: Path,
-    *,
-    county_fips: Iterable[str],
-    config: JepaConfig,
+    source: Path, *, county_fips: Iterable[str], config: JepaConfig
 ) -> list[Window]:
-    """Stream verified EAGLE-I CSV rows into contiguous county trajectories."""
+    """Read contiguous, non-overlapping county trajectories from an EAGLE-I CSV."""
     selected = set(county_fips)
     series: dict[str, list[tuple[datetime, float]]] = {fips: [] for fips in selected}
     county_names: dict[str, str] = {}
     with source.open(newline="", encoding="utf-8") as handle:
         for row in csv.DictReader(handle):
             fips = row["fips_code"].zfill(5)
-            if fips not in selected:
-                continue
-            county_names.setdefault(fips, row["county"].strip())
-            value = row["customers_out"]
-            if value == "":
+            if fips not in selected or row["customers_out"] == "":
                 continue
             try:
-                timestamp = datetime.fromisoformat(row["run_start_time"])
-                count = float(value)
-            except ValueError:
+                timestamp = _parse_utc(row["run_start_time"])
+                count = float(row["customers_out"])
+            except (TypeError, ValueError):
                 continue
             if count < 0:
                 continue
+            county_names.setdefault(fips, row["county"].strip())
             series[fips].append((timestamp, count))
 
     size = config.context_steps + config.target_steps
+    cadence = timedelta(minutes=CADENCE_MINUTES)
     windows: list[Window] = []
     for fips in sorted(series):
         values = sorted(series[fips])
-        # The target of one example must never reappear in a later example's
-        # context.  A stride of the full context+target span makes that
-        # guarantee structural rather than an after-the-fact split filter.
+        # Full-span stride makes within-county examples disjoint. The split is
+        # nevertheless global: tied timestamps across counties use time only.
         for start in range(0, len(values) - size + 1, size):
             segment = values[start : start + size]
-            if any(
-                (right[0] - left[0]).total_seconds() != CADENCE_MINUTES * 60
-                for left, right in pairwise(segment)
-            ):
+            if any(right[0] - left[0] != cadence for left, right in pairwise(segment)):
                 continue
-            context = tuple(item[1] for item in segment[: config.context_steps])
-            target = tuple(item[1] for item in segment[config.context_steps :])
+            context_end_index = config.context_steps - 1
             windows.append(
                 Window(
                     county_fips=fips,
                     county_name=county_names[fips],
-                    context_end_utc=segment[config.context_steps - 1][0].isoformat()
-                    + "Z",
-                    context=context,
-                    target=target,
+                    context_start_utc=_format_utc(segment[0][0]),
+                    context_end_utc=_format_utc(segment[context_end_index][0]),
+                    target_start_utc=_format_utc(segment[config.context_steps][0]),
+                    target_end_utc=_format_utc(segment[-1][0]),
+                    context=tuple(item[1] for item in segment[: config.context_steps]),
+                    target=tuple(item[1] for item in segment[config.context_steps :]),
                 )
             )
-    windows.sort(key=lambda item: (item.context_end_utc, item.county_fips))
-    return windows[: config.max_windows]
+    return sorted(windows, key=lambda item: (item.context_start_utc, item.county_fips))
+
+
+def _select_window_budget(split: TemporalSplit, config: JepaConfig) -> TemporalSplit:
+    """Cap the corpus without ever dropping fixed-interval evaluation windows."""
+    if config.max_windows is None:
+        return split
+    if config.max_windows <= 0:
+        raise ValueError("max_windows must be positive or None")
+    if len(split.holdout) >= config.max_windows:
+        raise ValueError(
+            "holdout interval consumes max_windows; increase the limit so training is retained"
+        )
+    return TemporalSplit(
+        train=split.train[-(config.max_windows - len(split.holdout)) :],
+        holdout=split.holdout,
+        candidate_train_windows=split.candidate_train_windows,
+        candidate_holdout_windows=split.candidate_holdout_windows,
+        discarded_boundary_windows=split.discarded_boundary_windows,
+        discarded_outside_interval_windows=split.discarded_outside_interval_windows,
+        holdout_start_utc=split.holdout_start_utc,
+        holdout_end_utc=split.holdout_end_utc,
+    )
+
+
+def fixed_temporal_split(
+    windows: Iterable[Window], config: JepaConfig
+) -> TemporalSplit:
+    """Assign fully pre-interval train and fully in-interval evaluation windows.
+
+    Evaluation contexts are embargoed from pre-holdout observations. A window
+    crossing the boundary is discarded rather than relabelled as evaluation.
+    """
+    holdout_start = _parse_utc(config.holdout_start_utc)
+    holdout_end = _parse_utc(config.holdout_end_utc)
+    if holdout_start > holdout_end:
+        raise ValueError("holdout_start_utc must be on or before holdout_end_utc")
+    train: list[Window] = []
+    holdout: list[Window] = []
+    boundary = outside = 0
+    for window in windows:
+        context_start = _window_time(window, "context_start_utc")
+        target_end = _window_time(window, "target_end_utc")
+        if target_end < holdout_start:
+            train.append(window)
+        elif context_start >= holdout_start and target_end <= holdout_end:
+            holdout.append(window)
+        elif context_start < holdout_start <= target_end:
+            boundary += 1
+        else:
+            outside += 1
+    split = TemporalSplit(
+        train=tuple(
+            sorted(train, key=lambda item: (item.context_start_utc, item.county_fips))
+        ),
+        holdout=tuple(
+            sorted(holdout, key=lambda item: (item.context_start_utc, item.county_fips))
+        ),
+        candidate_train_windows=len(train),
+        candidate_holdout_windows=len(holdout),
+        discarded_boundary_windows=boundary,
+        discarded_outside_interval_windows=outside,
+        holdout_start_utc=_format_utc(holdout_start),
+        holdout_end_utc=_format_utc(holdout_end),
+    )
+    split = _select_window_budget(split, config)
+    verify_temporal_holdout(split)
+    if len(split.train) < 40:
+        raise ValueError(
+            f"need at least 40 pre-holdout training windows; found {len(split.train)}"
+        )
+    if not split.holdout:
+        raise ValueError("fixed temporal holdout is empty")
+    return split
+
+
+def verify_temporal_holdout(split: TemporalSplit) -> None:
+    """Fail closed unless every train and evaluation timestamp is disjoint."""
+    holdout_start = _parse_utc(split.holdout_start_utc)
+    holdout_end = _parse_utc(split.holdout_end_utc)
+    for window in split.train:
+        if _window_time(window, "target_end_utc") >= holdout_start:
+            raise ValueError("training window reaches the fixed holdout interval")
+    for window in split.holdout:
+        if _window_time(window, "context_start_utc") < holdout_start:
+            raise ValueError("evaluation context crosses the fixed holdout boundary")
+        if _window_time(window, "target_end_utc") > holdout_end:
+            raise ValueError("evaluation target exceeds the fixed holdout interval")
+    # No third pairwise loop: the two checks above are exhaustive. Every train
+    # window ends strictly before holdout_start and every evaluation window
+    # starts at or after it, so a shared timestamp is unrepresentable. The
+    # O(train x holdout) overlap scan that used to live here was unreachable.
+
+
+def _membership_sha256(split: TemporalSplit) -> str:
+    members = [
+        {
+            "partition": partition,
+            "county_fips": window.county_fips,
+            "context_start_utc": window.context_start_utc,
+            "context_end_utc": window.context_end_utc,
+            "target_start_utc": window.target_start_utc,
+            "target_end_utc": window.target_end_utc,
+        }
+        for partition, windows in (("train", split.train), ("holdout", split.holdout))
+        for window in windows
+    ]
+    return hashlib.sha256(
+        json.dumps(members, sort_keys=True, separators=(",", ":")).encode()
+    ).hexdigest()
+
+
+def _bounds(windows: tuple[Window, ...]) -> dict[str, str] | None:
+    if not windows:
+        return None
+    return {
+        field: (min if field.endswith("start_utc") else max)(
+            getattr(window, field) for window in windows
+        )
+        for field in (
+            "context_start_utc",
+            "context_end_utc",
+            "target_start_utc",
+            "target_end_utc",
+        )
+    }
 
 
 def _normalise(
-    windows: list[Window], train_count: int
+    train: tuple[Window, ...], all_windows: tuple[Window, ...]
 ) -> tuple[np.ndarray, np.ndarray, float, float]:
     train_values = np.asarray(
-        [
-            value
-            for window in windows[:train_count]
-            for value in (*window.context, *window.target)
-        ],
+        [value for window in train for value in (*window.context, *window.target)],
         dtype=np.float64,
     )
     mean = float(np.log1p(train_values).mean())
     scale = float(np.log1p(train_values).std()) or 1.0
-    context = np.asarray([window.context for window in windows], dtype=np.float64)
-    target = np.asarray([window.target for window in windows], dtype=np.float64)
+    context = np.asarray([window.context for window in all_windows], dtype=np.float64)
+    target = np.asarray([window.target for window in all_windows], dtype=np.float64)
     return (
         (np.log1p(context) - mean) / scale,
         (np.log1p(target) - mean) / scale,
         mean,
         scale,
     )
-
-
-@dataclass(frozen=True)
-class WindowSplit:
-    """A train/holdout split whose ``strategy`` is read off the actual ordering."""
-
-    train: tuple[Window, ...]
-    holdout: tuple[Window, ...]
-    strategy: str
-    boundary_context_end_utc: str
-
-
-def describe_window_ordering(windows: Iterable[Window]) -> str:
-    """Name the ordering the corpus actually has, rather than the one we hoped for."""
-    order = [(window.context_end_utc, window.county_fips) for window in windows]
-    return STRATEGY_CHRONOLOGICAL if order == sorted(order) else STRATEGY_UNORDERED
-
-
-def chronological_split(windows: list[Window], config: JepaConfig) -> WindowSplit:
-    """Split late-in-time windows off as holdout, refusing a non-chronological corpus."""
-    train_count = max(1, int(len(windows) * (1 - config.holdout_fraction)))
-    if train_count >= len(windows):
-        raise ValueError("chronological holdout is empty")
-    split = WindowSplit(
-        train=tuple(windows[:train_count]),
-        holdout=tuple(windows[train_count:]),
-        strategy=describe_window_ordering(windows),
-        boundary_context_end_utc=windows[train_count].context_end_utc,
-    )
-    if split.strategy != STRATEGY_CHRONOLOGICAL:
-        raise ValueError(
-            f"window corpus is {split.strategy}, not a {STRATEGY_CHRONOLOGICAL}; "
-            "refusing to train because a later window would leak into training"
-        )
-    return split
-
-
-def verify_target_context_disjoint(windows: list[Window], config: JepaConfig) -> None:
-    """Reject a corpus if a target timestamp can enter a later context."""
-    target_duration = timedelta(minutes=config.target_steps * CADENCE_MINUTES)
-    context_duration = timedelta(minutes=(config.context_steps - 1) * CADENCE_MINUTES)
-    for fips in {window.county_fips for window in windows}:
-        county_windows = sorted(
-            (window for window in windows if window.county_fips == fips),
-            key=lambda window: window.context_end_utc,
-        )
-        for earlier, later in pairwise(county_windows):
-            earlier_target_end = (
-                datetime.fromisoformat(earlier.context_end_utc.removesuffix("Z"))
-                + target_duration
-            )
-            later_context_start = (
-                datetime.fromisoformat(later.context_end_utc.removesuffix("Z"))
-                - context_duration
-            )
-            if earlier_target_end >= later_context_start:
-                raise ValueError(f"target/context overlap for county {fips}")
 
 
 def run_experiment(
@@ -204,20 +290,21 @@ def run_experiment(
     config: JepaConfig | None = None,
     source_reference: str | None = None,
 ) -> Path:
-    """Train the bounded numpy JEPA and write an inspectable artifact + weights."""
+    """Train the bounded numpy JEPA and emit fresh weights plus an artifact."""
     config = config or JepaConfig()
     if config.context_steps != config.target_steps:
         raise ValueError(
-            "context_steps and target_steps must match because the EMA target encoder "
-            "copies context-encoder weights"
+            "context_steps and target_steps must match because the EMA target encoder copies context-encoder weights"
         )
-    windows = load_windows(source, county_fips=county_fips, config=config)
-    verify_target_context_disjoint(windows, config)
-    if len(windows) < 40:
-        raise ValueError(f"need at least 40 contiguous windows; found {len(windows)}")
-    split = chronological_split(windows, config)
+    source_sha256 = sha256_file(source)
+    if source_sha256 != EXPECTED_EAGLEI_2024_SHA256:
+        raise ValueError("source SHA-256 does not match the pinned EAGLE-I 2024 source")
+    split = fixed_temporal_split(
+        load_windows(source, county_fips=county_fips, config=config), config
+    )
+    all_windows = split.train + split.holdout
+    x, y, mean, scale = _normalise(split.train, all_windows)
     train_count = len(split.train)
-    x, y, mean, scale = _normalise(windows, train_count)
     x_train, y_train, x_hold, y_hold = (
         x[:train_count],
         y[:train_count],
@@ -228,12 +315,10 @@ def run_experiment(
     context_encoder = rng.normal(0, 0.12, (config.context_steps, config.embedding_dim))
     target_encoder = context_encoder.copy()
     predictor = rng.normal(0, 0.12, (config.embedding_dim, config.embedding_dim))
-
     for _ in range(config.epochs):
         context = x_train @ context_encoder
-        target = y_train @ target_encoder  # stop-gradient target branch
-        predicted = context @ predictor
-        error = (predicted - target) / len(x_train)
+        target = y_train @ target_encoder
+        error = (context @ predictor - target) / len(x_train)
         grad_predictor = context.T @ error * 2
         grad_context = x_train.T @ (error @ predictor.T) * 2
         predictor -= config.learning_rate * grad_predictor
@@ -242,7 +327,6 @@ def run_experiment(
             config.ema_momentum * target_encoder
             + (1 - config.ema_momentum) * context_encoder[: config.target_steps]
         )
-
     train_embedding = (x_train @ context_encoder) @ predictor
     hold_embedding = (x_hold @ context_encoder) @ predictor
     probe = (
@@ -252,18 +336,18 @@ def run_experiment(
     hold_decoded = hold_embedding @ probe[:-1] + probe[-1]
     predicted_counts = np.maximum(np.expm1(hold_decoded * scale + mean), 0)
     actual_counts = np.maximum(np.expm1(y_hold * scale + mean), 0)
-    persistence_counts = np.asarray(
-        [window.context[-1] for window in windows[train_count:]], dtype=np.float64
-    )[:, None]
-    persistence_counts = np.repeat(persistence_counts, config.target_steps, axis=1)
+    persistence_counts = np.repeat(
+        np.asarray([window.context[-1] for window in split.holdout])[:, None],
+        config.target_steps,
+        axis=1,
+    )
     train_actual_counts = np.maximum(np.expm1(y_train * scale + mean), 0)
     train_predicted_counts = np.maximum(np.expm1(train_decoded * scale + mean), 0)
-    # The MAE-optimal single constant on the holdout.  No flat forecast, however
-    # it is chosen, can beat this number, so it is the floor a real trajectory
+    # The MAE-optimal single constant on the holdout. No flat forecast, however it
+    # is chosen, can beat this number, so it is the floor a real trajectory
     # predictor has to clear.
     best_constant = float(np.median(actual_counts))
     best_constant_mae = float(np.mean(np.abs(best_constant - actual_counts)))
-    embedding_mse = float(np.mean((hold_embedding - y_hold @ target_encoder) ** 2))
     count_mae = float(np.mean(np.abs(predicted_counts - actual_counts)))
     train_count_mae = float(
         np.mean(np.abs(train_predicted_counts - train_actual_counts))
@@ -273,12 +357,27 @@ def run_experiment(
     train_to_holdout_count_mae_ratio = (
         train_count_mae / count_mae if count_mae else float("inf")
     )
-    count_rmse = float(math.sqrt(np.mean((predicted_counts - actual_counts) ** 2)))
-    persistence_mae = float(np.mean(np.abs(persistence_counts - actual_counts)))
-    persistence_rmse = float(
-        math.sqrt(np.mean((persistence_counts - actual_counts) ** 2))
-    )
-
+    metrics = {
+        "holdout_embedding_mse": float(
+            np.mean((hold_embedding - y_hold @ target_encoder) ** 2)
+        ),
+        "holdout_count_mae": count_mae,
+        "holdout_count_rmse": float(
+            math.sqrt(np.mean((predicted_counts - actual_counts) ** 2))
+        ),
+        "persistence_baseline_count_mae": float(
+            np.mean(np.abs(persistence_counts - actual_counts))
+        ),
+        "persistence_baseline_count_rmse": float(
+            math.sqrt(np.mean((persistence_counts - actual_counts) ** 2))
+        ),
+        "best_constant_baseline_count_mae": best_constant_mae,
+        "best_constant_baseline_count": best_constant,
+        "train_count_mae": train_count_mae,
+        "train_actual_count_std": train_actual_std,
+        "holdout_actual_count_std": holdout_actual_std,
+        "train_to_holdout_count_mae_ratio": train_to_holdout_count_mae_ratio,
+    }
     output_dir.mkdir(parents=True, exist_ok=True)
     weights_path = output_dir / "jepa_count_forecast_weights.npz"
     np.savez(
@@ -290,11 +389,14 @@ def run_experiment(
     )
 
     def forecast_at(index: int) -> dict[str, object]:
-        window = windows[train_count + index]
+        window = split.holdout[index]
         return {
             "county_fips": window.county_fips,
             "county_name": window.county_name,
+            "context_start_utc": window.context_start_utc,
             "context_end_utc": window.context_end_utc,
+            "target_start_utc": window.target_start_utc,
+            "target_end_utc": window.target_end_utc,
             "horizon_minutes": config.target_steps * CADENCE_MINUTES,
             "predicted_customers_out": [
                 round(float(value), 3) for value in predicted_counts[index]
@@ -305,27 +407,9 @@ def run_experiment(
         }
 
     selected_holdout_indexes: dict[str, int] = {}
-    for index, window in enumerate(windows[train_count:]):
+    for index, window in enumerate(split.holdout):
         selected_holdout_indexes.setdefault(window.county_fips, index)
-    county_forecasts = [
-        forecast_at(selected_holdout_indexes[fips])
-        for fips in sorted(selected_holdout_indexes)
-    ]
-    exemplar = 0
-    observed_county_fips = sorted({window.county_fips for window in windows})
-    # A requested county that produced no contiguous window is named and given a
-    # reason; it is never silently absent from observed_county_fips.
-    unavailable_county_fips = [
-        {
-            "county_fips": fips,
-            "reason": (
-                f"no contiguous {config.context_steps + config.target_steps}-step "
-                f"{CADENCE_MINUTES}-minute window in the source"
-            ),
-        }
-        for fips in county_fips
-        if fips not in observed_county_fips
-    ]
+    observed_county_fips = sorted({window.county_fips for window in all_windows})
     artifact = {
         "artifact_kind": EXPERIMENT_KIND,
         "status": "experimental",
@@ -338,52 +422,59 @@ def run_experiment(
         },
         "source": {
             "path": source_reference or str(source),
-            "sha256": sha256_file(source),
+            "sha256": source_sha256,
+            "expected_sha256": EXPECTED_EAGLEI_2024_SHA256,
             "provider": "ORNL EAGLE-I",
             "year": 2024,
         },
         "scope": {
             "requested_county_fips": list(county_fips),
             "observed_county_fips": observed_county_fips,
-            "unavailable_county_fips": unavailable_county_fips,
+            "unavailable_county_fips": [
+                {
+                    "county_fips": fips,
+                    "reason": f"no contiguous {config.context_steps + config.target_steps}-step {CADENCE_MINUTES}-minute window in the source",
+                }
+                for fips in county_fips
+                if fips not in observed_county_fips
+            ],
             "cadence_minutes": CADENCE_MINUTES,
             "context_steps": config.context_steps,
             "target_steps": config.target_steps,
         },
         "split": {
-            "strategy": split.strategy,
-            "boundary_context_end_utc": split.boundary_context_end_utc,
+            "strategy": SPLIT_STRATEGY,
+            "holdout_start_utc": split.holdout_start_utc,
+            "holdout_end_utc": split.holdout_end_utc,
+            "membership_rule": "train target_end_utc < holdout_start_utc; evaluation context_start_utc >= holdout_start_utc and target_end_utc <= holdout_end_utc",
+            "context_embargo": "boundary-crossing evaluation contexts are discarded; no timestamp appears in both train and evaluation windows",
+            "train_windows": len(split.train),
+            "holdout_windows": len(split.holdout),
+            "candidate_train_windows": split.candidate_train_windows,
+            "candidate_holdout_windows": split.candidate_holdout_windows,
+            "discarded_boundary_windows": split.discarded_boundary_windows,
+            "discarded_outside_interval_windows": split.discarded_outside_interval_windows,
+            "train_time_bounds": _bounds(split.train),
+            "holdout_time_bounds": _bounds(split.holdout),
+            "membership_sha256": _membership_sha256(split),
             "window_stride_steps": config.context_steps + config.target_steps,
             "target_context_overlap_steps": 0,
             "overlap_verification": "Each county advances by the full context-plus-target span; no target timestamp is reused as any later context timestamp.",
-            "train_windows": train_count,
-            "holdout_windows": len(windows) - train_count,
-            "train_counties": sorted(
-                {window.county_fips for window in windows[:train_count]}
-            ),
-            "holdout_counties": sorted(
-                {window.county_fips for window in windows[train_count:]}
-            ),
             "county_window_counts": {
-                fips: sum(window.county_fips == fips for window in windows)
-                for fips in sorted({window.county_fips for window in windows})
+                fips: sum(window.county_fips == fips for window in all_windows)
+                for fips in observed_county_fips
             },
+            "train_counties": sorted({window.county_fips for window in split.train}),
+            "holdout_counties": sorted(
+                {window.county_fips for window in split.holdout}
+            ),
         },
-        "metrics": {
-            "holdout_embedding_mse": embedding_mse,
-            "holdout_count_mae": count_mae,
-            "holdout_count_rmse": count_rmse,
-            "persistence_baseline_count_mae": persistence_mae,
-            "persistence_baseline_count_rmse": persistence_rmse,
-            "best_constant_baseline_count_mae": best_constant_mae,
-            "best_constant_baseline_count": best_constant,
-            "train_count_mae": train_count_mae,
-            "train_actual_count_std": train_actual_std,
-            "holdout_actual_count_std": holdout_actual_std,
-            "train_to_holdout_count_mae_ratio": train_to_holdout_count_mae_ratio,
-        },
-        "forecast": forecast_at(exemplar),
-        "county_forecasts": county_forecasts,
+        "metrics": metrics,
+        "forecast": forecast_at(0),
+        "county_forecasts": [
+            forecast_at(selected_holdout_indexes[fips])
+            for fips in sorted(selected_holdout_indexes)
+        ],
         "weights": {"path": str(weights_path), "sha256": sha256_file(weights_path)},
         "config": asdict(config),
         "limitations": [
@@ -396,7 +487,7 @@ def run_experiment(
                 f"Regime asymmetry: train count MAE {train_count_mae:.2f} against holdout "
                 f"count MAE {count_mae:.2f} ({train_to_holdout_count_mae_ratio:.1f}x), with "
                 f"actual-count standard deviation {train_actual_std:.2f} on the train slice "
-                f"against {holdout_actual_std:.2f} on the holdout. The chronological holdout "
+                f"against {holdout_actual_std:.2f} on the holdout. The fixed late-2024 holdout "
                 "is a different regime from the training span, so beating persistence there "
                 "does not establish skill on the training regime."
             ),

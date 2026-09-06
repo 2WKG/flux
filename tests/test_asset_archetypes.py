@@ -624,6 +624,104 @@ def test_model_file_scan_ignores_vendored_and_built_trees(tmp_path: Path):
     assert find_model_files(tmp_path) == ["data/3d/real.glb"]
 
 
+def test_local_build_outputs_do_not_read_as_unverified_binaries(tmp_path: Path):
+    """Every git-ignored build tree is skipped, not just the one named "dist".
+
+    The two HARNESS builds — `npm run build:harness` and
+    `npm run build:renderer-harness`, which `node --test
+    web/test/renderer-artifact.test.mjs` invokes — copy web/public into
+    web/dist-harness and web/dist-renderer-harness, so afterwards the installed
+    runtime pack exists under both. (The plain `npm run build` is not the
+    trigger: it writes only web/dist, which was already skipped.) Before those
+    two names were skipped each copied .glb surfaced as an "unverified model
+    binary outside published runtime location" and turned this suite red for the
+    developer who ran the web tests, while CI — which never writes those
+    directories in the pytest job — stayed green.
+    """
+    _write_tree(
+        tmp_path,
+        "web/dist-harness/assets/flux-grid/hospital/hospital.glb",
+        "web/dist-renderer-harness/assets/flux-grid/wind_turbine/wind_turbine.glb",
+        "web/test-results/trace/probe.glb",
+        "web/playwright-report/data/probe.glb",
+        "build/staging/hospital.glb",
+        "data/3d/real.glb",
+    )
+
+    assert find_model_files(tmp_path) == ["data/3d/real.glb"]
+
+
+def test_skipping_a_build_tree_does_not_exempt_the_same_name_elsewhere(tmp_path: Path):
+    """The prune is by repo-relative path, so it cannot outrun the ignore rules.
+
+    `.gitignore` anchors `web/dist-harness/`, `web/dist-renderer-harness/`,
+    `web/test-results/` and `web/playwright-report/` to `web/`. A prune that
+    matched the bare directory name at any depth exempted the SAME names under
+    `data/`, which git tracks — so a genuinely committed binary at
+    `data/test-results/stray.glb` was reported by nothing. These must all be
+    found.
+    """
+    _write_tree(
+        tmp_path,
+        "data/test-results/stray.glb",
+        "data/dist-harness/stray.glb",
+        "data/dist-renderer-harness/stray.glb",
+        "data/playwright-report/stray.glb",
+        "data/dist/stray.glb",
+        "web/test-results/trace/probe.glb",
+    )
+
+    assert find_model_files(tmp_path) == [
+        "data/dist-harness/stray.glb",
+        "data/dist-renderer-harness/stray.glb",
+        "data/dist/stray.glb",
+        "data/playwright-report/stray.glb",
+        "data/test-results/stray.glb",
+    ]
+
+
+def test_every_skipped_tree_is_actually_git_ignored():
+    """A skip is only honest if git already ignores what it exempts.
+
+    This is the anti-drift half: the walk may exempt a directory only because
+    the developer's build wrote it, never because the name happened to match.
+    If someone adds an entry the ignore rules do not cover, the walk would go
+    blind to a committable binary and this goes red.
+    """
+    root = _repo_root()
+    if not (root / ".git").exists():
+        pytest.skip("not a git checkout; the ignore rules are unmeasurable")
+
+    # Probe the DIRECTORY, not a file inside it. `data/3d/**/*.glb` ignores
+    # every .glb under data/3d without ignoring the tree, so a file probe would
+    # pass for a directory the walk must still descend into — an assertion that
+    # cannot fail. The walk prunes directories, so directories are what must be
+    # ignored.
+    probes = [f"{path}/" for path in sorted(validator._SKIP_PATHS)]
+    probes += [
+        f"{prefix}/{name}/"
+        for name in sorted(validator._SKIP_NAMES - {".git"})
+        for prefix in ("web", "data")
+    ]
+
+    not_ignored = [
+        probe
+        for probe in probes
+        if subprocess.run(
+            ["git", "check-ignore", "--quiet", probe],
+            cwd=root,
+            capture_output=True,
+            check=False,
+        ).returncode
+        != 0
+    ]
+
+    assert not_ignored == [], (
+        "these trees are pruned from the model walk but git does not ignore "
+        f"them, so a committed .glb inside one would be invisible: {not_ignored}"
+    )
+
+
 # --- Dependency claims are checked against the lockfile --------------------
 
 

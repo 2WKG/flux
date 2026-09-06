@@ -22,7 +22,7 @@ Headline: **state-configurable grid resilience analysis: outage context, synthet
 with the line-upgrade ranker (spec 08) as one screen inside it. The pitch is two ideas (pitch v2): the
 backup is **Speed-to-Power** (large-load verification + grid headroom ranking, spec 09), whose wire half
 reuses spec 08's tables and `top_lines` tool. The shared contract (repo layout, DuckDB tables, scenario IDs,
-copilot tool signatures — nine tools after A8) lives in `00-overview.md` §2 and wins over any downstream spec.
+copilot tool signatures — thirteen tools including the static interactive tools) lives in `00-overview.md` §2 and wins over any downstream spec.
 
 Every spec has the same sections in order: Purpose · Inputs · Outputs · Algorithm or Design ·
 Interfaces · Acceptance criteria · Demo hook · Risks/unknowns · Weekend time-box.
