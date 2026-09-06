@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import importlib
 import json
 from asyncio import CancelledError
+from collections.abc import AsyncIterator
 from pathlib import Path
 from types import MappingProxyType
 
@@ -43,18 +45,22 @@ class _Provider:
     def __init__(self) -> None:
         self.evidence: list[object] = []
 
-    def text(self, narration: GroundedNarration) -> tuple[str, ...]:
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
         self.evidence.append(narration.evidence)
-        return ("Grounded local answer.",)
+        yield "Grounded local answer."
 
 
 class _FailingProvider:
-    def text(self, narration: GroundedNarration) -> tuple[str, ...]:
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
+        if False:
+            yield "unreachable"
         raise RuntimeError("provider secret must not reach the stream")
 
 
 class _CancelledProvider:
-    def text(self, narration: GroundedNarration) -> tuple[str, ...]:
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
+        if False:
+            yield "unreachable"
         raise CancelledError
 
 
@@ -63,7 +69,7 @@ class _SqlBackend:
         self.path = path
         self.provider = provider
 
-    def turn(self, payload: AskRequest) -> ToolTurn:
+    async def turn(self, payload: AskRequest) -> ToolTurn:
         view = ApprovedMinnesotaView(
             "mn_summary",
             (
@@ -75,10 +81,8 @@ class _SqlBackend:
                 ),
             ),
         )
-        result = asyncio.run(
-            MinnesotaSqlExecutor(self.path, [view]).execute(
-                "SELECT id, label FROM mn_summary"
-            )
+        result = await MinnesotaSqlExecutor(self.path, [view]).execute(
+            "SELECT id, label FROM mn_summary"
         )
         return ToolTurn(
             "ask-sql",
@@ -92,7 +96,7 @@ class _CitationBackend:
     def __init__(self, provider: _Provider) -> None:
         self.provider = provider
 
-    def turn(self, payload: AskRequest) -> ToolTurn:
+    async def turn(self, payload: AskRequest) -> ToolTurn:
         document = SourceDocument(
             document_id="mn-regulation",
             version="2026-09-05",
@@ -148,7 +152,7 @@ class _ScoreBackend:
         self.path = path
         self.provider = provider
 
-    def turn(self, payload: AskRequest) -> ToolTurn:
+    async def turn(self, payload: AskRequest) -> ToolTurn:
         result = read_site(
             str(self.path),
             SiteScoreRequest(site_id="1", unit_mw=300, scenario_id="mn_fixture"),
@@ -177,6 +181,59 @@ class _ScoreBackend:
             {"site_id": "1", "unit_mw": 300, "scenario_id": "mn_fixture"},
             narration,
         )
+
+
+def _available_turn() -> ToolTurn:
+    return ToolTurn(
+        "ask-live",
+        "fixture",
+        {"source": "fixture"},
+        GroundedNarration(
+            status="available",
+            text="Local fixture evidence is available.",
+            evidence=MappingProxyType({"source": "fixture"}),
+            provenance=(
+                ArtifactRef(
+                    artifact_id="mn:fixture:ask-live",
+                    artifact_version="v1",
+                    source_kind="fixture",
+                    source_ref="ask-live.json",
+                ),
+            ),
+            citations=(),
+            limitations=("Evidence source kind: fixture.",),
+        ),
+    )
+
+
+class _ImmediateBackend:
+    def __init__(self, provider: _Provider | None) -> None:
+        self.provider = provider
+
+    async def turn(self, payload: AskRequest) -> ToolTurn:
+        return _available_turn()
+
+
+class _BlockingProvider:
+    def __init__(self) -> None:
+        self.started = asyncio.Event()
+        self.cancelled = asyncio.Event()
+
+    async def text(self, narration: GroundedNarration) -> AsyncIterator[str]:
+        self.started.set()
+        try:
+            await asyncio.Event().wait()
+        except CancelledError:
+            self.cancelled.set()
+            raise
+        yield "unreachable"
+
+
+class _FailingBackend:
+    provider = None
+
+    async def turn(self, payload: AskRequest) -> ToolTurn:
+        raise RuntimeError("backend secret must not reach the stream")
 
 
 def _client(path: Path, backend: object | None) -> TestClient:
@@ -356,6 +413,91 @@ def test_ask_heartbeat_is_a_comment_and_never_an_application_sequence() -> None:
     assert "id:" not in heartbeat
     events = _events(_client(Path("missing.duckdb"), None).post("/ask", json=_body()))
     assert [seq for seq, _, _ in events] == [1, 2]
+
+
+def test_ask_live_stream_heartbeats_and_cancels_a_blocked_provider(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """The ASGI response remains live while cooperative provider work blocks."""
+    ask_module = importlib.import_module("copilot.routes.ask")
+
+    provider = _BlockingProvider()
+    app = create_app(
+        Settings(duckdb_path=tmp_path / "missing.duckdb"),
+        ask_backend=_ImmediateBackend(provider),
+    )
+    monkeypatch.setattr(ask_module, "HEARTBEAT_SECONDS", 0.001)
+
+    async def drive() -> list[bytes]:
+        lifecycle_sent = asyncio.Event()
+        heartbeat_sent = asyncio.Event()
+        sent: list[bytes] = []
+        received_body = False
+
+        async def receive() -> dict[str, object]:
+            nonlocal received_body
+            if not received_body:
+                received_body = True
+                return {
+                    "type": "http.request",
+                    "body": json.dumps(_body()).encode(),
+                    "more_body": False,
+                }
+            await asyncio.wait_for(heartbeat_sent.wait(), timeout=0.5)
+            return {"type": "http.disconnect"}
+
+        async def send(message: dict[str, object]) -> None:
+            if message["type"] != "http.response.body":
+                return
+            body = message.get("body", b"")
+            assert isinstance(body, bytes)
+            sent.append(body)
+            if b"event: lifecycle" in body:
+                lifecycle_sent.set()
+            if b": keepalive" in body:
+                heartbeat_sent.set()
+
+        scope: dict[str, object] = {
+            "type": "http",
+            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "http_version": "1.1",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/ask",
+            "raw_path": b"/ask",
+            "query_string": b"",
+            "root_path": "",
+            "headers": [(b"content-type", b"application/json")],
+            "client": ("testclient", 50000),
+            "server": ("testserver", 80),
+        }
+        await asyncio.wait_for(app(scope, receive, send), timeout=1)
+        assert lifecycle_sent.is_set()
+        assert heartbeat_sent.is_set()
+        return sent
+
+    sent = asyncio.run(drive())
+    assert any(b"event: lifecycle" in body for body in sent)
+    assert any(b": keepalive" in body for body in sent)
+    assert provider.started.is_set()
+    assert provider.cancelled.is_set()
+
+
+def test_ask_converts_a_cooperative_backend_failure_after_lifecycle(
+    tmp_path: Path,
+) -> None:
+    events = _events(
+        _client(tmp_path / "missing.duckdb", _FailingBackend()).post(
+            "/ask", json=_body()
+        )
+    )
+
+    assert [event for _, event, _ in events] == ["lifecycle", "error"]
+    assert events[-1][2]["error"] == {
+        "code": "tool_error",
+        "message": "The local Copilot backend failed.",
+        "retryable": False,
+    }
 
 
 def test_actual_site_score_api_read_is_fixture_labeled_and_non_mutating(
