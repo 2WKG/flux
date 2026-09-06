@@ -18,14 +18,61 @@ def _artifact() -> dict:
         "electrical_model_mode": "none",
         "created_at": "2026-09-06T12:00:00+00:00",
         "content_sha256": "0" * 64,
-        "sources": [{"source_id": "eia2025er", "authority": "EIA", "source_ref": "https://www.eia.gov/electricity/data/eia860/", "source_version": "2025ER", "retrieved_at": "2026-09-06T12:00:00+00:00", "license_or_terms": "public data", "content_sha256": "a" * 64}],
+        "sources": [
+            {
+                "source_id": "eia2025er",
+                "authority": "EIA",
+                "source_ref": "https://www.eia.gov/electricity/data/eia860/",
+                "source_version": "2025ER",
+                "retrieved_at": "2026-09-06T12:00:00+00:00",
+                "license_or_terms": "public data",
+                "content_sha256": "a" * 64,
+            }
+        ],
         "assets": [
-            {"asset_id": "eia:plant:1", "asset_class": "generation", "asset_kind": "plant", "source_id": "eia2025er", "source_record_id": "1", "geometry": {"type": "Point", "coordinates": [-97.0, 32.0]}, "geometry_crs": "EPSG:4326", "geometry_precision_m": 10.0, "geometry_accuracy_basis": "EIA-reported latitude/longitude", "geometry_derivation_method": None, "geometry_status": "source"},
-            {"asset_id": "eia:plant:2", "asset_class": "generation", "asset_kind": "plant", "source_id": "eia2025er", "source_record_id": "2", "geometry": {"type": "Point", "coordinates": [-98.0, 31.0]}, "geometry_crs": "EPSG:4326", "geometry_precision_m": 10.0, "geometry_accuracy_basis": "EIA-reported latitude/longitude", "geometry_derivation_method": None, "geometry_status": "source"},
+            {
+                "asset_id": "eia:plant:1",
+                "asset_class": "generation",
+                "asset_kind": "plant",
+                "source_id": "eia2025er",
+                "source_record_id": "1",
+                "geometry": {"type": "Point", "coordinates": [-97.0, 32.0]},
+                "geometry_crs": "EPSG:4326",
+                "geometry_precision_m": 10.0,
+                "geometry_accuracy_basis": "EIA-reported latitude/longitude",
+                "geometry_derivation_method": None,
+                "geometry_status": "source",
+            },
+            {
+                "asset_id": "eia:plant:2",
+                "asset_class": "generation",
+                "asset_kind": "plant",
+                "source_id": "eia2025er",
+                "source_record_id": "2",
+                "geometry": {"type": "Point", "coordinates": [-98.0, 31.0]},
+                "geometry_crs": "EPSG:4326",
+                "geometry_precision_m": 10.0,
+                "geometry_accuracy_basis": "EIA-reported latitude/longitude",
+                "geometry_derivation_method": None,
+                "geometry_status": "source",
+            },
         ],
         "terminals": [],
         "connectivity_edges": [],
-        "coverage": [{"asset_class": "generation", "scope_id": "tx", "status": "partial", "observed_count": 2, "denominator_count": None, "unknown_count": None, "unavailable_count": None, "denominator_basis": "source_returned_count:EIA2025ER", "source_scope": "EIA2025ER:Texas-reported-plants", "reason": "Source-returned plants are not an owner-level class denominator."}],
+        "coverage": [
+            {
+                "asset_class": "generation",
+                "scope_id": "tx",
+                "status": "partial",
+                "observed_count": 2,
+                "denominator_count": None,
+                "unknown_count": None,
+                "unavailable_count": None,
+                "denominator_basis": "source_returned_count:EIA2025ER",
+                "source_scope": "EIA2025ER:Texas-reported-plants",
+                "reason": "Source-returned plants are not an owner-level class denominator.",
+            }
+        ],
     }
     artifact["content_sha256"] = artifact_sha256(artifact)
     return artifact
@@ -40,7 +87,9 @@ def test_offline_receipt_keeps_api_and_browser_unverified() -> None:
     assert receipt["end_to_end_result"] == "NOT VERIFIED"
 
 
-def test_state_receipt_accepts_a_scoped_state_geography_without_promoting_coverage() -> None:
+def test_state_receipt_accepts_a_scoped_state_geography_without_promoting_coverage() -> (
+    None
+):
     artifact = _artifact()
     artifact["geography_id"] = "mn:mille-lacs-county"
     artifact["artifact_id"] = "mn:mille-lacs-county:physical-inventory:1.0.0"
@@ -72,7 +121,9 @@ def test_rejects_dropped_normalized_asset() -> None:
 def test_rejects_source_returned_count_as_a_statewide_complete_claim() -> None:
     artifact = _artifact()
     row = artifact["coverage"][0]
-    row.update(status="complete", denominator_count=2, unknown_count=0, unavailable_count=0)
+    row.update(
+        status="complete", denominator_count=2, unknown_count=0, unavailable_count=0
+    )
     artifact["content_sha256"] = artifact_sha256(artifact)
     receipt = build_receipt(artifact, state="tx")
     assert receipt["offline_result"] == "REJECTED"
@@ -90,9 +141,23 @@ def test_rejects_version_mismatch_and_preserves_contract_hash_checks() -> None:
 
 def test_rejects_complete_class_when_one_coordinate_is_unavailable() -> None:
     artifact = _artifact()
-    artifact["assets"][1].update(geometry=None, geometry_crs=None, geometry_precision_m=None, geometry_accuracy_basis=None, geometry_derivation_method=None, geometry_status="unavailable")
+    artifact["assets"][1].update(
+        geometry=None,
+        geometry_crs=None,
+        geometry_precision_m=None,
+        geometry_accuracy_basis=None,
+        geometry_derivation_method=None,
+        geometry_status="unavailable",
+    )
     row = artifact["coverage"][0]
-    row.update(status="complete", denominator_count=2, unknown_count=0, unavailable_count=0, denominator_basis="authoritative_state_class:tx", source_scope="statewide:tx")
+    row.update(
+        status="complete",
+        denominator_count=2,
+        unknown_count=0,
+        unavailable_count=0,
+        denominator_basis="authoritative_state_class:tx",
+        source_scope="statewide:tx",
+    )
     artifact["content_sha256"] = artifact_sha256(artifact)
     receipt = build_receipt(artifact, state="tx")
     assert receipt["offline_result"] == "REJECTED"
@@ -102,7 +167,13 @@ def test_rejects_complete_class_when_one_coordinate_is_unavailable() -> None:
 def test_rejects_overcounted_denominator_and_fabricated_unavailable_metadata() -> None:
     artifact = _artifact()
     row = artifact["coverage"][0]
-    row.update(status="partial", denominator_count=1, unavailable_count=0, denominator_basis="authoritative_state_class:tx", source_scope="statewide:tx")
+    row.update(
+        status="partial",
+        denominator_count=1,
+        unavailable_count=0,
+        denominator_basis="authoritative_state_class:tx",
+        source_scope="statewide:tx",
+    )
     artifact["content_sha256"] = artifact_sha256(artifact)
     receipt = build_receipt(artifact, state="tx")
     assert receipt["offline_result"] == "REJECTED"
