@@ -89,6 +89,7 @@ def test_valid_registered_artifact_is_read_without_estimation(tmp_path: Path) ->
     assert result.status == "available"
     assert result.answer_numbers == {"effect": 1.5}
     assert result.method == "twfe_only"
+    assert result.assumptions == ["conditional exchangeability"]
     assert result.provenance[0].artifact_id == "causal-effect-test"
     assert result.question.treatment.definition == "hours without service"
     assert result.sources[0].coverage == "test period"
@@ -124,6 +125,38 @@ def test_fixture_and_malformed_artifacts_cannot_yield_an_effect(tmp_path: Path) 
     malformed_result = _reader(path).query(_request())
     assert malformed_result.status == "unavailable"
     assert malformed_result.unavailable.code == "artifact_unavailable"
+
+    structured_malformed = _artifact()
+    structured_malformed.pop("sources")
+    path.write_text(json.dumps(structured_malformed), encoding="utf-8")
+    structured_result = _reader(path).query(_request())
+    assert structured_result.status == "unavailable"
+    assert structured_result.unavailable.code == "insufficient_evidence"
+
+
+@pytest.mark.parametrize(
+    "remove",
+    [
+        lambda artifact: artifact.pop("citations"),
+        lambda artifact: artifact.pop("sample"),
+        lambda artifact: artifact.pop("assumptions"),
+        lambda artifact: artifact["estimate"].pop("method"),
+    ],
+    ids=["citation", "sample", "assumption", "method"],
+)
+def test_available_response_evidence_fields_are_required(
+    tmp_path: Path, remove
+) -> None:
+    path = tmp_path / "effect.json"
+    artifact = _artifact()
+    remove(artifact)
+    path.write_text(json.dumps(artifact), encoding="utf-8")
+
+    result = _reader(path).query(_request())
+
+    assert result.status == "unavailable"
+    assert result.unavailable.code == "insufficient_evidence"
+    assert not hasattr(result, "answer_numbers")
 
 
 def test_unregistered_selection_is_rejected_without_reading_a_path(
@@ -226,3 +259,4 @@ def test_each_insufficiency_code_returns_unavailable_without_an_effect(
     assert result.status == "unavailable"
     assert result.unavailable.code == "insufficient_evidence"
     assert unavailable_code in result.unavailable.reason
+    assert not hasattr(result, "answer_numbers")
