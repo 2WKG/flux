@@ -50,14 +50,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "ruff>=0.6", "ipykernel", "jupyter"]
-stretch = [
-    "grid2op>=1.10",
-]
+# Keep graph-model training separate from Grid2Op: neither demo/runtime path
+# installs these packages unless it explicitly opts into the GNN toolchain.
+stretch = ["grid2op>=1.10"]
+gnn = ["torch==2.7.1", "torch-geometric==2.6.1"]
 embeddings = ["voyageai>=0.3"]
-gnn = [
-    "torch==2.14.0",
-    "torch-geometric==2.8.0.post1",
-]
 
 [tool.uv]
 package = false

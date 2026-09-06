@@ -27,11 +27,28 @@ The web app reads saved result files only. Python is run before presentation and
 - Serve the build output with a static server (`web/server.mjs`); it serves files only and must not gain an API route.
 - Reuse the existing Cloudflare Tunnel and its configured local origin for `bouncepulse.com`; this task does not create or modify tunnel infrastructure.
 
-## Optional GNN toolchain (2WKG-488)
+## Optional GNN training stack
 
-- `gnn` is a separate optional extra; `stretch` contains only `grid2op`.
-- On Windows with Python 3.12.10, `uv sync --extra gnn` completed successfully with `torch==2.14.0` and `torch-geometric==2.8.0.post1`.
-- Verified imports: `torch.__version__ == "2.14.0+cpu"` and `torch_geometric.__version__ == "2.8.0.post1"`. `torch.cuda.is_available()` is `False`, `torch.version.cuda` is `None`, and a default tensor uses `cpu`.
+The GNN toolchain is opt-in: `uv sync --extra gnn` installs it for graph-model
+training, while the demo, API, and ordinary pipeline environments omit it. GNN
+callers must import `torch` and `torch_geometric` at the training entry point,
+never from a module imported by those ordinary paths.
+
+| Package | Pinned version | Verification |
+| --- | --- | --- |
+| `torch` | `2.7.1` | Imported successfully on macOS arm64 / Python 3.12.13 and Windows / Python 3.12.10; Windows reports `2.7.1+cpu`, `torch.cuda.is_available() == False`, `torch.version.cuda is None`, and default device `cpu`. |
+| `torch-geometric` | `2.6.1` | Imported successfully with the pinned Torch version on macOS and Windows. |
+
+The verified macOS wheel is CPU/MPS-capable and did not expose CUDA. No CUDA
+index or accelerator package is configured in Flux; choose one explicitly for
+any future Linux GPU environment rather than changing this optional baseline.
+
+Verification recorded 2026-09-06:
+
+```sh
+uv sync --extra gnn
+uv run --extra gnn python -c 'import torch, torch_geometric; print(torch.__version__, torch_geometric.__version__, torch.cuda.is_available())'
+```
 
 ## Demo boundary
 

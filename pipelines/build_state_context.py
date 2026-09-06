@@ -15,6 +15,7 @@ from pipelines.build import (
     _write_stage_manifest,
 )
 from pipelines.counties import load_counties
+from pipelines.critical_loads import load_dod
 from pipelines.db import connect, export_parquet, validate_schema
 from pipelines.eaglei import load_county_customers, load_coverage_history, load_eaglei
 from pipelines.eia860 import load_eia860_plants
@@ -58,6 +59,10 @@ def main(argv=None) -> int:
     )
     parser.add_argument("--pudl-release", default="v2026.2.0")
     parser.add_argument(
+        "--dod", help="NTAD military-base boundaries geojson (e.g. NTAD_Military_Bases)"
+    )
+    parser.add_argument("--dod-release", default="fy2024")
+    parser.add_argument(
         "--raw-dir",
         default="data/raw",
         help="root holding the catalog-pinned NWS crosswalk releases",
@@ -78,6 +83,7 @@ def main(argv=None) -> int:
             args.coverage,
             args.storm_events,
             args.pudl_plants,
+            args.dod,
         )
     ):
         parser.error("supply explicit local artifacts; no implicit downloads")
@@ -98,6 +104,7 @@ def main(argv=None) -> int:
         args.pudl_generators,
         *(path for _, path in artifacts),
         *(path for _, path in storm_artifacts),
+        args.dod,
     ]:
         if path and not Path(path).is_file():
             parser.error(f"artifact does not exist: {path}")
@@ -135,6 +142,9 @@ def main(argv=None) -> int:
                     # geometry; without it, a context-only load would publish
                     # plants with silently missing county assignments.
                     ("--pudl-plants", args.pudl_plants),
+                    # load_dod assigns each facility a county by centroid; without
+                    # loaded counties every facility is dropped as unassigned.
+                    ("--dod", args.dod),
                 )
                 if requested
             ]
@@ -171,6 +181,11 @@ def main(argv=None) -> int:
                 load_coverage_history(con, args.coverage, states=selected)
             for year, path in artifacts:
                 load_eaglei(con, path, year, args.eaglei_source_tz, selected)
+            if args.dod:
+                # Facilities are county-assigned only; join_critical_loads_to_bus
+                # is deliberately not called here, since bus matching would tie
+                # a non-Texas facility to the Texas-only synthetic topology.
+                load_dod(con, args.dod, release=args.dod_release, states=selected)
             validate_schema(con)
             export_parquet(con, stage_parquet)
         finally:
