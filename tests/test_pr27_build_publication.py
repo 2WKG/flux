@@ -52,7 +52,7 @@ def _staged_builder(marker: str):
     return build_stage
 
 
-def _passing_checks(_db_path: str) -> list[SimpleNamespace]:
+def _passing_checks(_db_path: str, _states=None) -> list[SimpleNamespace]:
     return [SimpleNamespace(name="fixture", passed=True)]
 
 
@@ -91,7 +91,7 @@ def test_failed_staged_validation_never_publishes(tmp_path, monkeypatch):
     before = _published_state(db_path, parquet_dir)
     monkeypatch.setattr(build_module, "_missing_p0_inputs", lambda *_args: [])
     monkeypatch.setattr(build_module, "_build_mutating", _staged_builder("validation-only"))
-    monkeypatch.setattr(build_module, "run_checks", lambda _path: [SimpleNamespace(name="reject", passed=False)])
+    monkeypatch.setattr(build_module, "run_checks", lambda _path, _states=None: [SimpleNamespace(name="reject", passed=False)])
 
     with pytest.raises(RuntimeError, match="staged P0 quality checks failed"):
         build_module.build(str(tmp_path / "raw"), str(db_path), "UTC")

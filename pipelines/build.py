@@ -22,6 +22,7 @@ from pipelines.eaglei import load_county_customers, load_coverage_history, load_
 from pipelines.eia860 import load_eia860_plants, seed_site_candidates
 from pipelines.eia930 import load_eia930
 from pipelines.joins import join_bus_county, join_critical_loads_to_bus
+from pipelines.manifest import build_manifest, store_manifest, write_manifest
 from pipelines.nri import load_nri
 from pipelines.state_scope import scope
 from pipelines.storm_events import load_storm_events
@@ -178,6 +179,9 @@ def _build_mutating(
         counts["critical_load_bus"] = join_critical_loads_to_bus(con)
         validate_schema(con)
         export_parquet(con, parquet_dir)
+        manifest = build_manifest(con, state_scope=str(selected_scope.slug))
+        store_manifest(con, manifest)
+        write_manifest(manifest, Path(parquet_dir) / "manifest.json")
     finally:
         con.close()
     return counts
@@ -301,7 +305,7 @@ def build(
         counts = (
             _build_mutating(*args) if states is None else _build_mutating(*args, states)
         )
-        checks = run_checks(str(stage_db))
+        checks = run_checks(str(stage_db), states)
         if not all(check.passed for check in checks):
             raise RuntimeError(
                 "staged P0 quality checks failed: "
