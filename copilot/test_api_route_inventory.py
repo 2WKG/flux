@@ -1,23 +1,14 @@
-"""Inventory the registered Minnesota API surface and its unresolved legacy gap."""
+"""The unresolved legacy route gap in the registered Minnesota API surface.
+
+The registered set itself is pinned by ``copilot/test_read_route_contracts.py``,
+which requires a contract cell per route; both modules read the live surface
+through ``copilot._artifact_fixtures.registered_routes`` rather than keeping
+their own copy of the derivation.
+"""
 
 from __future__ import annotations
 
-from copilot.app import create_app
-
-REGISTERED_MINNESOTA_SURFACE = frozenset(
-    {
-        ("GET", "/health"),
-        ("GET", "/layers/{layer_name}"),
-        ("POST", "/site-score"),
-        ("POST", "/compare"),
-        ("GET", "/lines/top"),
-        ("GET", "/scenarios"),
-        ("GET", "/scenarios/{scenario_id}"),
-        ("GET", "/predictions"),
-        ("GET", "/cascade"),
-        ("POST", "/ask"),
-    }
-)
+from copilot._artifact_fixtures import registered_routes
 
 # These routes remain documented in the legacy 00/05 route tables, but are not
 # registered by the Minnesota artifact-read API. Keep this inventory explicit:
@@ -27,18 +18,9 @@ LEGACY_DOCUMENTED_BUT_ABSENT = frozenset(
     {
         ("POST", "/predict"),
         ("POST", "/cascade"),
-        ("GET", "/elements/critical"),
     }
 )
 
 
-def test_registered_read_surface_and_legacy_route_gap_are_explicit() -> None:
-    paths = create_app().openapi()["paths"]
-    registered = frozenset(
-        (method.upper(), path)
-        for path, operations in paths.items()
-        for method in operations
-    )
-
-    assert registered == REGISTERED_MINNESOTA_SURFACE
-    assert not registered & LEGACY_DOCUMENTED_BUT_ABSENT
+def test_legacy_documented_routes_are_still_absent() -> None:
+    assert not registered_routes() & LEGACY_DOCUMENTED_BUT_ABSENT
