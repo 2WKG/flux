@@ -256,7 +256,8 @@
     "Not an outage probability or qualified outage-model result.",
     "No customer-normalized label, weather forecast, topology, or cascade inference.",
     "Forecast target is held-out historical EAGLE-I customers_out.",
-    "A persistence baseline is recorded for comparison; experimental metrics do not establish operational usefulness."
+    "A persistence baseline is recorded for comparison; experimental metrics do not establish operational usefulness.",
+    "Regime asymmetry: train count MAE 7630.29 against holdout count MAE 339.59 (22.5x). The training slice spans a large storm and the chronological holdout is a much calmer tail, so beating persistence on the holdout does not establish storm-time skill."
   ],
   "metrics": {
     "holdout_count_mae": 339.59187265922105,
@@ -264,9 +265,15 @@
     "holdout_embedding_mse": 0.2345803504489072,
     "persistence_baseline_count_mae": 435.6533214709371,
     "persistence_baseline_count_rmse": 1133.3402667082596,
-    "train_count_mae": 7630.288500170216
+    "train_count_mae": 7630.288500170216,
+    "train_to_holdout_count_mae_ratio": 22.468996211305612
   },
   "model_version": "numpy-jepa-count-v1",
+  "regeneration": {
+    "command": "uv run python -m models.jepa --source data/raw/event-baseline/annual-source/eaglei_outages_2024.csv --source-reference data/raw/event-baseline/annual-source/eaglei_outages_2024.csv --output-dir data/artifacts/jepa/eaglei-2024-count-v1 --epochs 80 --max-windows 2400",
+    "generated_by_revision": "3dc2389",
+    "note": "The metrics, forecasts and weights digest in this file were produced by revision 3dc2389. scope.unavailable_county_fips, metrics.train_to_holdout_count_mae_ratio and the regime-asymmetry limitation were added by hand and are derived only from values already in this file. The fields the current models/jepa code also emits \u2014 metrics.best_constant_baseline_count_mae, metrics.best_constant_baseline_count, metrics.train_actual_count_std, metrics.holdout_actual_count_std and split.boundary_context_end_utc \u2014 are absent here because the 1.4 GB EAGLE-I source lives under gitignored data/raw/ and cannot be re-read in CI or by a reviewer. Re-run the command above with the source present to regenerate."
+  },
   "scope": {
     "cadence_minutes": 15,
     "context_steps": 24,
@@ -281,7 +288,13 @@
       "48201",
       "48453"
     ],
-    "target_steps": 24
+    "target_steps": 24,
+    "unavailable_county_fips": [
+      {
+        "county_fips": "27031",
+        "reason": "no contiguous 48-step 15-minute window in the source"
+      }
+    ]
   },
   "source": {
     "path": "data/raw/event-baseline/annual-source/eaglei_outages_2024.csv",
