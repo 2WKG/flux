@@ -1,6 +1,7 @@
 import duckdb
 import pytest
 
+from pipelines.db import SCHEMA_VERSION as LEGACY_SCHEMA_VERSION
 from pipelines.db import ensure_schema
 from pipelines.minnesota_schema import SCHEMA_VERSION, TABLES, ensure_minnesota_schema
 
@@ -54,7 +55,7 @@ def test_legacy_schema_and_rows_remain_untouched():
     ensure_minnesota_schema(con)
     assert con.execute(
         "SELECT value FROM schema_meta WHERE key='contract_version'"
-    ).fetchone() == ("1.0.0",)
+    ).fetchone() == (LEGACY_SCHEMA_VERSION,)
     assert con.execute(
         "SELECT value FROM schema_meta WHERE key='legacy_marker'"
     ).fetchone() == ("kept",)

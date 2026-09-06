@@ -31,7 +31,8 @@ from pipelines.line_upgrade_contracts import (
 )
 
 H = "b" * 64
-KEY = LineKey(line_id=1, region="ERCOT")
+SCENARIO_ID = "uri_2021"
+KEY = LineKey(line_id=1, region="ERCOT", scenario_id=SCENARIO_ID)
 
 
 def _prov(weather: str | None = H) -> LineUpgradeProvenance:
@@ -62,7 +63,9 @@ def _scored(**kw) -> ScoredLine:
     base = {
         "key": KEY,
         "provenance": _prov(),
-        "congestion": SimulatedCongestion(usd_per_year=1e6, run_id="run-1"),
+        "congestion": SimulatedCongestion(
+            usd_per_year=1e6, scenario_id=SCENARIO_ID, run_id="run-1"
+        ),
         "best": _dlr(),
         "static_rating_mw": 400.0,
         "mw_per_musd": 50.0,
@@ -71,6 +74,33 @@ def _scored(**kw) -> ScoredLine:
 
 
 # --- 2WKG-179: identity and provenance --------------------------------------
+
+
+def test_line_identity_requires_a_scenario_scope_without_claiming_simulation():
+    key = LineKey(line_id=1, region="ERCOT", scenario_id="annual_2024")
+    assert key.model_dump() == {
+        "line_id": 1,
+        "region": "ERCOT",
+        "scenario_id": "annual_2024",
+    }
+    with pytest.raises(ValidationError):
+        LineKey(line_id=1, region="ERCOT", scenario_id="")
+
+
+def test_simulated_run_must_name_the_same_scenario_as_the_artifact():
+    with pytest.raises(ValidationError, match="must match"):
+        _scored(
+            congestion=SimulatedCongestion(
+                usd_per_year=1e6,
+                scenario_id="beryl_2024",
+                run_id="beryl-s0-abc12345",
+            )
+        )
+
+
+def test_simulated_congestion_requires_a_nonempty_scenario():
+    with pytest.raises(ValidationError):
+        SimulatedCongestion(usd_per_year=1e6, scenario_id="", run_id="run-1")
 
 
 def test_provenance_requires_utc():
@@ -127,7 +157,7 @@ def test_only_observed_congestion_carries_market_provenance():
     )
     assert obs.market
     for other in (
-        SimulatedCongestion(usd_per_year=1e6, run_id="r"),
+        SimulatedCongestion(usd_per_year=1e6, scenario_id=SCENARIO_ID, run_id="r"),
         ProxyCongestion(
             usd_per_year=1e6,
             assumed_usd_per_mwh=20.0,
@@ -136,6 +166,29 @@ def test_only_observed_congestion_carries_market_provenance():
     ):
         assert not hasattr(other, "market")
         assert not hasattr(other, "mapping_confidence")
+
+
+def test_non_simulated_congestion_cannot_claim_a_twin_run_or_scenario():
+    with pytest.raises(ValidationError):
+        ObservedCongestion.model_validate(
+            {
+                "usd_per_year": 1e6,
+                "market": "ERCOT SCED",
+                "input_sha256": H,
+                "mapping_confidence": 1.0,
+                "mapping_method": "exact",
+                "run_id": "uri_2021-s0-abc12345",
+            }
+        )
+    with pytest.raises(ValidationError):
+        ProxyCongestion.model_validate(
+            {
+                "usd_per_year": 1e6,
+                "assumed_usd_per_mwh": 20.0,
+                "assumption_note": "declared proxy",
+                "scenario_id": SCENARIO_ID,
+            }
+        )
 
 
 def test_proxy_cannot_forge_market_fields():
@@ -218,27 +271,33 @@ def test_ferc_screen_is_none_not_false_when_congestion_is_unattributed():
 
 def test_ranking_is_deterministic_and_breaks_ties_by_cost_then_id():
     cheap = ScoredLine(
-        key=LineKey(line_id=2, region="ERCOT"),
+        key=LineKey(line_id=2, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(50.0, 1_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
         mw_per_musd=50.0,
     )
     dearer = ScoredLine(
-        key=LineKey(line_id=1, region="ERCOT"),
+        key=LineKey(line_id=1, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(100.0, 2_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
         mw_per_musd=50.0,
     )
     top = ScoredLine(
-        key=LineKey(line_id=3, region="ERCOT"),
+        key=LineKey(line_id=3, region="ERCOT", scenario_id=SCENARIO_ID),
         provenance=_prov(),
-        congestion=SimulatedCongestion(usd_per_year=1.0, run_id="r"),
+        congestion=SimulatedCongestion(
+            usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="r"
+        ),
         best=_dlr(200.0, 1_000_000.0),
         static_rating_mw=1.0,
         aar_rating_mw=1.0,
@@ -247,6 +306,23 @@ def test_ranking_is_deterministic_and_breaks_ties_by_cost_then_id():
     order = [line.key.line_id for line in rank([cheap, dearer, top])]
     assert order == [3, 2, 1]
     assert rank([dearer, top, cheap]) == rank([cheap, dearer, top])
+
+
+def test_ranking_rejects_mixed_scenarios():
+    with pytest.raises(ValueError, match="exactly one scenario_id"):
+        rank(
+            [
+                _scored(),
+                _scored(
+                    key=LineKey(line_id=2, region="ERCOT", scenario_id="beryl_2024"),
+                    congestion=SimulatedCongestion(
+                        usd_per_year=1e6,
+                        scenario_id="beryl_2024",
+                        run_id="beryl_2024-s0-abc12345",
+                    ),
+                ),
+            ]
+        )
 
 
 def test_every_unavailable_outcome_names_a_reason():
@@ -258,7 +334,12 @@ def test_every_unavailable_outcome_names_a_reason():
 @pytest.mark.parametrize(
     ("congestion", "method"),
     [
-        (SimulatedCongestion(usd_per_year=1.0, run_id="run-1"), "twin_proxy"),
+        (
+            SimulatedCongestion(
+                usd_per_year=1.0, scenario_id=SCENARIO_ID, run_id="run-1"
+            ),
+            "twin_proxy",
+        ),
         (
             ProxyCongestion(
                 usd_per_year=1.0,
@@ -267,19 +348,23 @@ def test_every_unavailable_outcome_names_a_reason():
             ),
             "twin_proxy",
         ),
-        (UnattributedCongestion(reason=UnavailableReason.UNMAPPED_CONSTRAINT), "unmapped"),
+        (
+            UnattributedCongestion(reason=UnavailableReason.UNMAPPED_CONSTRAINT),
+            "unmapped",
+        ),
     ],
 )
 def test_detail_row_maps_non_market_congestion_to_a_legal_schema_value(
     congestion, method
 ):
-    assert _scored(congestion=congestion).to_detail_row(_storage())["congestion_method"] == method
+    assert (
+        _scored(congestion=congestion).to_detail_row(_storage())["congestion_method"]
+        == method
+    )
 
 
-def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
-    con = duckdb.connect(":memory:")
-    ensure_schema(con)
-    storage = _storage()
+def _seed_line(con: duckdb.DuckDBPyConnection, storage: StorageProvenance) -> None:
+    """Insert the county, bus, and line parents that `lines.line_id = 1` needs."""
     provenance = storage.model_dump()
     con.execute(
         """INSERT INTO counties (
@@ -315,6 +400,26 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         [1, 1, 2, "1", 345.0, 0.1, 0.2, 400.0, 10.0, None, False, *provenance.values()],
     )
+
+
+def _insert_rows(
+    con: duckdb.DuckDBPyConnection, line: ScoredLine, storage: StorageProvenance
+) -> None:
+    for table, row in (
+        ("line_upgrade_scores", line.to_score_row(storage)),
+        ("line_upgrade_detail", line.to_detail_row(storage)),
+    ):
+        con.execute(
+            f"INSERT INTO {table} ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+            list(row.values()),
+        )
+
+
+def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
     line = _scored(
         congestion=ObservedCongestion(
             usd_per_year=1_000_000.0,
@@ -324,7 +429,10 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
             mapping_method="fuzzy",
         ),
         alternative=ReconductorIntervention(
-            uplift_mw=120.0, cost_usd=8_000_000.0, conductor_material="ACSS", conductor_kcmil=795
+            uplift_mw=120.0,
+            cost_usd=8_000_000.0,
+            conductor_material="ACSS",
+            conductor_kcmil=795,
         ),
         aar_rating_mw=425.0,
         owner="Example Transmission",
@@ -332,22 +440,40 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
     )
     score_row = line.to_score_row(storage)
     detail_row = line.to_detail_row(storage)
-    con.execute(
-        f"INSERT INTO line_upgrade_scores ({', '.join(score_row)}) VALUES ({', '.join('?' for _ in score_row)})",
-        list(score_row.values()),
-    )
-    con.execute(
-        f"INSERT INTO line_upgrade_detail ({', '.join(detail_row)}) VALUES ({', '.join('?' for _ in detail_row)})",
-        list(detail_row.values()),
+    contract_provenance = line.provenance.model_dump()
+    expected_identity_and_contract = {
+        "scenario_id": SCENARIO_ID,
+        **contract_provenance,
+    }
+    assert expected_identity_and_contract.items() <= score_row.items()
+    assert expected_identity_and_contract.items() <= detail_row.items()
+    assert score_row["simulation_run_id"] is None
+    assert detail_row["simulation_run_id"] is None
+    _insert_rows(con, line, storage)
+    assert con.execute(
+        """SELECT scenario_id, congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw,
+                  mw_per_musd, ranking_version, contract_version, simulation_run_id, grid_input_sha256,
+                  weather_input_sha256, cost_params_sha256
+           FROM line_upgrade_scores"""
+    ).fetchone() == (
+        SCENARIO_ID,
+        1_000_000.0,
+        50.0,
+        120.0,
+        50.0,
+        "r1",
+        CONTRACT_VERSION,
+        None,
+        H,
+        H,
+        H,
     )
     assert con.execute(
-        "SELECT congestion_usd_yr, dlr_uplift_mw, reconductor_uplift_mw, mw_per_musd FROM line_upgrade_scores"
-    ).fetchone() == (1_000_000.0, 50.0, 120.0, 50.0)
-    assert con.execute(
-        """SELECT owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw,
+        """SELECT scenario_id, owner, conductor_material, conductor_kcmil, static_rating_mw, aar_rating_mw,
                   dlr_p50_mw, dlr_hours_above_static, best_tech, payback_yr, congestion_method, region
            FROM line_upgrade_detail"""
     ).fetchone() == (
+        SCENARIO_ID,
         "Example Transmission",
         "ACSS",
         795.0,
@@ -360,3 +486,56 @@ def test_scored_line_rows_round_trip_through_the_canonical_duckdb_schema():
         "fuzzy",
         "ERCOT",
     )
+
+
+def test_simulated_rows_persist_the_twin_run_without_reclassifying_other_sources():
+    line = _scored()
+    assert line.to_score_row(_storage())["simulation_run_id"] == "run-1"
+    assert line.to_detail_row(_storage())["simulation_run_id"] == "run-1"
+
+
+def test_two_scenarios_for_one_line_coexist_and_a_repeated_identity_is_rejected():
+    """The persisted identity is (line_id, scenario_id), not line_id alone (2WKG-179)."""
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
+    simulated = _scored()
+    annual = _scored(
+        key=LineKey(line_id=1, region="ERCOT", scenario_id="annual_2024"),
+        congestion=ProxyCongestion(
+            usd_per_year=5e5, assumed_usd_per_mwh=40.0, assumption_note="assumed"
+        ),
+    )
+    _insert_rows(con, simulated, storage)
+    _insert_rows(con, annual, storage)
+    for table in ("line_upgrade_scores", "line_upgrade_detail"):
+        assert con.execute(
+            f"SELECT line_id, scenario_id, simulation_run_id FROM {table} ORDER BY scenario_id"
+        ).fetchall() == [(1, "annual_2024", None), (1, SCENARIO_ID, "run-1")]
+    with pytest.raises(duckdb.ConstraintException):
+        _insert_rows(con, simulated, storage)
+
+
+@pytest.mark.parametrize(
+    "column", ["grid_input_sha256", "weather_input_sha256", "cost_params_sha256"]
+)
+@pytest.mark.parametrize("table", ["line_upgrade_scores", "line_upgrade_detail"])
+def test_storage_rejects_a_malformed_input_hash(table, column):
+    """The DDL pins sha256 hex even for a row that bypasses the pydantic contract."""
+    con = duckdb.connect(":memory:")
+    ensure_schema(con)
+    storage = _storage()
+    _seed_line(con, storage)
+    line = _scored()
+    row = (
+        line.to_score_row(storage)
+        if table == "line_upgrade_scores"
+        else line.to_detail_row(storage)
+    )
+    row[column] = "nothex"
+    with pytest.raises(duckdb.ConstraintException, match=column):
+        con.execute(
+            f"INSERT INTO {table} ({', '.join(row)}) VALUES ({', '.join('?' for _ in row)})",
+            list(row.values()),
+        )

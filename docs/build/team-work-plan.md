@@ -62,7 +62,7 @@ lands, rather than waiting on the stretch work.
 ## Meeting-data follow-ups
 
 The meeting follow-ups are Backlog research and collection tasks under existing
-2WKG-7. They are nonblocking: the current demo remains Texas-first while
+2WKG-7. They are nonblocking: the current fixture remains geographic-neutral while
 Texas-plus-New-York feasibility is assessed with explicit source, license,
 availability, granularity, provenance, and join-feasibility evidence. The
 meeting source is [Flux data and scenario discussion](https://notes.granola.ai/t/5ca14bf7-0f0c-469f-acf3-9bc751ebe99a).
