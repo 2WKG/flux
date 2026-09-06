@@ -1615,15 +1615,35 @@
       "additionalProperties": false,
       "properties": {
         "query": {
-          "maxLength": 5000,
-          "minLength": 1,
-          "title": "Query",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Legacy free-form SQL; unavailable when a template registry is configured.",
+          "title": "Query"
+        },
+        "template_id": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_]{0,63}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Named query advertised by the deployment's approved-template registry.",
+          "title": "Template Id"
         }
       },
-      "required": [
-        "query"
-      ],
       "title": "SqlInput",
       "type": "object"
     },

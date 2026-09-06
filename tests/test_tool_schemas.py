@@ -104,6 +104,32 @@ def test_top_lines_rejects_out_of_bound_pages_and_unknown_filters() -> None:
             validate_tool_input("top_lines", payload)
 
 
+def test_sql_input_requires_exactly_one_of_query_or_template_id() -> None:
+    # 00-overview A8 amendment: ``sql(query | template_id)``; the boundary,
+    # not the executor, is where ``{}`` and both-set payloads die.
+    for payload in (
+        {},
+        {"query": "SELECT 1", "template_id": "summary_rows"},
+        {"query": None, "template_id": None},
+    ):
+        with pytest.raises(ValidationError, match="exactly one"):
+            validate_tool_input("sql", payload)
+
+    legacy = validate_tool_input("sql", {"query": "SELECT 1"})
+    template = validate_tool_input("sql", {"template_id": "summary_rows"})
+    assert legacy.model_dump() == {"query": "SELECT 1", "template_id": None}
+    assert template.model_dump() == {"query": None, "template_id": "summary_rows"}
+
+
+def test_sql_template_id_keeps_the_frozen_identifier_pattern() -> None:
+    for template_id in ("Summary_rows", "_x", "a-b", "a" * 65, ""):
+        with pytest.raises(ValidationError):
+            validate_tool_input("sql", {"template_id": template_id})
+
+    schema = next(item for item in TOOL_SCHEMAS if item["name"] == "sql")
+    assert set(schema["input_schema"]["properties"]) == {"query", "template_id"}
+
+
 def test_representative_unavailable_output_keeps_provenance() -> None:
     result = unavailable_output(
         "artifact_unavailable",
