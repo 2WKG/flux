@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import fixture from "../../data/demo/bundle.json";
+import { AppShell } from "./shell/AppShell";
 import "./styles.css";
 
 type Id = "baseline" | "a" | "b";
@@ -116,7 +117,7 @@ function Network({ selected, view, onSelect, hover, setHover }: {
               key={line.id}
               className={`corridor tone-${tone}${active ? " active" : ""}`}
               tabIndex={0}
-              role="button"
+              role="group"
               aria-label={`${from.name} to ${to.name}: ${loading} percent utilization, ${delta === 0 ? "unchanged from" : `${signed(delta)} points versus`} baseline`}
               onMouseMove={track(line.id)}
               onFocus={focusLine(line)}
@@ -224,6 +225,8 @@ function App() {
   const [view, setView] = useState<View>("load");
   const [hover, setHover] = useState<Hover>(null);
   const [detail, setDetail] = useState(false);
+  const disclosureTrigger = useRef<HTMLButtonElement>(null);
+  const disclosureClose = useRef<HTMLButtonElement>(null);
 
   const scenario = data.scenarios[selected];
   const candidate = data.network.candidates.find((item) => item.id === selected);
@@ -236,9 +239,19 @@ function App() {
     setHover(null);
   }, []);
 
+  const openDetail = useCallback(() => setDetail(true), []);
+  const closeDetail = useCallback(() => {
+    setDetail(false);
+    requestAnimationFrame(() => disclosureTrigger.current?.focus());
+  }, []);
+
+  useEffect(() => {
+    if (detail) disclosureClose.current?.focus();
+  }, [detail]);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") return setDetail(false);
+      if (event.key === "Escape" && detail) return closeDetail();
       if (detail || event.target instanceof HTMLSelectElement) return;
       const digit = ORDER[Number(event.key) - 1];
       if (digit) return select(digit);
@@ -249,7 +262,7 @@ function App() {
     };
     addEventListener("keydown", onKey);
     return () => removeEventListener("keydown", onKey);
-  }, [detail, selected, select]);
+  }, [closeDetail, detail, selected, select]);
 
   const relieved = useMemo(
     () =>
@@ -263,35 +276,27 @@ function App() {
   const sameAssumptions = ORDER.every((id) => data.scenarios[id].assumptionSetId === data.execution.assumptionSetId);
 
   return (
-    <main>
-      <nav>
-        <div className="brand"><b>FLUX</b><span>Resilience desk</span></div>
-        <div className="live"><i />bundled synthetic fixture · no API required</div>
-        <button className="ghost" onClick={() => setDetail(true)}>Data, units &amp; limits</button>
-      </nav>
-
-      <header>
-        <p className="eyebrow">SYSTEM RESILIENCE / SCENARIO EXPLORER</p>
-        <h1>Where does 300 MW cut the most unmet demand?</h1>
-        <p>
-          One fixed cold-stress snapshot, three runs from the same assumptions. Pick a candidate to see the
-          corridors it relieves. Every figure is read from a checked-in synthetic artifact — no runtime request,
-          and no claim about a real grid.
-        </p>
-      </header>
-
-      <CompareRail selected={selected} onSelect={select} />
-
-      <section className="workspace">
+    <>
+      <AppShell
+      title="Where does 300 MW cut the most unmet demand?"
+      source={{
+        status: "synthetic",
+        label: "Synthetic five-bus fixture · no API required",
+        detail: "Checked-in synthetic artifact; not a Minnesota or Texas topology, facility map, or interconnection result.",
+      }}
+      viewport={
         <article className="map">
           <div className="map-head">
             <div>
               <p className="eyebrow">NETWORK STATE · {scenario.label.toUpperCase()}</p>
               <p className="hint">Line weight tracks utilization. Hover or tab a corridor for its reading.</p>
             </div>
-            <div className="toggle" role="group" aria-label="Corridor colouring">
-              <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
-              <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
+            <div className="map-actions">
+              <div className="toggle" role="group" aria-label="Corridor colouring">
+                <button className={view === "load" ? "on" : ""} onClick={() => setView("load")} aria-pressed={view === "load"}>Utilization</button>
+                <button className={view === "delta" ? "on" : ""} onClick={() => setView("delta")} aria-pressed={view === "delta"}>Change vs baseline</button>
+              </div>
+              <button ref={disclosureTrigger} className="ghost" onClick={openDetail}>Data, units &amp; limits</button>
             </div>
           </div>
 
@@ -303,8 +308,10 @@ function App() {
               : <><i className="tone-none" />unchanged <i className="tone-some" />relieved <i className="tone-strong" />15+ points relieved <span>· percentage points vs baseline</span></>}
           </div>
         </article>
-
-        <aside>
+      }
+      comparison={<CompareRail selected={selected} onSelect={select} />}
+      inspector={
+        <>
           <div className="outcome">
             <p className="eyebrow">MODELED UNMET DEMAND</p>
             <strong>{shed}<small> {scenario.units.shedMw}</small></strong>
@@ -342,26 +349,26 @@ function App() {
               <p>Select Candidate A or B — on the rail above, on the map, or with keys 1–3 — to compare against it.</p>
             </div>
           )}
-        </aside>
-      </section>
-
-      <section className="pipeline">
-        <div>
-          <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
-          <h2>Same assumptions. Traceable synthetic output.</h2>
-        </div>
-        <p>
-          {sameAssumptions
-            ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
-            : "Comparison unavailable: scenario assumptions differ."}{" "}
-          Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
-        </p>
-      </section>
+          <section className="pipeline">
+            <div>
+              <p className="eyebrow">SOURCE + MODEL CONTRACT</p>
+              <h2>Same assumptions. Traceable synthetic output.</h2>
+            </div>
+            <p>
+              {sameAssumptions
+                ? `All three runs share ${data.execution.assumptions.demandMw} MW demand, ${data.execution.assumptions.durationHours} h, and one baseline generation assumption.`
+                : "Comparison unavailable: scenario assumptions differ."}{" "}
+              Artifact <code>{data.execution.provenance.artifactId}</code> · hash <code>{data.fixtureHash}</code>.
+            </p>
+          </section>
+        </>
+      }
+      />
 
       {detail && (
-        <div className="overlay" onMouseDown={() => setDetail(false)}>
+        <div className="overlay" onMouseDown={closeDetail}>
           <section className="modal" role="dialog" aria-modal="true" aria-label="Data disclosure" onMouseDown={(event) => event.stopPropagation()}>
-            <button onClick={() => setDetail(false)} aria-label="Close disclosure">×</button>
+            <button ref={disclosureClose} onClick={closeDetail} aria-label="Close disclosure">×</button>
             <p className="eyebrow">DATA DISCLOSURE</p>
             <h2>Provenance, assumptions, and limits</h2>
             <dl>
@@ -375,7 +382,7 @@ function App() {
           </section>
         </div>
       )}
-    </main>
+    </>
   );
 }
 
