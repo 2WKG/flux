@@ -118,6 +118,28 @@ def test_cors_exposes_response_metadata_headers(tmp_path: Path) -> None:
     )
 
 
+def test_internal_error_keeps_cors_and_response_metadata(tmp_path: Path) -> None:
+    database = tmp_path / "fixture.duckdb"
+    _fixture_database(database)
+    app = create_app(Settings(duckdb_path=database))
+
+    @app.get("/boom")
+    def boom() -> None:
+        raise RuntimeError("unexpected test failure")
+
+    response = TestClient(app, raise_server_exceptions=False).get(
+        "/boom", headers={"Origin": "http://localhost:5173"}
+    )
+
+    assert response.status_code == 500
+    assert response.headers["Access-Control-Allow-Origin"] == "http://localhost:5173"
+    assert response.headers["Access-Control-Expose-Headers"] == (
+        "X-Request-ID, X-Flux-Api-Version, X-Flux-Artifact"
+    )
+    assert response.headers["X-Flux-Api-Version"] == API_VERSION
+    assert "X-Flux-Artifact" not in response.headers
+
+
 def test_health_does_not_treat_a_configured_credential_as_model_availability(
     tmp_path: Path,
 ) -> None:

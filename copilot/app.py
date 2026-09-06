@@ -30,6 +30,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     """Build an app whose routes can be exercised against a fixture database."""
     app = FastAPI(title="Flux API", version=API_VERSION)
     app.state.settings = settings or Settings()
+    install_error_handlers(app)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=list(app.state.settings.cors_origins),
@@ -38,7 +39,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
         expose_headers=[REQUEST_ID_HEADER, API_VERSION_HEADER, ARTIFACT_HEADER],
     )
-    install_error_handlers(app)
 
     @app.exception_handler(StarletteHTTPException)
     async def route_miss(request: Request, exc: StarletteHTTPException) -> JSONResponse:
