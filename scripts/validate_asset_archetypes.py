@@ -10,13 +10,29 @@ material bound to a label no server asserts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_CATALOG = ROOT / "data/3d/asset-archetypes-v1.json"
+RUNTIME_ASSET_ROOT = Path("web/public/assets/flux-grid")
+PUBLISHED_RELEASE_RECEIPT = Path(
+    "data/3d/packs/flux-grid-v1/releases/flux-grid-runtime-v1-20260906.json"
+)
+PUBLISHED_RUNTIME_INVENTORY = Path(
+    "data/3d/packs/flux-grid-v1/releases/flux-grid-runtime-v1-20260906.inventory.json"
+)
+PUBLISHED_RUNTIME_RELEASE = {
+    "release_tag": "flux-grid-runtime-v1-20260906",
+    "asset_filename": "flux-grid-runtime-v1-20260906T103700Z.zip",
+    "archive_sha256": "44ed49bd7e2a8392765825fdfc164e01061e7701befd8b89eaf38ac9ecc45d78",
+    "runtime_manifest_sha256": "068ca96a44b9730f3d59ab55c454cf5a8959b285db62625bbd2bcad57afd067b",
+    "release_contents": {"archetypes": 18, "glb_files": 54, "preview_png_files": 18},
+}
 
 CONTRACT_ID = "flux:3d-asset-archetypes:v1"
 EXPECTED_ARCHETYPES = 18
@@ -62,6 +78,7 @@ _SKIP_DIRS = {
     "parquet",
     "duck",
 }
+_SAFE_RUNTIME_GLB = re.compile(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_.-]+\.glb$")
 
 
 def find_model_files(root: Path = ROOT) -> list[str]:
@@ -83,6 +100,160 @@ def find_model_files(root: Path = ROOT) -> list[str]:
                     path = Path(dirpath, name)
                     found.append(path.relative_to(root).as_posix())
     return sorted(found)
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _read_json(path: Path, label: str, errors: list[str]) -> dict[str, Any] | None:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        errors.append(f"{label} is unreadable JSON: {exc}")
+        return None
+    if not isinstance(value, dict):
+        errors.append(f"{label} must be an object")
+        return None
+    return value
+
+
+def validate_published_runtime(root: Path, catalog: dict[str, Any]) -> list[str]:
+    """Validate the one reviewed location where tracked runtime GLBs may live.
+
+    Source kits and the historical source-only pack never authorize a binary.
+    The published-release receipt and its per-file inventory are the authority
+    for the same-origin runtime copy committed by PR #332.
+    """
+    errors: list[str] = []
+    receipt = _read_json(
+        root / PUBLISHED_RELEASE_RECEIPT, "published runtime receipt", errors
+    )
+    inventory = _read_json(
+        root / PUBLISHED_RUNTIME_INVENTORY, "published runtime inventory", errors
+    )
+    catalog_path = root / "data/3d/asset-archetypes-v1.json"
+
+    if receipt is not None:
+        # Publication metadata is maintained separately from the installed-byte
+        # contract. This guard only consumes the immutable fields shared by both
+        # receipt states; the manifest and inventory below bind actual runtime
+        # files to the verified archive.
+        for field, expected in PUBLISHED_RUNTIME_RELEASE.items():
+            if receipt.get(field) != expected:
+                errors.append(f"published runtime receipt does not pin {field}")
+        source = receipt.get("source_contract")
+        if (
+            not isinstance(source, dict)
+            or source.get("file") != "data/3d/asset-archetypes-v1.json"
+        ):
+            errors.append("published runtime receipt does not pin the source catalog")
+        elif not catalog_path.is_file() or source.get("sha256") != _sha256(
+            catalog_path
+        ):
+            errors.append(
+                "published runtime receipt source catalog hash does not match"
+            )
+
+    expected_ids = {
+        entry.get("id")
+        for entry in catalog.get("archetypes", [])
+        if isinstance(entry, dict)
+    }
+    expected_paths = {
+        f"{asset_id}/{asset_id}{suffix}"
+        for asset_id in expected_ids
+        if isinstance(asset_id, str)
+        for suffix in (".glb", ".lod1.glb", ".lod2.glb")
+    }
+    if len(expected_paths) != EXPECTED_ARCHETYPES * 3:
+        errors.append("catalog cannot define the published runtime path set")
+
+    pinned: dict[str, dict[str, Any]] = {}
+    if inventory is not None:
+        if (
+            inventory.get("schema_version") != 1
+            or inventory.get("release_tag") != PUBLISHED_RUNTIME_RELEASE["release_tag"]
+            or inventory.get("archive_sha256")
+            != PUBLISHED_RUNTIME_RELEASE["archive_sha256"]
+            or inventory.get("runtime_manifest_sha256")
+            != PUBLISHED_RUNTIME_RELEASE["runtime_manifest_sha256"]
+        ):
+            errors.append(
+                "published runtime inventory is not bound to the verified release"
+            )
+        files = inventory.get("files")
+        if not isinstance(files, list):
+            errors.append("published runtime inventory files must be a list")
+        else:
+            for entry in files:
+                if not isinstance(entry, dict):
+                    errors.append(
+                        "published runtime inventory has a non-object file entry"
+                    )
+                    continue
+                path = entry.get("path")
+                digest = entry.get("sha256")
+                size = entry.get("bytes")
+                if not isinstance(path, str) or not _SAFE_RUNTIME_GLB.fullmatch(path):
+                    errors.append("published runtime inventory has an unsafe GLB path")
+                    continue
+                if path in pinned:
+                    errors.append(f"published runtime inventory duplicates {path}")
+                    continue
+                if not isinstance(digest, str) or not re.fullmatch(
+                    r"[a-f0-9]{64}", digest
+                ):
+                    errors.append(
+                        f"published runtime inventory has an invalid digest for {path}"
+                    )
+                    continue
+                if not isinstance(size, int) or size <= 0:
+                    errors.append(
+                        f"published runtime inventory has an invalid byte size for {path}"
+                    )
+                    continue
+                pinned[path] = entry
+            if set(pinned) != expected_paths:
+                errors.append(
+                    "published runtime inventory does not pin exactly the 54 expected GLBs"
+                )
+
+    runtime_manifest = root / RUNTIME_ASSET_ROOT / "manifest.json"
+    if not runtime_manifest.is_file():
+        errors.append("published runtime manifest is missing from the runtime location")
+    elif (
+        _sha256(runtime_manifest)
+        != PUBLISHED_RUNTIME_RELEASE["runtime_manifest_sha256"]
+    ):
+        errors.append(
+            "published runtime manifest digest does not match the verified release"
+        )
+
+    actual_models = set(find_model_files(root))
+    runtime_prefix = f"{RUNTIME_ASSET_ROOT.as_posix()}/"
+    allowed_models = {f"{runtime_prefix}{path}" for path in expected_paths}
+    unexpected = sorted(actual_models - allowed_models)
+    missing = sorted(allowed_models - actual_models)
+    if unexpected:
+        errors.append(
+            f"unverified model binary outside published runtime location: {unexpected}"
+        )
+    if missing:
+        errors.append(f"published runtime is missing pinned model binaries: {missing}")
+    for relative, entry in pinned.items():
+        path = root / RUNTIME_ASSET_ROOT / relative
+        if not path.is_file():
+            continue
+        if path.stat().st_size != entry["bytes"]:
+            errors.append(
+                f"published runtime byte size does not match inventory: {relative}"
+            )
+        if _sha256(path) != entry["sha256"]:
+            errors.append(
+                f"published runtime digest does not match inventory: {relative}"
+            )
+    return errors
 
 
 def _issue_key(value: object) -> bool:
