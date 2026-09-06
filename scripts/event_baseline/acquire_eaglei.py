@@ -146,6 +146,8 @@ def acquire_exhaustive(
     fips: set[str],
     cache_dir: Path,
     expected_etag: str,
+    selected_rows: list[dict[str, str]] | None = None,
+    selected_fieldnames: list[str] | None = None,
 ) -> dict[str, Any]:
     """Filter a complete annual source file; only this path may establish gaps."""
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -203,17 +205,21 @@ def acquire_exhaustive(
         meta_path.write_text(
             json.dumps(metadata, indent=2, sort_keys=True) + "\n", encoding="utf-8"
         )
-    with raw_path.open(encoding="utf-8-sig", newline="") as handle:
-        reader = csv.DictReader(handle)
-        fieldnames = reader.fieldnames or []
-        customers_field = outage_field(fieldnames)
-        selected = [
+    if selected_rows is None:
+        with raw_path.open(encoding="utf-8-sig", newline="") as handle:
+            reader = csv.DictReader(handle)
+            fieldnames = reader.fieldnames or []
+            selected = [
             row
             for row in reader
             if row["state"] in states
             and (not fips or row["fips_code"] in fips)
             and start <= parse_source_time(row["run_start_time"]) < end
-        ]
+            ]
+    else:
+        fieldnames = selected_fieldnames or []
+        selected = selected_rows
+    customers_field = outage_field(fieldnames)
     valid_rows = []
     invalid_rows = 0
     for row in selected:
@@ -329,8 +335,13 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
         raw_path = cache_dir / "annual-source" / f"eaglei_outages_{year}.csv"
         if not raw_path.exists():
             raise EagleiError(f"missing completed annual source: {raw_path}")
+        meta = json.loads(raw_path.with_name(f"{raw_path.name}.source.json").read_text(encoding="utf-8"))
+        digest = hashlib.sha256(raw_path.read_bytes()).hexdigest()
+        if meta.get("raw_sha256") != digest or meta.get("raw_bytes") != raw_path.stat().st_size:
+            raise EagleiError("annual source sidecar does not bind the cached bytes")
         with raw_path.open(encoding="utf-8-sig", newline="") as handle:
             reader = csv.DictReader(handle)
+            batch_fieldnames = reader.fieldnames or []
             for row in reader:
                 ts = parse_source_time(row["run_start_time"])
                 for request in group:
@@ -341,10 +352,9 @@ def batch_scan_requests(requests_path: Path, cache_dir: Path) -> list[dict[str, 
                     ):
                         request["rows"].append(row)
         for request in group:
-            meta = json.loads(raw_path.with_name(f"{raw_path.name}.source.json").read_text(encoding="utf-8"))
             file = {"id": str(meta["source_system_id"]).rsplit(":", 1)[-1], "name": raw_path.name, "size": raw_path.stat().st_size, "download_url": meta.get("source_url", "cached://annual-source")}
             article = {"id": 24237376, "license": {"name": "CC BY 4.0"}}
-            results.append(acquire_exhaustive(article=article, file=file, event_id=request["event_id"], year=year, start=request["start"], end=request["end"], states=request["states"], fips=request["fips"], cache_dir=cache_dir, expected_etag=meta.get("etag")))
+            results.append(acquire_exhaustive(article=article, file=file, event_id=request["event_id"], year=year, start=request["start"], end=request["end"], states=request["states"], fips=request["fips"], cache_dir=cache_dir, expected_etag=meta.get("etag"), selected_rows=request["rows"], selected_fieldnames=batch_fieldnames))
     return results
 
 
