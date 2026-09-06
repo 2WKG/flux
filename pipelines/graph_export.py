@@ -10,7 +10,6 @@ import shutil
 import tempfile
 from collections import Counter
 from pathlib import Path
-from statistics import fmean, pstdev
 from typing import Any
 
 import duckdb
@@ -54,27 +53,6 @@ def _write_json(path: Path, value: object) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _validate_output_target(source: Path, target: Path) -> None:
-    if target == source or source.is_relative_to(target):
-        raise ValueError("graph output must not contain the source database")
-    if not target.exists():
-        return
-    if not target.is_dir():
-        raise ValueError("graph output must be a directory")
-    expected = {"edges.json", "manifest.json", "nodes.json", "normalization.json"}
-    if {entry.name for entry in target.iterdir()} != expected:
-        raise ValueError("refusing to replace a non-export directory")
-    try:
-        manifest = json.loads((target / "manifest.json").read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as error:
-        raise ValueError("refusing to replace an invalid export directory") from error
-    if (
-        manifest.get("schema_version") != DATASET_SCHEMA_VERSION
-        or manifest.get("topology_label") != TOPOLOGY_LABEL
-    ):
-        raise ValueError("refusing to replace a non-export directory")
-
-
 def _required_tables(con: duckdb.DuckDBPyConnection) -> None:
     expected = {
         "buses",
@@ -104,53 +82,6 @@ def _number(value: object, *, field: str, record_id: int) -> float | None:
     return result
 
 
-def _normalization(
-    rows: list[dict[str, Any]], feature_names: tuple[str, ...]
-) -> dict[str, dict[str, Any]]:
-    stats: dict[str, dict[str, Any]] = {}
-    for feature in feature_names:
-        values = [
-            row["features"][feature]
-            for row in rows
-            if row["features"][feature] is not None
-        ]
-        if not values:
-            stats[feature] = {
-                "count": 0,
-                "missing_count": len(rows),
-                "mean": None,
-                "std": None,
-                "zero_variance": None,
-            }
-            continue
-        mean = fmean(values)
-        std = pstdev(values, mu=mean)
-        stats[feature] = {
-            "count": len(values),
-            "missing_count": len(rows) - len(values),
-            "mean": mean,
-            "std": std,
-            "zero_variance": std == 0,
-        }
-    return stats
-
-
-def _apply_normalization(
-    rows: list[dict[str, Any]], stats: dict[str, dict[str, Any]]
-) -> None:
-    for row in rows:
-        normalized: dict[str, float | None] = {}
-        for feature, value in row["features"].items():
-            stat = stats[feature]
-            if value is None or stat["std"] is None:
-                normalized[feature] = None
-            elif stat["zero_variance"]:
-                normalized[feature] = 0.0
-            else:
-                normalized[feature] = (value - stat["mean"]) / stat["std"]
-        row["normalized_features"] = normalized
-
-
 def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     rows = con.execute(
         """
@@ -169,7 +100,6 @@ def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
     fuel_rows = con.execute(
         "SELECT bus_id, fuel, sum(pmax_mw) FROM gens GROUP BY bus_id, fuel ORDER BY bus_id, fuel"
     ).fetchall()
-    fuels = tuple(sorted({str(row[1]) for row in fuel_rows}))
     by_bus: dict[int, dict[str, float]] = {}
     for bus_id, fuel, capacity in fuel_rows:
         by_bus.setdefault(int(bus_id), {})[str(fuel)] = float(capacity)
@@ -181,11 +111,9 @@ def _nodes(con: duckdb.DuckDBPyConnection) -> list[dict[str, Any]]:
                 NODE_FEATURES, (base_kv, load, capacity), strict=True
             )
         }
-        fuel_capacity = {
-            fuel: by_bus.get(int(bus_id), {}).get(fuel, 0.0) for fuel in fuels
-        }
-        has_load = numeric["p_mw_nominal"] not in (None, 0.0)
-        has_generation = numeric["pmax_mw"] not in (None, 0.0)
+        fuel_capacity = by_bus.get(int(bus_id), {})
+        has_load = numeric["p_mw_nominal"] is not None
+        has_generation = numeric["pmax_mw"] is not None
         role = (
             "both"
             if has_load and has_generation
@@ -252,7 +180,10 @@ def export_texas_graph_dataset(
     if requested_target.is_symlink():
         raise ValueError("graph output directory must not be a symlink")
     target = requested_target.resolve()
-    _validate_output_target(source, target)
+    if target == source or source.is_relative_to(target):
+        raise ValueError("graph output must not contain the source database")
+    if target.exists():
+        raise ValueError("graph output already exists; remove it before exporting")
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=f".{target.name}.tmp-", dir=target.parent))
     try:
@@ -260,19 +191,24 @@ def export_texas_graph_dataset(
             _required_tables(con)
             nodes = _nodes(con)
             edges = _edges(con)
-        if not nodes or not edges:
-            raise RuntimeError("graph export requires at least one bus and one branch")
-        node_stats = _normalization(nodes, NODE_FEATURES)
-        edge_stats = _normalization(edges, EDGE_FEATURES)
-        _apply_normalization(nodes, node_stats)
-        _apply_normalization(edges, edge_stats)
-        normalization = {"node_features": node_stats, "edge_features": edge_stats}
+            if not nodes or not edges:
+                raise RuntimeError(
+                    "graph export requires at least one bus and one branch"
+                )
+            for table in ("buses", "lines", "gens", "loads"):
+                source_names = {
+                    row[0]
+                    for row in con.execute(
+                        f"SELECT DISTINCT source_name FROM {table}"
+                    ).fetchall()
+                }
+                if source_names != {"activsg2000"}:
+                    raise RuntimeError(
+                        f"{table}.source_name must be exactly activsg2000"
+                    )
         file_hashes = {
             "nodes.json": _write_json(temporary / "nodes.json", nodes),
             "edges.json": _write_json(temporary / "edges.json", edges),
-            "normalization.json": _write_json(
-                temporary / "normalization.json", normalization
-            ),
         }
         source_types = Counter(edge["source_edge_type"] for edge in edges)
         solver_types = Counter(edge["solver_edge_type"] for edge in edges)
@@ -296,20 +232,7 @@ def export_texas_graph_dataset(
             "topology_label": TOPOLOGY_LABEL,
         }
         _write_json(temporary / "manifest.json", manifest)
-        if target.exists():
-            backup = Path(
-                tempfile.mkdtemp(prefix=f".{target.name}.previous-", dir=target.parent)
-            )
-            backup.rmdir()
-            target.replace(backup)
-            try:
-                temporary.replace(target)
-            except Exception:
-                backup.replace(target)
-                raise
-            shutil.rmtree(backup)
-        else:
-            temporary.replace(target)
+        temporary.replace(target)
         return manifest
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
