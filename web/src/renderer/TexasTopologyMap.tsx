@@ -138,7 +138,7 @@ export function TexasTopologyMap({ payload }: { readonly payload: TexasModelPayl
     </Map>
     <button className="texas-asset-focus" type="button" disabled={focusPlacement === null}
       title={focusPlacement === null ? "No source-backed 3D placement is available." : `View ${focusPlacement.label} in 3D`}
-      onClick={() => focusPlacement && map.current?.flyTo({ center: focusPlacement.position, zoom: 17, pitch: 50, essential: true })}>
+      onClick={() => focusPlacement && map.current?.flyTo({ center: [focusPlacement.position[0], focusPlacement.position[1]], zoom: 17, pitch: 50, essential: true })}>
       {focusPlacement === null ? "3D asset unavailable" : "View a 3D asset"}
     </button>
     <p role="status">{payload.data?.topology?.label ?? "Synthetic topology"} · {count(declared?.buses, buses.length)} resolved buses · {count(declared?.branches, lines.length)} resolved branches · {count(declared?.generators, generators.length)} generators · {count(declared?.loads, loads.length)} loads. Topology remains complete at every zoom; {assets ? `${assets.placements.length} observed physical visual placement${assets.placements.length === 1 ? "" : "s"} use a separate LOD layer.` : "observed physical model placements are loading or unavailable."}</p>
