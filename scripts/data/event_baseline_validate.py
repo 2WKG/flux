@@ -1,4 +1,10 @@
-"""Validate Flux historical-event baseline bundles without external schema deps."""
+"""Validate Flux historical-event baseline bundles against the published schema.
+
+The published JSON Schema (``event_baseline.schema.json``) is the single
+structural definition: it is loaded and enforced here, including its
+``additionalProperties: false``. The hand-written rules below only add the
+cross-field reality contracts a JSON Schema cannot express.
+"""
 
 from __future__ import annotations
 
@@ -10,16 +16,58 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import jsonschema
+
+SCHEMA_PATH = (
+    Path(__file__).resolve().parents[2]
+    / "docs/data/event-baseline/event_baseline.schema.json"
+)
 SCHEMA_VERSION = "event-baseline/v1"
 LABEL_RULE_VERSION = "county_outage_5pct_v1"
 SIX_HOURS = timedelta(hours=6)
 DISPOSITIONS = {"candidate_only", "accepted", "rejected", "shortfall"}
 IDENTIFIER = re.compile(r"^[a-z0-9][a-z0-9_-]*$")
 FIPS = re.compile(r"^[0-9]{5}$")
+# docs/specs/02-outage-model.md: "Window = 6 h, aligned to 00/06/12/18 UTC".
+ALIGNED_WINDOW_START_HOURS = (0, 6, 12, 18)
+# docs/specs/01-data-ingest.md: EAGLE-I is 15-minute cadence (minutes 00/15/30/45,
+# verified on the 2021 and 2024 files) -> 24 samples in a six-hour window.
+EAGLEI_SAMPLES_PER_WINDOW = 24
+# docs/specs/02-outage-model.md: counties with total_customers < 500 are dropped.
+MINIMUM_CUSTOMER_DENOMINATOR = 500
+LABEL_AGGREGATION = "max_customers_out_over_window_samples"
 
 
 class ValidationError(ValueError):
     pass
+
+
+def _load_schema() -> dict[str, Any]:
+    return json.loads(SCHEMA_PATH.read_text())
+
+
+def _schema_validator() -> jsonschema.protocols.Validator:
+    schema = _load_schema()
+    validator_class = jsonschema.validators.validator_for(schema)
+    validator_class.check_schema(schema)
+    return validator_class(schema)
+
+
+def validate_against_published_schema(bundle: Any, source: str = "bundle") -> None:
+    """Enforce the published JSON Schema, including additionalProperties: false."""
+    errors = sorted(_schema_validator().iter_errors(bundle), key=str)
+    if not errors:
+        return
+    first = errors[0]
+    location = "/".join(str(part) for part in first.absolute_path) or "<root>"
+    raise ValidationError(f"{source}: schema violation at {location}: {first.message}")
+
+
+def _is_eaglei_receipt(receipt: dict[str, Any]) -> bool:
+    return (
+        "eagle-i" in str(receipt.get("provider", "")).casefold()
+        or "eaglei" in str(receipt.get("url", "")).casefold()
+    )
 
 
 def _require(obj: dict[str, Any], key: str, where: str) -> Any:
@@ -89,8 +137,27 @@ def _validate_receipts(receipts: Any, where: str) -> dict[str, dict[str, Any]]:
             "filters",
             "grid_index_mapping",
             "gaps",
+            "capture_method",
+            "verification",
+            "files",
+            "uncertainty",
         ):
             _require(receipt, field, prefix)
+        for field in ("capture_method", "uncertainty"):
+            if not isinstance(receipt[field], str) or not receipt[field].strip():
+                raise ValidationError(
+                    f"{prefix}.{field}: expected a non-empty statement "
+                    f"(same receipt convention as pipelines/hrrr.py)"
+                )
+        verification = receipt["verification"]
+        if (
+            not isinstance(verification, dict)
+            or "sha256_computed_from_response_body" not in verification
+        ):
+            raise ValidationError(
+                f"{prefix}.verification: expected an object recording "
+                f"sha256_computed_from_response_body"
+            )
         _utc(receipt["retrieved_at_utc"], f"{prefix}.retrieved_at_utc")
         if not isinstance(receipt["url"], str) or "://" not in receipt["url"]:
             raise ValidationError(f"{prefix}.url: expected absolute URL")
@@ -149,6 +216,7 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
     for field in (
         "rule_version",
         "status",
+        "aggregation",
         "observed_outage_customers",
         "customer_denominator",
         "outage_rate",
@@ -157,6 +225,11 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         _require(label, field, where)
     if label["rule_version"] != LABEL_RULE_VERSION:
         raise ValidationError(f"{where}.rule_version: expected {LABEL_RULE_VERSION}")
+    if label["aggregation"] != LABEL_AGGREGATION:
+        raise ValidationError(
+            f"{where}.aggregation: {LABEL_RULE_VERSION} is spec 02's y_out and takes the "
+            f"max customers_out over the window's samples ({LABEL_AGGREGATION})"
+        )
     status = label["status"]
     if status not in {"computed", "unavailable", "UncoveredLabel"}:
         raise ValidationError(f"{where}.status: invalid label status")
@@ -187,6 +260,12 @@ def _validate_label(label: Any, outage_coverage: str, where: str) -> None:
         ):
             raise ValidationError(
                 f"{where}: computed label requires a positive available customer denominator"
+            )
+        if value < MINIMUM_CUSTOMER_DENOMINATOR:
+            raise ValidationError(
+                f"{where}: docs/specs/02-outage-model.md drops counties with "
+                f"total_customers < {MINIMUM_CUSTOMER_DENOMINATOR}; denominator "
+                f"{value} is unusable for county_outage_5pct_v1"
             )
         if not isinstance(observed, (int, float)) or observed < 0 or observed > value:
             raise ValidationError(
@@ -269,6 +348,15 @@ def _validate_forecast(
 
 
 def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
+    """Enforce the published schema, then the cross-field reality contracts."""
+    if not isinstance(bundle, dict):
+        raise ValidationError(f"{source}: expected JSON object")
+    validate_against_published_schema(bundle, source)
+    validate_bundle_rules(bundle, source)
+
+
+def validate_bundle_rules(bundle: dict[str, Any], source: str = "bundle") -> None:
+    """Cross-field rules a JSON Schema cannot express. Run after the schema."""
     if not isinstance(bundle, dict):
         raise ValidationError(f"{source}: expected JSON object")
     if bundle.get("schema_version") != SCHEMA_VERSION:
@@ -370,6 +458,17 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
         )
         if end - start != SIX_HOURS:
             raise ValidationError(f"{prefix}: county window must be exactly six hours")
+        if (
+            start.hour not in ALIGNED_WINDOW_START_HOURS
+            or start.minute
+            or start.second
+            or start.microsecond
+        ):
+            raise ValidationError(
+                f"{prefix}: six-hour windows are a closed vocabulary aligned to "
+                f"00/06/12/18 UTC (docs/specs/02-outage-model.md); "
+                f"{record['window_start_utc']} is not an aligned window start"
+            )
         identity = (record["county_fips"], record["scenario_id"], start)
         if identity in identities:
             raise ValidationError(
@@ -567,6 +666,10 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
             raise ValidationError(
                 f"{prefix}.outage: outage labels require time_series_or_grid evidence"
             )
+        if outage_state == "UncoveredLabel" and record["disposition"] == "accepted":
+            raise ValidationError(
+                f"{prefix}: UncoveredLabel may not masquerade as accepted"
+            )
         if record["disposition"] == "accepted" and (
             weather_state != "covered"
             or outage_state != "covered"
@@ -575,20 +678,25 @@ def validate_bundle(bundle: dict[str, Any], source: str = "bundle") -> None:
             raise ValidationError(
                 f"{prefix}: accepted requires matched covered weather and outage evidence"
             )
-        if outage_state == "UncoveredLabel" and record["disposition"] == "accepted":
-            raise ValidationError(
-                f"{prefix}: UncoveredLabel may not masquerade as accepted"
-            )
         if outage_state in {"covered", "UncoveredLabel"}:
             for receipt_id in record["outage"]["source_receipt_ids"]:
                 receipt = receipt_map[receipt_id]
-                if (
-                    "eagle-i" in receipt["provider"].casefold()
-                    or "eaglei" in receipt["url"].casefold()
-                ):
+                if _is_eaglei_receipt(receipt):
                     _validate_eaglei_acquisition(
                         receipt, f"{prefix}.outage[{receipt_id}]"
                     )
+                    if (
+                        record["outage"]["evidence_kind"] == "time_series_or_grid"
+                        and outage_state == "covered"
+                        and record["outage"]["expected_samples"]
+                        != EAGLEI_SAMPLES_PER_WINDOW
+                    ):
+                        raise ValidationError(
+                            f"{prefix}.outage: EAGLE-I is 15-minute cadence "
+                            f"(docs/specs/01-data-ingest.md), so a covered six-hour "
+                            f"window expects {EAGLEI_SAMPLES_PER_WINDOW} samples, not "
+                            f"{record['outage']['expected_samples']}"
+                        )
         _validate_label(record["label"], outage_state, f"{prefix}.label")
         _validate_forecast(
             record["forecast"], record["mode"], known_receipts, f"{prefix}.forecast"
@@ -604,12 +712,28 @@ def load_and_validate(path: Path) -> dict[str, Any]:
     return bundle
 
 
+def iter_bundle_paths(events_dir: Path) -> list[Path]:
+    """Every bundle JSON under an events tree, in stable order."""
+    return sorted(events_dir.rglob("*.json"))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("bundles", nargs="+", type=Path, help="event bundle JSON files")
+    parser.add_argument("bundles", nargs="*", type=Path, help="event bundle JSON files")
+    parser.add_argument(
+        "--events-dir",
+        type=Path,
+        default=None,
+        help="validate every *.json under this events tree",
+    )
     args = parser.parse_args(argv)
+    paths = list(args.bundles)
+    if args.events_dir is not None:
+        paths.extend(iter_bundle_paths(args.events_dir))
+    if not paths:
+        parser.error("give bundle paths or --events-dir")
     failures = 0
-    for path in args.bundles:
+    for path in paths:
         try:
             load_and_validate(path)
             print(f"VALID {path}")
