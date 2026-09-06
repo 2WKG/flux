@@ -17,6 +17,7 @@ import { TruthLegend } from "./TruthLegend";
 const PAGES: Record<RouteId, ComponentType> = {
   main: lazy(() => import("../pages/MainPage").then((module) => ({ default: module.App }))),
   explainer: lazy(() => import("../pages/ExplainerPage").then((module) => ({ default: module.ExplainerPage }))),
+  minnesota: lazy(() => import("../minnesota/MinnesotaControlRoom").then((module) => ({ default: module.MinnesotaControlRoom }))),
 };
 
 /** Keep failed lazy page imports inside the shared shell and recovery surface. */
